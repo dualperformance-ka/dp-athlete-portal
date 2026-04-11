@@ -305,8 +305,8 @@ async function loadWeek(){
 
   sessions=data.results.map(p=>({
     id:p.id,
-    name:p.properties['Name']?.title?.[0]?.text?.content||'Session',
-    date:p.properties['Date']?.date?.start||'',
+   name:p.properties['Name']?.title?.[0]?.text?.content||p.properties['Session']?.title?.[0]?.text?.content||p.properties['Running Session']?.relation?.[0]?.name||p.properties['Workout Splits']?.relation?.[0]?.name||'Session',
+   date:p.properties['Date']?.date?.start||p.properties['Planned Date']?.date?.start||'',
     sessionType:p.properties['Session Type']?.select?.name||'',
     status:p.properties['Status']?.status?.name||p.properties['Status']?.select?.name||'Planned',
     runningSession:p.properties['Running Session']?.relation?.[0]?.id||null,
