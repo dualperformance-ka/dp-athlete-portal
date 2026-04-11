@@ -355,7 +355,7 @@ function renderBody(s,i,type){
     h+="<div class="lf"><label>How it felt</label><select class="li" id="rf_"+i+""><option value="">...</option>"+["Great — felt easy","Good — solid session","Average — got through it","Tough — struggled","Bad — cut it short"].map(function(f){return"<option"+(sl.feel===f?" selected":"")+">"+f+"</option>"}).join("")+"</select></div>";
     h+="</div>";
     h+="<div class="lf" style="margin-bottom:10px"><label>Notes</label><input type="text" class="li" id="rn_"+i+"" placeholder="Anything to flag..." value=""+(sl.notes||"")+"" /></div>";
-    h+="<button class="savebtn" id="sb_"+i+"" onclick="saveRun("+i+"))">Save run</button>";
+    h+="<button class="savebtn" id="sb_"+i+"" onclick="saveRun("+i+")">Save run</button>";
   } else if(type==="strength"){
     var splitKey=Object.keys(GYM).find(function(k){return s.name.includes(k)})||s.splitName||"Upper A";
     var exercises=STR[splitKey]||[];
