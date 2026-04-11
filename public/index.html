@@ -224,7 +224,12 @@ async function loadWeek(){
     var pr=p.properties;
     return {
       id:p.id,
-      name:(pr['Name']&&pr['Name'].title&&pr['Name'].title[0]&&pr['Name'].title[0].text.content)||'Session',
+      name:(pr['Name']&&pr['Name'].title&&pr['Name'].title[0]&&pr['Name'].title[0].text.content)||
+         (pr['Session']&&pr['Session'].title&&pr['Session'].title[0]&&pr['Session'].title[0].text.content)||
+         (pr['Session']&&pr['Session'].rich_text&&pr['Session'].rich_text[0]&&pr['Session'].rich_text[0].text.content)||
+         (pr['Session']&&pr['Session'].select&&pr['Session'].select.name)||
+         (pr['Session']&&pr['Session'].formula&&pr['Session'].formula.string)||
+         'Session',
       date:(pr['Planned Date']&&pr['Planned Date'].date&&pr['Planned Date'].date.start)||'',
       sessionType:(pr['Session Type']&&pr['Session Type'].select&&pr['Session Type'].select.name)||'',
       status:(pr['Status']&&(pr['Status'].status||pr['Status'].select)&&((pr['Status'].status||pr['Status'].select).name))||'Planned',
