@@ -300,7 +300,7 @@ function renderCalendar(ws){
     html+=`<div class="day-group"><div class="dgh${isToday?" today":""}">
       <span class="dgname">${DAYS[di]}</span>
       <span class="dgdate">${dayLabel}</span>
-      ${isToday?"<span class="today-tag">Today</span>":""}
+      ${isToday?'<span class="today-tag">Today</span>':''}
     </div>`;
 
     if(!daySessions.length){
@@ -383,12 +383,12 @@ function renderBody(s,i,type){
             </button>
           </div>`}).join("")}
         </div>
-        <button class="addset" onclick="addSet(${i},${ei},"${ex.reps}")">+ Add set</button>
+        <button class="addset" onclick="addSet(${i},${ei},'${ex.reps}')">+ Add set</button>
         </div>`;
       });
       h+=`</div>`;
     }
-    h+=`<button class="savebtn" id="sb_${i}" onclick="saveGym(${i},"${splitKey}")">Save session</button>`;
+    h+=`<button class="savebtn" id="sb_${i}" onclick="saveGym(${i},'${splitKey}')">Save session</button>`;
   } else {
     h+=`<div style="font-family:var(--mono);font-size:12px;color:var(--dim);padding:4px 0">Rest up. Recovery is training too.</div>`;
   }
