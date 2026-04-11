@@ -247,7 +247,9 @@ async function loadWeek(){
 
   // Filter to this week client-side using Planned Date
   const wsISO=ws.toISOString().split("T")[0];
-  const weISO=we.toISOString().split("T")[0];
+  // Add 1 day buffer to catch Sunday sessions (timezone edge case)
+  const wePlus=new Date(we);wePlus.setDate(we.getDate()+1);
+  const weISO=wePlus.toISOString().split("T")[0];
 
   const allSessions=data.results.map(p=>({
     id:p.id,
