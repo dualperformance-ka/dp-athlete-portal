@@ -373,7 +373,7 @@ async function saveRun(i){
   var d={distance:document.getElementById('rd_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
   logs[s.id]=d; localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   await api('pages',{parent:{database_id:PERF_DB},properties:{
-    'Athlete':{title:[{text:{content:athlete.name+' \u2014 '+s.name+' \u2014 '+s.date}}]},
+    'Name':{title:[{text:{content:athlete.name+' \u2014 '+s.name+' \u2014 '+s.date}}]},
     'Athlete':{rich_text:[{text:{content:athlete.name}}]},
     'Date':{date:{start:s.date}},
     'Exercise':{rich_text:[{text:{content:s.name}}]},
@@ -400,7 +400,7 @@ async function saveGym(i,splitKey){
   for(var exName in log){
     var sets=log[exName], s1=sets[0]||{}, s2=sets[1]||{}, s3=sets[2]||{}, s4=sets[3]||{};
     await api('pages',{parent:{database_id:PERF_DB},properties:{
-      'Athlete':{title:[{text:{content:athlete.name+' \u2014 '+exName+' \u2014 '+s.date}}]},
+      'Name':{title:[{text:{content:athlete.name+' \u2014 '+exName+' \u2014 '+s.date}}]},
       'Athlete':{rich_text:[{text:{content:athlete.name}}]},
       'Date':{date:{start:s.date}},
       'Exercise':{rich_text:[{text:{content:exName}}]},
