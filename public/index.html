@@ -230,8 +230,8 @@ async function doLogin(code){
   // Try local first
   const local=JSON.parse(localStorage.getItem('dp_athletes_v2')||'[]');
   a=local.find(x=>x.code===code);
-  // Try Notion
-  if(!a&&nKey()){
+  // Try Notion via server-side API
+  if(!a){
     const data=await notionReq(`databases/${ATHLETE_DB}/query`,{
       filter:{property:'Code',rich_text:{equals:code}}
     });
