@@ -7,15 +7,11 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   const { endpoint, body } = req.body;
   const token = process.env.NOTION_TOKEN;
 
   if (!token) {
-    return res.status(500).json({ error: 'Notion token not configured' });
+    return res.status(500).json({ error: 'NOTION_TOKEN not set' });
   }
 
   try {
