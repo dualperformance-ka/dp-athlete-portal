@@ -403,13 +403,7 @@ async function saveGym(i,splitKey){
       'Session':{rich_text:[{text:{content:s.name||''}}]},
       'Exercise Log':{rich_text:[{text:{content:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg x '+st.reps+'reps';}).join(' | ')}}]},
       'Notes':{rich_text:[{text:{content:athlete.name}}]},
-      'Date':{date:{start:s.date}},
-      'S2 Weight':{rich_text:[{text:{content:s2.weight||''}}]},
-      'S2 Reps':{rich_text:[{text:{content:s2.reps||''}}]},
-      'S3 Weight':{rich_text:[{text:{content:s3.weight||''}}]},
-      'S3 Reps':{rich_text:[{text:{content:s3.reps||''}}]},
-      'S4 Weight':{rich_text:[{text:{content:s4.weight||''}}]},
-      'S4 Reps':{rich_text:[{text:{content:s4.reps||''}}]}
+      'Date':{date:{start:s.date}}
     }});
   }
   showToast('Session saved \u2713');
