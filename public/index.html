@@ -65,7 +65,6 @@ header{background:#0a0a0a;padding:0 20px;height:64px;display:flex;align-items:ce
 .rtn{font-family:var(--display);font-size:17px;font-weight:700;text-transform:uppercase;color:var(--run);margin-bottom:4px}
 .rtd{font-size:13px;color:var(--run);line-height:1.55;margin-bottom:8px;opacity:0.85}
 .rtt{display:flex;gap:8px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;color:var(--run);opacity:0.6}
-.rto{margin-top:8px;padding-top:8px;border-top:1px solid rgba(180,83,9,0.15);font-family:var(--mono);font-size:11px;color:var(--run)}
 .ltitle{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--dim);margin-bottom:10px;margin-top:4px}
 .rlog{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .lf{display:flex;flex-direction:column;gap:4px}
@@ -131,8 +130,8 @@ header{background:#0a0a0a;padding:0 20px;height:64px;display:flex;align-items:ce
   </header>
   <div class="week-nav">
     <div class="nav-row">
-      <button class="arr" onclick="shiftWeek(-1)">←</button>
-      <button class="arr" onclick="shiftWeek(1)">→</button>
+      <button class="arr" onclick="shiftWeek(-1)">&#8592;</button>
+      <button class="arr" onclick="shiftWeek(1)">&#8594;</button>
       <button class="tbtn" onclick="goToday()">Today</button>
     </div>
     <div class="wl" id="wl"></div>
@@ -166,7 +165,29 @@ const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
 let athlete=null, weekOffset=0, sessions=[], ticked={}, logs={};
 
-async function api(endpoint, body){
+// Always use local date — works for any timezone globally
+function localISO(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,"0");
+  const day=String(d.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+day;
+}
+
+function getMon(d){
+  const day=d.getDay();
+  const diff=day===0?-6:1-day;
+  const m=new Date(d.getFullYear(),d.getMonth(),d.getDate()+diff);
+  return m;
+}
+
+function getWS(){
+  const b=new Date();
+  const m=getMon(b);
+  m.setDate(m.getDate()+weekOffset*7);
+  return m;
+}
+
+async function api(endpoint,body){
   try{
     const r=await fetch("/api/notion",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint,body})});
     if(!r.ok){console.log("API",r.status);return null}
@@ -184,54 +205,46 @@ async function doLogin(code){
   const btn=document.getElementById("lbtn");
   btn.textContent="Loading...";btn.disabled=true;
   document.getElementById("lerr").style.display="none";
-
-  const data=await api(`databases/${ATHLETE_DB}/query`,{
-    filter:{property:"Code",rich_text:{equals:code}},
-    page_size:5
+  const data=await api("databases/"+ATHLETE_DB+"/query",{
+    filter:{property:"Code",rich_text:{equals:code}},page_size:5
   });
-
   btn.textContent="Enter portal";btn.disabled=false;
-
   if(!data?.results?.length){
-    document.getElementById("lerr").style.display="block";
-    return;
+    document.getElementById("lerr").style.display="block";return;
   }
-
   const p=data.results[0];
   const props=p.properties;
   athlete={
-    id:p.id,
-    notionPageId:p.id,
+    id:p.id,notionPageId:p.id,
     name:props["Athlete"]?.title?.[0]?.text?.content||props["Name"]?.title?.[0]?.text?.content||"Athlete",
     code
   };
-
   ticked=JSON.parse(localStorage.getItem("dp_ticked_"+code)||"{}");
   logs=JSON.parse(localStorage.getItem("dp_logs_"+code)||"{}");
-
   document.getElementById("loginScreen").style.display="none";
   document.getElementById("portalScreen").style.display="block";
   document.getElementById("apill").textContent=athlete.name;
   loadWeek();
 }
 
-function getMon(d){const day=d.getDay(),diff=day===0?-6:1-day,m=new Date(d);m.setDate(d.getDate()+diff);m.setHours(0,0,0,0);return m}
-function getWS(){const b=new Date(),m=getMon(b);m.setDate(m.getDate()+weekOffset*7);return m}
 function shiftWeek(d){weekOffset+=d;loadWeek()}
 function goToday(){weekOffset=0;loadWeek()}
 
 async function loadWeek(){
   const ws=getWS();
-  const we=new Date(ws);we.setDate(ws.getDate()+6);
+  const we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);
+  const wsISO=localISO(ws);
+  const weISO=localISO(we);
+
   document.getElementById("wl").textContent=
-    ws.toLocaleDateString("en-AU",{day:"numeric",month:"short"})+" – "+we.toLocaleDateString("en-AU",{day:"numeric",month:"short"});
+    ws.toLocaleDateString("en-AU",{day:"numeric",month:"short"})+" – "+
+    we.toLocaleDateString("en-AU",{day:"numeric",month:"short"});
 
   document.getElementById("loadingEl").style.display="block";
   document.getElementById("calEl").style.display="none";
   document.getElementById("noplanEl").style.display="none";
 
-  // Fetch all sessions for this athlete (no date filter - Notion formula fields can't be filtered)
-  const data=await api(`databases/${CALENDAR_DB}/query`,{
+  const data=await api("databases/"+CALENDAR_DB+"/query",{
     filter:{property:"Athlete",relation:{contains:athlete.notionPageId}},
     sorts:[{property:"Planned Date",direction:"ascending"}],
     page_size:100
@@ -241,21 +254,15 @@ async function loadWeek(){
 
   if(!data?.results){
     document.getElementById("noplanEl").style.display="block";
-    updateProgress([]);
-    return;
+    updateProgress([]);return;
   }
 
-  // Filter to this week client-side using Planned Date
-  const wsISO=ws.toISOString().split("T")[0];
-  // Add 1 day buffer to catch Sunday sessions (timezone edge case)
-  const wePlus=new Date(we);wePlus.setDate(we.getDate()+1);
-  const weISO=wePlus.toISOString().split("T")[0];
-
-  const allSessions=data.results.map(p=>({
+  // Map all sessions
+  const all=data.results.map(p=>({
     id:p.id,
     name:p.properties["Name"]?.title?.[0]?.text?.content||
          p.properties["Session"]?.title?.[0]?.text?.content||"Session",
-    date:p.properties["Planned Date"]?.date?.start||p.properties["Date"]?.date?.start||"",
+    date:p.properties["Planned Date"]?.date?.start||"",
     sessionType:p.properties["Session Type"]?.select?.name||"",
     status:p.properties["Status"]?.status?.name||p.properties["Status"]?.select?.name||"Planned",
     runDetails:p.properties["Run Details"]?.rich_text?.[0]?.text?.content||"",
@@ -264,16 +271,15 @@ async function loadWeek(){
     splitName:p.properties["Workout Splits"]?.relation?.[0]?.name||"",
   }));
 
-  // Filter to this week
-  sessions=allSessions.filter(s=>s.date>=wsISO&&s.date<=weISO);
+  // Filter to this week using local ISO comparison
+  sessions=all.filter(s=>s.date&&s.date>=wsISO&&s.date<=weISO);
 
   if(!sessions.length){
     document.getElementById("noplanEl").style.display="block";
-    updateProgress([]);
-    return;
+    updateProgress([]);return;
   }
 
-  renderCalendar(ws);
+  renderCalendar(ws,wsISO);
 }
 
 function getType(s){
@@ -284,129 +290,119 @@ function getType(s){
   return"run";
 }
 
-function fmtD(iso){
-  if(!iso)return"";
-  return new Date(iso+"T00:00:00").toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"});
-}
-
-function renderCalendar(ws){
-  const todayISO=new Date().toISOString().split("T")[0];
+function renderCalendar(ws,wsISO){
+  const todayISO=localISO(new Date());
   let html="";
   for(let di=0;di<7;di++){
-    const d=new Date(ws);d.setDate(ws.getDate()+di);
-    const iso=d.toISOString().split("T")[0];
+    const d=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+di);
+    const iso=localISO(d);
     const dayLabel=d.toLocaleDateString("en-AU",{day:"numeric",month:"short"});
     const isToday=iso===todayISO;
     const daySessions=sessions.filter(s=>s.date===iso);
 
-    html+=`<div class="day-group"><div class="dgh${isToday?" today":""}">
-      <span class="dgname">${DAYS[di]}</span>
-      <span class="dgdate">${dayLabel}</span>
-      ${isToday?'<span class="today-tag">Today</span>':''}
-    </div>`;
+    html+="<div class="day-group"><div class="dgh"+(isToday?" today":"")+"">";
+    html+="<span class="dgname">"+DAYS[di]+"</span>";
+    html+="<span class="dgdate">"+dayLabel+"</span>";
+    if(isToday)html+="<span class="today-tag">Today</span>";
+    html+="</div>";
 
     if(!daySessions.length){
-      html+=`<div class="rest">Rest</div>`;
+      html+="<div class="rest">Rest</div>";
     } else {
-      daySessions.forEach(s=>{
-        const i=sessions.indexOf(s);
-        const type=getType(s);
-        const done=ticked[s.id]||s.status==="Completed";
-        html+=`<div class="sc${done?" done":""}" id="sc_${i}">
-          <div class="sch" onclick="togSession(${i})">
-            <div class="scdot dot-${type}"></div>
-            <div class="sci">
-              <div class="scname ${type}">${s.name}</div>
-              ${s.intensity?`<div class="scsub">${s.intensity}${s.week?" · "+s.week:""}</div>`:""}
-            </div>
-            <button class="tick${done?" on":""}" id="tick_${i}" onclick="event.stopPropagation();tickS(${i})">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            </button>
-          </div>
-          <div class="scb" id="scb_${i}">${renderBody(s,i,type)}</div>
-        </div>`;
+      daySessions.forEach(function(s){
+        var i=sessions.indexOf(s);
+        var type=getType(s);
+        var done=ticked[s.id]||s.status==="Completed";
+        html+="<div class="sc"+(done?" done":"")+"" id="sc_"+i+"">";
+        html+="<div class="sch" onclick="togS("+i+")">";
+        html+="<div class="scdot dot-"+type+""></div>";
+        html+="<div class="sci">";
+        html+="<div class="scname "+type+"">"+s.name+"</div>";
+        if(s.intensity)html+="<div class="scsub">"+s.intensity+(s.week?" · "+s.week:"")+"</div>";
+        html+="</div>";
+        html+="<button class="tick"+(done?" on":"")+"" id="tick_"+i+"" onclick="event.stopPropagation();tickS("+i+")">";
+        html+="<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>";
+        html+="</button></div>";
+        html+="<div class="scb" id="scb_"+i+"">"+renderBody(s,i,type)+"</div>";
+        html+="</div>";
       });
     }
-    html+=`</div>`;
+    html+="</div>";
   }
-
-  const el=document.getElementById("calEl");
-  el.innerHTML=html;
-  el.style.display="block";
+  var el=document.getElementById("calEl");
+  el.innerHTML=html;el.style.display="block";
   updateProgress(sessions);
 }
 
 function renderBody(s,i,type){
-  let h="";
-  if(s.runDetails)h+=`<div class="cnote">${s.runDetails}</div>`;
-
+  var h="";
+  if(s.runDetails)h+="<div class="cnote">"+s.runDetails+"</div>";
   if(type==="run"){
-    const rs=RUN[s.name]||null;
+    var rs=RUN[s.name]||null;
     if(rs){
-      h+=`<div class="rtarget">
-        <div class="rtn">${rs.name}</div>
-        <div class="rtd">${rs.description}</div>
-        <div class="rtt">${rs.type?`<span>${rs.type}</span>`:""}${rs.intensity?` <span>· ${rs.intensity}</span>`:""}${rs.surface?` <span>· ${rs.surface}</span>`:""}${rs.difficulty?` <span>· ${rs.difficulty}</span>`:""}</div>
-      </div>`;
+      h+="<div class="rtarget">";
+      h+="<div class="rtn">"+rs.name+"</div>";
+      h+="<div class="rtd">"+rs.description+"</div>";
+      h+="<div class="rtt">"+(rs.type?"<span>"+rs.type+"</span>":"")+(rs.intensity?" <span>· "+rs.intensity+"</span>":"")+(rs.surface?" <span>· "+rs.surface+"</span>":"")+(rs.difficulty?" <span>· "+rs.difficulty+"</span>":"")+"</div>";
+      h+="</div>";
     }
-    const sl=logs[s.id]||{};
-    h+=`<div class="ltitle">Log your run</div>
-    <div class="rlog">
-      <div class="lf"><label>Distance (km)</label><input type="number" class="li" id="rd_${i}" step="0.1" placeholder="0.0" value="${sl.distance||""}" /></div>
-      <div class="lf"><label>Actual pace</label><input type="text" class="li" id="rp_${i}" placeholder="5:30 /km" value="${sl.pace||""}" /></div>
-      <div class="lf"><label>RPE</label><select class="li" id="rr_${i}"><option value="">...</option>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}"${sl.rpe==n?" selected":""}>${n}/10</option>`).join("")}</select></div>
-      <div class="lf"><label>How it felt</label><select class="li" id="rf_${i}"><option value="">...</option>${["Great — felt easy","Good — solid session","Average — got through it","Tough — struggled","Bad — cut it short"].map(f=>`<option${sl.feel===f?" selected":""}>${f}</option>`).join("")}</select></div>
-    </div>
-    <div class="lf" style="margin-bottom:10px"><label>Notes</label><input type="text" class="li" id="rn_${i}" placeholder="Anything to flag..." value="${sl.notes||""}" /></div>
-    <button class="savebtn" id="sb_${i}" onclick="saveRun(${i})">Save run</button>`;
-
+    var sl=logs[s.id]||{};
+    h+="<div class="ltitle">Log your run</div>";
+    h+="<div class="rlog">";
+    h+="<div class="lf"><label>Distance (km)</label><input type="number" class="li" id="rd_"+i+"" step="0.1" placeholder="0.0" value=""+(sl.distance||"")+"" /></div>";
+    h+="<div class="lf"><label>Actual pace</label><input type="text" class="li" id="rp_"+i+"" placeholder="5:30 /km" value=""+(sl.pace||"")+"" /></div>";
+    h+="<div class="lf"><label>RPE</label><select class="li" id="rr_"+i+""><option value="">...</option>"+[1,2,3,4,5,6,7,8,9,10].map(function(n){return"<option value=""+n+"""+(sl.rpe==n?" selected":"")+">"+n+"/10</option>"}).join("")+"</select></div>";
+    h+="<div class="lf"><label>How it felt</label><select class="li" id="rf_"+i+""><option value="">...</option>"+["Great — felt easy","Good — solid session","Average — got through it","Tough — struggled","Bad — cut it short"].map(function(f){return"<option"+(sl.feel===f?" selected":"")+">"+f+"</option>"}).join("")+"</select></div>";
+    h+="</div>";
+    h+="<div class="lf" style="margin-bottom:10px"><label>Notes</label><input type="text" class="li" id="rn_"+i+"" placeholder="Anything to flag..." value=""+(sl.notes||"")+"" /></div>";
+    h+="<button class="savebtn" id="sb_"+i+"" onclick="saveRun("+i+"))">Save run</button>";
   } else if(type==="strength"){
-    const splitKey=Object.keys(GYM).find(k=>s.name.includes(k))||s.splitName||"Upper A";
-    const exercises=STR[splitKey]||[];
-    const sl=logs[s.id]||{};
+    var splitKey=Object.keys(GYM).find(function(k){return s.name.includes(k)})||s.splitName||"Upper A";
+    var exercises=STR[splitKey]||[];
+    var sl2=logs[s.id]||{};
     if(exercises.length){
-      h+=`<div class="ltitle">Log your sets</div><div class="exlist">`;
-      exercises.forEach((ex,ei)=>{
-        const savedEx=sl[ex.exercise]||[];
-        const sets=parseInt(ex.sets)||2;
-        h+=`<div class="exc"><div class="exh">
-          <div class="exn">${ex.exercise}</div>
-          <div class="exm">${ex.sets}×${ex.reps}${ex.rest?" · "+ex.rest+" rest":""}</div>
-          ${ex.notes?`<div class="exw">${ex.notes}</div>`:""}
-        </div>
-        <div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">✓</div></div>
-        <div class="exsets" id="sets_${i}_${ei}">
-          ${Array.from({length:sets},(_,si)=>{const sv=savedEx[si]||{};return`<div class="setrow" id="sr_${i}_${ei}_${si}">
-            <div class="snum">${si+1}</div>
-            <input type="number" class="si" id="w_${i}_${ei}_${si}" placeholder="—" min="0" step="0.5" value="${sv.weight||""}" />
-            <input type="number" class="si" id="r_${i}_${ei}_${si}" placeholder="${ex.reps}" min="0" value="${sv.reps||""}" />
-            <button class="st${sv.done?" on":""}" id="st_${i}_${ei}_${si}" onclick="togSet(${i},${ei},${si})">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            </button>
-          </div>`}).join("")}
-        </div>
-        <button class="addset" onclick="addSet(${i},${ei},'${ex.reps}')">+ Add set</button>
-        </div>`;
+      h+="<div class="ltitle">Log your sets</div><div class="exlist">";
+      exercises.forEach(function(ex,ei){
+        var savedEx=sl2[ex.exercise]||[];
+        var sets=parseInt(ex.sets)||2;
+        h+="<div class="exc"><div class="exh">";
+        h+="<div class="exn">"+ex.exercise+"</div>";
+        h+="<div class="exm">"+ex.sets+"×"+ex.reps+(ex.rest?" · "+ex.rest+" rest":"")+"</div>";
+        if(ex.notes)h+="<div class="exw">"+ex.notes+"</div>";
+        h+="</div>";
+        h+="<div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">✓</div></div>";
+        h+="<div class="exsets" id="sets_"+i+"_"+ei+"">";
+        for(var si=0;si<sets;si++){
+          var sv=savedEx[si]||{};
+          h+="<div class="setrow" id="sr_"+i+"_"+ei+"_"+si+"">";
+          h+="<div class="snum">"+(si+1)+"</div>";
+          h+="<input type="number" class="si" id="w_"+i+"_"+ei+"_"+si+"" placeholder="—" min="0" step="0.5" value=""+(sv.weight||"")+"" />";
+          h+="<input type="number" class="si" id="r_"+i+"_"+ei+"_"+si+"" placeholder=""+ex.reps+"" min="0" value=""+(sv.reps||"")+"" />";
+          h+="<button class="st"+(sv.done?" on":"")+"" id="st_"+i+"_"+ei+"_"+si+"" onclick="togSet("+i+","+ei+","+si+")"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>";
+          h+="</div>";
+        }
+        h+="</div>";
+        h+="<button class="addset" onclick="addSet("+i+","+ei+",&quot;"+ex.reps+"&quot;)">+ Add set</button>";
+        h+="</div>";
       });
-      h+=`</div>`;
+      h+="</div>";
     }
-    h+=`<button class="savebtn" id="sb_${i}" onclick="saveGym(${i},'${splitKey}')">Save session</button>`;
+    h+="<button class="savebtn" id="sb_"+i+"" onclick="saveGym("+i+",&quot;"+splitKey+"&quot;)">Save session</button>";
   } else {
-    h+=`<div style="font-family:var(--mono);font-size:12px;color:var(--dim);padding:4px 0">Rest up. Recovery is training too.</div>`;
+    h+="<div style="font-family:var(--mono);font-size:12px;color:var(--dim);padding:4px 0">Rest up. Recovery is training too.</div>";
   }
   return h;
 }
 
-function togSession(i){document.getElementById("scb_"+i).classList.toggle("open")}
+function togS(i){document.getElementById("scb_"+i).classList.toggle("open")}
 
 async function tickS(i){
-  const s=sessions[i];
-  const done=!ticked[s.id];
+  var s=sessions[i];
+  var done=!ticked[s.id];
   ticked[s.id]=done;
   localStorage.setItem("dp_ticked_"+athlete.code,JSON.stringify(ticked));
-  const card=document.getElementById("sc_"+i);
-  const btn=document.getElementById("tick_"+i);
-  card.classList.toggle("done",done);
+  document.getElementById("sc_"+i).classList.toggle("done",done);
+  var btn=document.getElementById("tick_"+i);
   btn.classList.toggle("on",done);
   btn.querySelector("svg").style.opacity=done?1:0;
   updateProgress(sessions);
@@ -414,8 +410,8 @@ async function tickS(i){
 }
 
 function togSet(i,ei,si){
-  const btn=document.getElementById("st_"+i+"_"+ei+"_"+si);
-  const on=!btn.classList.contains("on");
+  var btn=document.getElementById("st_"+i+"_"+ei+"_"+si);
+  var on=!btn.classList.contains("on");
   btn.classList.toggle("on",on);
   btn.querySelector("svg").style.opacity=on?1:0;
   btn.style.background=on?"var(--ok)":"transparent";
@@ -423,23 +419,28 @@ function togSet(i,ei,si){
 }
 
 function addSet(i,ei,rep){
-  const c=document.getElementById("sets_"+i+"_"+ei);
-  const si=c.querySelectorAll(".setrow").length;
-  const row=document.createElement("div");
+  var c=document.getElementById("sets_"+i+"_"+ei);
+  var si=c.querySelectorAll(".setrow").length;
+  var row=document.createElement("div");
   row.className="setrow";row.id="sr_"+i+"_"+ei+"_"+si;
-  row.innerHTML=`<div class="snum">${si+1}</div>
-    <input type="number" class="si" id="w_${i}_${ei}_${si}" placeholder="—" min="0" step="0.5" />
-    <input type="number" class="si" id="r_${i}_${ei}_${si}" placeholder="${rep}" min="0" />
-    <button class="st" id="st_${i}_${ei}_${si}" onclick="togSet(${i},${ei},${si})">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-    </button>`;
+  row.innerHTML="<div class="snum">"+(si+1)+"</div>"+
+    "<input type="number" class="si" id="w_"+i+"_"+ei+"_"+si+"" placeholder="—" min="0" step="0.5" />"+
+    "<input type="number" class="si" id="r_"+i+"_"+ei+"_"+si+"" placeholder=""+rep+"" min="0" />"+
+    "<button class="st" id="st_"+i+"_"+ei+"_"+si+"" onclick="togSet("+i+","+ei+","+si+")"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>";
   c.appendChild(row);
 }
 
 async function saveRun(i){
-  const s=sessions[i];
-  const data={distance:document.getElementById("rd_"+i)?.value||"",pace:document.getElementById("rp_"+i)?.value||"",rpe:document.getElementById("rr_"+i)?.value||"",feel:document.getElementById("rf_"+i)?.value||"",notes:document.getElementById("rn_"+i)?.value||""};
-  logs[s.id]=data;localStorage.setItem("dp_logs_"+athlete.code,JSON.stringify(logs));
+  var s=sessions[i];
+  var data={
+    distance:document.getElementById("rd_"+i)?.value||"",
+    pace:document.getElementById("rp_"+i)?.value||"",
+    rpe:document.getElementById("rr_"+i)?.value||"",
+    feel:document.getElementById("rf_"+i)?.value||"",
+    notes:document.getElementById("rn_"+i)?.value||""
+  };
+  logs[s.id]=data;
+  localStorage.setItem("dp_logs_"+athlete.code,JSON.stringify(logs));
   await api("pages",{parent:{database_id:PERF_DB},properties:{
     "Name":{title:[{text:{content:athlete.name+" — "+s.name+" — "+s.date}}]},
     "Athlete":{rich_text:[{text:{content:athlete.name}}]},
@@ -449,25 +450,31 @@ async function saveRun(i){
     "S1 Weight":{rich_text:[{text:{content:data.notes||""}}]}
   }});
   toast("Run saved ✓");
-  const btn=document.getElementById("sb_"+i);
-  if(btn){btn.classList.add("saved");btn.textContent="Saved ✓";setTimeout(()=>{btn.classList.remove("saved");btn.textContent="Save run"},2500)}
+  var btn=document.getElementById("sb_"+i);
+  if(btn){btn.classList.add("saved");btn.textContent="Saved ✓";setTimeout(function(){btn.classList.remove("saved");btn.textContent="Save run"},2500)}
 }
 
 async function saveGym(i,splitKey){
-  const s=sessions[i];const exercises=STR[splitKey]||[];const log={};
-  exercises.forEach((ex,ei)=>{
-    const sets=[];const c=document.getElementById("sets_"+i+"_"+ei);if(!c)return;
-    c.querySelectorAll(".setrow").forEach((_,si)=>{
-      const w=document.getElementById("w_"+i+"_"+ei+"_"+si)?.value||"";
-      const r=document.getElementById("r_"+i+"_"+ei+"_"+si)?.value||"";
-      const done=document.getElementById("st_"+i+"_"+ei+"_"+si)?.classList.contains("on")||false;
-      if(w||r||done)sets.push({weight:w,reps:r,done});
+  var s=sessions[i];
+  var exercises=STR[splitKey]||[];
+  var log={};
+  exercises.forEach(function(ex,ei){
+    var sets=[];
+    var c=document.getElementById("sets_"+i+"_"+ei);
+    if(!c)return;
+    c.querySelectorAll(".setrow").forEach(function(_,si){
+      var w=document.getElementById("w_"+i+"_"+ei+"_"+si)?.value||"";
+      var r=document.getElementById("r_"+i+"_"+ei+"_"+si)?.value||"";
+      var done=document.getElementById("st_"+i+"_"+ei+"_"+si)?.classList.contains("on")||false;
+      if(w||r||done)sets.push({weight:w,reps:r,done:done});
     });
     if(sets.length)log[ex.exercise]=sets;
   });
-  logs[s.id]=log;localStorage.setItem("dp_logs_"+athlete.code,JSON.stringify(logs));
-  for(const[exName,sets]of Object.entries(log)){
-    const s1=sets[0]||{},s2=sets[1]||{},s3=sets[2]||{},s4=sets[3]||{};
+  logs[s.id]=log;
+  localStorage.setItem("dp_logs_"+athlete.code,JSON.stringify(logs));
+  for(var exName in log){
+    var sets=log[exName];
+    var s1=sets[0]||{},s2=sets[1]||{},s3=sets[2]||{},s4=sets[3]||{};
     await api("pages",{parent:{database_id:PERF_DB},properties:{
       "Name":{title:[{text:{content:athlete.name+" — "+exName+" — "+s.date}}]},
       "Athlete":{rich_text:[{text:{content:athlete.name}}]},
@@ -485,20 +492,25 @@ async function saveGym(i,splitKey){
     }});
   }
   toast("Session saved ✓");
-  const btn=document.getElementById("sb_"+i);
-  if(btn){btn.classList.add("saved");btn.textContent="Saved ✓";setTimeout(()=>{btn.classList.remove("saved");btn.textContent="Save session"},2500)}
+  var btn=document.getElementById("sb_"+i);
+  if(btn){btn.classList.add("saved");btn.textContent="Saved ✓";setTimeout(function(){btn.classList.remove("saved");btn.textContent="Save session"},2500)}
 }
 
 function updateProgress(ss){
-  const total=ss.length,done=ss.filter(s=>ticked[s.id]||s.status==="Completed").length;
-  const pct=total?Math.round((done/total)*100):0;
+  var total=ss.length;
+  var done=ss.filter(function(s){return ticked[s.id]||s.status==="Completed"}).length;
+  var pct=total?Math.round((done/total)*100):0;
   document.getElementById("pfill").style.width=pct+"%";
   document.getElementById("plbl").textContent=done+" / "+total+" done";
 }
 
-function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.style.display="block";setTimeout(()=>t.style.display="none",2500)}
+function toast(msg){
+  var t=document.getElementById("toast");
+  t.textContent=msg;t.style.display="block";
+  setTimeout(function(){t.style.display="none"},2500);
+}
 
-const urlCode=new URLSearchParams(location.search).get("code");
+var urlCode=new URLSearchParams(location.search).get("code");
 if(urlCode)doLogin(urlCode);
 else document.getElementById("loginScreen").style.display="block";
 </script>
