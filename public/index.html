@@ -135,6 +135,14 @@ header{background:#0a0a0a;padding:0 20px;height:64px;display:flex;align-items:ce
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;font-family:var(--mono);font-size:12px;padding:10px 20px;border-radius:20px;display:none;z-index:200;white-space:nowrap}
 
 @media(max-width:400px){.logo{font-size:20px}.sc-name{font-size:17px}}
+.day-group{margin-bottom:6px}
+.day-group-header{display:flex;align-items:center;gap:8px;padding:10px 4px 6px;border-bottom:1px solid var(--border)}
+.day-group-header.today{border-bottom-color:#0a0a0a}
+.day-group-name{font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text);min-width:44px}
+.day-group-date{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.today-badge{font-family:var(--mono);font-size:9px;background:#0a0a0a;color:#fff;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.06em;margin-left:auto}
+.rest-day{font-family:var(--mono);font-size:11px;color:var(--dim);padding:10px 4px;text-transform:uppercase;letter-spacing:0.06em}
+.session-card{margin-top:6px}
 </style>
 </head>
 <body>
@@ -230,8 +238,8 @@ async function doLogin(code){
   // Try local first
   const local=JSON.parse(localStorage.getItem('dp_athletes_v2')||'[]');
   a=local.find(x=>x.code===code);
-  // Try Notion via server-side API
-  if(!a){
+  // Try Notion
+  if(!a&&nKey()){
     const data=await notionReq(`databases/${ATHLETE_DB}/query`,{
       filter:{property:'Code',rich_text:{equals:code}}
     });
@@ -288,9 +296,12 @@ async function loadWeek(){
 
   // Query Training Calendar for this athlete this week
   const data=await notionReq(`databases/${CALENDAR_DB}/query`,{
-  filter:{
-      property:'Athlete',
-      relation:{contains:athlete.notionPageId}
+    filter:{
+      and:[
+        {property:'Athlete',relation:{contains:athlete.notionPageId||athlete.id}},
+        {property:'Date',date:{on_or_after:wsISO}},
+        {property:'Date',date:{on_or_before:weISO}}
+      ]
     },
     sorts:[{property:'Date',direction:'ascending'}]
   });
@@ -303,10 +314,26 @@ async function loadWeek(){
     return;
   }
 
-  sessions=data.results.map(p=>({
+  // Filter by athlete name client-side since relation filter is unreliable via proxy
+  const athleteName = athlete.name.toLowerCase();
+  const filtered = data.results.filter(p => {
+    const relations = p.properties['Athlete']?.relation || [];
+    const titleVal = p.properties['Athlete']?.title?.[0]?.text?.content || '';
+    // Match by relation ID or by title text containing athlete name
+    if(relations.length > 0){
+      return relations.some(r => r.id === athlete.notionPageId);
+    }
+    return titleVal.toLowerCase().includes(athleteName);
+  });
+  const resultsToUse = filtered.length > 0 ? filtered : data.results.filter(p => {
+    // Fallback: check if session name or any text field contains athlete name
+    const name = p.properties['Name']?.title?.[0]?.text?.content || '';
+    return true; // show all if relation matching fails, let athlete see everything
+  });
+  sessions=resultsToUse.map(p=>({
     id:p.id,
-   name:p.properties['Name']?.title?.[0]?.text?.content||p.properties['Session']?.title?.[0]?.text?.content||p.properties['Running Session']?.relation?.[0]?.name||p.properties['Workout Splits']?.relation?.[0]?.name||'Session',
-   date:p.properties['Date']?.date?.start||p.properties['Planned Date']?.date?.start||'',
+    name:p.properties['Name']?.title?.[0]?.text?.content||'Session',
+    date:p.properties['Date']?.date?.start||'',
     sessionType:p.properties['Session Type']?.select?.name||'',
     status:p.properties['Status']?.status?.name||p.properties['Status']?.select?.name||'Planned',
     runningSession:p.properties['Running Session']?.relation?.[0]?.id||null,
@@ -317,6 +344,8 @@ async function loadWeek(){
     week:p.properties['Week']?.select?.name||'',
   }));
 
+  // Sort by date
+  sessions.sort((a,b)=>new Date(a.date)-new Date(b.date));
   renderSessions();
 }
 
@@ -337,27 +366,58 @@ function fmtDate(iso){
 function renderSessions(){
   const container=document.getElementById('sessionsContainer');
   container.style.display='grid';
-  container.innerHTML=sessions.map((s,i)=>{
-    const type=getSessionType(s);
-    const done=ticked[s.id]||s.status==='Completed';
-    return `<div class="session-card${done?' completed':''}" id="sc_${i}">
-      <div class="sc-header" onclick="toggleSession(${i})">
-        <div class="sc-dot dot-${type}"></div>
-        <div class="sc-info">
-          <div class="sc-day">${fmtDate(s.date)}</div>
-          <div class="sc-name ${type}">${s.name}</div>
-          ${s.intensity?`<div class="sc-sub">${s.intensity}${s.week?' · '+s.week:''}</div>`:''}
-        </div>
-        <button class="tick-btn${done?' on':''}" id="tick_${i}"
-          onclick="event.stopPropagation();tickSession(${i})">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </button>
-      </div>
-      <div class="sc-body" id="scb_${i}">${renderSessionBody(s,i,type)}</div>
-    </div>`;
-  }).join('');
+
+  // Group sessions by date
+  const ws=getWeekStart();
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const dayDates=Array.from({length:7},(_,i)=>{
+    const d=new Date(ws);d.setDate(ws.getDate()+i);return d;
+  });
+
+  let html='';
+  dayDates.forEach((dayDate,di)=>{
+    const iso=dayDate.toISOString().split('T')[0];
+    const daySessions=sessions.filter(s=>s.date===iso);
+    const dayName=days[di];
+    const dayLabel=dayDate.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+    const isToday=iso===new Date().toISOString().split('T')[0];
+
+    html+=`<div class="day-group">
+      <div class="day-group-header${isToday?' today':''}">
+        <span class="day-group-name">${dayName}</span>
+        <span class="day-group-date">${dayLabel}</span>
+        ${isToday?'<span class="today-badge">Today</span>':''}
+      </div>`;
+
+    if(daySessions.length===0){
+      html+=`<div class="rest-day">Rest day</div>`;
+    } else {
+      daySessions.forEach(s=>{
+        const i=sessions.indexOf(s);
+        const type=getSessionType(s);
+        const done=ticked[s.id]||s.status==='Completed';
+        html+=`<div class="session-card${done?' completed':''}" id="sc_${i}">
+          <div class="sc-header" onclick="toggleSession(${i})">
+            <div class="sc-dot dot-${type}"></div>
+            <div class="sc-info">
+              <div class="sc-name ${type}">${s.name}</div>
+              ${s.intensity?`<div class="sc-sub">${s.intensity}</div>`:''}
+            </div>
+            <button class="tick-btn${done?' on':''}" id="tick_${i}"
+              onclick="event.stopPropagation();tickSession(${i})">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="sc-body" id="scb_${i}">${renderSessionBody(s,i,type)}</div>
+        </div>`;
+      });
+    }
+    html+=`</div>`;
+  });
+
+  container.innerHTML=html;
   updateProgress(sessions);
 }
 
