@@ -288,12 +288,9 @@ async function loadWeek(){
 
   // Query Training Calendar for this athlete this week
   const data=await notionReq(`databases/${CALENDAR_DB}/query`,{
-    filter:{
-      and:[
-        {property:'Athlete',relation:{contains:athlete.notionPageId||athlete.id}},
-        {property:'Date',date:{on_or_after:wsISO}},
-        {property:'Date',date:{on_or_before:weISO}}
-      ]
+  filter:{
+      property:'Athlete',
+      relation:{contains:athlete.notionPageId}
     },
     sorts:[{property:'Date',direction:'ascending'}]
   });
