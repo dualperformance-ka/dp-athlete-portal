@@ -1,30 +1,3 @@
-// FORCE Notion requests to go through Vercel proxy
-async function notionReq(endpoint, body) {
-  try {
-    const r = await fetch('/api/notion', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        endpoint,
-        body
-      })
-    });
-
-    const data = await r.json().catch(() => null);
-
-    if (!r.ok) {
-      console.error('Notion API error:', data);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Notion request failed:', error);
-    return null;
-  }
-}
 <!DOCTYPE html>
 <html lang="en">
 <head>
