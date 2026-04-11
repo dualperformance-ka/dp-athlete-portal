@@ -374,11 +374,10 @@ async function saveRun(i){
   logs[s.id]=d; localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   await api('pages',{parent:{database_id:PERF_DB},properties:{
     'Name':{title:[{text:{content:athlete.name+' \u2014 '+s.name+' \u2014 '+s.date}}]},
-    'Athlete':{rich_text:[{text:{content:athlete.name}}]},
-    'Date':{date:{start:s.date}},
-    'Exercise':{rich_text:[{text:{content:s.name}}]},
-    'Sets':{rich_text:[{text:{content:'Dist:'+d.distance+'km Pace:'+d.pace+' RPE:'+d.rpe+' Feel:'+d.feel}}]},
-    'S1 Weight':{rich_text:[{text:{content:d.notes||''}}]}
+    'Session':{rich_text:[{text:{content:s.name||''}}]},
+    'Exercise Log':{rich_text:[{text:{content:'Distance: '+d.distance+'km | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel}}]},
+    'Notes':{rich_text:[{text:{content:d.notes||''}}]},
+    'Date':{date:{start:s.date}}
   }});
   showToast('Run saved \u2713');
   var btn=document.getElementById('sb_'+i);
@@ -401,12 +400,10 @@ async function saveGym(i,splitKey){
     var sets=log[exName], s1=sets[0]||{}, s2=sets[1]||{}, s3=sets[2]||{}, s4=sets[3]||{};
     await api('pages',{parent:{database_id:PERF_DB},properties:{
       'Name':{title:[{text:{content:athlete.name+' \u2014 '+exName+' \u2014 '+s.date}}]},
-      'Athlete':{rich_text:[{text:{content:athlete.name}}]},
+      'Session':{rich_text:[{text:{content:s.name||''}}]},
+      'Exercise Log':{rich_text:[{text:{content:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg x '+st.reps+'reps';}).join(' | ')}}]},
+      'Notes':{rich_text:[{text:{content:athlete.name}}]},
       'Date':{date:{start:s.date}},
-      'Exercise':{rich_text:[{text:{content:exName}}]},
-      'Sets':{number:sets.length},
-      'S1 Weight':{rich_text:[{text:{content:s1.weight||''}}]},
-      'S1 Reps':{rich_text:[{text:{content:s1.reps||''}}]},
       'S2 Weight':{rich_text:[{text:{content:s2.weight||''}}]},
       'S2 Reps':{rich_text:[{text:{content:s2.reps||''}}]},
       'S3 Weight':{rich_text:[{text:{content:s3.weight||''}}]},
