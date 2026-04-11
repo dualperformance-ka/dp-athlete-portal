@@ -96,6 +96,13 @@ header{background:#0a0a0a;padding:0 20px;height:64px;display:flex;align-items:ce
 .cinput:focus{border-color:var(--border-strong);background:var(--surface)}
 .lbtn{width:100%;padding:14px;background:#0a0a0a;color:#fff;border:none;border-radius:8px;font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;cursor:pointer}
 .lerr{font-family:var(--mono);font-size:12px;color:#b91c1c;margin-top:8px;text-align:center;display:none}
+.hero{background:#0a0a0a;padding:28px 20px 24px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.hero-inner{max-width:680px;margin:0 auto}
+.hero-greeting{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px}
+.hero-name{font-family:var(--display);font-size:38px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#fff;line-height:1;margin-bottom:16px}
+.hero-meta{display:flex;gap:20px;flex-wrap:wrap}
+.hero-pill{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.12);padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:6px}
+.hero-pill span{color:rgba(255,255,255,0.8)}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;font-family:var(--mono);font-size:12px;padding:10px 20px;border-radius:20px;display:none;z-index:200;white-space:nowrap}
 @media(max-width:400px){.logo{font-size:20px}.scname{font-size:16px}.rlog{grid-template-columns:1fr}}
 </style>
@@ -119,6 +126,17 @@ header{background:#0a0a0a;padding:0 20px;height:64px;display:flex;align-items:ce
     </div>
     <div class="apill" id="apill"></div>
   </header>
+  <div class="hero" id="heroEl" style="display:none">
+    <div class="hero-inner">
+      <div class="hero-greeting">Training Portal</div>
+      <div class="hero-name" id="heroName"></div>
+      <div class="hero-meta">
+        <div class="hero-pill">Week &nbsp;<span id="heroWeek">—</span></div>
+        <div class="hero-pill">Coaches &nbsp;<span>Karl &amp; Alex</span></div>
+        <div class="hero-pill">Programme &nbsp;<span id="heroProg">—</span></div>
+      </div>
+    </div>
+  </div>
   <div class="week-nav">
     <div class="nav-row">
       <button class="arr" onclick="shiftWeek(-1)">&#8592;</button>
@@ -199,6 +217,8 @@ async function doLogin(code){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('portalScreen').style.display='block';
   document.getElementById('apill').textContent=athlete.name;
+  document.getElementById('heroEl').style.display='block';
+  document.getElementById('heroName').textContent=athlete.name;
   loadWeek();
 }
 function shiftWeek(d){weekOffset+=d;loadWeek();}
@@ -210,6 +230,10 @@ async function loadWeek(){
   document.getElementById('wl').textContent=
     ws.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' \u2013 '+
     we.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+  // Update hero week info from sessions
+  var heroWeekEl=document.getElementById('heroWeek');
+  var heroProgEl=document.getElementById('heroProg');
+  if(heroWeekEl)heroWeekEl.textContent=weekOffset===0?'Current':(weekOffset>0?'+'+weekOffset:weekOffset);
   document.getElementById('loadingEl').style.display='block';
   document.getElementById('calEl').style.display='none';
   document.getElementById('noplanEl').style.display='none';
@@ -241,6 +265,11 @@ async function loadWeek(){
   });
   sessions=all.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
   if(!sessions.length){document.getElementById('noplanEl').style.display='block';updateProgress([]);return;}
+  // Update week label from session data
+  var weekLabel=sessions.find(function(s){return s.week;});
+  if(weekLabel&&document.getElementById('heroWeek'))document.getElementById('heroWeek').textContent=weekLabel.week;
+  var progLabel=sessions.find(function(s){return s.sessionType;});
+  if(document.getElementById('heroProg'))document.getElementById('heroProg').textContent=sessions.length+' sessions';
   renderCalendar(ws);
 }
 function getType(s){
