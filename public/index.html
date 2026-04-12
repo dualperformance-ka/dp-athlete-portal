@@ -138,18 +138,30 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .goals-label{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
 .goals-name{font-family:var(--display);font-size:28px;font-weight:700;text-transform:uppercase;color:#fff;letter-spacing:.04em;margin-bottom:4px}
 .goals-sub{font-size:13px;color:rgba(255,255,255,.45);line-height:1.5}
+.goals-saved-badge{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);margin-top:10px;display:none}
+.goals-saved-badge.show{display:block}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:12px}
 .card-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:12px}
-.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.metric{display:flex;flex-direction:column;gap:2px}
-.metric-label{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
-.metric-val{font-family:var(--display);font-size:26px;font-weight:700;letter-spacing:.02em;line-height:1.1}
-.metric-val.run{color:var(--run)}.metric-val.strength{color:var(--strength)}
-.why-block{background:var(--surface2);border-radius:9px;padding:14px;font-size:13px;color:var(--muted);line-height:1.65;font-style:italic}
-.milestone-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.milestone{background:var(--surface2);border-radius:9px;padding:12px;text-align:center}
-.milestone-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-.milestone-val{font-family:var(--display);font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+/* stat input grid */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+.stat-field{display:flex;flex-direction:column;gap:5px}
+.stat-field label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em}
+.stat-input{width:100%;background:var(--surface2);border:1px solid var(--border-mid);border-radius:7px;padding:10px 12px;color:var(--text);font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:.02em;outline:none;-webkit-appearance:none;-moz-appearance:none}
+.stat-input:focus{border-color:var(--border-strong);background:#fff}
+.stat-input::placeholder{color:var(--dim);font-size:18px;font-weight:400}
+/* time inputs hint */
+.field-hint{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:.04em}
+/* why textarea */
+.why-textarea{width:100%;background:var(--surface2);border:1px solid var(--border-mid);border-radius:9px;padding:14px;font-size:14px;color:var(--text);font-family:var(--body);line-height:1.6;outline:none;resize:vertical;min-height:100px}
+.why-textarea:focus{border-color:var(--border-strong);background:#fff}
+.why-textarea::placeholder{color:var(--dim);font-style:italic}
+/* milestone inputs */
+.milestone-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.milestone-field{display:flex;flex-direction:column;gap:6px}
+.milestone-field label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;text-align:center}
+.milestone-input{width:100%;background:var(--surface2);border:1px solid var(--border-mid);border-radius:8px;padding:10px 8px;font-family:var(--body);font-size:13px;color:var(--text);outline:none;resize:none;min-height:72px;text-align:center;line-height:1.4}
+.milestone-input:focus{border-color:var(--border-strong);background:#fff}
+.milestone-input::placeholder{color:var(--dim);font-style:italic;font-size:12px}
 
 /* ── CHECK-IN TAB ── */
 .checkin-cta{background:#0a0a0a;border-radius:12px;padding:22px;margin-bottom:12px}
@@ -293,32 +305,89 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <!-- GOALS -->
   <div class="tab-content" id="tab-goals">
     <div class="stitle">Your Goals</div>
-    <div class="goals-hero" id="goalsHero">
+    <div class="goals-hero">
       <div class="goals-label">Programme Overview</div>
       <div class="goals-name" id="goalName">—</div>
-      <div class="goals-sub" id="goalSub">Loading...</div>
+      <div class="goals-sub">Fill in your current stats and goals below. Your coaches can see everything you submit — the more honest you are, the better we can coach you.</div>
+      <div class="goals-saved-badge" id="goalsSavedBadge">✓ Last saved <span id="goalsSavedTime"></span></div>
     </div>
+
+    <!-- BODY COMPOSITION -->
     <div class="card">
-      <div class="card-title">Current Stats</div>
-      <div class="metric-grid">
-        <div class="metric"><div class="metric-label">Body Weight</div><div class="metric-val" id="gWeight">—</div></div>
-        <div class="metric"><div class="metric-label">Body Fat %</div><div class="metric-val" id="gBodyFat">—</div></div>
-        <div class="metric"><div class="metric-label">5km Time</div><div class="metric-val run" id="g5k">—</div></div>
-        <div class="metric"><div class="metric-label">10km Time</div><div class="metric-val run" id="g10k">—</div></div>
+      <div class="card-title">Body Composition</div>
+      <div class="stat-grid">
+        <div class="stat-field">
+          <label>Body Weight</label>
+          <input class="stat-input" id="gWeight" type="text" placeholder="72.0" />
+          <div class="field-hint">kg</div>
+        </div>
+        <div class="stat-field">
+          <label>Body Fat %</label>
+          <input class="stat-input" id="gBodyFat" type="text" placeholder="15" />
+          <div class="field-hint">estimated %</div>
+        </div>
       </div>
     </div>
+
+    <!-- RUNNING TIMES -->
     <div class="card">
-      <div class="card-title">Milestones</div>
-      <div class="milestone-row">
-        <div class="milestone"><div class="milestone-label">Week 4</div><div class="milestone-val" id="m4">—</div></div>
-        <div class="milestone"><div class="milestone-label">Week 8</div><div class="milestone-val" id="m8">—</div></div>
-        <div class="milestone"><div class="milestone-label">Week 12</div><div class="milestone-val" id="m12">—</div></div>
+      <div class="card-title">Current Running Times</div>
+      <div class="stat-grid">
+        <div class="stat-field">
+          <label>5km</label>
+          <input class="stat-input" id="g5k" type="text" placeholder="23:00" />
+          <div class="field-hint">mm:ss</div>
+        </div>
+        <div class="stat-field">
+          <label>10km</label>
+          <input class="stat-input" id="g10k" type="text" placeholder="48:00" />
+          <div class="field-hint">mm:ss</div>
+        </div>
+        <div class="stat-field">
+          <label>Half Marathon</label>
+          <input class="stat-input" id="gHalf" type="text" placeholder="1:45:00" />
+          <div class="field-hint">h:mm:ss</div>
+        </div>
+        <div class="stat-field">
+          <label>Marathon</label>
+          <input class="stat-input" id="gMarathon" type="text" placeholder="3:45:00" />
+          <div class="field-hint">h:mm:ss</div>
+        </div>
+        <div class="stat-field">
+          <label>Long Run Pace</label>
+          <input class="stat-input" id="gLRPace" type="text" placeholder="5:30" />
+          <div class="field-hint">min/km easy</div>
+        </div>
       </div>
     </div>
+
+    <!-- YOUR WHY -->
     <div class="card">
       <div class="card-title">Your Why</div>
-      <div class="why-block" id="gWhy">Loading your goals...</div>
+      <textarea class="why-textarea" id="gWhy" placeholder="Why did you join Dual Performance? What does success look like for you at the end of these 12 weeks? Be specific and honest — this is what we coach you toward."></textarea>
     </div>
+
+    <!-- MILESTONES -->
+    <div class="card">
+      <div class="card-title">Milestones — What does success look like?</div>
+      <div class="milestone-grid">
+        <div class="milestone-field">
+          <label>Week 4</label>
+          <textarea class="milestone-input" id="gM4" placeholder="e.g. Consistent with sessions, feeling stronger on runs..."></textarea>
+        </div>
+        <div class="milestone-field">
+          <label>Week 8</label>
+          <textarea class="milestone-input" id="gM8" placeholder="e.g. Sub-50 10km, noticeable body comp change..."></textarea>
+        </div>
+        <div class="milestone-field">
+          <label>Week 12</label>
+          <textarea class="milestone-input" id="gM12" placeholder="e.g. Race goal, weight target, PB..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <button class="savebtn" id="goalsSaveBtn" onclick="saveGoals()">Save Goals</button>
+    <div style="height:8px"></div>
   </div>
 
   <!-- NUTRITION -->
@@ -487,15 +556,21 @@ async function doLogin(code){
   var p=data.results[0],props=p.properties;
   var name=getNotionTitle(props)||'Athlete';
   athlete={id:p.id,notionPageId:p.id,name:name,code:code,
-    weight:getRichText(props['Body Weight'])||getSelect(props['Body Weight'])||'—',
-    bodyFat:getRichText(props['Body Fat'])||'—',
-    time5k:getRichText(props['5km Time'])||'—',
-    time10k:getRichText(props['10km Time'])||'—',
+    weight:getRichText(props['Body Weight (kg)'])||'',
+    bodyFat:getRichText(props['Body Fat %'])||'',
+    time5k:getRichText(props['5km Time'])||'',
+    time10k:getRichText(props['10km Time'])||'',
+    timeHalf:getRichText(props['Half Marathon Time'])||'',
+    timeMarathon:getRichText(props['Marathon Time'])||'',
+    lrPace:getRichText(props['Long Run Pace'])||'',
     calories:getRichText(props['Calories'])||getSelect(props['Calories'])||'—',
     protein:getRichText(props['Protein'])||'—',
     carbs:getRichText(props['Carbs'])||'—',
     fat:getRichText(props['Fat'])||'—',
     why:getRichText(props['Your Why'])||'',
+    m4:getRichText(props['Milestone W4'])||'',
+    m8:getRichText(props['Milestone W8'])||'',
+    m12:getRichText(props['Milestone W12'])||'',
     startWeight:getRichText(props['Starting Weight'])||'—',
     targetWeight:getRichText(props['Target Weight'])||'—',
     startDate:props['Start Date']&&props['Start Date'].date&&props['Start Date'].date.start||'—',
@@ -513,14 +588,25 @@ async function doLogin(code){
 }
 
 function populateStatic(){
-  // Goals
+  // Goals — load from localStorage first, then fall back to athlete props
   document.getElementById('goalName').textContent=athlete.name;
-  document.getElementById('goalSub').textContent='Your 12-week programme with Karl & Alex. Your training plan, nutrition targets, and check-ins all live here.';
-  document.getElementById('gWeight').textContent=athlete.weight;
-  document.getElementById('gBodyFat').textContent=athlete.bodyFat;
-  document.getElementById('g5k').textContent=athlete.time5k;
-  document.getElementById('g10k').textContent=athlete.time10k;
-  document.getElementById('gWhy').textContent=athlete.why||'Your why will be added by your coach after onboarding.';
+  var saved=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
+  document.getElementById('gWeight').value=saved.weight||athlete.weight||'';
+  document.getElementById('gBodyFat').value=saved.bodyFat||athlete.bodyFat||'';
+  document.getElementById('g5k').value=saved.time5k||athlete.time5k||'';
+  document.getElementById('g10k').value=saved.time10k||athlete.time10k||'';
+  document.getElementById('gHalf').value=saved.timeHalf||athlete.timeHalf||'';
+  document.getElementById('gMarathon').value=saved.timeMarathon||athlete.timeMarathon||'';
+  document.getElementById('gLRPace').value=saved.lrPace||athlete.lrPace||'';
+  document.getElementById('gWhy').value=saved.why||athlete.why||'';
+  document.getElementById('gM4').value=saved.m4||athlete.m4||'';
+  document.getElementById('gM8').value=saved.m8||athlete.m8||'';
+  document.getElementById('gM12').value=saved.m12||athlete.m12||'';
+  if(saved.savedAt){
+    var d=new Date(saved.savedAt);
+    document.getElementById('goalsSavedTime').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    document.getElementById('goalsSavedBadge').classList.add('show');
+  }
   // Nutrition
   document.getElementById('nutCal').textContent=athlete.calories;
   document.getElementById('nutPro').textContent=athlete.protein;
@@ -534,6 +620,67 @@ function populateStatic(){
   // Check-in URLs
   if(athlete.checkinUrl!=='CHECKIN_URL'){document.querySelectorAll('[href="CHECKIN_URL"]').forEach(function(el){el.href=athlete.checkinUrl;});}
   if(athlete.whatsapp){document.querySelector('.comms-btn').href='https://wa.me/'+athlete.whatsapp.replace(/\D/g,'');}
+}
+
+async function saveGoals(){
+  var btn=document.getElementById('goalsSaveBtn');
+  btn.textContent='Saving...';btn.disabled=true;
+
+  var goals={
+    weight:document.getElementById('gWeight').value.trim(),
+    bodyFat:document.getElementById('gBodyFat').value.trim(),
+    time5k:document.getElementById('g5k').value.trim(),
+    time10k:document.getElementById('g10k').value.trim(),
+    timeHalf:document.getElementById('gHalf').value.trim(),
+    timeMarathon:document.getElementById('gMarathon').value.trim(),
+    lrPace:document.getElementById('gLRPace').value.trim(),
+    why:document.getElementById('gWhy').value.trim(),
+    m4:document.getElementById('gM4').value.trim(),
+    m8:document.getElementById('gM8').value.trim(),
+    m12:document.getElementById('gM12').value.trim(),
+    savedAt:new Date().toISOString()
+  };
+
+  // Save locally
+  localStorage.setItem('dp_goals_'+athlete.code, JSON.stringify(goals));
+
+  // Build Notion properties patch — names must match Athlete DB columns exactly
+  var props={};
+  var rtProp=function(val){return{rich_text:[{type:'text',text:{content:val}}]};};
+  if(goals.weight)props['Body Weight (kg)']=rtProp(goals.weight);
+  if(goals.bodyFat)props['Body Fat %']=rtProp(goals.bodyFat);
+  if(goals.time5k)props['5km Time']=rtProp(goals.time5k);
+  if(goals.time10k)props['10km Time']=rtProp(goals.time10k);
+  if(goals.timeHalf)props['Half Marathon Time']=rtProp(goals.timeHalf);
+  if(goals.timeMarathon)props['Marathon Time']=rtProp(goals.timeMarathon);
+  if(goals.lrPace)props['Long Run Pace']=rtProp(goals.lrPace);
+  if(goals.why)props['Your Why']=rtProp(goals.why);
+  if(goals.m4)props['Milestone W4']=rtProp(goals.m4);
+  if(goals.m8)props['Milestone W8']=rtProp(goals.m8);
+  if(goals.m12)props['Milestone W12']=rtProp(goals.m12);
+
+  // Patch athlete Notion page
+  var result=await api('pages/'+athlete.notionPageId,{properties:props});
+
+  // Also ping webhook so you get notified
+  await fetch(WEBHOOK,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name:athlete.name+' — Goals Update',
+      session:'Goals',
+      exerciseLog:'',
+      notes:'Weight: '+goals.weight+'kg | Body Fat: '+goals.bodyFat+'% | 5k: '+goals.time5k+' | 10k: '+goals.time10k+' | Half: '+goals.timeHalf+' | Marathon: '+goals.timeMarathon+' | LR Pace: '+goals.lrPace+'/km\n\nWHY: '+goals.why+'\n\nW4: '+goals.m4+'\nW8: '+goals.m8+'\nW12: '+goals.m12,
+      date:new Date().toISOString().split('T')[0],
+      submittedAt:goals.savedAt
+    })
+  }).catch(function(){});
+
+  btn.textContent='Saved ✓';btn.classList.add('saved');
+  var d=new Date(goals.savedAt);
+  document.getElementById('goalsSavedTime').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('goalsSavedBadge').classList.add('show');
+  setTimeout(function(){btn.textContent='Save Goals';btn.classList.remove('saved');btn.disabled=false;},2500);
 }
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
