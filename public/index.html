@@ -818,73 +818,66 @@ async function loadNutrition(){
 
   console.log('Nutrition query - athleteId:', athlete.notionPageId, 'week:', 'Week '+displayWeek);
 
+  // Try select filter first, then rich_text
+  var weekLabel = 'Week ' + displayWeek;
   var data = await api('databases/'+NUTRITION_DB+'/query', {
     filter: {
       and: [
         {property:'Athlete', relation:{contains:athlete.notionPageId}},
-        {property:'Week', select:{equals:'Week '+displayWeek}}
+        {property:'Week', select:{equals:weekLabel}}
       ]
     },
     page_size: 5
   });
 
-  console.log('Query 1 result:', data&&data.results&&data.results.length, 'rows');
+  console.log('Select filter result:', data&&data.results&&data.results.length, 'for', weekLabel);
 
-  // If no result with "Week X" format, try just the number
+  // Try rich_text filter (if Week is text not select)
   if(!data||!data.results||!data.results.length){
     data = await api('databases/'+NUTRITION_DB+'/query', {
       filter: {
         and: [
           {property:'Athlete', relation:{contains:athlete.notionPageId}},
-          {property:'Week', select:{equals:'Week'+displayWeek}}
+          {property:'Week', rich_text:{equals:weekLabel}}
         ]
       },
       page_size: 5
     });
-    console.log('Query 2 result:', data&&data.results&&data.results.length, 'rows');
+    console.log('Rich text filter result:', data&&data.results&&data.results.length);
   }
 
-  // Try WITHOUT athlete filter to see if the DB is readable at all
+  // Try fetching all for this athlete and match manually
   if(!data||!data.results||!data.results.length){
-    var allData = await api('databases/'+NUTRITION_DB+'/query', {page_size:10});
-    console.log('All rows (no filter):', allData&&allData.results&&allData.results.length);
+    var allData = await api('databases/'+NUTRITION_DB+'/query', {
+      filter: {property:'Athlete', relation:{contains:athlete.notionPageId}},
+      page_size: 20
+    });
+    console.log('All athlete rows:', allData&&allData.results&&allData.results.length);
     if(allData&&allData.results){
       allData.results.forEach(function(r){
-        var pr=r.properties;
-        var ath=pr['Athlete']&&pr['Athlete'].relation&&pr['Athlete'].relation[0]&&pr['Athlete'].relation[0].id;
-        var wk=pr['Week']&&pr['Week'].select&&pr['Week'].select.name;
-        console.log('Row: athlete='+ath+' week='+wk+' | our athleteId='+athlete.notionPageId);
+        var w=r.properties['Week'];
+        console.log('Row week prop:', JSON.stringify(w));
       });
-    }
-    // Try matching from all rows
-    if(allData&&allData.results){
-      data={results:allData.results.filter(function(r){
-        var pr=r.properties;
-        var ath=pr['Athlete']&&pr['Athlete'].relation&&pr['Athlete'].relation.some(function(a){
-          return a.id.replace(/-/g,'')===athlete.notionPageId.replace(/-/g,'');
-        });
-        var wk=pr['Week']&&pr['Week'].select&&pr['Week'].select.name;
-        return ath&&wk&&wk.replace(/\s/g,'').toLowerCase()==='week'+displayWeek;
-      })};
-      console.log('Manual filter result:', data.results.length, 'rows');
+      // Match by week number in any format
+      var matched = allData.results.filter(function(r){
+        var w=r.properties['Week'];
+        var wval=(w&&(w.select&&w.select.name||w.rich_text&&w.rich_text[0]&&w.rich_text[0].plain_text||w.title&&w.title[0]&&w.title[0].plain_text))||'';
+        return wval.replace(/\s/g,'').toLowerCase()==='week'+displayWeek;
+      });
+      if(matched.length) data={results:matched};
+      else {
+        // Fallback: most recent
+        data=allData;
+        if(allData.results.length){
+          var wkProp=allData.results[0].properties['Week'];
+          var wkName=(wkProp&&(wkProp.select&&wkProp.select.name||wkProp.rich_text&&wkProp.rich_text[0]&&wkProp.rich_text[0].plain_text))||'';
+          if(wkName) document.getElementById('nutWLabel').textContent=wkName+' (latest)';
+        }
+      }
     }
   }
 
   document.getElementById('nutLoadingEl').style.display = 'none';
-
-  // If still no result, fetch the most recent row for this athlete as fallback
-  if(!data||!data.results||!data.results.length){
-    data = await api('databases/'+NUTRITION_DB+'/query', {
-      filter: {property:'Athlete', relation:{contains:athlete.notionPageId}},
-      sorts: [{property:'Week', direction:'descending'}],
-      page_size: 1
-    });
-    if(data&&data.results&&data.results.length){
-      var wkProp = data.results[0].properties['Week'];
-      var wkName = wkProp&&wkProp.select&&wkProp.select.name||'';
-      if(wkName) document.getElementById('nutWLabel').textContent = wkName + ' (latest)';
-    }
-  }
 
   if(!data||!data.results||!data.results.length){
     document.getElementById('nutNoplan').style.display = 'block';
@@ -892,24 +885,24 @@ async function loadNutrition(){
   }
 
   var pr = data.results[0].properties;
-  console.log('Nutrition row properties:', Object.keys(pr));
-  console.log('Calories prop:', JSON.stringify(pr['Calories (g)']));
-  console.log('Protein prop:', JSON.stringify(pr['Protein (g)']));
-  console.log('All props raw:', JSON.stringify(pr).substring(0,500));
+  console.log('Property keys:', Object.keys(pr));
 
-  var cal    = pr['Calories (g)']&&pr['Calories (g)'].number!=null ? pr['Calories (g)'].number
-             : pr['Calories']&&pr['Calories'].number!=null ? pr['Calories'].number : '—';
-  var pro    = pr['Protein (g)']&&pr['Protein (g)'].number!=null ? pr['Protein (g)'].number
-             : pr['Protein']&&pr['Protein'].number!=null ? pr['Protein'].number : '—';
-  var carbs  = pr['Carbs (g)']&&pr['Carbs (g)'].number!=null ? pr['Carbs (g)'].number
-             : pr['Carbs']&&pr['Carbs'].number!=null ? pr['Carbs'].number : '—';
-  var fat    = pr['Fats (g)']&&pr['Fats (g)'].number!=null ? pr['Fats (g)'].number
-             : pr['Fats']&&pr['Fats'].number!=null ? pr['Fats'].number
-             : pr['Fat (g)']&&pr['Fat (g)'].number!=null ? pr['Fat (g)'].number
-             : pr['Fat']&&pr['Fat'].number!=null ? pr['Fat'].number : '—';
-  var fibre  = pr['Fibre (g)']&&pr['Fibre (g)'].number!=null ? pr['Fibre (g)'].number
-             : pr['Fibre']&&pr['Fibre'].number!=null ? pr['Fibre'].number : '—';
-  var note   = getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
+  // Helper to read a number property trying multiple name variants
+  function getNum(keys){
+    for(var i=0;i<keys.length;i++){
+      var p=pr[keys[i]];
+      if(p&&p.number!=null)return p.number;
+    }
+    // Last resort: scan all props for number type matching keyword
+    return '—';
+  }
+
+  var cal   = getNum(['Calories (g)','Calories','calories','Cal','kcal']);
+  var pro   = getNum(['Protein (g)','Protein','protein','Pro']);
+  var carbs = getNum(['Carbs (g)','Carbs','carbs','Carbohydrates','Carbohydrates (g)']);
+  var fat   = getNum(['Fats (g)','Fat (g)','Fats','Fat','fat','fats']);
+  var fibre = getNum(['Fibre (g)','Fiber (g)','Fibre','Fiber','fibre','fiber']);
+  var note  = getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
 
   document.getElementById('nutCal').textContent   = cal;
   document.getElementById('nutPro').textContent   = pro;
