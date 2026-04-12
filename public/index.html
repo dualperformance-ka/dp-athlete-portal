@@ -586,8 +586,8 @@ async function doLogin(code){
   var p=data.results[0],props=p.properties;
   var name=getNotionTitle(props)||'Athlete';
   athlete={id:p.id,notionPageId:p.id,name:name,code:code,
-    goalRace:getSelect(props['Goal Race'])||'',
-    peakWeek:getRichText(props['Weekly KM Target'])||getSelect(props['Weekly KM Target'])||'',
+    goalRace:getSelect(props['Goal Race'])||getRichText(props['Goal Race'])||'',
+    peakWeek:(props['Weekly KM Target']&&props['Weekly KM Target'].number!=null?String(props['Weekly KM Target'].number):'')||getRichText(props['Weekly KM Target'])||'',
     weight:getRichText(props['Body Weight (kg)'])||'',
     bodyFat:getRichText(props['Body Fat %'])||'',
     time5k:getRichText(props['5km Time'])||'',
@@ -664,14 +664,19 @@ function selectRace(btn){
 }
 function setRaceFromValue(val){
   if(!val)return;
+  var v=val.trim();
   var btns=document.querySelectorAll('.race-opt');
   var matched=false;
-  btns.forEach(function(b){if(b.dataset.val===val){b.classList.add('selected');matched=true;}else{b.classList.remove('selected');}});
-  if(!matched){
-    // it's an "other" value
+  btns.forEach(function(b){
+    // match ignoring case and spaces
+    if(b.dataset.val.toLowerCase().replace(/\s/g,'')=== v.toLowerCase().replace(/\s/g,'')){
+      b.classList.add('selected');matched=true;
+    }else{b.classList.remove('selected');}
+  });
+  if(!matched&&v){
     btns.forEach(function(b){if(b.dataset.val==='Other')b.classList.add('selected');});
     document.getElementById('otherRaceField').style.display='';
-    document.getElementById('gRaceOther').value=val;
+    document.getElementById('gRaceOther').value=v;
   }
 }
 
