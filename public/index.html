@@ -167,7 +167,15 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .race-opt{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:9px 14px;border:1.5px solid var(--border-mid);border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
 .race-opt.selected{background:#0a0a0a;border-color:#0a0a0a;color:#fff}
 
-/* ── NUTRITION WEEK NAV ── */
+/* ── ACCORDION ── */
+.accordion-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.accordion-header{display:flex;align-items:center;justify-content:space-between;padding:16px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.accordion-header:active{background:var(--surface2)}
+.accordion-left .accordion-title{font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.accordion-left .accordion-sub{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:3px;letter-spacing:.04em}
+.accordion-arrow{font-family:var(--mono);font-size:20px;color:var(--dim);line-height:1;transition:transform .2s;flex-shrink:0}
+.accordion-arrow.open{transform:rotate(45deg)}
+.accordion-body{padding:0 16px 16px;border-top:1px solid var(--border)}
 .nut-wbar{background:#111;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06);margin:-16px -14px 16px}
 .nut-wlabel{font-family:var(--display);font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#fff}
 .nut-arr{font-family:var(--mono);font-size:11px;padding:6px 11px;border:1px solid rgba(255,255,255,.13);border-radius:6px;background:transparent;color:rgba(255,255,255,.5);cursor:pointer}
@@ -631,82 +639,90 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <button class="savebtn" style="margin-top:24px;max-width:280px" onclick="resetCheckin()">Submit another</button>
     </div>
 
-    <!-- DIVIDER -->
-    <div style="display:flex;align-items:center;gap:12px;margin:28px 0 20px">
-      <div style="flex:1;height:1px;background:var(--border-mid)"></div>
-      <div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em">Daily Log</div>
-      <div style="flex:1;height:1px;background:var(--border-mid)"></div>
-    </div>
 
-    <!-- DAILY BODY CHECK-IN -->
-    <div style="font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Daily Body Check-in</div>
-    <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:14px">Quick daily log — takes 60 seconds. Same time each morning.</div>
+    <!-- DAILY LOG ACCORDION -->
+    <div style="margin-top:24px">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Daily Logs</div>
 
-    <div id="dailyBodyForm">
-      <div class="card" style="margin-bottom:10px">
-        <div class="rlog" style="margin-bottom:10px">
-          <div class="lf"><label>Date</label><input type="date" class="li" id="dbDate" /></div>
-          <div class="lf"><label>Current Weight (kg)</label><input type="number" class="li" id="dbWeight" step="0.1" placeholder="72.0" /></div>
+      <!-- Daily Body Accordion -->
+      <div class="accordion-card" id="accBody">
+        <div class="accordion-header" onclick="toggleAcc('accBody')">
+          <div class="accordion-left">
+            <div class="accordion-title">Daily Body Check-in</div>
+            <div class="accordion-sub">Weight · sleep · energy · soreness</div>
+          </div>
+          <div class="accordion-arrow" id="accBodyArrow">+</div>
         </div>
-        <div class="lf" style="margin-bottom:6px">
-          <label>Sleep Quality <span id="dbSleepVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="dbSleep" oninput="document.getElementById('dbSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
-          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Terrible</span><span>Amazing</span></div>
+        <div class="accordion-body" id="accBodyContent" style="display:none">
+          <div id="dailyBodyForm">
+            <div class="rlog" style="margin-bottom:10px">
+              <div class="lf"><label>Date</label><input type="date" class="li" id="dbDate" /></div>
+              <div class="lf"><label>Weight (kg)</label><input type="number" class="li" id="dbWeight" step="0.1" placeholder="72.0" /></div>
+            </div>
+            <div class="lf" style="margin-bottom:10px">
+              <label>Sleep Quality <span id="dbSleepVal" style="font-family:var(--mono)">5</span>/10</label>
+              <input type="range" min="1" max="10" value="5" id="dbSleep" oninput="document.getElementById('dbSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+              <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Terrible</span><span>Amazing</span></div>
+            </div>
+            <div class="lf" style="margin-bottom:10px">
+              <label>Energy <span id="dbEnergyVal" style="font-family:var(--mono)">5</span>/10</label>
+              <input type="range" min="1" max="10" value="5" id="dbEnergy" oninput="document.getElementById('dbEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+              <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Drained</span><span>Energised</span></div>
+            </div>
+            <div class="lf" style="margin-bottom:10px">
+              <label>Stress <span id="dbStressVal" style="font-family:var(--mono)">5</span>/10</label>
+              <input type="range" min="1" max="10" value="5" id="dbStress" oninput="document.getElementById('dbStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+              <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Calm</span><span>Maxed out</span></div>
+            </div>
+            <div class="lf" style="margin-bottom:10px">
+              <label>Muscle Soreness <span id="dbSoreVal" style="font-family:var(--mono)">5</span>/10</label>
+              <input type="range" min="1" max="10" value="5" id="dbSore" oninput="document.getElementById('dbSoreVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+              <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Destroyed</span><span>Fresh</span></div>
+            </div>
+            <div class="lf" style="margin-bottom:12px"><label>Notes (optional)</label><input type="text" class="li" id="dbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
+            <button class="savebtn" id="dbSubmitBtn" onclick="submitDailyBody()">Log Today's Body</button>
+          </div>
+          <div id="dbSuccess" style="display:none;background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:10px;padding:16px;text-align:center">
+            <div style="font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;color:var(--ok);margin-bottom:4px">Body logged ✓</div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:10px">See you tomorrow.</div>
+            <button onclick="resetDailyBody()" style="font-family:var(--mono);font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;text-decoration:underline">Log again</button>
+          </div>
         </div>
-        <div class="lf" style="margin:12px 0 6px">
-          <label>Energy <span id="dbEnergyVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="dbEnergy" oninput="document.getElementById('dbEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
-          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Drained</span><span>Energised</span></div>
-        </div>
-        <div class="lf" style="margin:12px 0 6px">
-          <label>Stress <span id="dbStressVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="dbStress" oninput="document.getElementById('dbStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
-          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Calm</span><span>Maxed out</span></div>
-        </div>
-        <div class="lf" style="margin:12px 0 6px">
-          <label>Muscle Soreness <span id="dbSoreVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="dbSore" oninput="document.getElementById('dbSoreVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
-          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Destroyed</span><span>Fresh</span></div>
-        </div>
-        <div class="lf" style="margin-top:12px"><label>Notes (optional)</label><input type="text" class="li" id="dbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
       </div>
-      <button class="savebtn" id="dbSubmitBtn" onclick="submitDailyBody()">Log Today's Body</button>
-    </div>
-    <div id="dbSuccess" style="display:none;background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:10px;padding:16px;text-align:center;margin-bottom:4px">
-      <div style="font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;color:var(--ok);margin-bottom:4px">Body logged ✓</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">See you tomorrow.</div>
-      <button onclick="resetDailyBody()" style="font-family:var(--mono);font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;text-decoration:underline">Log again</button>
-    </div>
 
-    <!-- DIVIDER -->
-    <div style="height:1px;background:var(--border);margin:24px 0 20px"></div>
-
-    <!-- DAILY NUTRITION LOG -->
-    <div style="font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Daily Nutrition Log</div>
-    <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:14px">Log your actual intake each day. Protein first.</div>
-
-    <div id="dailyNutForm">
-      <div class="card" style="margin-bottom:10px">
-        <div class="rlog" style="margin-bottom:10px">
-          <div class="lf"><label>Date</label><input type="date" class="li" id="dnDate" /></div>
-          <div class="lf"><label>Calories (kcal)</label><input type="number" class="li" id="dnCal" placeholder="2300" /></div>
+      <!-- Daily Nutrition Accordion -->
+      <div class="accordion-card" id="accNut" style="margin-top:8px">
+        <div class="accordion-header" onclick="toggleAcc('accNut')">
+          <div class="accordion-left">
+            <div class="accordion-title">Daily Nutrition Log</div>
+            <div class="accordion-sub">Calories · protein · carbs · fat · fibre</div>
+          </div>
+          <div class="accordion-arrow" id="accNutArrow">+</div>
         </div>
-        <div class="rlog" style="margin-bottom:10px">
-          <div class="lf"><label>Protein (g)</label><input type="number" class="li" id="dnPro" placeholder="165" /></div>
-          <div class="lf"><label>Carbs (g)</label><input type="number" class="li" id="dnCarbs" placeholder="295" /></div>
+        <div class="accordion-body" id="accNutContent" style="display:none">
+          <div id="dailyNutForm">
+            <div class="rlog" style="margin-bottom:10px">
+              <div class="lf"><label>Date</label><input type="date" class="li" id="dnDate" /></div>
+              <div class="lf"><label>Calories (kcal)</label><input type="number" class="li" id="dnCal" placeholder="2300" /></div>
+            </div>
+            <div class="rlog" style="margin-bottom:10px">
+              <div class="lf"><label>Protein (g)</label><input type="number" class="li" id="dnPro" placeholder="165" /></div>
+              <div class="lf"><label>Carbs (g)</label><input type="number" class="li" id="dnCarbs" placeholder="295" /></div>
+            </div>
+            <div class="rlog" style="margin-bottom:10px">
+              <div class="lf"><label>Fat (g)</label><input type="number" class="li" id="dnFat" placeholder="55" /></div>
+              <div class="lf"><label>Fibre (g)</label><input type="number" class="li" id="dnFibre" placeholder="35" /></div>
+            </div>
+            <div class="lf" style="margin-bottom:12px"><label>Notes (optional)</label><input type="text" class="li" id="dnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
+            <button class="savebtn" id="dnSubmitBtn" onclick="submitDailyNut()">Log Today's Nutrition</button>
+          </div>
+          <div id="dnSuccess" style="display:none;background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:10px;padding:16px;text-align:center">
+            <div style="font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;color:var(--ok);margin-bottom:4px">Nutrition logged ✓</div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Keep it consistent.</div>
+            <button onclick="resetDailyNut()" style="font-family:var(--mono);font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;text-decoration:underline">Log again</button>
+          </div>
         </div>
-        <div class="rlog" style="margin-bottom:10px">
-          <div class="lf"><label>Fat (g)</label><input type="number" class="li" id="dnFat" placeholder="55" /></div>
-          <div class="lf"><label>Fibre (g)</label><input type="number" class="li" id="dnFibre" placeholder="35" /></div>
-        </div>
-        <div class="lf"><label>Notes (optional)</label><input type="text" class="li" id="dnNotes" placeholder="e.g. ate out for dinner, protein shake" style="margin-top:4px" /></div>
       </div>
-      <button class="savebtn" id="dnSubmitBtn" onclick="submitDailyNut()">Log Today's Nutrition</button>
-    </div>
-    <div id="dnSuccess" style="display:none;background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:10px;padding:16px;text-align:center;margin-bottom:4px">
-      <div style="font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;color:var(--ok);margin-bottom:4px">Nutrition logged ✓</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Keep it consistent.</div>
-      <button onclick="resetDailyNut()" style="font-family:var(--mono);font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;text-decoration:underline">Log again</button>
     </div>
     <div style="height:20px"></div>
   </div>
@@ -1108,6 +1124,14 @@ async function submitDailyNut(){
   document.getElementById('dailyNutForm').style.display='none';
   document.getElementById('dnSuccess').style.display='block';
 }
+function toggleAcc(id){
+  var content=document.getElementById(id+'Content');
+  var arrow=document.getElementById(id+'Arrow');
+  var open=content.style.display==='none';
+  content.style.display=open?'block':'none';
+  arrow.classList.toggle('open',open);
+}
+
 function shiftWeek(d){weekOffset+=d;loadWeek();}
 function goToday(){weekOffset=0;loadWeek();}
 function shiftNutWeek(d){nutWeekOffset+=d;loadNutrition();}
