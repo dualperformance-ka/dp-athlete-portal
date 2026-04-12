@@ -845,10 +845,11 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 const CALENDAR_DB = '0b85a96cc70b836898fd013e0e15c4f2';
 const ATHLETE_DB  = '4a25a96cc70b82ffa6790139eaa8b458';
 const NUTRITION_DB = '3405a96cc70b80de9221c2a40653277c';
-const WEBHOOK     = 'https://hook.eu1.make.com/yjrg278x8bwehy6y19yiphluynmq3v8x';
-const CHECKIN_WEBHOOK = 'https://hook.eu1.make.com/52u1745oht7hlg48nfewr7ltwhddp6pz';
-const DAILY_BODY_WEBHOOK = 'https://hook.eu1.make.com/kq6ezqonfvyhx7cy7rwqgg7p4fuzk4na';
-const DAILY_NUT_WEBHOOK  = 'https://hook.eu1.make.com/ub1fq7r25teunvb6zu54azmpgxpnbshy';
+const WEBHOOK     = 'https://hook.eu1.make.com/yjrg278x8bwehy6y19yiphluynmq3v8x'; // training logs
+const CHECKIN_WEBHOOK    = 'https://hook.eu1.make.com/gnhwcdvnh058cy0ay2rb1bt1vdv4fka9';
+const DAILY_BODY_WEBHOOK = 'https://hook.eu1.make.com/gnhwcdvnh058cy0ay2rb1bt1vdv4fka9';
+const DAILY_NUT_WEBHOOK  = 'https://hook.eu1.make.com/gnhwcdvnh058cy0ay2rb1bt1vdv4fka9';
+const GOALS_WEBHOOK      = 'https://hook.eu1.make.com/gnhwcdvnh058cy0ay2rb1bt1vdv4fka9';
 const DAILY_BODY_DB = '3405a96cc70b80a4b1b9cf5b9c236f18';
 const CLOUDINARY_CLOUD = 'dtkpg96ci';
 const CLOUDINARY_PRESET = 'dp_progress'; // Daily Athlete BODY Check-in
@@ -1021,10 +1022,11 @@ async function saveGoals(){
 
   // Send to Make webhook — Make updates Notion from here
   try {
-    await fetch('https://hook.eu1.make.com/jaarg8xo3kepd8mnyytr6akrrgn15hw1',{
+    await fetch(GOALS_WEBHOOK,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
+        type:'goals',
         athleteId:athlete.notionPageId,
         athleteName:athlete.name,
         athleteCode:athlete.code,
@@ -1108,7 +1110,7 @@ async function submitCheckin(){
   };
   try{
     await fetch(CHECKIN_WEBHOOK,{
-      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'weekly_checkin'},payload))
     });
     document.getElementById('ciFormContent').style.display='none';
     document.getElementById('ciSuccess').style.display='block';
@@ -1139,6 +1141,7 @@ async function submitDailyBody(){
   var btn=document.getElementById('dbSubmitBtn');
   btn.textContent='Logging...';btn.disabled=true;
   var payload={
+    type:'daily_body',
     athleteName:athlete.name, athleteId:athlete.notionPageId,
     date:document.getElementById('dbDate').value,
     weight:document.getElementById('dbWeight').value||'',
@@ -1148,11 +1151,8 @@ async function submitDailyBody(){
     soreness:document.getElementById('dbSore').value,
     notes:document.getElementById('dbNotes').value||''
   };
-  if(DAILY_BODY_WEBHOOK!=='DAILY_BODY_WEBHOOK_URL'){
-    try{ await fetch(DAILY_BODY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); }
-    catch(e){}
-  }
-  // Save locally as backup
+  try{ await fetch(DAILY_BODY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); }
+  catch(e){}
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date, JSON.stringify(payload));
   document.getElementById('dailyBodyForm').style.display='none';
   document.getElementById('dbSuccess').style.display='block';
@@ -1169,6 +1169,7 @@ async function submitDailyNut(){
   var btn=document.getElementById('dnSubmitBtn');
   btn.textContent='Logging...';btn.disabled=true;
   var payload={
+    type:'daily_nutrition',
     athleteName:athlete.name, athleteId:athlete.notionPageId,
     date:document.getElementById('dnDate').value,
     calories:document.getElementById('dnCal').value||'',
@@ -1178,10 +1179,8 @@ async function submitDailyNut(){
     fibre:document.getElementById('dnFibre').value||'',
     notes:document.getElementById('dnNotes').value||''
   };
-  if(DAILY_NUT_WEBHOOK!=='DAILY_NUT_WEBHOOK_URL'){
-    try{ await fetch(DAILY_NUT_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); }
-    catch(e){}
-  }
+  try{ await fetch(DAILY_NUT_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); }
+  catch(e){}
   localStorage.setItem('dp_daily_nut_'+athlete.code+'_'+payload.date, JSON.stringify(payload));
   document.getElementById('dailyNutForm').style.display='none';
   document.getElementById('dnSuccess').style.display='block';
