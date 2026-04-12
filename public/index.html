@@ -230,7 +230,23 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .photo-cell.uploading{opacity:.6;pointer-events:none}
 .photo-cell .photo-overlay{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.5);padding:3px;text-align:center;font-family:var(--mono);font-size:8px;color:#fff;letter-spacing:.04em;text-transform:uppercase}
 
-/* ── COMMS TAB ── */
+/* ── PHOTO MODAL ── */
+.photo-modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);align-items:flex-end;justify-content:center}
+.photo-modal.open{display:flex}
+.photo-modal-inner{background:var(--bg);border-radius:16px 16px 0 0;padding:20px 16px 36px;width:100%;max-width:600px;max-height:85vh;overflow-y:auto}
+.photo-modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.photo-modal-title{font-family:var(--display);font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.photo-modal-close{font-size:24px;color:var(--dim);background:none;border:none;cursor:pointer;line-height:1;padding:4px}
+.angle-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.angle-slot{background:var(--surface);border:1.5px dashed var(--border-mid);border-radius:10px;aspect-ratio:.75;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;overflow:hidden;position:relative;transition:border-color .15s}
+.angle-slot.has-photo{border-style:solid;border-color:var(--border)}
+.angle-slot:active{border-color:var(--border-strong)}
+.angle-slot img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.angle-slot .aslot-label{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;position:relative;z-index:1;text-align:center;padding:0 8px}
+.angle-slot .aslot-add{font-size:22px;color:var(--dim);position:relative;z-index:1}
+.angle-slot .aslot-overlay{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);padding:4px;text-align:center;font-family:var(--mono);font-size:8px;color:#fff;letter-spacing:.04em;text-transform:uppercase}
+.angle-slot.uploading{opacity:.5;pointer-events:none}
+.photo-cell .photo-count{font-family:var(--mono);font-size:9px;color:#fff;background:rgba(0,0,0,.6);border-radius:20px;padding:2px 7px;position:absolute;top:6px;right:6px;z-index:2}
 .comms-card{background:#0a0a0a;border-radius:12px;padding:22px;margin-bottom:12px}
 .comms-title{font-family:var(--display);font-size:22px;font-weight:700;text-transform:uppercase;color:#fff;letter-spacing:.03em;margin-bottom:8px}
 .comms-body{font-size:13px;color:rgba(255,255,255,.5);line-height:1.6;margin-bottom:18px}
@@ -784,7 +800,6 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="card-title">Progress Photos</div>
       <div class="nutrnote" style="margin-bottom:14px">Same time every week. Same lighting, same angles. Tap a week to upload your photo.</div>
       <div class="photo-grid" id="photoGrid"></div>
-      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this)" />
     </div>
   </div>
 
@@ -811,6 +826,19 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- PHOTO MODAL -->
+<div class="photo-modal" id="photoModal" onclick="closePhotoModal(event)">
+  <div class="photo-modal-inner">
+    <div class="photo-modal-header">
+      <div class="photo-modal-title" id="photoModalTitle">Week 1 Photos</div>
+      <button class="photo-modal-close" onclick="closePhotoModal()">×</button>
+    </div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:14px;letter-spacing:.04em">TAP EACH ANGLE TO UPLOAD · SAME TIME · SAME LIGHTING</div>
+    <div class="angle-grid" id="angleGrid"></div>
+    <input type="file" id="angleInput" accept="image/*" capture="environment" style="display:none" onchange="handleAngleUpload(this)" />
+  </div>
+</div>
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -1287,18 +1315,30 @@ async function loadNutrition(){
 }
 
 // ── PHOTO UPLOAD ──────────────────────────────────────────────────────────────
-var currentUploadWeek = null;
+var currentPhotoWeek = null;
+var currentAngle = null;
+var ANGLES = ['Front','Side','Back','Front Flexed','Back Flexed'];
+
+function getPhotos(){
+  return JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');
+}
+function savePhotos(photos){
+  localStorage.setItem('dp_photos_'+athlete.code, JSON.stringify(photos));
+}
 
 function renderPhotoGrid(){
   var grid = document.getElementById('photoGrid');
   if(!grid) return;
-  var photos = JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');
+  var photos = getPhotos();
   var html = '';
   for(var w=1; w<=12; w++){
-    var url = photos['week'+w]||'';
-    html += '<div class="photo-cell'+(url?' has-photo':'')+(url?'':'')+'" id="photoCell'+w+'" onclick="triggerPhotoUpload('+w+')">';
-    if(url){
-      html += '<img src="'+url+'" alt="Week '+w+'" />';
+    var weekPhotos = photos['week'+w]||{};
+    var count = Object.keys(weekPhotos).length;
+    var firstUrl = count ? weekPhotos[Object.keys(weekPhotos)[0]] : '';
+    html += '<div class="photo-cell'+(count?' has-photo':'')+'" onclick="openPhotoModal('+w+')">';
+    if(firstUrl){
+      html += '<img src="'+firstUrl+'" alt="Week '+w+'" />';
+      html += '<div class="photo-count">'+count+'/5</div>';
       html += '<div class="photo-overlay">Week '+w+'</div>';
     } else {
       html += '<div class="photo-add">+</div>';
@@ -1309,44 +1349,81 @@ function renderPhotoGrid(){
   grid.innerHTML = html;
 }
 
-function triggerPhotoUpload(week){
-  currentUploadWeek = week;
-  document.getElementById('photoInput').click();
+function openPhotoModal(week){
+  currentPhotoWeek = week;
+  document.getElementById('photoModalTitle').textContent = 'Week '+week+' Photos';
+  renderAngleGrid(week);
+  document.getElementById('photoModal').classList.add('open');
+  document.body.style.overflow='hidden';
 }
 
-async function handlePhotoUpload(input){
+function closePhotoModal(e){
+  if(e&&e.target!==document.getElementById('photoModal')&&!e.target.classList.contains('photo-modal-close')) return;
+  document.getElementById('photoModal').classList.remove('open');
+  document.body.style.overflow='';
+  renderPhotoGrid();
+}
+
+function renderAngleGrid(week){
+  var photos = getPhotos();
+  var weekPhotos = photos['week'+week]||{};
+  var html = '';
+  ANGLES.forEach(function(angle){
+    var key = angle.toLowerCase().replace(/\s/g,'_');
+    var url = weekPhotos[key]||'';
+    html += '<div class="angle-slot'+(url?' has-photo':'')+'" id="aslot_'+key+'" onclick="triggerAngleUpload(\''+angle+'\')">';
+    if(url){
+      html += '<img src="'+url+'" />';
+      html += '<div class="aslot-overlay">'+angle+'</div>';
+    } else {
+      html += '<div class="aslot-add">+</div>';
+      html += '<div class="aslot-label">'+angle+'</div>';
+    }
+    html += '</div>';
+  });
+  document.getElementById('angleGrid').innerHTML = html;
+}
+
+function triggerAngleUpload(angle){
+  currentAngle = angle;
+  document.getElementById('angleInput').click();
+}
+
+async function handleAngleUpload(input){
   if(!input.files||!input.files[0]) return;
   var file = input.files[0];
-  var week = currentUploadWeek;
-  var cell = document.getElementById('photoCell'+week);
-  if(cell) cell.classList.add('uploading');
+  var week = currentPhotoWeek;
+  var angle = currentAngle;
+  var key = angle.toLowerCase().replace(/\s/g,'_');
+  var slot = document.getElementById('aslot_'+key);
+  if(slot) slot.classList.add('uploading');
 
   var formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_PRESET);
-  formData.append('folder', 'dp_progress/'+athlete.code);
-  formData.append('public_id', athlete.code+'_week'+week);
+  formData.append('folder', 'dp_progress/'+athlete.code+'/week'+week);
+  formData.append('public_id', athlete.code+'_week'+week+'_'+key);
 
-  try {
-    var res = await fetch('https://api.cloudinary.com/v1_1/'+CLOUDINARY_CLOUD+'/image/upload', {
-      method: 'POST', body: formData
+  try{
+    var res = await fetch('https://api.cloudinary.com/v1_1/'+CLOUDINARY_CLOUD+'/image/upload',{
+      method:'POST', body:formData
     });
     var data = await res.json();
     if(data.secure_url){
-      // Save URL locally
-      var photos = JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');
-      photos['week'+week] = data.secure_url;
-      localStorage.setItem('dp_photos_'+athlete.code, JSON.stringify(photos));
-      renderPhotoGrid();
-      showToast('Week '+week+' photo uploaded ✓');
+      var photos = getPhotos();
+      if(!photos['week'+week]) photos['week'+week]={};
+      photos['week'+week][key] = data.secure_url;
+      savePhotos(photos);
+      renderAngleGrid(week);
+      showToast(angle+' uploaded ✓');
     } else {
       showToast('Upload failed — try again');
     }
   } catch(e){
     showToast('Upload failed — check connection');
   }
-  if(cell) cell.classList.remove('uploading');
-  input.value = '';
+  if(slot) slot.classList.remove('uploading');
+  input.value='';
 }
 async function loadProgress(){
   renderPhotoGrid();
