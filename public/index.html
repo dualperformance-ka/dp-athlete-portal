@@ -162,6 +162,10 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .milestone-input{width:100%;background:var(--surface2);border:1px solid var(--border-mid);border-radius:8px;padding:10px 8px;font-family:var(--body);font-size:13px;color:var(--text);outline:none;resize:none;min-height:72px;text-align:center;line-height:1.4}
 .milestone-input:focus{border-color:var(--border-strong);background:#fff}
 .milestone-input::placeholder{color:var(--dim);font-style:italic;font-size:12px}
+/* race selector */
+.race-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.race-opt{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:9px 14px;border:1.5px solid var(--border-mid);border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.race-opt.selected{background:#0a0a0a;border-color:#0a0a0a;color:#fff}
 
 /* ── CHECK-IN TAB ── */
 .checkin-cta{background:#0a0a0a;border-radius:12px;padding:22px;margin-bottom:12px}
@@ -310,6 +314,32 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="goals-name" id="goalName">—</div>
       <div class="goals-sub">Fill in your current stats and goals below. Your coaches can see everything you submit — the more honest you are, the better we can coach you.</div>
       <div class="goals-saved-badge" id="goalsSavedBadge">✓ Last saved <span id="goalsSavedTime"></span></div>
+    </div>
+
+    <!-- GOAL RACE + PEAK WEEK -->
+    <div class="card">
+      <div class="card-title">Race Goal</div>
+      <div class="stat-grid">
+        <div class="stat-field" style="grid-column:1/-1">
+          <label>Goal Race</label>
+          <div class="race-options" id="raceOptions">
+            <button class="race-opt" data-val="5K" onclick="selectRace(this)">5K</button>
+            <button class="race-opt" data-val="10K" onclick="selectRace(this)">10K</button>
+            <button class="race-opt" data-val="Half Marathon" onclick="selectRace(this)">Half Marathon</button>
+            <button class="race-opt" data-val="Marathon" onclick="selectRace(this)">Marathon</button>
+            <button class="race-opt" data-val="Other" onclick="selectRace(this)">Other</button>
+          </div>
+        </div>
+        <div class="stat-field" id="otherRaceField" style="display:none;grid-column:1/-1">
+          <label>Specify Race</label>
+          <input class="stat-input" id="gRaceOther" type="text" placeholder="e.g. 63km ultra, trail race..." style="font-size:16px"/>
+        </div>
+        <div class="stat-field">
+          <label>Target Peak Week</label>
+          <input class="stat-input" id="gPeakWeek" type="number" placeholder="80" />
+          <div class="field-hint">km — highest week of your build</div>
+        </div>
+      </div>
     </div>
 
     <!-- BODY COMPOSITION -->
@@ -556,6 +586,8 @@ async function doLogin(code){
   var p=data.results[0],props=p.properties;
   var name=getNotionTitle(props)||'Athlete';
   athlete={id:p.id,notionPageId:p.id,name:name,code:code,
+    goalRace:getSelect(props['Goal Race'])||'',
+    peakWeek:getRichText(props['Weekly KM Target'])||getSelect(props['Weekly KM Target'])||'',
     weight:getRichText(props['Body Weight (kg)'])||'',
     bodyFat:getRichText(props['Body Fat %'])||'',
     time5k:getRichText(props['5km Time'])||'',
@@ -591,6 +623,8 @@ function populateStatic(){
   // Goals — load from localStorage first, then fall back to athlete props
   document.getElementById('goalName').textContent=athlete.name;
   var saved=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
+  setRaceFromValue(saved.goalRace||athlete.goalRace||'');
+  document.getElementById('gPeakWeek').value=saved.peakWeek||athlete.peakWeek||'';
   document.getElementById('gWeight').value=saved.weight||athlete.weight||'';
   document.getElementById('gBodyFat').value=saved.bodyFat||athlete.bodyFat||'';
   document.getElementById('g5k').value=saved.time5k||athlete.time5k||'';
@@ -622,11 +656,35 @@ function populateStatic(){
   if(athlete.whatsapp){document.querySelector('.comms-btn').href='https://wa.me/'+athlete.whatsapp.replace(/\D/g,'');}
 }
 
+function selectRace(btn){
+  document.querySelectorAll('.race-opt').forEach(function(b){b.classList.remove('selected');});
+  btn.classList.add('selected');
+  document.getElementById('otherRaceField').style.display=btn.dataset.val==='Other'?'':'none';
+  if(btn.dataset.val!=='Other')document.getElementById('gRaceOther').value='';
+}
+function setRaceFromValue(val){
+  if(!val)return;
+  var btns=document.querySelectorAll('.race-opt');
+  var matched=false;
+  btns.forEach(function(b){if(b.dataset.val===val){b.classList.add('selected');matched=true;}else{b.classList.remove('selected');}});
+  if(!matched){
+    // it's an "other" value
+    btns.forEach(function(b){if(b.dataset.val==='Other')b.classList.add('selected');});
+    document.getElementById('otherRaceField').style.display='';
+    document.getElementById('gRaceOther').value=val;
+  }
+}
+
 async function saveGoals(){
   var btn=document.getElementById('goalsSaveBtn');
   btn.textContent='Saving...';btn.disabled=true;
 
+  var selectedRaceBtn=document.querySelector('.race-opt.selected');
+  var raceVal=selectedRaceBtn?(selectedRaceBtn.dataset.val==='Other'?document.getElementById('gRaceOther').value.trim():selectedRaceBtn.dataset.val):'';
+
   var goals={
+    goalRace:raceVal,
+    peakWeek:document.getElementById('gPeakWeek').value.trim(),
     weight:document.getElementById('gWeight').value.trim(),
     bodyFat:document.getElementById('gBodyFat').value.trim(),
     time5k:document.getElementById('g5k').value.trim(),
@@ -653,6 +711,8 @@ async function saveGoals(){
         athleteId:athlete.notionPageId,
         athleteName:athlete.name,
         athleteCode:athlete.code,
+        goalRace:goals.goalRace,
+        peakWeek:goals.peakWeek,
         weight:goals.weight,
         bodyFat:goals.bodyFat,
         time5k:goals.time5k,
