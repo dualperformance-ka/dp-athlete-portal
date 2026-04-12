@@ -818,59 +818,53 @@ async function loadNutrition(){
 
   console.log('Nutrition query - athleteId:', athlete.notionPageId, 'week:', 'Week '+displayWeek);
 
-  // Try select filter first, then rich_text
-  var weekLabel = 'Week ' + displayWeek;
-  var data = await api('databases/'+NUTRITION_DB+'/query', {
-    filter: {
-      and: [
-        {property:'Athlete', relation:{contains:athlete.notionPageId}},
-        {property:'Week', select:{equals:weekLabel}}
-      ]
-    },
-    page_size: 5
-  });
+  // Fetch all rows for this athlete — relation filter is unreliable, match manually
+  var allNut = await api('databases/'+NUTRITION_DB+'/query', {page_size:50});
+  console.log('Total nut rows:', allNut&&allNut.results&&allNut.results.length);
 
-  console.log('Select filter result:', data&&data.results&&data.results.length, 'for', weekLabel);
-
-  // Try rich_text filter (if Week is text not select)
-  if(!data||!data.results||!data.results.length){
-    data = await api('databases/'+NUTRITION_DB+'/query', {
-      filter: {
-        and: [
-          {property:'Athlete', relation:{contains:athlete.notionPageId}},
-          {property:'Week', rich_text:{equals:weekLabel}}
-        ]
-      },
-      page_size: 5
-    });
-    console.log('Rich text filter result:', data&&data.results&&data.results.length);
-  }
-
-  // Try fetching all for this athlete and match manually
-  if(!data||!data.results||!data.results.length){
-    var allData = await api('databases/'+NUTRITION_DB+'/query', {
-      filter: {property:'Athlete', relation:{contains:athlete.notionPageId}},
-      page_size: 20
-    });
-    console.log('All athlete rows:', allData&&allData.results&&allData.results.length);
-    if(allData&&allData.results){
-      allData.results.forEach(function(r){
-        var w=r.properties['Week'];
-        console.log('Row week prop:', JSON.stringify(w));
+  var data = {results:[]};
+  if(allNut&&allNut.results){
+    var athleteIdClean = athlete.notionPageId.replace(/-/g,'');
+    var matched = allNut.results.filter(function(r){
+      var pr = r.properties;
+      // Match athlete relation
+      var athRel = pr['Athlete']&&pr['Athlete'].relation||[];
+      var athMatch = athRel.some(function(a){
+        return a.id.replace(/-/g,'')===athleteIdClean;
       });
-      // Match by week number in any format
-      var matched = allData.results.filter(function(r){
-        var w=r.properties['Week'];
-        var wval=(w&&(w.select&&w.select.name||w.rich_text&&w.rich_text[0]&&w.rich_text[0].plain_text||w.title&&w.title[0]&&w.title[0].plain_text))||'';
-        return wval.replace(/\s/g,'').toLowerCase()==='week'+displayWeek;
+      if(!athMatch) return false;
+      // Match week - Week is rich_text
+      var wkProp = pr['Week'];
+      var wkVal = '';
+      if(wkProp&&wkProp.rich_text&&wkProp.rich_text[0]) wkVal = wkProp.rich_text[0].plain_text||'';
+      else if(wkProp&&wkProp.select) wkVal = wkProp.select.name||'';
+      return wkVal.trim().toLowerCase() === weekLabel.toLowerCase();
+    });
+    console.log('Matched rows for', weekLabel, ':', matched.length);
+    if(matched.length){
+      data = {results: matched};
+    } else {
+      // Fallback: most recent row for this athlete
+      var athRows = allNut.results.filter(function(r){
+        var athRel = r.properties['Athlete']&&r.properties['Athlete'].relation||[];
+        return athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
       });
-      if(matched.length) data={results:matched};
-      else {
-        // Fallback: most recent
-        data=allData;
-        if(allData.results.length){
-          var wkProp=allData.results[0].properties['Week'];
-          var wkName=(wkProp&&(wkProp.select&&wkProp.select.name||wkProp.rich_text&&wkProp.rich_text[0]&&wkProp.rich_text[0].plain_text))||'';
+      if(athRows.length){
+        // Sort by week number and take latest with data
+        athRows.sort(function(a,b){
+          var wa=a.properties['Week']&&a.properties['Week'].rich_text&&a.properties['Week'].rich_text[0]&&a.properties['Week'].rich_text[0].plain_text||'';
+          var wb=b.properties['Week']&&b.properties['Week'].rich_text&&b.properties['Week'].rich_text[0]&&b.properties['Week'].rich_text[0].plain_text||'';
+          return wa.localeCompare(wb);
+        });
+        // Find latest row that has actual macro data
+        var withData = athRows.filter(function(r){
+          var pr=r.properties;
+          return Object.keys(pr).some(function(k){return pr[k]&&pr[k].type==='number'&&pr[k].number!=null;});
+        });
+        if(withData.length){
+          data={results:[withData[withData.length-1]]};
+          var wkProp=withData[withData.length-1].properties['Week'];
+          var wkName=(wkProp&&wkProp.rich_text&&wkProp.rich_text[0]&&wkProp.rich_text[0].plain_text)||'';
           if(wkName) document.getElementById('nutWLabel').textContent=wkName+' (latest)';
         }
       }
@@ -886,19 +880,30 @@ async function loadNutrition(){
 
   var pr = data.results[0].properties;
   console.log('Property keys:', Object.keys(pr));
+  console.log('Full props:', JSON.stringify(pr));
 
-  // Helper to read a number property trying multiple name variants
+  // Helper - tries named keys first, then scans all number props
+  var numProps = Object.keys(pr).filter(function(k){return pr[k]&&pr[k].type==='number'&&pr[k].number!=null;});
+  console.log('Number props found:', numProps.map(function(k){return k+':'+pr[k].number;}));
+
   function getNum(keys){
     for(var i=0;i<keys.length;i++){
       var p=pr[keys[i]];
       if(p&&p.number!=null)return p.number;
     }
+    // Fuzzy match against actual prop names
+    for(var i=0;i<keys.length;i++){
+      var kl=keys[i].toLowerCase().replace(/[\s()]/g,'');
+      for(var j=0;j<numProps.length;j++){
+        if(numProps[j].toLowerCase().replace(/[\s()]/g,'')===kl)return pr[numProps[j]].number;
+      }
+    }
     return '—';
   }
 
-  var cal   = getNum(['Calories','Calories (g)','Cal','kcal']);
+  var cal   = getNum(['Calories','Calories (g)','Cal','kcal','Energy']);
   var pro   = getNum(['Protein','Protein (g)','Pro']);
-  var carbs = getNum(['Carbs','Carbs (g)','Carbohydrates']);
+  var carbs = getNum(['Carbs','Carbs (g)','Carbohydrates','Carbs (g)']);
   var fat   = getNum(['Fats','Fat','Fats (g)','Fat (g)']);
   var fibre = getNum(['Fibre','Fiber','Fibre (g)','Fiber (g)']);
   var note  = getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
