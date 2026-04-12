@@ -742,17 +742,36 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <!-- PROGRESS -->
   <div class="tab-content" id="tab-progress">
     <div class="stitle">Progress</div>
-    <div class="card">
-      <div class="card-title">Overall</div>
-      <div class="progress-stats">
-        <div class="pstat"><div class="pstat-val" id="pgStart">—</div><div class="pstat-lbl">Start kg</div></div>
-        <div class="pstat"><div class="pstat-val" id="pgCurrent">—</div><div class="pstat-lbl">Current kg</div></div>
-        <div class="pstat"><div class="pstat-val" id="pgTarget">—</div><div class="pstat-lbl">Target kg</div></div>
-      </div>
+
+    <!-- Weight summary cards -->
+    <div class="progress-stats" style="margin-bottom:12px">
+      <div class="pstat"><div class="pstat-val" id="pgStart">—</div><div class="pstat-lbl">Start kg</div></div>
+      <div class="pstat"><div class="pstat-val" id="pgCurrent">—</div><div class="pstat-lbl">Current kg</div></div>
+      <div class="pstat"><div class="pstat-val" id="pgTarget">—</div><div class="pstat-lbl">Target kg</div></div>
     </div>
+
+    <!-- Change from start -->
+    <div class="card" style="margin-bottom:12px;text-align:center">
+      <div class="card-title">Change from start</div>
+      <div id="pgChange" style="font-family:var(--display);font-size:42px;font-weight:700;letter-spacing:.02em;line-height:1">—</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px" id="pgChangeLbl">kg since day 1</div>
+    </div>
+
+    <!-- Weight log from daily check-ins -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Weight Log</div>
+      <div class="loading" id="pgLoadingEl" style="padding:24px">
+        <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
+        <div class="ltxt">Loading...</div>
+      </div>
+      <div id="pgWeightLog" style="display:none"></div>
+      <div id="pgNoData" style="display:none;font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:20px">No weigh-ins logged yet</div>
+    </div>
+
+    <!-- Progress photos placeholder -->
     <div class="card">
       <div class="card-title">Progress Photos</div>
-      <div class="nutrnote" style="margin-bottom:14px">Same time, same lighting, same angles every week. Front, side, back, front flexed, back flexed.</div>
+      <div class="nutrnote" style="margin-bottom:14px">Same time every week. Same lighting, same angles. Front, side, back, front flexed, back flexed. Send to Karl & Alex on WhatsApp.</div>
       <div class="photo-grid">
         <div class="photo-cell"><div class="photo-label">Week 1</div></div>
         <div class="photo-cell"><div class="photo-label">Week 2</div></div>
@@ -803,6 +822,7 @@ const WEBHOOK     = 'https://hook.eu1.make.com/yjrg278x8bwehy6y19yiphluynmq3v8x'
 const CHECKIN_WEBHOOK = 'https://hook.eu1.make.com/52u1745oht7hlg48nfewr7ltwhddp6pz';
 const DAILY_BODY_WEBHOOK = 'https://hook.eu1.make.com/kq6ezqonfvyhx7cy7rwqgg7p4fuzk4na';
 const DAILY_NUT_WEBHOOK  = 'https://hook.eu1.make.com/ub1fq7r25teunvb6zu54azmpgxpnbshy';
+const DAILY_BODY_DB = '3405a96cc70b80a4b1b9cf5b9c236f18'; // Daily Athlete BODY Check-in
 const GYM_KEYS    = ['Upper A','Upper B','Lower A','Lower B'];
 const DAYS        = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
@@ -1014,6 +1034,7 @@ function switchTab(tab){
   document.getElementById('prow').style.display=isTraining?'':'none';
   if(tab==='nutrition') loadNutrition();
   if(tab==='checkin') initCheckin();
+  if(tab==='progress') loadProgress();
 }
 
 function initCheckin(){
@@ -1264,7 +1285,96 @@ async function loadNutrition(){
   document.getElementById('nutContent').style.display = 'block';
 }
 
-function getCurrentProgrammeWeek(){
+// ── LOAD PROGRESS ─────────────────────────────────────────────────────────────
+async function loadProgress(){
+  // Populate start/target from athlete data
+  document.getElementById('pgStart').textContent  = athlete.startWeight||'—';
+  document.getElementById('pgTarget').textContent = athlete.targetWeight||'—';
+
+  document.getElementById('pgLoadingEl').style.display='block';
+  document.getElementById('pgWeightLog').style.display='none';
+  document.getElementById('pgNoData').style.display='none';
+
+  // Fetch all rows from daily body DB
+  var allData = await api('databases/'+DAILY_BODY_DB+'/query',{page_size:100});
+  document.getElementById('pgLoadingEl').style.display='none';
+
+  if(!allData||!allData.results){document.getElementById('pgNoData').style.display='block';return;}
+
+  // Filter to this athlete and get weight entries
+  var athleteIdClean = athlete.notionPageId.replace(/-/g,'');
+  var entries = allData.results.filter(function(r){
+    var athRel = r.properties['Athlete']&&r.properties['Athlete'].relation||[];
+    var idMatch = athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
+    // Also try AthleteID text field
+    var idText = getRichText(r.properties['AthleteID']);
+    return idMatch || idText.replace(/-/g,'')===athleteIdClean;
+  }).filter(function(r){
+    // Only rows with weight data
+    var w = r.properties['Weight'];
+    return w&&w.number!=null;
+  }).sort(function(a,b){
+    // Sort by date descending
+    var da = a.properties['Date']&&a.properties['Date'].date&&a.properties['Date'].date.start||'';
+    var db = b.properties['Date']&&b.properties['Date'].date&&b.properties['Date'].date.start||'';
+    return db.localeCompare(da);
+  });
+
+  if(!entries.length){document.getElementById('pgNoData').style.display='block';return;}
+
+  // Current weight = most recent entry
+  var currentWeight = entries[0].properties['Weight'].number;
+  document.getElementById('pgCurrent').textContent = currentWeight+'kg';
+
+  // Calculate change from start
+  var startW = parseFloat(athlete.startWeight);
+  if(!isNaN(startW)&&currentWeight){
+    var change = (currentWeight - startW).toFixed(1);
+    var changeEl = document.getElementById('pgChange');
+    var positive = change > 0;
+    changeEl.textContent = (positive?'+':'')+change+'kg';
+    changeEl.style.color = positive ? 'var(--run)' : 'var(--ok)';
+  }
+
+  // Build weight log table
+  var html = '<table style="width:100%;border-collapse:collapse">';
+  html += '<thead><tr>';
+  html += '<th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:left;border-bottom:1px solid var(--border-mid)">Date</th>';
+  html += '<th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:right;border-bottom:1px solid var(--border-mid)">Weight</th>';
+  html += '<th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:right;border-bottom:1px solid var(--border-mid)">Change</th>';
+  html += '</tr></thead><tbody>';
+
+  entries.forEach(function(r, idx){
+    var pr = r.properties;
+    var date = pr['Date']&&pr['Date'].date&&pr['Date'].date.start||'';
+    var weight = pr['Weight'].number;
+    var dateLabel = date ? new Date(date).toLocaleDateString('en-AU',{day:'numeric',month:'short'}) : '—';
+
+    var changeStr = '—';
+    var changeColor = 'var(--dim)';
+    if(idx < entries.length-1){
+      var prevWeight = entries[idx+1].properties['Weight'].number;
+      if(prevWeight!=null){
+        var diff = (weight - prevWeight).toFixed(1);
+        changeStr = (diff>0?'+':'')+diff+'kg';
+        changeColor = diff > 0 ? 'var(--run)' : diff < 0 ? 'var(--ok)' : 'var(--dim)';
+      }
+    }
+
+    html += '<tr style="border-bottom:1px solid var(--border)">';
+    html += '<td style="padding:10px 4px;font-size:13px">'+dateLabel+'</td>';
+    html += '<td style="padding:10px 4px;font-family:var(--display);font-size:18px;font-weight:700;text-align:right">'+weight+'<span style="font-family:var(--mono);font-size:11px;color:var(--dim);font-weight:400">kg</span></td>';
+    html += '<td style="padding:10px 4px;font-family:var(--mono);font-size:12px;text-align:right;color:'+changeColor+'">'+changeStr+'</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  var logEl = document.getElementById('pgWeightLog');
+  logEl.innerHTML = html;
+  logEl.style.display='block';
+}
+
+
   // Use week label from currently loaded sessions if available
   var wkS = sessions.find(function(s){return s.week;});
   if(wkS){
