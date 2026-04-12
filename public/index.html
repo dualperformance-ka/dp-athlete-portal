@@ -365,9 +365,14 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="card-title">Body Composition</div>
       <div class="stat-grid">
         <div class="stat-field">
-          <label>Body Weight</label>
+          <label>Current Weight</label>
           <input class="stat-input" id="gWeight" type="text" placeholder="72.0" />
           <div class="field-hint">kg</div>
+        </div>
+        <div class="stat-field">
+          <label>Target Weight</label>
+          <input class="stat-input" id="gTargetWeight" type="text" placeholder="68.0" />
+          <div class="field-hint">kg — your goal</div>
         </div>
         <div class="stat-field">
           <label>Body Fat %</label>
@@ -914,6 +919,7 @@ function populateStatic(){
   setRaceFromValue(saved.goalRace||athlete.goalRace||'');
   document.getElementById('gPeakWeek').value=saved.peakWeek||athlete.peakWeek||'';
   document.getElementById('gWeight').value=saved.weight||athlete.weight||'';
+  document.getElementById('gTargetWeight').value=saved.targetWeight||athlete.targetWeight||'';
   document.getElementById('gBodyFat').value=saved.bodyFat||athlete.bodyFat||'';
   document.getElementById('g5k').value=saved.time5k||athlete.time5k||'';
   document.getElementById('g10k').value=saved.time10k||athlete.time10k||'';
@@ -930,10 +936,7 @@ function populateStatic(){
     document.getElementById('goalsSavedBadge').classList.add('show');
   }
   // Nutrition is now loaded dynamically via loadNutrition()
-  // Progress
-  document.getElementById('pgStart').textContent=athlete.startWeight;
-  document.getElementById('pgCurrent').textContent=athlete.weight;
-  document.getElementById('pgTarget').textContent=athlete.targetWeight;
+  // Progress is now loaded dynamically via loadProgress()
   document.getElementById('commsStart').textContent=athlete.startDate;
   // Check-in URLs
   if(athlete.checkinUrl!=='CHECKIN_URL'){document.querySelectorAll('[href="CHECKIN_URL"]').forEach(function(el){el.href=athlete.checkinUrl;});}
@@ -975,6 +978,7 @@ async function saveGoals(){
     goalRace:raceVal,
     peakWeek:document.getElementById('gPeakWeek').value.trim(),
     weight:document.getElementById('gWeight').value.trim(),
+    targetWeight:document.getElementById('gTargetWeight').value.trim(),
     bodyFat:document.getElementById('gBodyFat').value.trim(),
     time5k:document.getElementById('g5k').value.trim(),
     time10k:document.getElementById('g10k').value.trim(),
@@ -1003,6 +1007,7 @@ async function saveGoals(){
         goalRace:goals.goalRace,
         peakWeek:goals.peakWeek,
         weight:goals.weight,
+        targetWeight:goals.targetWeight,
         bodyFat:goals.bodyFat,
         time5k:goals.time5k,
         time10k:goals.time10k,
@@ -1338,16 +1343,37 @@ async function loadProgress(){
   // Current weight = most recent entry
   var wProp = entries[0].properties['Weight'];
   var currentWeight = wProp.number!=null ? wProp.number : parseFloat(getRichText(wProp));
+
+  // Start weight = oldest entry
+  var oldestWProp = entries[entries.length-1].properties['Weight'];
+  var startWeight = oldestWProp.number!=null ? oldestWProp.number : parseFloat(getRichText(oldestWProp));
+
+  // Target weight = from saved goals in localStorage
+  var savedGoals = JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
+  var targetWeight = savedGoals.weight ? null : null; // weight in goals is current, not target
+  // Check athlete props for target
+  var targetFromAthlete = athlete.targetWeight&&athlete.targetWeight!=='—' ? athlete.targetWeight : null;
+
+  // Target weight = from athlete DB or Goals localStorage
+  // In Goals tab we capture current weight - target needs to come from athlete DB 'Target Weight'
+  // or we can add a target weight field to Goals in future
+  var targetFromAthlete = athlete.targetWeight&&athlete.targetWeight!=='—' ? athlete.targetWeight : null;
+  var savedGoals = JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
+  var targetFinal = (savedGoals.targetWeight ? savedGoals.targetWeight+'kg' : null) || targetFromAthlete || '—';
+
+  document.getElementById('pgStart').textContent   = startWeight ? startWeight+'kg' : '—';
+  document.getElementById('pgCurrent').textContent = currentWeight ? currentWeight+'kg' : '—';
+  document.getElementById('pgTarget').textContent  = targetFinal;
   document.getElementById('pgCurrent').textContent = currentWeight+'kg';
 
   // Calculate change from start
-  var startW = parseFloat(athlete.startWeight);
-  if(!isNaN(startW)&&currentWeight){
-    var change = (currentWeight - startW).toFixed(1);
+  if(startWeight&&currentWeight&&!isNaN(startWeight)){
+    var change = (currentWeight - startWeight).toFixed(1);
     var changeEl = document.getElementById('pgChange');
     var positive = change > 0;
     changeEl.textContent = (positive?'+':'')+change+'kg';
     changeEl.style.color = positive ? 'var(--run)' : 'var(--ok)';
+    document.getElementById('pgChangeLbl').textContent = 'kg since first weigh-in ('+new Date(entries[entries.length-1].properties['Date'].date.start).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+')';
   }
 
   // Build weight log table
