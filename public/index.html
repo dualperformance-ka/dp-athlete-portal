@@ -505,15 +505,130 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <div class="tab-content" id="tab-checkin">
     <div class="stitle">Check-ins</div>
 
-    <!-- Stats row -->
     <div class="ci-grid" style="margin-bottom:14px">
       <div class="ci-card run"><div class="ci-val" id="ciRuns">—</div><div class="ci-lbl">Runs this week</div></div>
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
     </div>
 
-    <!-- Embedded check-in form -->
-    <div class="card" style="padding:0;overflow:hidden;border-radius:12px">
-      <iframe id="checkinFrame" src="" style="width:100%;height:1200px;border:none;display:block" scrolling="no"></iframe>
+    <!-- Booking bar -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:3px;">Before you submit</div>
+        <div style="font-size:14px;font-weight:500;">Book your weekly coaching call</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">45 min · Karl & Alex</div>
+      </div>
+      <a href="https://calendly.com/dualperformanceka/45min" target="_blank" style="background:#0a0a0a;color:#fff;text-decoration:none;border-radius:6px;padding:9px 16px;font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;">Book Now →</a>
+    </div>
+
+    <div id="ciFormContent">
+      <!-- Details -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title">Your details</div>
+        <div class="rlog">
+          <div class="lf"><label>Full name</label><input type="text" class="li" id="ciName" placeholder="Your name" /></div>
+          <div class="lf"><label>Week ending</label><input type="date" class="li" id="ciWeekEnding" /></div>
+        </div>
+      </div>
+
+      <!-- Running -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title" style="color:var(--run)">● Running</div>
+        <div class="rlog" style="margin-bottom:10px">
+          <div class="lf"><label>Sessions completed</label><input type="number" class="li" id="ciRunComp" min="0" max="20" placeholder="3" /></div>
+          <div class="lf"><label>Sessions planned</label><input type="number" class="li" id="ciRunPlan" min="0" max="20" placeholder="4" /></div>
+        </div>
+        <div class="lf" style="margin-bottom:12px"><label>Total km this week</label><input type="number" class="li" id="ciRunKm" min="0" placeholder="42" /></div>
+        <div class="lf" style="margin-bottom:6px">
+          <label>How did running feel? <span id="ciRunFeelVal" style="font-family:var(--mono);color:var(--run)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>Best ever</span></div>
+        </div>
+        <div class="lf" style="margin-top:10px"><label>Pain, niggles or injuries?</label><textarea class="li" id="ciRunNiggles" placeholder="Describe anything, or write 'none'" style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+      </div>
+
+      <!-- Lifting -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title" style="color:var(--strength)">● Lifting</div>
+        <div class="rlog" style="margin-bottom:12px">
+          <div class="lf"><label>Sessions completed</label><input type="number" class="li" id="ciLiftComp" min="0" max="20" placeholder="2" /></div>
+          <div class="lf"><label>Sessions planned</label><input type="number" class="li" id="ciLiftPlan" min="0" max="20" placeholder="3" /></div>
+        </div>
+        <div class="lf" style="margin-bottom:6px">
+          <label>How did lifting feel? <span id="ciLiftFeelVal" style="font-family:var(--mono);color:var(--strength)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>PR session</span></div>
+        </div>
+        <div class="lf" style="margin-top:10px"><label>Strength wins or notable sessions?</label><textarea class="li" id="ciLiftWins" placeholder="e.g. new squat PB, or 'nothing notable'" style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+      </div>
+
+      <!-- Recovery -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title" style="color:#166534">● Recovery</div>
+        <div class="lf" style="margin-bottom:14px">
+          <label>Average sleep per night <span id="ciSleepVal" style="font-family:var(--mono)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="ciSleep" oninput="document.getElementById('ciSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Under 5hrs</span><span>8+ hrs quality</span></div>
+        </div>
+        <div class="lf" style="margin-bottom:14px">
+          <label>Energy levels <span id="ciEnergyVal" style="font-family:var(--mono)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="ciEnergy" oninput="document.getElementById('ciEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Running on empty</span><span>Felt great</span></div>
+        </div>
+        <div class="lf">
+          <label>Muscle soreness / fatigue <span id="ciSorenessVal" style="font-family:var(--mono)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="ciSoreness" oninput="document.getElementById('ciSorenessVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Destroyed</span><span>Fresh legs</span></div>
+        </div>
+      </div>
+
+      <!-- Nutrition -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title" style="color:#92400e">● Nutrition</div>
+        <div class="lf" style="margin-bottom:14px">
+          <label>Adherence to nutrition plan <span id="ciNutVal" style="font-family:var(--mono)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="ciNut" oninput="document.getElementById('ciNutVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Off the rails</span><span>Nailed it</span></div>
+        </div>
+        <div class="lf" style="margin-bottom:12px">
+          <label>Pre & post training fuelling</label>
+          <select class="li" id="ciFuelling" style="margin-top:6px">
+            <option value="">Select...</option>
+            <option>Consistent — fuelled properly around every session</option>
+            <option>Mostly — missed once or twice</option>
+            <option>Patchy — hit and miss through the week</option>
+            <option>Poor — barely fuelled around training</option>
+          </select>
+        </div>
+        <div class="lf"><label>Social eating or events this week?</label><textarea class="li" id="ciSocial" placeholder="e.g. family dinner Wednesday. Or 'none'." style="min-height:60px;resize:vertical;font-size:13px;margin-top:6px"></textarea></div>
+      </div>
+
+      <!-- Mindset -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title" style="color:#5b21b6">● Mindset & Life</div>
+        <div class="lf" style="margin-bottom:14px">
+          <label>Work / life stress <span id="ciStressVal" style="font-family:var(--mono)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="ciStress" oninput="document.getElementById('ciStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Calm</span><span>Extremely stressed</span></div>
+        </div>
+        <div class="lf" style="margin-bottom:14px">
+          <label>Motivation to train <span id="ciMotVal" style="font-family:var(--mono)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="ciMot" oninput="document.getElementById('ciMotVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Dragging myself</span><span>Couldn't wait</span></div>
+        </div>
+        <div class="lf"><label>Anything else your coach should know?</label><textarea class="li" id="ciNotes" placeholder="Life stuff, mindset, questions, wins, frustrations..." style="min-height:80px;resize:vertical;font-size:13px;margin-top:6px"></textarea></div>
+      </div>
+
+      <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()">Submit Check-in</button>
+    </div>
+
+    <!-- Success -->
+    <div id="ciSuccess" style="display:none;text-align:center;padding:52px 20px">
+      <div style="width:52px;height:52px;border-radius:50%;background:#0a0a0a;display:flex;align-items:center;justify-content:center;margin:0 auto 18px">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </div>
+      <div style="font-family:var(--display);font-size:30px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px">Check-in received</div>
+      <div style="font-size:14px;color:var(--muted)">Karl and Alex will review this before your call. Good work showing up.</div>
+      <button class="savebtn" style="margin-top:24px;max-width:280px" onclick="resetCheckin()">Submit another</button>
     </div>
   </div>
 
@@ -788,15 +903,65 @@ function switchTab(tab){
   document.getElementById('wbar').style.display=isTraining?'':'none';
   document.getElementById('prow').style.display=isTraining?'':'none';
   if(tab==='nutrition') loadNutrition();
-  if(tab==='checkin') loadCheckin();
+  if(tab==='checkin') initCheckin();
 }
 
-function loadCheckin(){
-  var frame=document.getElementById('checkinFrame');
-  // Only load once
-  if(frame.src) return;
-  // Point to the check-in page — hosted on Vercel at /checkin.html
-  frame.src='/checkin.html?name='+encodeURIComponent(athlete.name);
+function initCheckin(){
+  // Pre-fill name and default week ending once
+  var nameEl=document.getElementById('ciName');
+  if(nameEl&&!nameEl.value) nameEl.value=athlete.name;
+  var weEl=document.getElementById('ciWeekEnding');
+  if(weEl&&!weEl.value){
+    var d=new Date(),day=d.getDay(),diff=day===0?0:7-day,sun=new Date(d);
+    sun.setDate(d.getDate()+diff);
+    weEl.value=sun.toISOString().split('T')[0];
+  }
+}
+
+async function submitCheckin(){
+  var btn=document.getElementById('ciSubmitBtn');
+  var name=document.getElementById('ciName').value.trim();
+  if(!name){showToast('Please enter your name');return;}
+  btn.textContent='Submitting...';btn.disabled=true;
+  var payload={
+    name:name,
+    weekEnding:document.getElementById('ciWeekEnding').value,
+    runCompleted:document.getElementById('ciRunComp').value||'0',
+    runPlanned:document.getElementById('ciRunPlan').value||'0',
+    runKm:document.getElementById('ciRunKm').value||'0',
+    runFeel:document.getElementById('ciRunFeel').value,
+    runNiggles:document.getElementById('ciRunNiggles').value||'None',
+    liftCompleted:document.getElementById('ciLiftComp').value||'0',
+    liftPlanned:document.getElementById('ciLiftPlan').value||'0',
+    liftFeel:document.getElementById('ciLiftFeel').value,
+    liftWins:document.getElementById('ciLiftWins').value||'None',
+    sleep:document.getElementById('ciSleep').value,
+    energy:document.getElementById('ciEnergy').value,
+    soreness:document.getElementById('ciSoreness').value,
+    nutrition:document.getElementById('ciNut').value,
+    fuelling:document.getElementById('ciFuelling').value||'Not selected',
+    socialEating:document.getElementById('ciSocial').value||'None',
+    stress:document.getElementById('ciStress').value,
+    motivation:document.getElementById('ciMot').value,
+    notes:document.getElementById('ciNotes').value||''
+  };
+  try{
+    await fetch('https://hook.eu1.make.com/52u1745oht7hlg48nfewr7ltwhddp6pz',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
+    });
+    document.getElementById('ciFormContent').style.display='none';
+    document.getElementById('ciSuccess').style.display='block';
+  }catch(e){
+    btn.textContent='Submit Check-in';btn.disabled=false;
+    showToast('Could not submit — please try again');
+  }
+}
+
+function resetCheckin(){
+  document.getElementById('ciFormContent').style.display='block';
+  document.getElementById('ciSuccess').style.display='none';
+  var btn=document.getElementById('ciSubmitBtn');
+  btn.textContent='Submit Check-in';btn.disabled=false;
 }
 function shiftWeek(d){weekOffset+=d;loadWeek();}
 function goToday(){weekOffset=0;loadWeek();}
