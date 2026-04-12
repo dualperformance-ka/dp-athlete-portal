@@ -504,24 +504,16 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <!-- CHECK-IN -->
   <div class="tab-content" id="tab-checkin">
     <div class="stitle">Check-ins</div>
-    <div class="checkin-cta">
-      <div class="checkin-cta-title">Weekly Check-in</div>
-      <div class="checkin-cta-sub">Take 5 minutes every Sunday. Review your week, flag what's getting in the way, and lock in your focus. Honest check-ins = better coaching.</div>
-      <a class="cta-btn" href="CHECKIN_URL" target="_blank">Start Weekly Check-in →</a>
-    </div>
-    <div class="ci-grid">
+
+    <!-- Stats row -->
+    <div class="ci-grid" style="margin-bottom:14px">
       <div class="ci-card run"><div class="ci-val" id="ciRuns">—</div><div class="ci-lbl">Runs this week</div></div>
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
     </div>
-    <div class="checkin-links">
-      <a class="checkin-link-card" href="DAILY_BODY_URL" target="_blank">
-        <div class="cl-left"><div class="cl-title">Daily Body Check-in</div><div class="cl-sub">Weight · sleep · energy · soreness</div></div>
-        <div class="cl-arrow">→</div>
-      </a>
-      <a class="checkin-link-card" href="DAILY_NUTRITION_URL" target="_blank">
-        <div class="cl-left"><div class="cl-title">Daily Nutrition Log</div><div class="cl-sub">Calories · protein · carbs · fat</div></div>
-        <div class="cl-arrow">→</div>
-      </a>
+
+    <!-- Embedded check-in form -->
+    <div class="card" style="padding:0;overflow:hidden;border-radius:12px">
+      <iframe id="checkinFrame" src="" style="width:100%;height:1200px;border:none;display:block" scrolling="no"></iframe>
     </div>
   </div>
 
@@ -796,6 +788,15 @@ function switchTab(tab){
   document.getElementById('wbar').style.display=isTraining?'':'none';
   document.getElementById('prow').style.display=isTraining?'':'none';
   if(tab==='nutrition') loadNutrition();
+  if(tab==='checkin') loadCheckin();
+}
+
+function loadCheckin(){
+  var frame=document.getElementById('checkinFrame');
+  // Only load once
+  if(frame.src) return;
+  // Point to the check-in page — hosted on Vercel at /checkin.html
+  frame.src='/checkin.html?name='+encodeURIComponent(athlete.name);
 }
 function shiftWeek(d){weekOffset+=d;loadWeek();}
 function goToday(){weekOffset=0;loadWeek();}
