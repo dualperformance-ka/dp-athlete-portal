@@ -167,7 +167,17 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .race-opt{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:9px 14px;border:1.5px solid var(--border-mid);border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
 .race-opt.selected{background:#0a0a0a;border-color:#0a0a0a;color:#fff}
 
-/* ── CHECK-IN TAB ── */
+/* ── NUTRITION WEEK NAV ── */
+.nut-wbar{background:#111;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06);margin:-16px -14px 16px}
+.nut-wlabel{font-family:var(--display);font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#fff}
+.nut-arr{font-family:var(--mono);font-size:11px;padding:6px 11px;border:1px solid rgba(255,255,255,.13);border-radius:6px;background:transparent;color:rgba(255,255,255,.5);cursor:pointer}
+/* priority list */
+.priority-list{display:grid;gap:10px}
+.priority-item{display:flex;align-items:flex-start;gap:12px}
+.priority-num{font-family:var(--display);font-size:18px;font-weight:700;background:#0a0a0a;color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.priority-text{font-size:13px;color:var(--muted);line-height:1.55}
+.priority-text strong{color:var(--text)}
+.mc.fibre .mv{color:var(--rest)}
 .checkin-cta{background:#0a0a0a;border-radius:12px;padding:22px;margin-bottom:12px}
 .checkin-cta-title{font-family:var(--display);font-size:22px;font-weight:700;text-transform:uppercase;color:#fff;letter-spacing:.03em;margin-bottom:6px}
 .checkin-cta-sub{font-size:13px;color:rgba(255,255,255,.45);line-height:1.5;margin-bottom:18px}
@@ -422,32 +432,72 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 
   <!-- NUTRITION -->
   <div class="tab-content" id="tab-nutrition">
-    <div class="stitle">Nutrition</div>
-    <div class="macro-grid">
-      <div class="mc cal"><div class="mv" id="nutCal">—</div><div class="ml">Calories kcal</div></div>
-      <div class="mc pro"><div class="mv" id="nutPro">—</div><div class="ml">Protein g</div></div>
-      <div class="mc carb"><div class="mv" id="nutCarb">—</div><div class="ml">Carbs g</div></div>
-      <div class="mc fat"><div class="mv" id="nutFat">—</div><div class="ml">Fat g</div></div>
+    <!-- Week nav for nutrition -->
+    <div class="nut-wbar">
+      <div class="wnav">
+        <button class="warr nut-arr" onclick="shiftNutWeek(-1)">←</button>
+        <button class="warr nut-arr" onclick="shiftNutWeek(1)">→</button>
+        <button class="wtoday nut-arr" onclick="goNutToday()">Current</button>
+      </div>
+      <div class="nut-wlabel" id="nutWLabel">—</div>
     </div>
-    <div class="nutrnote">Protein is non-negotiable — hit it every day. Calories are a ceiling on rest days and a floor on hard training days. Carbs scale with your weekly km load.</div>
-    <div class="card">
-      <div class="card-title">Carb Timing by Session</div>
-      <table class="timing-table">
-        <thead><tr><th>Session</th><th>Timing</th><th>Amount</th><th>Examples</th></tr></thead>
-        <tbody>
-          <tr><td>Long Run</td><td>30–60 min before</td><td>20–30g</td><td>White rice crackers, banana</td></tr>
-          <tr><td>Long Run</td><td>During (>75 min)</td><td>30–60g/hr</td><td>Gels, sports drink, dates</td></tr>
-          <tr><td>Long Run</td><td>30 min after</td><td>60–80g</td><td>Rice + juice / banana + rice cakes</td></tr>
-          <tr><td>Easy Run</td><td>1–2 hrs before</td><td>30–50g</td><td>Small oats or toast + banana</td></tr>
-          <tr><td>Speed Session</td><td>2 hrs before</td><td>50–70g</td><td>White rice or pasta + light protein</td></tr>
-          <tr><td>Speed Session</td><td>During (if >60 min)</td><td>20–30g</td><td>Gel or sports drink</td></tr>
-          <tr><td>Gym</td><td>1–2 hrs before</td><td>50–70g</td><td>Rice + protein source or shake + banana</td></tr>
-        </tbody>
-      </table>
+
+    <!-- Loading -->
+    <div class="loading" id="nutLoadingEl">
+      <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
+      <div class="ltxt">Loading targets...</div>
     </div>
-    <div class="card">
-      <div class="card-title">Key Principles</div>
-      <div class="nutrnote" style="margin:0">Never train fasted during speed or long runs. Saturday night is your most important meal — eat 80–100g carbs (pasta, rice, noodles) to top off glycogen for Sunday's long run. Spread protein across 4–5 meals, aiming for 35–55g per main meal.</div>
+
+    <!-- No targets -->
+    <div class="noplan" id="nutNoplan" style="display:none">No targets set for this week.<br>Your coach will update these soon.</div>
+
+    <!-- Targets -->
+    <div id="nutContent" style="display:none">
+      <!-- Coach note if present -->
+      <div class="cnote" id="nutCoachNote" style="display:none;margin-bottom:14px"></div>
+
+      <!-- Macro cards -->
+      <div class="macro-grid">
+        <div class="mc cal"><div class="mv" id="nutCal">—</div><div class="ml">Calories kcal</div></div>
+        <div class="mc pro"><div class="mv" id="nutPro">—</div><div class="ml">Protein g</div></div>
+        <div class="mc carb"><div class="mv" id="nutCarb">—</div><div class="ml">Carbs g</div></div>
+        <div class="mc fat"><div class="mv" id="nutFat">—</div><div class="ml">Fat g</div></div>
+        <div class="mc fibre" style="grid-column:1/-1"><div class="mv" id="nutFibre" style="font-size:28px">—</div><div class="ml">Fibre g (target)</div></div>
+      </div>
+
+      <!-- Priority order -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title">Priority Order</div>
+        <div class="priority-list">
+          <div class="priority-item"><div class="priority-num">1</div><div class="priority-text"><strong>Hit protein every day.</strong> Non-negotiable — protects muscle and keeps you full.</div></div>
+          <div class="priority-item"><div class="priority-num">2</div><div class="priority-text"><strong>Stay within your calorie target.</strong> Ceiling on rest days, floor on hard training days.</div></div>
+          <div class="priority-item"><div class="priority-num">3</div><div class="priority-text"><strong>Hit your fibre target.</strong> 31–40g daily from vegetables, fruit, oats and legumes.</div></div>
+          <div class="priority-item"><div class="priority-num">4</div><div class="priority-text"><strong>Carbs and fat fill around protein.</strong> Use carbs around training, fat fills the rest.</div></div>
+        </div>
+      </div>
+
+      <!-- Carb timing -->
+      <div class="card">
+        <div class="card-title">Carb Timing by Session</div>
+        <table class="timing-table">
+          <thead><tr><th>Session</th><th>Timing</th><th>Amount</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr><td>Long Run</td><td>30–60 min before</td><td>20–30g</td><td>White rice crackers, banana</td></tr>
+            <tr><td>Long Run</td><td>During (>75 min)</td><td>30–60g/hr</td><td>Gels, sports drink, dates</td></tr>
+            <tr><td>Long Run</td><td>30 min after</td><td>60–80g</td><td>Rice + juice / banana + rice cakes</td></tr>
+            <tr><td>Easy Run</td><td>1–2 hrs before</td><td>30–50g</td><td>Small oats or toast + banana</td></tr>
+            <tr><td>Speed Session</td><td>2 hrs before</td><td>50–70g</td><td>White rice or pasta + light protein</td></tr>
+            <tr><td>Speed Session</td><td>During (if >60 min)</td><td>20–30g</td><td>Gel or sports drink</td></tr>
+            <tr><td>Gym</td><td>1–2 hrs before</td><td>50–70g</td><td>Rice + protein source or shake + banana</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Key principles -->
+      <div class="card">
+        <div class="card-title">Key Principles</div>
+        <div class="nutrnote" style="margin:0">Never train fasted during speed or long runs. Saturday night is your most important meal — eat 80–100g carbs (pasta, rice, noodles) to top off glycogen for Sunday's long run. Spread protein across 4–5 meals, aiming for 35–55g per main meal.</div>
+      </div>
     </div>
   </div>
 
@@ -534,6 +584,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const CALENDAR_DB = '0b85a96cc70b836898fd013e0e15c4f2';
 const ATHLETE_DB  = '4a25a96cc70b82ffa6790139eaa8b458';
+const NUTRITION_DB = '3405a96cc70b80de9221c2a40653277c';
 const WEBHOOK     = 'https://hook.eu1.make.com/yjrg278x8bwehy6y19yiphluynmq3v8x';
 const GYM_KEYS    = ['Upper A','Upper B','Lower A','Lower B'];
 const DAYS        = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -545,7 +596,7 @@ const STR = {"Lower A":[{"exercise":"Leg Extension","sets":"4","reps":"8","rest"
 const RUN={"Threshold Work":{"description":"Warm up 15min easy. Run at sustained threshold effort (RPE 7–8). Cool down easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"Easy Run":{"description":"Relaxed aerobic run at conversational pace (RPE 4–5). Focus on easy breathing and good form.","type":"Easy Run","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"Long Run":{"description":"Long aerobic endurance run. Relaxed steady effort (RPE 5–6). Focus on time on feet and fueling.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Progressive Long Run":{"description":"Long run starting easy, gradually increasing pace in final third toward marathon effort.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Fast Finish Long Run":{"description":"Long run mostly easy with final 3–5km at marathon effort (RPE 7).","type":"Long Run","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"12x1min Fartlek":{"description":"Warm up 10–15min easy. 12x1min strong (RPE 7–8) with 1min jog recovery. Cool down easy.","type":"Fartlek","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"8x2min Fartlek":{"description":"Warm up 10–15min easy + strides. 8x2min steady hard (RPE 7) with 2min jog recovery. Cool down 10min easy.","type":"Fartlek","intensity":"Threshold","surface":"Road","difficulty":"Beginner"},"20min Tempo":{"description":"Warm up 10–15min easy. 20min tempo steady effort (RPE 7). Cool down 10min easy.","type":"Tempo","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"25min Tempo":{"description":"Warm up 15min easy. 25min continuous tempo (RPE 7). Cool down 10–15min easy.","type":"Tempo","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"5x1km Threshold":{"description":"Warm up 15min easy + strides. 5x1km threshold (RPE 7–8) with 90s jog recovery. Cool down 10min easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"6x400m Intervals":{"description":"Warm up 15min easy + drills. 6x400m fast (RPE 8) with 200m jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"6x800m Intervals":{"description":"Warm up 15min easy. 6x800m strong (RPE 8) with 2min jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"10x20s Hill Sprints":{"description":"Warm up 15min easy. 10x20s hill sprints (RPE 9) full recovery. Cool down easy.","type":"Hills","intensity":"Neuromuscular","surface":"Hills","difficulty":"Beginner"},"5km Recovery":{"description":"5km gentle recovery jog (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"},"6km Recovery":{"description":"6km very easy recovery run (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"}};
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let athlete=null, weekOffset=0, sessions=[], ticked={}, logs={};
+let athlete=null, weekOffset=0, nutWeekOffset=0, sessions=[], ticked={}, logs={};
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function localISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -641,11 +692,7 @@ function populateStatic(){
     document.getElementById('goalsSavedTime').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
     document.getElementById('goalsSavedBadge').classList.add('show');
   }
-  // Nutrition
-  document.getElementById('nutCal').textContent=athlete.calories;
-  document.getElementById('nutPro').textContent=athlete.protein;
-  document.getElementById('nutCarb').textContent=athlete.carbs;
-  document.getElementById('nutFat').textContent=athlete.fat;
+  // Nutrition is now loaded dynamically via loadNutrition()
   // Progress
   document.getElementById('pgStart').textContent=athlete.startWeight;
   document.getElementById('pgCurrent').textContent=athlete.weight;
@@ -748,9 +795,81 @@ function switchTab(tab){
   var isTraining=tab==='training';
   document.getElementById('wbar').style.display=isTraining?'':'none';
   document.getElementById('prow').style.display=isTraining?'':'none';
+  if(tab==='nutrition') loadNutrition();
 }
 function shiftWeek(d){weekOffset+=d;loadWeek();}
 function goToday(){weekOffset=0;loadWeek();}
+function shiftNutWeek(d){nutWeekOffset+=d;loadNutrition();}
+function goNutToday(){nutWeekOffset=0;loadNutrition();}
+
+// ── LOAD NUTRITION ────────────────────────────────────────────────────────────
+async function loadNutrition(){
+  // Figure out current programme week number from training sessions
+  // Fall back to calculating from athlete start date
+  var weekNum = getCurrentProgrammeWeek();
+  var displayWeek = weekNum + nutWeekOffset;
+  if(displayWeek < 1) displayWeek = 1;
+  if(displayWeek > 12) displayWeek = 12;
+
+  document.getElementById('nutWLabel').textContent = 'Week ' + displayWeek;
+  document.getElementById('nutLoadingEl').style.display = 'block';
+  document.getElementById('nutContent').style.display = 'none';
+  document.getElementById('nutNoplan').style.display = 'none';
+
+  var data = await api('databases/'+NUTRITION_DB+'/query', {
+    filter: {
+      and: [
+        {property:'Athlete', relation:{contains:athlete.notionPageId}},
+        {property:'Week', select:{equals:'Week '+displayWeek}}
+      ]
+    },
+    page_size: 1
+  });
+
+  document.getElementById('nutLoadingEl').style.display = 'none';
+
+  if(!data||!data.results||!data.results.length){
+    document.getElementById('nutNoplan').style.display = 'block';
+    return;
+  }
+
+  var pr = data.results[0].properties;
+  var cal    = pr['Calories (g)']&&pr['Calories (g)'].number!=null ? pr['Calories (g)'].number : '—';
+  var pro    = pr['Protein (g)']&&pr['Protein (g)'].number!=null   ? pr['Protein (g)'].number   : '—';
+  var carbs  = pr['Carbs (g)']&&pr['Carbs (g)'].number!=null       ? pr['Carbs (g)'].number       : '—';
+  var fat    = pr['Fats (g)']&&pr['Fats (g)'].number!=null         ? pr['Fats (g)'].number         : '—';
+  var fibre  = pr['Fibre (g)']&&pr['Fibre (g)'].number!=null       ? pr['Fibre (g)'].number       : '—';
+  var note   = getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
+
+  document.getElementById('nutCal').textContent   = cal;
+  document.getElementById('nutPro').textContent   = pro;
+  document.getElementById('nutCarb').textContent  = carbs;
+  document.getElementById('nutFat').textContent   = fat;
+  document.getElementById('nutFibre').textContent = fibre;
+
+  var noteEl = document.getElementById('nutCoachNote');
+  if(note){noteEl.textContent = '💬 ' + note; noteEl.style.display='block';}
+  else{noteEl.style.display='none';}
+
+  document.getElementById('nutContent').style.display = 'block';
+}
+
+function getCurrentProgrammeWeek(){
+  // Use week label from currently loaded sessions if available
+  var wkS = sessions.find(function(s){return s.week;});
+  if(wkS){
+    var m = wkS.week.match(/\d+/);
+    if(m) return parseInt(m[0]);
+  }
+  // Fall back to calculating from start date
+  if(athlete.startDate&&athlete.startDate!=='—'){
+    var start = new Date(athlete.startDate);
+    var now   = new Date();
+    var diff  = Math.floor((now-start)/(7*24*60*60*1000))+1;
+    return Math.max(1,Math.min(12,diff));
+  }
+  return 1;
+}
 
 // ── LOAD WEEK ─────────────────────────────────────────────────────────────────
 async function loadWeek(){
