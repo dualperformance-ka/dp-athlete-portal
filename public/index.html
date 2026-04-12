@@ -882,32 +882,26 @@ async function loadNutrition(){
 
   var pr = data.results[0].properties;
   console.log('Property keys:', Object.keys(pr));
-  console.log('Full props:', JSON.stringify(pr));
 
-  // Helper - tries named keys first, then scans all number props
-  var numProps = Object.keys(pr).filter(function(k){return pr[k]&&pr[k].type==='number'&&pr[k].number!=null;});
-  console.log('Number props found:', numProps.map(function(k){return k+':'+pr[k].number;}));
-
-  function getNum(keys){
+  function getMacro(keys){
     for(var i=0;i<keys.length;i++){
       var p=pr[keys[i]];
-      if(p&&p.number!=null)return p.number;
-    }
-    // Fuzzy match against actual prop names
-    for(var i=0;i<keys.length;i++){
-      var kl=keys[i].toLowerCase().replace(/[\s()]/g,'');
-      for(var j=0;j<numProps.length;j++){
-        if(numProps[j].toLowerCase().replace(/[\s()]/g,'')===kl)return pr[numProps[j]].number;
-      }
+      if(!p) continue;
+      // number type
+      if(p.type==='number'&&p.number!=null) return p.number;
+      // rich_text type
+      if(p.type==='rich_text'&&p.rich_text&&p.rich_text[0]) return p.rich_text[0].plain_text||'—';
+      // title type
+      if(p.type==='title'&&p.title&&p.title[0]) return p.title[0].plain_text||'—';
     }
     return '—';
   }
 
-  var cal   = getNum(['Calories','Calories (g)','Cal','kcal','Energy']);
-  var pro   = getNum(['Protein','Protein (g)','Pro']);
-  var carbs = getNum(['Carbs','Carbs (g)','Carbohydrates','Carbs (g)']);
-  var fat   = getNum(['Fats','Fat','Fats (g)','Fat (g)']);
-  var fibre = getNum(['Fibre','Fiber','Fibre (g)','Fiber (g)']);
+  var cal   = getMacro(['Calories','Calories (g)','Cal','kcal']);
+  var pro   = getMacro(['Protein','Protein (g)','Pro']);
+  var carbs = getMacro(['Carbs','Carbs (g)','Carbohydrates']);
+  var fat   = getMacro(['Fats','Fat','Fats (g)','Fat (g)']);
+  var fibre = getMacro(['Fibre','Fiber','Fibre (g)','Fiber (g)']);
   var note  = getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
 
   document.getElementById('nutCal').textContent   = cal;
