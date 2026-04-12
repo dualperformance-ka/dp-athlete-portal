@@ -1301,29 +1301,43 @@ async function loadProgress(){
 
   if(!allData||!allData.results){document.getElementById('pgNoData').style.display='block';return;}
 
-  // Filter to this athlete and get weight entries
+  console.log('Body DB total rows:', allData.results.length);
+  if(allData.results.length) {
+    var sample = allData.results[0].properties;
+    console.log('Sample row keys:', Object.keys(sample));
+    console.log('Sample AthleteID:', JSON.stringify(sample['AthleteID']));
+    console.log('Sample Athlete relation:', JSON.stringify(sample['Athlete']));
+    console.log('Sample Weight:', JSON.stringify(sample['Weight']));
+    console.log('Our athleteId:', athlete.notionPageId);
+  }
+
+  // Filter to this athlete — try relation, text ID, and name
   var athleteIdClean = athlete.notionPageId.replace(/-/g,'');
   var entries = allData.results.filter(function(r){
-    var athRel = r.properties['Athlete']&&r.properties['Athlete'].relation||[];
+    var pr = r.properties;
+    var athRel = pr['Athlete']&&pr['Athlete'].relation||[];
     var idMatch = athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
-    // Also try AthleteID text field
-    var idText = getRichText(r.properties['AthleteID']);
-    return idMatch || idText.replace(/-/g,'')===athleteIdClean;
+    var idText = getRichText(pr['AthleteID']||{}).replace(/-/g,'');
+    var nameMatch = getNotionTitle(pr).toLowerCase()===athlete.name.toLowerCase() ||
+                    getRichText(pr['Athlete Name']||{}).toLowerCase()===athlete.name.toLowerCase();
+    return idMatch || idText===athleteIdClean || nameMatch;
   }).filter(function(r){
-    // Only rows with weight data
+    // Try both number and rich_text for weight
     var w = r.properties['Weight'];
-    return w&&w.number!=null;
+    return w&&(w.number!=null || (w.rich_text&&w.rich_text.length));
   }).sort(function(a,b){
-    // Sort by date descending
     var da = a.properties['Date']&&a.properties['Date'].date&&a.properties['Date'].date.start||'';
     var db = b.properties['Date']&&b.properties['Date'].date&&b.properties['Date'].date.start||'';
     return db.localeCompare(da);
   });
 
+  console.log('Matched entries:', entries.length);
+
   if(!entries.length){document.getElementById('pgNoData').style.display='block';return;}
 
   // Current weight = most recent entry
-  var currentWeight = entries[0].properties['Weight'].number;
+  var wProp = entries[0].properties['Weight'];
+  var currentWeight = wProp.number!=null ? wProp.number : parseFloat(getRichText(wProp));
   document.getElementById('pgCurrent').textContent = currentWeight+'kg';
 
   // Calculate change from start
@@ -1347,13 +1361,15 @@ async function loadProgress(){
   entries.forEach(function(r, idx){
     var pr = r.properties;
     var date = pr['Date']&&pr['Date'].date&&pr['Date'].date.start||'';
-    var weight = pr['Weight'].number;
+    var wPr = r.properties['Weight'];
+    var weight = wPr.number!=null ? wPr.number : parseFloat(getRichText(wPr));
     var dateLabel = date ? new Date(date).toLocaleDateString('en-AU',{day:'numeric',month:'short'}) : '—';
 
     var changeStr = '—';
     var changeColor = 'var(--dim)';
     if(idx < entries.length-1){
-      var prevWeight = entries[idx+1].properties['Weight'].number;
+      var prevWPr = entries[idx+1].properties['Weight'];
+      var prevWeight = prevWPr.number!=null ? prevWPr.number : parseFloat(getRichText(prevWPr));
       if(prevWeight!=null){
         var diff = (weight - prevWeight).toFixed(1);
         changeStr = (diff>0?'+':'')+diff+'kg';
