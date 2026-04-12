@@ -1371,17 +1371,31 @@ function renderAngleGrid(week){
   ANGLES.forEach(function(angle){
     var key = angle.toLowerCase().replace(/\s/g,'_');
     var url = weekPhotos[key]||'';
-    html += '<div class="angle-slot'+(url?' has-photo':'')+'" id="aslot_'+key+'" onclick="triggerAngleUpload(\''+angle+'\')">';
+    html += '<div class="angle-slot'+(url?' has-photo':'')+'" id="aslot_'+key+'">';
     if(url){
       html += '<img src="'+url+'" />';
       html += '<div class="aslot-overlay">'+angle+'</div>';
+      html += '<button onclick="deleteAnglePhoto(\''+angle+'\')" style="position:absolute;top:6px;right:6px;z-index:3;background:rgba(0,0,0,.6);border:none;border-radius:50%;width:26px;height:26px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>';
     } else {
-      html += '<div class="aslot-add">+</div>';
-      html += '<div class="aslot-label">'+angle+'</div>';
+      html += '<div class="aslot-add" onclick="triggerAngleUpload(\''+angle+'\')">+</div>';
+      html += '<div class="aslot-label" onclick="triggerAngleUpload(\''+angle+'\')">'+angle+'</div>';
     }
     html += '</div>';
   });
   document.getElementById('angleGrid').innerHTML = html;
+}
+
+function deleteAnglePhoto(angle){
+  if(!confirm('Remove '+angle+' photo for Week '+currentPhotoWeek+'?')) return;
+  var key = angle.toLowerCase().replace(/\s/g,'_');
+  var photos = getPhotos();
+  if(photos['week'+currentPhotoWeek]){
+    delete photos['week'+currentPhotoWeek][key];
+    if(!Object.keys(photos['week'+currentPhotoWeek]).length) delete photos['week'+currentPhotoWeek];
+    savePhotos(photos);
+    renderAngleGrid(currentPhotoWeek);
+    showToast(angle+' photo removed');
+  }
 }
 
 function triggerAngleUpload(angle){
