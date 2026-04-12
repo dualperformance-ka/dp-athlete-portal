@@ -893,15 +893,14 @@ async function loadNutrition(){
       var p=pr[keys[i]];
       if(p&&p.number!=null)return p.number;
     }
-    // Last resort: scan all props for number type matching keyword
     return '—';
   }
 
-  var cal   = getNum(['Calories (g)','Calories','calories','Cal','kcal']);
-  var pro   = getNum(['Protein (g)','Protein','protein','Pro']);
-  var carbs = getNum(['Carbs (g)','Carbs','carbs','Carbohydrates','Carbohydrates (g)']);
-  var fat   = getNum(['Fats (g)','Fat (g)','Fats','Fat','fat','fats']);
-  var fibre = getNum(['Fibre (g)','Fiber (g)','Fibre','Fiber','fibre','fiber']);
+  var cal   = getNum(['Calories','Calories (g)','Cal','kcal']);
+  var pro   = getNum(['Protein','Protein (g)','Pro']);
+  var carbs = getNum(['Carbs','Carbs (g)','Carbohydrates']);
+  var fat   = getNum(['Fats','Fat','Fats (g)','Fat (g)']);
+  var fibre = getNum(['Fibre','Fiber','Fibre (g)','Fiber (g)']);
   var note  = getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
 
   document.getElementById('nutCal').textContent   = cal;
