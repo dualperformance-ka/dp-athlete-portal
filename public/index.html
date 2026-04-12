@@ -133,7 +133,8 @@ header{background:#0a0a0a;padding:0 20px;height:64px;display:flex;align-items:ce
       <div class="hero-meta">
         <div class="hero-pill">Week &nbsp;<span id="heroWeek">—</span></div>
         <div class="hero-pill">Coaches &nbsp;<span>Karl &amp; Alex</span></div>
-        <div class="hero-pill">Programme &nbsp;<span id="heroProg">—</span></div>
+        <div class="hero-pill">🏃 Runs &nbsp;<span id="heroRuns">—</span></div>
+        <div class="hero-pill">🏋️ Lifts &nbsp;<span id="heroLifts">—</span></div>
       </div>
     </div>
   </div>
@@ -268,8 +269,10 @@ async function loadWeek(){
   // Update week label from session data
   var weekLabel=sessions.find(function(s){return s.week;});
   if(weekLabel&&document.getElementById('heroWeek'))document.getElementById('heroWeek').textContent=weekLabel.week;
-  var progLabel=sessions.find(function(s){return s.sessionType;});
-  if(document.getElementById('heroProg'))document.getElementById('heroProg').textContent=sessions.length+' sessions';
+  var runCount=sessions.filter(function(s){return getType(s)==='run';}).length;
+  var liftCount=sessions.filter(function(s){return getType(s)==='strength';}).length;
+  if(document.getElementById('heroRuns'))document.getElementById('heroRuns').textContent=runCount;
+  if(document.getElementById('heroLifts'))document.getElementById('heroLifts').textContent=liftCount;
   renderCalendar(ws);
 }
 function getType(s){
