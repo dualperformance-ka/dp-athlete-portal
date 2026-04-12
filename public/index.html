@@ -1374,7 +1374,7 @@ async function loadProgress(){
   logEl.style.display='block';
 }
 
-
+function getCurrentProgrammeWeek(){
   // Use week label from currently loaded sessions if available
   var wkS = sessions.find(function(s){return s.week;});
   if(wkS){
