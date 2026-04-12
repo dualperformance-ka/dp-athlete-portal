@@ -919,7 +919,7 @@ function populateStatic(){
   setRaceFromValue(saved.goalRace||athlete.goalRace||'');
   document.getElementById('gPeakWeek').value=saved.peakWeek||athlete.peakWeek||'';
   document.getElementById('gWeight').value=saved.weight||athlete.weight||'';
-  document.getElementById('gTargetWeight').value=saved.targetWeight||athlete.targetWeight||'';
+  document.getElementById('gTargetWeight').value=saved.targetWeight||(athlete.targetWeight!=='—'?athlete.targetWeight:'')||'';
   document.getElementById('gBodyFat').value=saved.bodyFat||athlete.bodyFat||'';
   document.getElementById('g5k').value=saved.time5k||athlete.time5k||'';
   document.getElementById('g10k').value=saved.time10k||athlete.time10k||'';
