@@ -518,25 +518,35 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
     </div>
 
-    <!-- Booking bar -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-      <div>
-        <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:3px;">Before you submit</div>
-        <div style="font-size:14px;font-weight:500;">Book your weekly coaching call</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px;">45 min · Karl & Alex</div>
-      </div>
-      <a href="https://calendly.com/dualperformanceka/45min" target="_blank" style="background:#0a0a0a;color:#fff;text-decoration:none;border-radius:6px;padding:9px 16px;font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;">Book Now →</a>
-    </div>
-
-    <div id="ciFormContent">
-      <!-- Details -->
-      <div class="card" style="margin-bottom:12px">
-        <div class="card-title">Your details</div>
-        <div class="rlog">
-          <div class="lf"><label>Full name</label><input type="text" class="li" id="ciName" placeholder="Your name" /></div>
-          <div class="lf"><label>Week ending</label><input type="date" class="li" id="ciWeekEnding" /></div>
+    <!-- Weekly Check-in Accordion — open by default -->
+    <div class="accordion-card" id="accWeekly" style="margin-bottom:8px">
+      <div class="accordion-header" onclick="toggleAcc('accWeekly')">
+        <div class="accordion-left">
+          <div class="accordion-title">Weekly Check-in</div>
+          <div class="accordion-sub">Running · lifting · recovery · nutrition · mindset</div>
         </div>
+        <div class="accordion-arrow open" id="accWeeklyArrow">+</div>
       </div>
+      <div class="accordion-body" id="accWeeklyContent" style="display:block">
+
+        <!-- Booking bar -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:13px;font-weight:500;">Book your weekly coaching call</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px;">45 min · Karl & Alex</div>
+          </div>
+          <a href="https://calendly.com/dualperformanceka/45min" target="_blank" style="background:#0a0a0a;color:#fff;text-decoration:none;border-radius:6px;padding:8px 14px;font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;">Book →</a>
+        </div>
+
+        <div id="ciFormContent">
+          <!-- Details -->
+          <div class="card" style="margin-bottom:10px">
+            <div class="card-title">Your details</div>
+            <div class="rlog">
+              <div class="lf"><label>Full name</label><input type="text" class="li" id="ciName" placeholder="Your name" /></div>
+              <div class="lf"><label>Week ending</label><input type="date" class="li" id="ciWeekEnding" /></div>
+            </div>
+          </div>
 
       <!-- Running -->
       <div class="card" style="margin-bottom:12px">
@@ -627,18 +637,20 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       </div>
 
       <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()">Submit Check-in</button>
-    </div>
+        </div>
 
-    <!-- Success -->
-    <div id="ciSuccess" style="display:none;text-align:center;padding:52px 20px">
-      <div style="width:52px;height:52px;border-radius:50%;background:#0a0a0a;display:flex;align-items:center;justify-content:center;margin:0 auto 18px">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      </div>
-      <div style="font-family:var(--display);font-size:30px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px">Check-in received</div>
-      <div style="font-size:14px;color:var(--muted)">Karl and Alex will review this before your call. Good work showing up.</div>
-      <button class="savebtn" style="margin-top:24px;max-width:280px" onclick="resetCheckin()">Submit another</button>
-    </div>
+        <!-- Success -->
+        <div id="ciSuccess" style="display:none;text-align:center;padding:40px 10px">
+          <div style="width:48px;height:48px;border-radius:50%;background:#0a0a0a;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <div style="font-family:var(--display);font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">Check-in received</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Karl and Alex will review this before your call.</div>
+          <button class="savebtn" style="max-width:240px" onclick="resetCheckin()">Submit another</button>
+        </div>
 
+      </div><!-- end accordion-body -->
+    </div><!-- end accWeekly -->
 
     <!-- DAILY LOG ACCORDION -->
     <div style="margin-top:24px">
