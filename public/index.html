@@ -221,8 +221,14 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .pstat-val{font-family:var(--display);font-size:28px;font-weight:700;line-height:1;margin-bottom:3px}
 .pstat-lbl{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
 .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.photo-cell{background:var(--surface2);border:1px solid var(--border);border-radius:8px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px}
-.photo-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.photo-cell{background:var(--surface2);border:1.5px dashed var(--border-mid);border-radius:8px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;overflow:hidden;position:relative;transition:border-color .15s}
+.photo-cell:active{border-color:var(--border-strong)}
+.photo-cell.has-photo{border-style:solid;border-color:var(--border)}
+.photo-cell img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
+.photo-cell .photo-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;position:relative;z-index:1}
+.photo-cell .photo-add{font-size:20px;color:var(--dim);position:relative;z-index:1}
+.photo-cell.uploading{opacity:.6;pointer-events:none}
+.photo-cell .photo-overlay{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.5);padding:3px;text-align:center;font-family:var(--mono);font-size:8px;color:#fff;letter-spacing:.04em;text-transform:uppercase}
 
 /* ── COMMS TAB ── */
 .comms-card{background:#0a0a0a;border-radius:12px;padding:22px;margin-bottom:12px}
@@ -773,24 +779,12 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div id="pgNoData" style="display:none;font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:20px">No weigh-ins logged yet</div>
     </div>
 
-    <!-- Progress photos placeholder -->
+    <!-- Progress photos -->
     <div class="card">
       <div class="card-title">Progress Photos</div>
-      <div class="nutrnote" style="margin-bottom:14px">Same time every week. Same lighting, same angles. Front, side, back, front flexed, back flexed. Send to Karl & Alex on WhatsApp.</div>
-      <div class="photo-grid">
-        <div class="photo-cell"><div class="photo-label">Week 1</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 2</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 3</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 4</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 5</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 6</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 7</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 8</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 9</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 10</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 11</div></div>
-        <div class="photo-cell"><div class="photo-label">Week 12</div></div>
-      </div>
+      <div class="nutrnote" style="margin-bottom:14px">Same time every week. Same lighting, same angles. Tap a week to upload your photo.</div>
+      <div class="photo-grid" id="photoGrid"></div>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this)" />
     </div>
   </div>
 
@@ -827,7 +821,9 @@ const WEBHOOK     = 'https://hook.eu1.make.com/yjrg278x8bwehy6y19yiphluynmq3v8x'
 const CHECKIN_WEBHOOK = 'https://hook.eu1.make.com/52u1745oht7hlg48nfewr7ltwhddp6pz';
 const DAILY_BODY_WEBHOOK = 'https://hook.eu1.make.com/kq6ezqonfvyhx7cy7rwqgg7p4fuzk4na';
 const DAILY_NUT_WEBHOOK  = 'https://hook.eu1.make.com/ub1fq7r25teunvb6zu54azmpgxpnbshy';
-const DAILY_BODY_DB = '3405a96cc70b80a4b1b9cf5b9c236f18'; // Daily Athlete BODY Check-in
+const DAILY_BODY_DB = '3405a96cc70b80a4b1b9cf5b9c236f18';
+const CLOUDINARY_CLOUD = 'dtkpg96ci';
+const CLOUDINARY_PRESET = 'dp_progress'; // Daily Athlete BODY Check-in
 const GYM_KEYS    = ['Upper A','Upper B','Lower A','Lower B'];
 const DAYS        = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
@@ -1290,8 +1286,70 @@ async function loadNutrition(){
   document.getElementById('nutContent').style.display = 'block';
 }
 
-// ── LOAD PROGRESS ─────────────────────────────────────────────────────────────
+// ── PHOTO UPLOAD ──────────────────────────────────────────────────────────────
+var currentUploadWeek = null;
+
+function renderPhotoGrid(){
+  var grid = document.getElementById('photoGrid');
+  if(!grid) return;
+  var photos = JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');
+  var html = '';
+  for(var w=1; w<=12; w++){
+    var url = photos['week'+w]||'';
+    html += '<div class="photo-cell'+(url?' has-photo':'')+(url?'':'')+'" id="photoCell'+w+'" onclick="triggerPhotoUpload('+w+')">';
+    if(url){
+      html += '<img src="'+url+'" alt="Week '+w+'" />';
+      html += '<div class="photo-overlay">Week '+w+'</div>';
+    } else {
+      html += '<div class="photo-add">+</div>';
+      html += '<div class="photo-label">Week '+w+'</div>';
+    }
+    html += '</div>';
+  }
+  grid.innerHTML = html;
+}
+
+function triggerPhotoUpload(week){
+  currentUploadWeek = week;
+  document.getElementById('photoInput').click();
+}
+
+async function handlePhotoUpload(input){
+  if(!input.files||!input.files[0]) return;
+  var file = input.files[0];
+  var week = currentUploadWeek;
+  var cell = document.getElementById('photoCell'+week);
+  if(cell) cell.classList.add('uploading');
+
+  var formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_PRESET);
+  formData.append('folder', 'dp_progress/'+athlete.code);
+  formData.append('public_id', athlete.code+'_week'+week);
+
+  try {
+    var res = await fetch('https://api.cloudinary.com/v1_1/'+CLOUDINARY_CLOUD+'/image/upload', {
+      method: 'POST', body: formData
+    });
+    var data = await res.json();
+    if(data.secure_url){
+      // Save URL locally
+      var photos = JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');
+      photos['week'+week] = data.secure_url;
+      localStorage.setItem('dp_photos_'+athlete.code, JSON.stringify(photos));
+      renderPhotoGrid();
+      showToast('Week '+week+' photo uploaded ✓');
+    } else {
+      showToast('Upload failed — try again');
+    }
+  } catch(e){
+    showToast('Upload failed — check connection');
+  }
+  if(cell) cell.classList.remove('uploading');
+  input.value = '';
+}
 async function loadProgress(){
+  renderPhotoGrid();
   // Populate start/target from athlete data
   document.getElementById('pgStart').textContent  = athlete.startWeight||'—';
   document.getElementById('pgTarget').textContent = athlete.targetWeight||'—';
