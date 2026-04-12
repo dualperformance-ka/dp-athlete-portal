@@ -644,37 +644,30 @@ async function saveGoals(){
   // Save locally
   localStorage.setItem('dp_goals_'+athlete.code, JSON.stringify(goals));
 
-  // Build Notion properties patch — names must match Athlete DB columns exactly
-  var props={};
-  var rtProp=function(val){return{rich_text:[{type:'text',text:{content:val}}]};};
-  if(goals.weight)props['Body Weight (kg)']=rtProp(goals.weight);
-  if(goals.bodyFat)props['Body Fat %']=rtProp(goals.bodyFat);
-  if(goals.time5k)props['5km Time']=rtProp(goals.time5k);
-  if(goals.time10k)props['10km Time']=rtProp(goals.time10k);
-  if(goals.timeHalf)props['Half Marathon Time']=rtProp(goals.timeHalf);
-  if(goals.timeMarathon)props['Marathon Time']=rtProp(goals.timeMarathon);
-  if(goals.lrPace)props['Long Run Pace']=rtProp(goals.lrPace);
-  if(goals.why)props['Your Why']=rtProp(goals.why);
-  if(goals.m4)props['Milestone W4']=rtProp(goals.m4);
-  if(goals.m8)props['Milestone W8']=rtProp(goals.m8);
-  if(goals.m12)props['Milestone W12']=rtProp(goals.m12);
-
-  // Patch athlete Notion page
-  var result=await api('pages/'+athlete.notionPageId,{properties:props});
-
-  // Also ping webhook so you get notified
-  await fetch(WEBHOOK,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      name:athlete.name+' — Goals Update',
-      session:'Goals',
-      exerciseLog:'',
-      notes:'Weight: '+goals.weight+'kg | Body Fat: '+goals.bodyFat+'% | 5k: '+goals.time5k+' | 10k: '+goals.time10k+' | Half: '+goals.timeHalf+' | Marathon: '+goals.timeMarathon+' | LR Pace: '+goals.lrPace+'/km\n\nWHY: '+goals.why+'\n\nW4: '+goals.m4+'\nW8: '+goals.m8+'\nW12: '+goals.m12,
-      date:new Date().toISOString().split('T')[0],
-      submittedAt:goals.savedAt
-    })
-  }).catch(function(){});
+  // Send to Make webhook — Make updates Notion from here
+  try {
+    await fetch('https://hook.eu1.make.com/jaarg8xo3kepd8mnyytr6akrrgn15hw1',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        athleteId:athlete.notionPageId,
+        athleteName:athlete.name,
+        athleteCode:athlete.code,
+        weight:goals.weight,
+        bodyFat:goals.bodyFat,
+        time5k:goals.time5k,
+        time10k:goals.time10k,
+        timeHalf:goals.timeHalf,
+        timeMarathon:goals.timeMarathon,
+        lrPace:goals.lrPace,
+        why:goals.why,
+        m4:goals.m4,
+        m8:goals.m8,
+        m12:goals.m12,
+        submittedAt:goals.savedAt
+      })
+    });
+  } catch(e) { console.error('Webhook error', e); }
 
   btn.textContent='Saved ✓';btn.classList.add('saved');
   var d=new Date(goals.savedAt);
