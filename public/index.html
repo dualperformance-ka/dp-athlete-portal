@@ -1812,8 +1812,11 @@ function buildBody(s,i,type){
   var h='';
   if(s.runDetails)h+='<div class="cnote">'+esc(s.runDetails)+'</div>';
   if(type==='run'){
-    var rs=RUN[s.name]||null;
-    if(!rs){var nl=(s.name||'').toLowerCase();for(var k in RUN){if(nl.indexOf(k.toLowerCase())>=0||k.toLowerCase().indexOf(nl)>=0){rs=RUN[k];break;}}}
+    var rs=null;
+    if(!s.runDetails){
+      rs=RUN[s.name]||null;
+      if(!rs){var nl=(s.name||'').toLowerCase();for(var k in RUN){if(nl.indexOf(k.toLowerCase())>=0||k.toLowerCase().indexOf(nl)>=0){rs=RUN[k];break;}}}
+    }
     if(rs){h+='<div class="rtarget"><div class="rtn">'+esc(rs.type||s.name)+'</div><div class="rtd">'+esc(rs.description)+'</div><div class="rtt"><span>'+esc(rs.intensity)+'</span><span> · '+esc(rs.surface)+'</span><span> · '+esc(rs.difficulty)+'</span></div></div>';}
     var sl=logs[s.id]||{};
     h+='<div class="ltitle">Log your run</div><div class="rlog">';
