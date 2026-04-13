@@ -88,9 +88,10 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .sname{font-family:var(--display);font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;line-height:1.1}
 .sname.run{color:var(--run)}.sname.strength{color:var(--strength)}.sname.rest{color:var(--rest)}
 .smeta{font-size:12px;color:var(--muted);margin-top:2px}
-.tick{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--border-mid);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.tick{width:44px;height:44px;border-radius:50%;border:2px solid var(--border-mid);background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.tick:active{transform:scale(.92)}
 .tick.on{background:var(--ok);border-color:var(--ok)}
-.tick svg{opacity:0;transition:opacity .12s}
+.tick svg{opacity:0.2;transition:opacity .12s}
 .tick.on svg{opacity:1}
 .scb{display:none;padding:0 16px 16px;border-top:1px solid var(--border)}
 .scb.open{display:block}
@@ -1722,7 +1723,7 @@ function buildCard(s,i){
   if(meta.length)h+='<div class="smeta">'+esc(meta.join(' · '))+'</div>';
   h+='</div>';
   h+='<button class="tick'+(done?' on':'')+'" id="tick_'+i+'" onclick="event.stopPropagation();tickS('+i+')">';
-  h+='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+  h+='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
   h+='</button></div>';
   h+='<div class="scb" id="scb_'+i+'">'+buildBody(s,i,type)+'</div></div>';
   return h;
