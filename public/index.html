@@ -1756,7 +1756,8 @@ async function loadWeek(){
     var pr=p.properties;
     return{id:p.id,name:getNotionTitle(pr),date:pr['Planned Date']&&pr['Planned Date'].date&&pr['Planned Date'].date.start||'',
       sessionType:getSelect(pr['Session Type']),status:getSelect(pr['Status']),
-      runDetails:getRichText(pr['Run Details'])||getRichText(pr['Running Session'])||getRichText(pr['Notes'])||getRichText(pr['Coach Notes'])||'',
+      runningSession:getRichText(pr['Running Session'])||'',
+      runDetails:getRichText(pr['Run Details'])||getRichText(pr['Notes'])||getRichText(pr['Coach Notes'])||'',
       intensity:getSelect(pr['Intensity']),week:getSelect(pr['Week'])};
   });
   sessions=all.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
@@ -1798,7 +1799,8 @@ function buildCard(s,i){
   var h='<div class="sc'+(done?' done':'')+'" id="sc_'+i+'">';
   h+='<div class="sch" onclick="togS('+i+')">';
   h+='<div class="sdot dot-'+type+'"></div>';
-  h+='<div class="sinfo"><div class="sname '+type+'">'+(s.name||'Session')+'</div>';
+  var displayName = (type==='run'&&s.runningSession) ? s.runningSession : (s.name||'Session');
+  h+='<div class="sinfo"><div class="sname '+type+'">'+esc(displayName)+'</div>';
   if(meta.length)h+='<div class="smeta">'+esc(meta.join(' · '))+'</div>';
   h+='</div>';
   h+='<button class="tick'+(done?' on':'')+'" id="tick_'+i+'" onclick="event.stopPropagation();tickS('+i+')">';
@@ -1811,7 +1813,7 @@ function buildCard(s,i){
 function buildBody(s,i,type){
   var h='';
   if(s.runDetails)h+='<div class="cnote">'+esc(s.runDetails)+'</div>';
-  console.log('Session:', s.name, 'runDetails:', s.runDetails);
+  console.log('Session:', s.name, 'runningSession:', s.runningSession, 'runDetails:', s.runDetails);
   if(type==='run'){
     var rs=null;
     if(!s.runDetails){
