@@ -1799,7 +1799,7 @@ function buildCard(s,i){
   var h='<div class="sc'+(done?' done':'')+'" id="sc_'+i+'">';
   h+='<div class="sch" onclick="togS('+i+')">';
   h+='<div class="sdot dot-'+type+'"></div>';
-  var displayName = (type==='run'&&s.runningSession) ? s.runningSession : (s.name||'Session');
+ var displayName = s.name || 'Session';
   h+='<div class="sinfo"><div class="sname '+type+'">'+esc(displayName)+'</div>';
   if(meta.length)h+='<div class="smeta">'+esc(meta.join(' · '))+'</div>';
   h+='</div>';
