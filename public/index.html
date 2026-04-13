@@ -1302,6 +1302,24 @@ function shiftNutWeek(d){nutWeekOffset+=d;loadNutrition();}
 function goNutToday(){nutWeekOffset=0;loadNutrition();}
 
 // ── LOAD NUTRITION ────────────────────────────────────────────────────────────
+// Fetch all pages from a Notion DB (handles pagination automatically)
+async function apiAll(endpoint, body){
+  var allResults=[];
+  var cursor=null;
+  var hasMore=true;
+  while(hasMore){
+    var params=Object.assign({},body,{page_size:100});
+    if(cursor) params.start_cursor=cursor;
+    var data=await api(endpoint,params);
+    if(!data||!data.results) break;
+    allResults=allResults.concat(data.results);
+    hasMore=data.has_more||false;
+    cursor=data.next_cursor||null;
+    if(!hasMore||!cursor) break;
+  }
+  return {results:allResults};
+}
+
 async function loadNutrition(){
   // Figure out current programme week number from training sessions
   // Fall back to calculating from athlete start date
@@ -1319,7 +1337,9 @@ async function loadNutrition(){
 
   var weekLabel = 'Week ' + displayWeek;
 
-  var allNut = await api('databases/'+NUTRITION_DB+'/query', {page_size:50});
+  var allNut = await apiAll('databases/'+NUTRITION_DB+'/query', {
+    sorts:[{property:'Week',direction:'ascending'}]
+  });
   console.log('Total nut rows:', allNut&&allNut.results&&allNut.results.length);
   if(allNut&&allNut.results){
     console.log('Our athleteId (clean):', athlete.notionPageId.replace(/-/g,''));
@@ -1338,26 +1358,16 @@ async function loadNutrition(){
     var athleteIdClean = athlete.notionPageId.replace(/-/g,'');
     var athleteNameUpper = (athlete.name||'').toUpperCase();
     var athleteCodeUpper = (athlete.code||'').toUpperCase();
+    var athleteNameLower = (athlete.name||'').toLowerCase();
     var matched = allNut.results.filter(function(r){
       var pr = r.properties;
-      // Match by relation ID
-      var athRel = pr['Athlete']&&pr['Athlete'].relation||[];
-      var athMatch = athRel.some(function(a){
-        return a.id.replace(/-/g,'')===athleteIdClean;
-      });
-      // Match by Athlete name property (rich_text or title)
+      // Primary match: Name column contains athlete name or code
+      var rowName = getNotionTitle(pr).toUpperCase().trim();
+      var athMatch = rowName===athleteNameUpper || rowName===athleteCodeUpper;
+      // Secondary: relation ID match
       if(!athMatch){
-        var athNameProp = pr['Athlete Name']||pr['Name']||pr['Athlete'];
-        var athNameVal = '';
-        if(athNameProp&&athNameProp.rich_text&&athNameProp.rich_text[0]) athNameVal=athNameProp.rich_text[0].plain_text||'';
-        if(athNameProp&&athNameProp.title&&athNameProp.title[0]) athNameVal=athNameProp.title[0].plain_text||athNameVal;
-        athMatch = athNameVal.toUpperCase()===athleteNameUpper || athNameVal.toUpperCase()===athleteCodeUpper;
-      }
-      // Match by row Name title containing athlete name or code
-      if(!athMatch){
-        var rowTitle = getNotionTitle(pr).toUpperCase();
-        athMatch = rowTitle===athleteNameUpper || rowTitle===athleteCodeUpper ||
-                   rowTitle.indexOf(athleteNameUpper)>=0 || rowTitle.indexOf(athleteCodeUpper)>=0;
+        var athRel = pr['Athlete']&&pr['Athlete'].relation||[];
+        athMatch = athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
       }
       if(!athMatch) return false;
       // Match week - Week is rich_text
@@ -1373,10 +1383,11 @@ async function loadNutrition(){
     } else {
       // Fallback: most recent row for this athlete
       var athRows = allNut.results.filter(function(r){
+        var rowName = getNotionTitle(r.properties).toUpperCase().trim();
+        var nameMatch = rowName===athleteNameUpper || rowName===athleteCodeUpper;
         var athRel = r.properties['Athlete']&&r.properties['Athlete'].relation||[];
         var idMatch = athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
-        var nameMatch = getNotionTitle(r.properties).toLowerCase().indexOf(athleteNameLower)>=0;
-        return idMatch||nameMatch;
+        return nameMatch||idMatch;
       });
       if(athRows.length){
         // Sort by week number and take latest with data
@@ -1580,7 +1591,7 @@ async function loadProgress(){
   document.getElementById('pgNoData').style.display='none';
 
   // Fetch all rows from daily body DB
-  var allData = await api('databases/'+DAILY_BODY_DB+'/query',{page_size:100});
+  var allData = await apiAll('databases/'+DAILY_BODY_DB+'/query', {});
   document.getElementById('pgLoadingEl').style.display='none';
 
   if(!allData||!allData.results){document.getElementById('pgNoData').style.display='block';return;}
