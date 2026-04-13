@@ -1812,7 +1812,7 @@ function buildCard(s,i){
 
 function buildBody(s,i,type){
   var h='';if(type==='run'){
-    var rsTitle = s.runningSession || '';
+var rsTitle = s.name || '';
     var rsDetail = s.runDetails || '';
     var rs = null;
     var lookupKey = rsTitle || s.name || '';
