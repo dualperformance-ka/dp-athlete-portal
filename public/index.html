@@ -1811,16 +1811,20 @@ function buildCard(s,i){
 }
 
 function buildBody(s,i,type){
-  var h='';
-  if(s.runDetails)h+='<div class="cnote">'+esc(s.runDetails)+'</div>';
-  console.log('Session:', s.name, 'runningSession:', s.runningSession, 'runDetails:', s.runDetails);
-  if(type==='run'){
-    var rs=null;
-    if(!s.runDetails){
-      rs=RUN[s.name]||null;
-      if(!rs){var nl=(s.name||'').toLowerCase();for(var k in RUN){if(nl.indexOf(k.toLowerCase())>=0||k.toLowerCase().indexOf(nl)>=0){rs=RUN[k];break;}}}
+  var h='';if(type==='run'){
+    var rsTitle = s.runningSession || '';
+    var rsDetail = s.runDetails || '';
+    var rs = null;
+    var lookupKey = rsTitle || s.name || '';
+    rs = RUN[lookupKey] || null;
+    if(!rs){var nl=lookupKey.toLowerCase();for(var k in RUN){if(nl.indexOf(k.toLowerCase())>=0||k.toLowerCase().indexOf(nl)>=0){rs=RUN[k];break;}}}
+    if(rsTitle || rsDetail || rs){
+      h+='<div class="rtarget">';
+      h+='<div class="rtn">'+esc(rsTitle || (rs&&rs.type) || s.name)+'</div>';
+      h+='<div class="rtd">'+esc(rsDetail || (rs&&rs.description) || '')+'</div>';
+      if(rs){h+='<div class="rtt"><span>'+esc(rs.intensity||'')+'</span><span> · '+esc(rs.surface||'')+'</span><span> · '+esc(rs.difficulty||'')+'</span></div>';}
+      h+='</div>';
     }
-    if(rs){h+='<div class="rtarget"><div class="rtn">'+esc(rs.type||s.name)+'</div><div class="rtd">'+esc(rs.description)+'</div><div class="rtt"><span>'+esc(rs.intensity)+'</span><span> · '+esc(rs.surface)+'</span><span> · '+esc(rs.difficulty)+'</span></div></div>';}
     var sl=logs[s.id]||{};
     h+='<div class="ltitle">Log your run</div><div class="rlog">';
     h+='<div class="lf"><label>Distance (km)</label><input type="number" class="li" id="rd_'+i+'" step="0.1" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
