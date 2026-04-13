@@ -1319,12 +1319,18 @@ async function loadNutrition(){
 
   var weekLabel = 'Week ' + displayWeek;
 
-  // Fetch all rows for this athlete — relation filter is unreliable, match manually
   var allNut = await api('databases/'+NUTRITION_DB+'/query', {page_size:50});
   console.log('Total nut rows:', allNut&&allNut.results&&allNut.results.length);
-  if(allNut&&allNut.results&&allNut.results.length){
-    console.log('Sample row athlete:', JSON.stringify(allNut.results[0].properties['Athlete']));
-    console.log('Our athleteId:', athlete.notionPageId, 'name:', athlete.name);
+  if(allNut&&allNut.results){
+    console.log('Our athleteId (clean):', athlete.notionPageId.replace(/-/g,''));
+    console.log('Our code:', athlete.code, 'name:', athlete.name);
+    // Log first 5 rows
+    allNut.results.slice(0,5).forEach(function(r,i){
+      var pr=r.properties;
+      var rel=pr['Athlete']&&pr['Athlete'].relation||[];
+      var title=getNotionTitle(pr);
+      console.log('Row '+i+': title="'+title+'" relIds='+JSON.stringify(rel.map(function(a){return a.id.replace(/-/g,'');})));
+    });
   }
 
   var data = {results:[]};
