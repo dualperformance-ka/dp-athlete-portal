@@ -22,20 +22,21 @@ export default async function handler(req, res) {
     });
     const data = await response.json();
     
-    // Map Notion properties to clean object
+    // Map Notion properties to clean object while preserving original structure
     if (data.results) {
       data.results = data.results.map(page => {
         const props = page.properties || {};
-        return {
-          id: page.id,
-          name: props.Session?.title?.[0]?.plain_text || '',
+        
+        // Extract mapped properties
+        const mapped = {
           runningSession: props['Running Session']?.rich_text?.[0]?.plain_text || '',
           runDetails: props['Run Details']?.rich_text?.[0]?.plain_text || '',
-          type: props.Type?.select?.name?.toLowerCase() || '',
-          date: props['Planned Date']?.date?.start || '',
-          week: props.Week?.number || '',
-          intensity: props.Intensity?.select?.name || '',
-          status: props.Status?.select?.name || '',
+        };
+        
+        // Return original page with mapped properties added at top level
+        return {
+          ...page,
+          ...mapped
         };
       });
     }
