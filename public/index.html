@@ -1324,19 +1324,20 @@ async function loadNutrition(){
   if(allNut&&allNut.results){
     console.log('Our athleteId (clean):', athlete.notionPageId.replace(/-/g,''));
     console.log('Our code:', athlete.code, 'name:', athlete.name);
-    // Log first 5 rows
     allNut.results.slice(0,5).forEach(function(r,i){
       var pr=r.properties;
       var rel=pr['Athlete']&&pr['Athlete'].relation||[];
       var title=getNotionTitle(pr);
-      console.log('Row '+i+': title="'+title+'" relIds='+JSON.stringify(rel.map(function(a){return a.id.replace(/-/g,'');})));
+      var allKeys=Object.keys(pr);
+      console.log('Row '+i+': id='+r.id.replace(/-/g,'')+' title="'+title+'" relIds='+JSON.stringify(rel.map(function(a){return a.id.replace(/-/g,'');}))+'keys='+allKeys.join(','));
     });
   }
 
   var data = {results:[]};
   if(allNut&&allNut.results){
     var athleteIdClean = athlete.notionPageId.replace(/-/g,'');
-    var athleteNameLower = (athlete.name||'').toLowerCase();
+    var athleteNameUpper = (athlete.name||'').toUpperCase();
+    var athleteCodeUpper = (athlete.code||'').toUpperCase();
     var matched = allNut.results.filter(function(r){
       var pr = r.properties;
       // Match by relation ID
@@ -1344,20 +1345,19 @@ async function loadNutrition(){
       var athMatch = athRel.some(function(a){
         return a.id.replace(/-/g,'')===athleteIdClean;
       });
-      // Fallback: match by athlete name in the Name title or Athlete relation name
+      // Match by Athlete name property (rich_text or title)
       if(!athMatch){
-        var titleVal = getNotionTitle(pr).toLowerCase();
-        athMatch = titleVal.indexOf(athleteNameLower)>=0;
+        var athNameProp = pr['Athlete Name']||pr['Name']||pr['Athlete'];
+        var athNameVal = '';
+        if(athNameProp&&athNameProp.rich_text&&athNameProp.rich_text[0]) athNameVal=athNameProp.rich_text[0].plain_text||'';
+        if(athNameProp&&athNameProp.title&&athNameProp.title[0]) athNameVal=athNameProp.title[0].plain_text||athNameVal;
+        athMatch = athNameVal.toUpperCase()===athleteNameUpper || athNameVal.toUpperCase()===athleteCodeUpper;
       }
-      // Fallback: match athlete relation by name text
+      // Match by row Name title containing athlete name or code
       if(!athMatch){
-        var athRelText = pr['Athlete']&&pr['Athlete'].relation&&pr['Athlete'].relation.map(function(a){return (a.name||'').toLowerCase();}).join(' ')||'';
-        athMatch = athRelText.indexOf(athleteNameLower)>=0;
-      }
-      // Fallback: check if Name property contains athlete code or name
-      if(!athMatch){
-        var nameTitle = getNotionTitle(pr).toUpperCase();
-        athMatch = nameTitle.indexOf(athlete.code.toUpperCase())>=0 || nameTitle.indexOf((athlete.name||'').toUpperCase())>=0;
+        var rowTitle = getNotionTitle(pr).toUpperCase();
+        athMatch = rowTitle===athleteNameUpper || rowTitle===athleteCodeUpper ||
+                   rowTitle.indexOf(athleteNameUpper)>=0 || rowTitle.indexOf(athleteCodeUpper)>=0;
       }
       if(!athMatch) return false;
       // Match week - Week is rich_text
