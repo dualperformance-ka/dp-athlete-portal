@@ -1757,7 +1757,7 @@ async function loadWeek(){
     return{id:p.id,name:getNotionTitle(pr),date:pr['Planned Date']&&pr['Planned Date'].date&&pr['Planned Date'].date.start||'',
       sessionType:getSelect(pr['Session Type']),status:getSelect(pr['Status']),
       runningSession:getRichText(pr['Running Session'])||'',
-      runDetails:getRichText(pr['Run Details'])||getRichText(pr['Notes'])||getRichText(pr['Coach Notes'])||'',
+    runDetails:getRichText(pr['Description'])||getRichText(pr['Run Details'])||getRichText(pr['Notes'])||getRichText(pr['Coach Notes'])||'',
       intensity:getSelect(pr['Intensity']),week:getSelect(pr['Week'])};
   });
   sessions=all.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
