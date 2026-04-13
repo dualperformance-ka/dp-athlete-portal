@@ -1737,14 +1737,14 @@ function buildBody(s,i,type){
     if(rs){h+='<div class="rtarget"><div class="rtn">'+esc(rs.type||s.name)+'</div><div class="rtd">'+esc(rs.description)+'</div><div class="rtt"><span>'+esc(rs.intensity)+'</span><span> · '+esc(rs.surface)+'</span><span> · '+esc(rs.difficulty)+'</span></div></div>';}
     var sl=logs[s.id]||{};
     h+='<div class="ltitle">Log your run</div><div class="rlog">';
-    h+='<div class="lf"><label>Distance (km)</label><input type="number" class="li" id="rd_'+i+'" step="0.1" placeholder="0.0" value="'+esc(sl.distance||'')+'" /></div>';
-    h+='<div class="lf"><label>Pace</label><input type="text" class="li" id="rp_'+i+'" placeholder="5:30 /km" value="'+esc(sl.pace||'')+'" /></div>';
-    h+='<div class="lf"><label>RPE</label><select class="li" id="rr_'+i+'"><option value="">...</option>';
+    h+='<div class="lf"><label>Distance (km)</label><input type="number" class="li" id="rd_'+i+'" step="0.1" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="lf"><label>Pace</label><input type="text" class="li" id="rp_'+i+'" placeholder="5:30 /km" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="lf"><label>RPE</label><select class="li" id="rr_'+i+'" onchange="draftRun('+i+')"><option value="">...</option>';
     for(var n=1;n<=10;n++)h+='<option value="'+n+'"'+(sl.rpe==n?' selected':'')+'>'+n+'/10</option>';
-    h+='</select></div><div class="lf"><label>How it felt</label><select class="li" id="rf_'+i+'"><option value="">...</option>';
+    h+='</select></div><div class="lf"><label>How it felt</label><select class="li" id="rf_'+i+'" onchange="draftRun('+i+')"><option value="">...</option>';
     ['Great — felt easy','Good — solid session','Average — got through it','Tough — struggled','Bad — cut it short'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
     h+='</select></div></div>';
-    h+='<div class="lf" style="margin-bottom:8px"><label>Notes</label><input type="text" class="li" id="rn_'+i+'" placeholder="Anything to flag..." value="'+esc(sl.notes||'')+'" /></div>';
+    h+='<div class="lf" style="margin-bottom:8px"><label>Notes</label><input type="text" class="li" id="rn_'+i+'" placeholder="Anything to flag..." value="'+esc(sl.notes||'')+'" oninput="draftRun('+i+')" /></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save run</button>';
   }else if(type==='strength'){
     var splitKey=GYM_KEYS.find(function(k){return(s.name||'').indexOf(k)>=0;})||'Upper A';
@@ -1760,8 +1760,8 @@ function buildBody(s,i,type){
         h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
         for(var si=0;si<sets;si++){var sv=savedEx[si]||{};
           h+='<div class="setrow" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum">'+(si+1)+'</div>';
-          h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" value="'+esc(sv.weight||'')+'" />';
-          h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(ex.reps)+'" min="0" value="'+esc(sv.reps||'')+'" />';
+          h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+          h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(ex.reps)+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
           h+='<button class="st'+(sv.done?' on':'')+'" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">';
           h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button></div>';
         }
@@ -1787,6 +1787,29 @@ async function tickS(i){
 }
 function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),on=!btn.classList.contains('on');btn.classList.toggle('on',on);btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';}
 function addSet(i,ei,rep){var c=document.getElementById('sets_'+i+'_'+ei),si=c.querySelectorAll('.setrow').length,row=document.createElement('div');row.className='setrow';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div><input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" /><input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" /><button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>';c.appendChild(row);}
+
+function draftRun(i){
+  var s=sessions[i];if(!s)return;
+  var d={distance:document.getElementById('rd_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
+  logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+}
+
+function draftGym(i,splitKey){
+  var s=sessions[i];if(!s)return;
+  var exercises=STR[splitKey]||[];
+  var log={};
+  exercises.forEach(function(ex,ei){
+    var sets=parseInt(ex.sets)||2,arr=[];
+    for(var si=0;si<sets;si++){
+      var wEl=document.getElementById('w_'+i+'_'+ei+'_'+si);
+      var rEl=document.getElementById('r_'+i+'_'+ei+'_'+si);
+      var tEl=document.getElementById('st_'+i+'_'+ei+'_'+si);
+      if(wEl||rEl)arr.push({weight:wEl?wEl.value:'',reps:rEl?rEl.value:'',done:tEl?tEl.classList.contains('on'):false});
+    }
+    log[ex.exercise]=arr;
+  });
+  logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+}
 
 async function saveRun(i){
   var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
