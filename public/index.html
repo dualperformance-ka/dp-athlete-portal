@@ -610,7 +610,8 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
           <input type="range" min="1" max="10" value="5" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>Best ever</span></div>
         </div>
-        <div class="lf" style="margin-top:10px"><label>Pain, niggles or injuries?</label><textarea class="li" id="ciRunNiggles" placeholder="Describe anything, or write 'none'" style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+        <div class="lf" style="margin-top:10px"><label>Any running wins or PBs this week? 🏆</label><textarea class="li" id="ciRunWins" placeholder="Tell us what you crushed — a new PB, a strong session, anything you're proud of. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+        <div class="lf" style="margin-top:10px"><label>Any pain, niggles or injuries we should know about?</label><textarea class="li" id="ciRunNiggles" placeholder="Be honest — even small things. The earlier we know, the better we can manage it." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
       </div>
 
       <!-- Lifting -->
@@ -625,7 +626,8 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
           <input type="range" min="1" max="10" value="5" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>PR session</span></div>
         </div>
-        <div class="lf" style="margin-top:10px"><label>Strength wins or notable sessions?</label><textarea class="li" id="ciLiftWins" placeholder="e.g. new squat PB, or 'nothing notable'" style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+        <div class="lf" style="margin-top:10px"><label>Lifting wins or notable sessions? 💪</label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+        <div class="lf" style="margin-top:10px"><label>Any pain, niggles or discomfort in the gym?</label><textarea class="li" id="ciLiftNiggles" placeholder="Anything sharp, achy or off — don't push through without telling us first." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
       </div>
 
       <!-- Recovery -->
@@ -666,7 +668,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
             <option>Poor — barely fuelled around training</option>
           </select>
         </div>
-        <div class="lf"><label>Social eating or events this week?</label><textarea class="li" id="ciSocial" placeholder="e.g. family dinner Wednesday. Or 'none'." style="min-height:60px;resize:vertical;font-size:13px;margin-top:6px"></textarea></div>
+        <div class="lf"><label>Any social eating or events coming up in the next couple of weeks?</label><textarea class="li" id="ciSocial" placeholder="e.g. birthday dinner, work event, holiday — anything that might affect your nutrition. Knowing ahead of time helps us plan around it." style="min-height:70px;resize:vertical;font-size:13px;margin-top:6px"></textarea></div>
       </div>
 
       <!-- Mindset -->
@@ -682,7 +684,14 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
           <input type="range" min="1" max="10" value="5" id="ciMot" oninput="document.getElementById('ciMotVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Dragging myself</span><span>Couldn't wait</span></div>
         </div>
-        <div class="lf"><label>Anything else your coach should know?</label><textarea class="li" id="ciNotes" placeholder="Life stuff, mindset, questions, wins, frustrations..." style="min-height:80px;resize:vertical;font-size:13px;margin-top:6px"></textarea></div>
+        <div class="lf"><label>Is there anything in the next 1–2 weeks that could affect your training?</label><textarea class="li" id="ciNotes" placeholder="Travel, long work days, family commitments, anything coming up — the more we know, the better we can support you." style="min-height:80px;resize:vertical;font-size:13px;margin-top:6px"></textarea></div>
+      </div>
+
+      <!-- Testimonial -->
+      <div class="card" style="margin-bottom:14px;border:2px solid #0a0a0a">
+        <div class="card-title">● How has this week honestly been for you?</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px">How have you felt this week — inside and outside of training? Do you feel healthier, stronger, more confident? Has the programme been working for you? Share as much or as little as you'd like. This is your space to be real with us. 🙏</div>
+        <textarea class="li" id="ciTestimonial" placeholder="e.g. This week felt amazing. I felt stronger in every session and outside the gym I noticed my clothes fitting differently. It's motivating to actually see the plan working..." style="min-height:120px;resize:vertical;font-size:13px"></textarea>
       </div>
 
       <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()">Submit Check-in</button>
@@ -1173,11 +1182,13 @@ async function submitCheckin(){
     runPlanned:document.getElementById('ciRunPlan').value||'0',
     runKm:document.getElementById('ciRunKm').value||'0',
     runFeel:document.getElementById('ciRunFeel').value,
+    runWins:document.getElementById('ciRunWins').value||'None',
     runNiggles:document.getElementById('ciRunNiggles').value||'None',
     liftCompleted:document.getElementById('ciLiftComp').value||'0',
     liftPlanned:document.getElementById('ciLiftPlan').value||'0',
     liftFeel:document.getElementById('ciLiftFeel').value,
     liftWins:document.getElementById('ciLiftWins').value||'None',
+    liftNiggles:document.getElementById('ciLiftNiggles').value||'None',
     sleep:document.getElementById('ciSleep').value,
     energy:document.getElementById('ciEnergy').value,
     soreness:document.getElementById('ciSoreness').value,
@@ -1186,7 +1197,8 @@ async function submitCheckin(){
     socialEating:document.getElementById('ciSocial').value||'None',
     stress:document.getElementById('ciStress').value,
     motivation:document.getElementById('ciMot').value,
-    notes:document.getElementById('ciNotes').value||''
+    upcomingImpact:document.getElementById('ciNotes').value||'',
+    testimonial:document.getElementById('ciTestimonial').value||''
   };
   try{
     await fetch(CHECKIN_WEBHOOK,{
