@@ -21,26 +21,6 @@ export default async function handler(req, res) {
       body: JSON.stringify(body),
     });
     const data = await response.json();
-    
-    // Map Notion properties to clean object while preserving original structure
-    if (data.results) {
-      data.results = data.results.map(page => {
-        const props = page.properties || {};
-        
-        // Extract mapped properties
-        const mapped = {
-          runningSession: props['Running Session']?.rich_text?.[0]?.plain_text || '',
-          runDetails: props['Run Details']?.rich_text?.[0]?.plain_text || '',
-        };
-        
-        // Return original page with mapped properties added at top level
-        return {
-          ...page,
-          ...mapped
-        };
-      });
-    }
-    
     return res.status(response.status).json(data);
   } catch (error) {
     return res.status(500).json({ error: error.message });
