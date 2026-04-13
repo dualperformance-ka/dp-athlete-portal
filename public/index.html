@@ -1322,17 +1322,37 @@ async function loadNutrition(){
   // Fetch all rows for this athlete — relation filter is unreliable, match manually
   var allNut = await api('databases/'+NUTRITION_DB+'/query', {page_size:50});
   console.log('Total nut rows:', allNut&&allNut.results&&allNut.results.length);
+  if(allNut&&allNut.results&&allNut.results.length){
+    console.log('Sample row athlete:', JSON.stringify(allNut.results[0].properties['Athlete']));
+    console.log('Our athleteId:', athlete.notionPageId, 'name:', athlete.name);
+  }
 
   var data = {results:[]};
   if(allNut&&allNut.results){
     var athleteIdClean = athlete.notionPageId.replace(/-/g,'');
+    var athleteNameLower = (athlete.name||'').toLowerCase();
     var matched = allNut.results.filter(function(r){
       var pr = r.properties;
-      // Match athlete relation
+      // Match by relation ID
       var athRel = pr['Athlete']&&pr['Athlete'].relation||[];
       var athMatch = athRel.some(function(a){
         return a.id.replace(/-/g,'')===athleteIdClean;
       });
+      // Fallback: match by athlete name in the Name title or Athlete relation name
+      if(!athMatch){
+        var titleVal = getNotionTitle(pr).toLowerCase();
+        athMatch = titleVal.indexOf(athleteNameLower)>=0;
+      }
+      // Fallback: match athlete relation by name text
+      if(!athMatch){
+        var athRelText = pr['Athlete']&&pr['Athlete'].relation&&pr['Athlete'].relation.map(function(a){return (a.name||'').toLowerCase();}).join(' ')||'';
+        athMatch = athRelText.indexOf(athleteNameLower)>=0;
+      }
+      // Fallback: check if Name property contains athlete code or name
+      if(!athMatch){
+        var nameTitle = getNotionTitle(pr).toUpperCase();
+        athMatch = nameTitle.indexOf(athlete.code.toUpperCase())>=0 || nameTitle.indexOf((athlete.name||'').toUpperCase())>=0;
+      }
       if(!athMatch) return false;
       // Match week - Week is rich_text
       var wkProp = pr['Week'];
@@ -1348,7 +1368,9 @@ async function loadNutrition(){
       // Fallback: most recent row for this athlete
       var athRows = allNut.results.filter(function(r){
         var athRel = r.properties['Athlete']&&r.properties['Athlete'].relation||[];
-        return athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
+        var idMatch = athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
+        var nameMatch = getNotionTitle(r.properties).toLowerCase().indexOf(athleteNameLower)>=0;
+        return idMatch||nameMatch;
       });
       if(athRows.length){
         // Sort by week number and take latest with data
