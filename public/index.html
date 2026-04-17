@@ -840,6 +840,21 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px" id="pgChangeLbl">kg since day 1</div>
     </div>
 
+    <!-- Weight trend chart -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Weight Trend</div>
+      <div class="nutrnote" style="margin-bottom:12px">A simple visual of body weight over time so athletes can see the trend, not just the daily fluctuations.</div>
+      <div id="pgChartWrap">
+        <div id="pgChartEmpty" style="display:none;font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:20px">Need at least 2 weigh-ins to show the trend</div>
+        <div id="pgChart"></div>
+        <div class="progress-stats" id="pgChartStats" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">
+          <div class="pstat"><div class="pstat-val" id="pg7d">—</div><div class="pstat-lbl">7d change</div></div>
+          <div class="pstat"><div class="pstat-val" id="pgWeeklyRate">—</div><div class="pstat-lbl">Avg / week</div></div>
+          <div class="pstat"><div class="pstat-val" id="pgToTarget">—</div><div class="pstat-lbl">To target</div></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Weight log from daily check-ins -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">Weight Log</div>
@@ -1652,6 +1667,124 @@ async function handleAngleUpload(input){
   if(slot) slot.classList.remove('uploading');
   input.value='';
 }
+
+function formatKgDelta(v){
+  if(v==null || isNaN(v)) return '—';
+  var n = Number(v);
+  var rounded = Math.abs(n) < 0.05 ? 0 : n;
+  return (rounded>0?'+':'') + rounded.toFixed(1) + 'kg';
+}
+function renderWeightChart(entries, targetWeight){
+  var chartEl = document.getElementById('pgChart');
+  var emptyEl = document.getElementById('pgChartEmpty');
+  var statsEl = document.getElementById('pgChartStats');
+  if(!chartEl || !emptyEl || !statsEl) return;
+  chartEl.innerHTML = '';
+  emptyEl.style.display = 'none';
+  statsEl.style.display = '';
+
+  var points = entries.slice().reverse().map(function(r){
+    var pr = r.properties;
+    var date = pr['Date']&&pr['Date'].date&&pr['Date'].date.start||'';
+    var wPr = pr['Weight'];
+    var weight = wPr && wPr.number!=null ? wPr.number : parseFloat(getRichText(wPr||{}));
+    return {date:date, weight:weight};
+  }).filter(function(x){ return x.date && x.weight!=null && !isNaN(x.weight); });
+
+  if(points.length < 2){
+    emptyEl.style.display = 'block';
+    statsEl.style.display = 'none';
+    document.getElementById('pg7d').textContent = '—';
+    document.getElementById('pgWeeklyRate').textContent = '—';
+    document.getElementById('pgToTarget').textContent = '—';
+    return;
+  }
+
+  var width = 640, height = 220, padL = 16, padR = 12, padT = 12, padB = 26;
+  var minW = Math.min.apply(null, points.map(function(p){ return p.weight; }));
+  var maxW = Math.max.apply(null, points.map(function(p){ return p.weight; }));
+  var span = Math.max(0.8, maxW - minW);
+  minW = minW - span*0.12;
+  maxW = maxW + span*0.12;
+
+  var usableW = width - padL - padR, usableH = height - padT - padB;
+  var coords = points.map(function(p, i){
+    var x = padL + (usableW * (points.length===1 ? 0.5 : i/(points.length-1)));
+    var y = padT + ((maxW - p.weight) / (maxW - minW)) * usableH;
+    return {x:x, y:y, label:p.date, weight:p.weight};
+  });
+  var poly = coords.map(function(c){ return c.x.toFixed(1)+','+c.y.toFixed(1); }).join(' ');
+  var areaPoly = poly + ' ' + coords[coords.length-1].x.toFixed(1)+','+(height-padB) + ' ' + coords[0].x.toFixed(1)+','+(height-padB);
+
+  var last = coords[coords.length-1];
+  var first = coords[0];
+
+  var yTicks = [minW, (minW+maxW)/2, maxW];
+  var yLines = yTicks.map(function(v){
+    var y = padT + ((maxW - v) / (maxW - minW)) * usableH;
+    return '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+y.toFixed(1)+'" stroke="rgba(255,255,255,.08)" stroke-width="1"/>' +
+           '<text x="'+(width-padR)+'" y="'+(y-6).toFixed(1)+'" text-anchor="end" fill="rgba(255,255,255,.45)" style="font-family:var(--mono);font-size:10px">'+v.toFixed(1)+'kg</text>';
+  }).join('');
+
+  var xLabels = [
+    '<text x="'+first.x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="start" fill="rgba(255,255,255,.45)" style="font-family:var(--mono);font-size:10px">'+new Date(points[0].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text>',
+    '<text x="'+last.x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="end" fill="rgba(255,255,255,.45)" style="font-family:var(--mono);font-size:10px">'+new Date(points[points.length-1].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text>'
+  ].join('');
+
+  var dots = coords.map(function(c, idx){
+    var isLast = idx===coords.length-1;
+    return '<circle cx="'+c.x.toFixed(1)+'" cy="'+c.y.toFixed(1)+'" r="'+(isLast?4:3)+'" fill="'+(isLast?'#fff':'rgba(255,255,255,.75)')+'"/>';
+  }).join('');
+
+  var targetLine = '';
+  var targetNum = targetWeight!=null && !isNaN(targetWeight) ? Number(targetWeight) : null;
+  if(targetNum!=null && targetNum>=minW && targetNum<=maxW){
+    var ty = padT + ((maxW - targetNum) / (maxW - minW)) * usableH;
+    targetLine = '<line x1="'+padL+'" y1="'+ty.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+ty.toFixed(1)+'" stroke="rgba(255,255,255,.28)" stroke-dasharray="4 4" stroke-width="1"/>' +
+                 '<text x="'+padL+'" y="'+(ty-6).toFixed(1)+'" fill="rgba(255,255,255,.55)" style="font-family:var(--mono);font-size:10px">Target '+targetNum.toFixed(1)+'kg</text>';
+  }
+
+  chartEl.innerHTML =
+    '<svg viewBox="0 0 '+width+' '+height+'" width="100%" height="220" role="img" aria-label="Weight trend chart">' +
+      yLines +
+      targetLine +
+      '<polygon points="'+areaPoly+'" fill="rgba(255,255,255,.06)"></polygon>' +
+      '<polyline points="'+poly+'" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>' +
+      dots +
+      xLabels +
+    '</svg>';
+
+  var latestDate = new Date(points[points.length-1].date);
+  var sevenAgo = new Date(latestDate);
+  sevenAgo.setDate(sevenAgo.getDate()-7);
+  var compare = points[0];
+  for(var i=points.length-1;i>=0;i--){
+    if(new Date(points[i].date) <= sevenAgo){
+      compare = points[i];
+      break;
+    }
+  }
+  var sevenDelta = points[points.length-1].weight - compare.weight;
+
+  var totalDays = Math.max(1, Math.round((new Date(points[points.length-1].date) - new Date(points[0].date))/(1000*60*60*24)));
+  var weeklyRate = ((points[points.length-1].weight - points[0].weight) / totalDays) * 7;
+
+  document.getElementById('pg7d').textContent = formatKgDelta(sevenDelta);
+  document.getElementById('pg7d').style.color = sevenDelta < 0 ? 'var(--ok)' : sevenDelta > 0 ? 'var(--run)' : 'var(--text)';
+  document.getElementById('pgWeeklyRate').textContent = formatKgDelta(weeklyRate);
+  document.getElementById('pgWeeklyRate').style.color = weeklyRate < 0 ? 'var(--ok)' : weeklyRate > 0 ? 'var(--run)' : 'var(--text)';
+
+  var toTargetEl = document.getElementById('pgToTarget');
+  if(targetNum!=null){
+    var remaining = targetNum - points[points.length-1].weight;
+    toTargetEl.textContent = formatKgDelta(remaining);
+    toTargetEl.style.color = remaining < 0 ? 'var(--ok)' : remaining > 0 ? 'var(--run)' : 'var(--text)';
+  } else {
+    toTargetEl.textContent = '—';
+    toTargetEl.style.color = 'var(--text)';
+  }
+}
+
 async function loadProgress(){
   renderPhotoGrid();
   // Populate start/target from athlete data
@@ -1700,7 +1833,11 @@ async function loadProgress(){
 
   console.log('Matched entries:', entries.length);
 
-  if(!entries.length){document.getElementById('pgNoData').style.display='block';return;}
+  if(!entries.length){
+    document.getElementById('pgNoData').style.display='block';
+    renderWeightChart([], null);
+    return;
+  }
 
   // Current weight = most recent entry
   var wProp = entries[0].properties['Weight'];
@@ -1737,6 +1874,10 @@ async function loadProgress(){
     changeEl.style.color = positive ? 'var(--run)' : 'var(--ok)';
     document.getElementById('pgChangeLbl').textContent = 'kg since first weigh-in ('+new Date(entries[entries.length-1].properties['Date'].date.start).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+')';
   }
+
+  // Render chart + summary trend stats
+  var targetNumber = parseFloat(String(targetFinal).replace(/[^0-9.\-]/g,''));
+  renderWeightChart(entries, isNaN(targetNumber) ? null : targetNumber);
 
   // Build weight log table
   var html = '<table style="width:100%;border-collapse:collapse">';
