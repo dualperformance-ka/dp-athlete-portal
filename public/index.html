@@ -930,6 +930,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const CALENDAR_DB = '0b85a96cc70b836898fd013e0e15c4f2';
 const ATHLETE_DB  = '4a25a96cc70b82ffa6790139eaa8b458';
+const RUN_DB      = '3645a96cc70b820dadf101c498f3df9f';
 const NUTRITION_DB = '3405a96cc70b80de9221c2a40653277c';
 const WEBHOOK     = 'https://hook.eu1.make.com/yjrg278x8bwehy6y19yiphluynmq3v8x';
 const CHECKIN_WEBHOOK    = 'https://hook.eu1.make.com/52u1745oht7hlg48nfewr7ltwhddp6pz';
@@ -970,6 +971,40 @@ function getNotionTitle(props){
 }
 function getRichText(prop){if(!prop)return '';return(prop.rich_text||[]).map(function(t){return t.plain_text||'';}).join('');}
 function getSelect(prop){if(!prop)return '';return(prop.select&&prop.select.name)||(prop.status&&prop.status.name)||'';}
+function getFormulaString(prop){if(!prop||!prop.formula)return '';var f=prop.formula;return f.string||String(f.number||f.boolean||'');}
+function getRollupText(prop){if(!prop||!prop.rollup)return '';var r=prop.rollup;if(r.type==='array')return(r.array||[]).map(function(x){return getPropText(x);}).filter(Boolean).join(', ');if(r.type==='number')return String(r.number||'');return ''; }
+function getPropText(prop){
+  if(!prop) return '';
+  if(prop.type==='title') return (prop.title||[]).map(function(t){return t.plain_text||'';}).join('').trim();
+  if(prop.type==='rich_text') return getRichText(prop).trim();
+  if(prop.type==='select' || prop.type==='status') return getSelect(prop).trim();
+  if(prop.type==='formula') return getFormulaString(prop).trim();
+  if(prop.type==='rollup') return getRollupText(prop).trim();
+  return '';
+}
+function getRelationIds(prop){return prop&&prop.relation?(prop.relation||[]).map(function(r){return r.id;}).filter(Boolean):[];}
+let runLibraryById={}, runLibraryByName={};
+async function fetchRunLibrary(){
+  if(Object.keys(runLibraryById).length) return;
+  var data=await api('databases/'+RUN_DB+'/query',{page_size:100});
+  if(!data||!data.results) return;
+  data.results.forEach(function(page){
+    var pr=page.properties||{};
+    var name=getNotionTitle(pr)||getPropText(pr['Running Session'])||'';
+    if(!name) return;
+    var entry={
+      id:page.id,
+      name:name,
+      description:getPropText(pr['Description'])||getPropText(pr['Run Details'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
+      type:getPropText(pr['Type'])||getPropText(pr['Session Type'])||'',
+      intensity:getPropText(pr['Intensity'])||'',
+      surface:getPropText(pr['Surface'])||'',
+      difficulty:getPropText(pr['Difficulty'])||''
+    };
+    runLibraryById[page.id]=entry;
+    runLibraryByName[name.toLowerCase()]=entry;
+  });
+}
 
 // ── SESSION TYPE ──────────────────────────────────────────────────────────────
 function getType(s){
@@ -1746,6 +1781,7 @@ async function loadWeek(){
   document.getElementById('loadingEl').style.display='block';
   document.getElementById('calEl').style.display='none';
   document.getElementById('noplanEl').style.display='none';
+  await fetchRunLibrary();
   var data=await api('databases/'+CALENDAR_DB+'/query',{
     filter:{property:'Athlete',relation:{contains:athlete.notionPageId}},
     sorts:[{property:'Planned Date',direction:'ascending'}],page_size:100
@@ -1755,10 +1791,11 @@ async function loadWeek(){
   var all=data.results.map(function(p){
     var pr=p.properties;
     return{id:p.id,name:getNotionTitle(pr),date:pr['Planned Date']&&pr['Planned Date'].date&&pr['Planned Date'].date.start||'',
-      sessionType:getSelect(pr['Session Type']),status:getSelect(pr['Status']),
-      runningSession:getRichText(pr['Running Session'])||'',
-    runDetails:getRichText(pr['Description'])||getRichText(pr['Run Details'])||getRichText(pr['Notes'])||getRichText(pr['Coach Notes'])||'',
-      intensity:getSelect(pr['Intensity']),week:getSelect(pr['Week'])};
+      sessionType:getPropText(pr['Session Type']),status:getPropText(pr['Status']),
+      runningSession:getPropText(pr['Running Session'])||'',
+      runningSessionIds:getRelationIds(pr['Running Session']),
+      runDetails:getPropText(pr['Description'])||getPropText(pr['Run Details'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
+      intensity:getPropText(pr['Intensity']),week:getPropText(pr['Week'])};
   });
   sessions=all.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
   var wkS=sessions.find(function(s){return s.week;});
@@ -1812,12 +1849,23 @@ function buildCard(s,i){
 
 function buildBody(s,i,type){
   var h='';if(type==='run'){
-var rsTitle = s.runningSession || s.name || '';
-    var rsDetail = s.runDetails || '';
+    var related = null;
+    if(s.runningSessionIds && s.runningSessionIds.length){
+      for(var ri=0;ri<s.runningSessionIds.length;ri++){
+        if(runLibraryById[s.runningSessionIds[ri]]){ related = runLibraryById[s.runningSessionIds[ri]]; break; }
+      }
+    }
+    var rsTitle = s.runningSession || (related&&related.name) || s.name || '';
+    var rsDetail = s.runDetails || (related&&related.description) || '';
     var rs = null;
-    var lookupKey = rsTitle || s.name || '';
-    rs = RUN[lookupKey] || null;
-    if(!rs){var nl=lookupKey.toLowerCase();for(var k in RUN){if(nl.indexOf(k.toLowerCase())>=0||k.toLowerCase().indexOf(nl)>=0){rs=RUN[k];break;}}}
+    var lookupKey = (rsTitle || (related&&related.name) || s.name || '').toLowerCase();
+    if(related){
+      rs = {type:related.type||'', intensity:related.intensity||'', surface:related.surface||'', difficulty:related.difficulty||'', description:related.description||''};
+    }
+    if(!rs && lookupKey){
+      rs = RUN[rsTitle] || runLibraryByName[lookupKey] || null;
+    }
+    if(!rs && lookupKey){for(var k in RUN){if(lookupKey.indexOf(k.toLowerCase())>=0||k.toLowerCase().indexOf(lookupKey)>=0){rs=RUN[k];break;}}}
     if(rsTitle || rsDetail || rs){
       h+='<div class="rtarget">';
       h+='<div class="rtn">'+esc(rsTitle || (rs&&rs.type) || s.name)+'</div>';
