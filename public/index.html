@@ -1794,7 +1794,7 @@ async function loadWeek(){
       sessionType:getPropText(pr['Session Type']),status:getPropText(pr['Status']),
       runningSession:getPropText(pr['Running Session'])||'',
       runningSessionIds:getRelationIds(pr['Running Session']),
-      runDetails:getPropText(pr['Description'])||getPropText(pr['Run Details'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
+      runDetails:getPropText(pr['Run Details'])||getPropText(pr['Description'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
       intensity:getPropText(pr['Intensity']),week:getPropText(pr['Week'])};
   });
   sessions=all.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
