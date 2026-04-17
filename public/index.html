@@ -1722,13 +1722,13 @@ function renderWeightChart(entries, targetWeight){
   var yTicks = [minW, (minW+maxW)/2, maxW];
   var yLines = yTicks.map(function(v){
     var y = padT + ((maxW - v) / (maxW - minW)) * usableH;
-    return '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+y.toFixed(1)+'" stroke="rgba(255,255,255,.08)" stroke-width="1"/>' +
-           '<text x="'+(width-padR)+'" y="'+(y-6).toFixed(1)+'" text-anchor="end" fill="rgba(255,255,255,.45)" style="font-family:var(--mono);font-size:10px">'+v.toFixed(1)+'kg</text>';
+    return '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+y.toFixed(1)+'" stroke="rgba(10,10,10,.10)" stroke-width="1"/>' +
+           '<text x="'+(width-padR)+'" y="'+(y-6).toFixed(1)+'" text-anchor="end" fill="rgba(10,10,10,.52)" style="font-family:var(--mono);font-size:10px">'+v.toFixed(1)+'kg</text>';
   }).join('');
 
   var xLabels = [
-    '<text x="'+first.x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="start" fill="rgba(255,255,255,.45)" style="font-family:var(--mono);font-size:10px">'+new Date(points[0].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text>',
-    '<text x="'+last.x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="end" fill="rgba(255,255,255,.45)" style="font-family:var(--mono);font-size:10px">'+new Date(points[points.length-1].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text>'
+    '<text x="'+first.x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="start" fill="rgba(10,10,10,.52)" style="font-family:var(--mono);font-size:10px">'+new Date(points[0].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text>',
+    '<text x="'+last.x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="end" fill="rgba(10,10,10,.52)" style="font-family:var(--mono);font-size:10px">'+new Date(points[points.length-1].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text>'
   ].join('');
 
   var dots = coords.map(function(c, idx){
@@ -1740,16 +1740,16 @@ function renderWeightChart(entries, targetWeight){
   var targetNum = targetWeight!=null && !isNaN(targetWeight) ? Number(targetWeight) : null;
   if(targetNum!=null && targetNum>=minW && targetNum<=maxW){
     var ty = padT + ((maxW - targetNum) / (maxW - minW)) * usableH;
-    targetLine = '<line x1="'+padL+'" y1="'+ty.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+ty.toFixed(1)+'" stroke="rgba(255,255,255,.28)" stroke-dasharray="4 4" stroke-width="1"/>' +
-                 '<text x="'+padL+'" y="'+(ty-6).toFixed(1)+'" fill="rgba(255,255,255,.55)" style="font-family:var(--mono);font-size:10px">Target '+targetNum.toFixed(1)+'kg</text>';
+    targetLine = '<line x1="'+padL+'" y1="'+ty.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+ty.toFixed(1)+'" stroke="rgba(10,10,10,.28)" stroke-dasharray="4 4" stroke-width="1"/>' +
+                 '<text x="'+padL+'" y="'+(ty-6).toFixed(1)+'" fill="rgba(10,10,10,.55)" style="font-family:var(--mono);font-size:10px">Target '+targetNum.toFixed(1)+'kg</text>';
   }
 
   chartEl.innerHTML =
     '<svg viewBox="0 0 '+width+' '+height+'" width="100%" height="220" role="img" aria-label="Weight trend chart">' +
       yLines +
       targetLine +
-      '<polygon points="'+areaPoly+'" fill="rgba(255,255,255,.06)"></polygon>' +
-      '<polyline points="'+poly+'" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>' +
+      '<polygon points="'+areaPoly+'" fill="rgba(26,50,122,.06)"></polygon>' +
+      '<polyline points="'+poly+'" fill="none" stroke="#0a0a0a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>' +
       dots +
       xLabels +
     '</svg>';
