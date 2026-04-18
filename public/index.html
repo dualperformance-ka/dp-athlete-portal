@@ -387,7 +387,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="card-title">Body Composition</div>
       <div class="stat-grid">
         <div class="stat-field">
-          <label>Current Weight</label>
+          <label>Starting Weight</label>
           <input class="stat-input" id="gWeight" type="text" placeholder="72.0" />
           <div class="field-hint">kg</div>
         </div>
@@ -974,13 +974,13 @@ async function doLogin(code){
   athlete={id:p.id,notionPageId:p.id,name:name,code:code,
     goalRace:getSelect(props['Goal Race'])||getRichText(props['Goal Race'])||'',
     peakWeek:(props['Weekly KM Target']&&props['Weekly KM Target'].number!=null?String(props['Weekly KM Target'].number):'')||getRichText(props['Weekly KM Target'])||'',
-    weight:getRichText(props['Body Weight (kg)'])||'',bodyFat:getRichText(props['Body Fat %'])||'',
+    weight:getRichText(props['Body Weight (kg)'])||'',startWeight:getRichText(props['Starting Weight'])||getRichText(props['Body Weight (kg)'])||'—',bodyFat:getRichText(props['Body Fat %'])||'',
     time5k:getRichText(props['5km Time'])||'',time10k:getRichText(props['10km Time'])||'',
     timeHalf:getRichText(props['Half Marathon Time'])||'',timeMarathon:getRichText(props['Marathon Time'])||'',
     lrPace:getRichText(props['Long Run Pace'])||'',
     why:getRichText(props['Your Why'])||'',m4:getRichText(props['Milestone W4'])||'',
     m8:getRichText(props['Milestone W8'])||'',m12:getRichText(props['Milestone W12'])||'',
-    startWeight:getRichText(props['Starting Weight'])||'—',targetWeight:getRichText(props['Target Weight'])||'—',
+    targetWeight:getRichText(props['Target Weight'])||'—',
     startDate:props['Start Date']&&props['Start Date'].date&&props['Start Date'].date.start||'—',
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
@@ -1000,7 +1000,7 @@ function populateStatic(){
   setRaceFromValue(saved.goalRace||athlete.goalRace||'');
   document.getElementById('gPeakWeek').value=saved.peakWeek||athlete.peakWeek||'';
   document.getElementById('gRaceDate').value=saved.raceDate||'';
-  document.getElementById('gWeight').value=saved.weight||athlete.weight||'';
+  document.getElementById('gWeight').value=saved.startWeight||saved.weight||athlete.startWeight||athlete.weight||'';
   document.getElementById('gTargetWeight').value=saved.targetWeight||(athlete.targetWeight!=='—'?athlete.targetWeight:'')||'';
   document.getElementById('gBodyFat').value=saved.bodyFat||athlete.bodyFat||'';
   document.getElementById('g5k').value=saved.time5k||athlete.time5k||'';
@@ -1040,13 +1040,14 @@ async function saveGoals(){
   var selectedRaceBtn=document.querySelector('.race-opt.selected');
   var raceVal=selectedRaceBtn?(selectedRaceBtn.dataset.val==='Other'?document.getElementById('gRaceOther').value.trim():selectedRaceBtn.dataset.val):'';
   var goals={goalRace:raceVal,peakWeek:document.getElementById('gPeakWeek').value.trim(),raceDate:document.getElementById('gRaceDate').value.trim(),
-    weight:document.getElementById('gWeight').value.trim(),targetWeight:document.getElementById('gTargetWeight').value.trim(),
+    startWeight:document.getElementById('gWeight').value.trim(),weight:document.getElementById('gWeight').value.trim(),targetWeight:document.getElementById('gTargetWeight').value.trim(),
     bodyFat:document.getElementById('gBodyFat').value.trim(),time5k:document.getElementById('g5k').value.trim(),
     time10k:document.getElementById('g10k').value.trim(),timeHalf:document.getElementById('gHalf').value.trim(),
     timeMarathon:document.getElementById('gMarathon').value.trim(),lrPace:document.getElementById('gLRPace').value.trim(),
     why:document.getElementById('gWhy').value.trim(),m4:document.getElementById('gM4').value.trim(),
     m8:document.getElementById('gM8').value.trim(),m12:document.getElementById('gM12').value.trim(),savedAt:new Date().toISOString()};
   localStorage.setItem('dp_goals_'+athlete.code,JSON.stringify(goals));
+  athlete.startWeight=goals.startWeight||athlete.startWeight;
   try{await fetch(GOALS_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'goals',athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,submittedAt:goals.savedAt},goals))});}catch(e){}
   btn.textContent='Saved ✓';btn.classList.add('saved');
   var d=new Date(goals.savedAt);
@@ -1464,7 +1465,9 @@ function renderWeightChart(entries,targetWeight){
 
 async function loadProgress(){
   renderPhotoGrid();
-  document.getElementById('pgStart').textContent=athlete.startWeight||'—';
+  var savedGoals=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
+  var portalStartWeight=savedGoals.startWeight||savedGoals.weight||athlete.startWeight||'—';
+  document.getElementById('pgStart').textContent=portalStartWeight&&portalStartWeight!=='—'?portalStartWeight+'kg':'—';
   document.getElementById('pgTarget').textContent=athlete.targetWeight||'—';
   document.getElementById('pgLoadingEl').style.display='block';
   document.getElementById('pgWeightLog').style.display='none';
@@ -1483,17 +1486,18 @@ async function loadProgress(){
   .sort(function(a,b){var da=a.properties['Date']&&a.properties['Date'].date&&a.properties['Date'].date.start||'';var db=b.properties['Date']&&b.properties['Date'].date&&b.properties['Date'].date.start||'';return db.localeCompare(da);});
   if(!entries.length){document.getElementById('pgNoData').style.display='block';renderWeightChart([],null);return;}
   var wProp=entries[0].properties['Weight'];var currentWeight=wProp.number!=null?wProp.number:parseFloat(getRichText(wProp));
-  var oldestWProp=entries[entries.length-1].properties['Weight'];var startWeight=oldestWProp.number!=null?oldestWProp.number:parseFloat(getRichText(oldestWProp));
-  var savedGoals=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
+  var oldestWProp=entries[entries.length-1].properties['Weight'];var firstLoggedWeight=oldestWProp.number!=null?oldestWProp.number:parseFloat(getRichText(oldestWProp));
   var targetFromAthlete=athlete.targetWeight&&athlete.targetWeight!=='—'?athlete.targetWeight:null;
   var targetFinal=(savedGoals.targetWeight?savedGoals.targetWeight+'kg':null)||targetFromAthlete||'—';
-  document.getElementById('pgStart').textContent=startWeight?startWeight+'kg':'—';
+  var startWeight=parseFloat(String(portalStartWeight).replace(/[^0-9.\-]/g,''));
+  if(isNaN(startWeight)) startWeight=firstLoggedWeight;
+  document.getElementById('pgStart').textContent=portalStartWeight&&portalStartWeight!=='—'?portalStartWeight+'kg':(startWeight?startWeight+'kg':'—');
   document.getElementById('pgCurrent').textContent=currentWeight?currentWeight+'kg':'—';
   document.getElementById('pgTarget').textContent=targetFinal;
   if(startWeight&&currentWeight&&!isNaN(startWeight)){
     var change=(currentWeight-startWeight).toFixed(1);var positive=change>0;
     var changeEl=document.getElementById('pgChange');changeEl.textContent=(positive?'+':'')+change+'kg';changeEl.style.color=positive?'var(--run)':'var(--ok)';
-    document.getElementById('pgChangeLbl').textContent='kg since first weigh-in ('+new Date(entries[entries.length-1].properties['Date'].date.start).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+')';
+    document.getElementById('pgChangeLbl').textContent=portalStartWeight&&portalStartWeight!=='—'?'kg since starting weight':'kg since first weigh-in ('+new Date(entries[entries.length-1].properties['Date'].date.start).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+')';
   }
   var targetNumber=parseFloat(String(targetFinal).replace(/[^0-9.\-]/g,''));
   renderWeightChart(entries,isNaN(targetNumber)?null:targetNumber);
