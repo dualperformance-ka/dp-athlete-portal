@@ -794,6 +794,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 const CALENDAR_DB        = '0b85a96cc70b836898fd013e0e15c4f2';
 const ATHLETE_DB         = '4a25a96cc70b82ffa6790139eaa8b458';
 const RUN_DB             = '3645a96cc70b820dadf101c498f3df9f';
+const WEEKLY_KM_DB       = 'PASTE_YOUR_WEEKLY_KM_DATABASE_ID_HERE';
 const NUTRITION_DB       = '3405a96cc70b80de9221c2a40653277c';
 const DAILY_BODY_DB      = '3405a96cc70b80a4b1b9cf5b9c236f18';
 const WEBHOOK            = 'https://hook.eu1.make.com/yjrg278x8bwehy6y19yiphluynmq3v8x';
@@ -860,7 +861,7 @@ const STR = {
 const RUN={"Threshold Work":{"description":"Warm up 15min easy. Run at sustained threshold effort (RPE 7–8). Cool down easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"Easy Run":{"description":"Relaxed aerobic run at conversational pace (RPE 4–5). Focus on easy breathing and good form.","type":"Easy Run","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"Long Run":{"description":"Long aerobic endurance run. Relaxed steady effort (RPE 5–6). Focus on time on feet and fueling.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Progressive Long Run":{"description":"Long run starting easy, gradually increasing pace in final third toward marathon effort.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Fast Finish Long Run":{"description":"Long run mostly easy with final 3–5km at marathon effort (RPE 7).","type":"Long Run","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"12x1min Fartlek":{"description":"Warm up 10–15min easy. 12x1min strong (RPE 7–8) with 1min jog recovery. Cool down easy.","type":"Fartlek","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"8x2min Fartlek":{"description":"Warm up 10–15min easy + strides. 8x2min steady hard (RPE 7) with 2min jog recovery. Cool down 10min easy.","type":"Fartlek","intensity":"Threshold","surface":"Road","difficulty":"Beginner"},"20min Tempo":{"description":"Warm up 10–15min easy. 20min tempo steady effort (RPE 7). Cool down 10min easy.","type":"Tempo","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"25min Tempo":{"description":"Warm up 15min easy. 25min continuous tempo (RPE 7). Cool down 10–15min easy.","type":"Tempo","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"5x1km Threshold":{"description":"Warm up 15min easy + strides. 5x1km threshold (RPE 7–8) with 90s jog recovery. Cool down 10min easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"6x400m Intervals":{"description":"Warm up 15min easy + drills. 6x400m fast (RPE 8) with 200m jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"6x800m Intervals":{"description":"Warm up 15min easy. 6x800m strong (RPE 8) with 2min jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"10x20s Hill Sprints":{"description":"Warm up 15min easy. 10x20s hill sprints (RPE 9) full recovery. Cool down easy.","type":"Hills","intensity":"Neuromuscular","surface":"Hills","difficulty":"Beginner"},"5km Recovery":{"description":"5km gentle recovery jog (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"},"6km Recovery":{"description":"6km very easy recovery run (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"}};
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let athlete=null,weekOffset=0,nutWeekOffset=0,sessions=[],allSessions=[],ticked={},logs={};
+let athlete=null,weekOffset=0,nutWeekOffset=0,sessions=[],allSessions=[],ticked={},logs={},currentWeekKmData=null;
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function localISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -1143,6 +1144,112 @@ function goToday(){weekOffset=0;loadWeek();}
 function shiftNutWeek(d){nutWeekOffset+=d;loadNutrition();}
 function goNutToday(){nutWeekOffset=0;loadNutrition();}
 
+
+function numFromProp(prop){
+  if(!prop) return null;
+  if(prop.type==='number'&&prop.number!=null) return Number(prop.number);
+  if(prop.type==='formula'&&prop.formula&&prop.formula.number!=null) return Number(prop.formula.number);
+  if(prop.type==='rollup'&&prop.rollup&&prop.rollup.type==='number'&&prop.rollup.number!=null) return Number(prop.rollup.number);
+  var txt=getPropText(prop);
+  if(txt==null||txt==='') return null;
+  var n=parseFloat(String(txt).replace(/[^0-9.\-]/g,''));
+  return isNaN(n)?null:n;
+}
+function textFromAny(pr,keys){
+  for(var i=0;i<keys.length;i++){var v=getPropText(pr[keys[i]]);if(v) return v;}
+  return '';
+}
+function getDisplayWeekNumber(offset){
+  var weekNum=getCurrentProgrammeWeek();
+  var displayWeek=weekNum+offset;
+  if(displayWeek<1) displayWeek=1;
+  if(displayWeek>52) displayWeek=52;
+  return displayWeek;
+}
+function getWeekDateRangeFromOffset(offset){
+  var m=getMon(new Date());m.setDate(m.getDate()+offset*7);
+  var e=new Date(m.getFullYear(),m.getMonth(),m.getDate()+6);
+  return {start:m,end:e,startISO:localISO(m),endISO:localISO(e)};
+}
+function deriveCompletedKmFromSessions(sessionList){
+  return (sessionList||[]).filter(function(s){return getType(s)==='run';}).reduce(function(sum,s){
+    var sessionLog=logs[s.id]||{};
+    var d=parseFloat(String(sessionLog.distance||'').replace(/[^0-9.\-]/g,''));
+    return sum + (isNaN(d)?0:d);
+  },0);
+}
+async function loadWeeklyKmData(offset){
+  currentWeekKmData=null;
+  if(!WEEKLY_KM_DB || WEEKLY_KM_DB.indexOf('PASTE_YOUR')===0) return null;
+  var range=getWeekDateRangeFromOffset(offset);
+  var displayWeek=getDisplayWeekNumber(offset);
+  var allKm=await apiAll('databases/'+WEEKLY_KM_DB+'/query',{sorts:[{property:'Week Start',direction:'ascending'}]});
+  if(!allKm||!allKm.results) return null;
+  var athleteIdClean=athlete.notionPageId.replace(/-/g,'');
+  var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
+  var athleteCodeUpper=(athlete.code||'').toUpperCase().trim();
+  var matched=allKm.results.filter(function(r){
+    var pr=r.properties||{};
+    var rowName=getNotionTitle(pr).toUpperCase().trim();
+    var athleteMatch=rowName===athleteNameUpper||rowName===athleteCodeUpper;
+    if(!athleteMatch){
+      var athRel=pr['Athlete']&&pr['Athlete'].relation||[];
+      athleteMatch=athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
+    }
+    if(!athleteMatch){
+      var athleteTxt=textFromAny(pr,['Athlete Name','Name','Athlete Code','Code']).toUpperCase().trim();
+      athleteMatch=athleteTxt===athleteNameUpper||athleteTxt===athleteCodeUpper;
+    }
+    if(!athleteMatch) return false;
+    var weekStart=textFromAny(pr,['Week Start','Week start','Start Date']);
+    var weekLabel=textFromAny(pr,['Week','Week Label']);
+    var weekNumber=numFromProp(pr['Week Number'])||numFromProp(pr['Week #'])||null;
+    var startMatch=weekStart && weekStart.slice(0,10)===range.startISO;
+    var labelMatch=weekLabel && weekLabel.toLowerCase()===('Week '+displayWeek).toLowerCase();
+    var numMatch=weekNumber===displayWeek;
+    return startMatch||labelMatch||numMatch;
+  });
+  if(!matched.length) return null;
+  var pr=matched[0].properties||{};
+  var target=numFromProp(pr['Target KM']) ?? numFromProp(pr['Weekly KM Target']) ?? numFromProp(pr['KM Target']) ?? numFromProp(pr['Target']);
+  var completed=numFromProp(pr['Completed KM']) ?? numFromProp(pr['Current KM']) ?? numFromProp(pr['KM Completed']) ?? numFromProp(pr['Progress KM']);
+  if(completed==null) completed=deriveCompletedKmFromSessions(sessions);
+  currentWeekKmData={
+    pageId:matched[0].id,
+    target:target,
+    completed:completed||0,
+    weekLabel:textFromAny(pr,['Week','Week Label']) || ('Week '+displayWeek),
+    note:textFromAny(pr,['Notes','Coach Notes','Comment']),
+    weekStart:textFromAny(pr,['Week Start','Week start','Start Date']) || range.startISO,
+    weekEnd:textFromAny(pr,['Week End','Week end','End Date']) || range.endISO
+  };
+  return currentWeekKmData;
+}
+function renderKmTracker(kmData){
+  var bar=document.getElementById('kmBar');
+  if(!bar) return;
+  if(!kmData || kmData.target==null || isNaN(kmData.target) || Number(kmData.target)<=0){
+    bar.style.display='none';
+    return;
+  }
+  var kmTarget=Number(kmData.target);
+  var kmCompleted=Number(kmData.completed||0);
+  var pct=Math.min(100,Math.round((kmCompleted/kmTarget)*100));
+  var circ=138.2;
+  var offset=circ-(pct/100*circ);
+  var color=pct>=100?'#22c55e':'#f59e0b';
+  var remain=Math.max(0,kmTarget-kmCompleted);
+  document.getElementById('kmRingFill').setAttribute('stroke-dashoffset', offset.toFixed(1));
+  document.getElementById('kmRingFill').setAttribute('stroke', color);
+  document.getElementById('kmRingPct').textContent = pct + '%';
+  document.getElementById('kmRingPct').setAttribute('fill', color);
+  document.getElementById('kmNums').innerHTML = kmCompleted.toFixed(1).replace(/\.0$/,'') + ' <span style="font-size:14px;color:rgba(255,255,255,.35);font-weight:400;letter-spacing:.04em">/ ' + kmTarget.toFixed(1).replace(/\.0$/,'') + ' km</span>';
+  document.getElementById('kmNums').style.color = color;
+  document.getElementById('kmFill').style.width = pct + '%';
+  document.getElementById('kmFill').style.background = color;
+  document.getElementById('kmSub').textContent = remain > 0 ? remain.toFixed(1).replace(/\.0$/,'') + ' km to go this week' : 'Target smashed ✓';
+  bar.style.display = 'flex';
+}
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 async function loadNutrition(){
   var weekNum=getCurrentProgrammeWeek();
@@ -1175,8 +1282,7 @@ async function loadNutrition(){
       var athRows=allNut.results.filter(function(r){
         var rowName=getNotionTitle(r.properties).toUpperCase().trim();
         var nameMatch=rowName===athleteNameUpper||rowName===athleteCodeUpper;
-        var athRel=r.properties['Athlete']&&r.properties['Athlete'].relation||[];
-        var idMatch=athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
+        var athRel=r.properties['Athlete']&&r.properties['Athlete'].relation||[];var idMatch=athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
         return nameMatch||idMatch;
       });
       if(athRows.length){
@@ -1191,48 +1297,37 @@ async function loadNutrition(){
     }
   }
   document.getElementById('nutLoadingEl').style.display='none';
-  if(!data||!data.results||!data.results.length){document.getElementById('nutNoplan').style.display='block';return;}
-  var pr=data.results[0].properties;
-  function getMacro(keys){
-    for(var i=0;i<keys.length;i++){
-      var p=pr[keys[i]];if(!p) continue;
-      if(p.type==='number'&&p.number!=null) return p.number;
-      if(p.type==='rich_text'&&p.rich_text&&p.rich_text[0]) return p.rich_text[0].plain_text||'—';
-      if(p.type==='title'&&p.title&&p.title[0]) return p.title[0].plain_text||'—';
+  if(!data||!data.results||!data.results.length){document.getElementById('nutNoplan').style.display='block';}
+  else{
+    var pr=data.results[0].properties;
+    function getMacro(keys){
+      for(var i=0;i<keys.length;i++){
+        var p=pr[keys[i]];if(!p) continue;
+        if(p.type==='number'&&p.number!=null) return p.number;
+        if(p.type==='rich_text'&&p.rich_text&&p.rich_text[0]) return p.rich_text[0].plain_text||'—';
+        if(p.type==='title'&&p.title&&p.title[0]) return p.title[0].plain_text||'—';
+      }
+      return '—';
     }
-    return '—';
-  }
-  document.getElementById('nutCal').textContent=getMacro(['Calories','Cal','kcal']);
-  document.getElementById('nutPro').textContent=getMacro(['Protein','Protein (g)','Pro']);
-  document.getElementById('nutCarb').textContent=getMacro(['Carbs','Carbs (g)','Carbohydrates']);
-  document.getElementById('nutFat').textContent=getMacro(['Fats','Fat','Fats (g)','Fat (g)']);
-  document.getElementById('nutFibre').textContent=getMacro(['Fibre','Fiber','Fibre (g)','Fiber (g)']);
-  var note=getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
-  var noteEl=document.getElementById('nutCoachNote');
-  if(note){noteEl.textContent='💬 '+note;noteEl.style.display='block';}else{noteEl.style.display='none';}
-
-  // ── KM TRACKER — reads from same nutrition DB row ──
-  var kmTarget    = pr['Weekly KM Target'] && pr['Weekly KM Target'].number != null ? pr['Weekly KM Target'].number : null;
-  var kmCompleted = pr['Completed KM'] && pr['Completed KM'].number != null ? pr['Completed KM'].number : 0;
-  if (kmTarget) {
-    var pct    = Math.min(100, Math.round(kmCompleted / kmTarget * 100));
-    var circ   = 138.2;
-    var offset = circ - (pct / 100 * circ);
-    var color  = pct >= 100 ? '#22c55e' : '#f59e0b';
-    var remain = Math.max(0, kmTarget - kmCompleted);
-    document.getElementById('kmRingFill').setAttribute('stroke-dashoffset', offset.toFixed(1));
-    document.getElementById('kmRingFill').setAttribute('stroke', color);
-    document.getElementById('kmRingPct').textContent = pct + '%';
-    document.getElementById('kmRingPct').setAttribute('fill', color);
-    document.getElementById('kmNums').innerHTML = kmCompleted + ' <span style="font-size:14px;color:rgba(255,255,255,.35);font-weight:400;letter-spacing:.04em">/ ' + kmTarget + ' km</span>';
-    document.getElementById('kmNums').style.color = color;
-    document.getElementById('kmFill').style.width = pct + '%';
-    document.getElementById('kmFill').style.background = color;
-    document.getElementById('kmSub').textContent = remain > 0 ? remain + ' km to go this week' : 'Target smashed ✓';
-    document.getElementById('kmBar').style.display = 'flex';
+    document.getElementById('nutCal').textContent=getMacro(['Calories','Cal','kcal']);
+    document.getElementById('nutPro').textContent=getMacro(['Protein','Protein (g)','Pro']);
+    document.getElementById('nutCarb').textContent=getMacro(['Carbs','Carbs (g)','Carbohydrates']);
+    document.getElementById('nutFat').textContent=getMacro(['Fats','Fat','Fats (g)','Fat (g)']);
+    document.getElementById('nutFibre').textContent=getMacro(['Fibre','Fiber','Fibre (g)','Fiber (g)']);
+    var note=getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
+    var noteEl=document.getElementById('nutCoachNote');
+    if(note){noteEl.textContent='💬 '+note;noteEl.style.display='block';}else{noteEl.style.display='none';}
+    document.getElementById('nutContent').style.display='block';
   }
 
-  document.getElementById('nutContent').style.display='block';
+  var kmData = await loadWeeklyKmData(nutWeekOffset);
+  if(!kmData){
+    var fallbackTarget = parseFloat(String((JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}').peakWeek)||athlete.peakWeek||'').replace(/[^0-9.\-]/g,''));
+    if(!isNaN(fallbackTarget) && fallbackTarget>0){
+      kmData = { target:fallbackTarget, completed:deriveCompletedKmFromSessions(sessions), weekLabel:'Week '+displayWeek };
+    }
+  }
+  renderKmTracker(kmData);
 }
 
 // ── PHOTO UPLOAD ──────────────────────────────────────────────────────────────
