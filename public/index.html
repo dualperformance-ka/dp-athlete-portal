@@ -693,7 +693,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <div class="tab-content" id="tab-progress">
     <div class="stitle">Progress</div>
     <div class="progress-stats" style="margin-bottom:12px">
-      <div class="pstat"><div class="pstat-val" id="pgStart">—</div><div class="pstat-lbl">Start kg</div></div>
+      <div class="pstat"><div class="pstat-val" id="pgStart"></div><div class="pstat-lbl">Start kg</div></div>
       <div class="pstat"><div class="pstat-val" id="pgCurrent">—</div><div class="pstat-lbl">Current kg</div></div>
       <div class="pstat"><div class="pstat-val" id="pgTarget">—</div><div class="pstat-lbl">Target kg</div></div>
     </div>
@@ -974,7 +974,7 @@ async function doLogin(code){
   athlete={id:p.id,notionPageId:p.id,name:name,code:code,
     goalRace:getSelect(props['Goal Race'])||getRichText(props['Goal Race'])||'',
     peakWeek:(props['Weekly KM Target']&&props['Weekly KM Target'].number!=null?String(props['Weekly KM Target'].number):'')||getRichText(props['Weekly KM Target'])||'',
-    weight:getRichText(props['Body Weight (kg)'])||'',startWeight:getRichText(props['Starting Weight'])||getRichText(props['Body Weight (kg)'])||'—',bodyFat:getRichText(props['Body Fat %'])||'',
+    weight:getRichText(props['Body Weight (kg)'])||'',startWeight:getRichText(props['Starting Weight'])||getRichText(props['Body Weight (kg)'])||'',bodyFat:getRichText(props['Body Fat %'])||'',
     time5k:getRichText(props['5km Time'])||'',time10k:getRichText(props['10km Time'])||'',
     timeHalf:getRichText(props['Half Marathon Time'])||'',timeMarathon:getRichText(props['Marathon Time'])||'',
     lrPace:getRichText(props['Long Run Pace'])||'',
@@ -1467,7 +1467,7 @@ async function loadProgress(){
   renderPhotoGrid();
   var savedGoals=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
   var portalStartWeight=savedGoals.startWeight||savedGoals.weight||athlete.startWeight||'—';
-  document.getElementById('pgStart').textContent=portalStartWeight&&portalStartWeight!=='—'?portalStartWeight+'kg':'—';
+  document.getElementById('pgStart').textContent=portalStartWeight?portalStartWeight+'kg':'';
   document.getElementById('pgTarget').textContent=athlete.targetWeight||'—';
   document.getElementById('pgLoadingEl').style.display='block';
   document.getElementById('pgWeightLog').style.display='none';
@@ -1491,7 +1491,7 @@ async function loadProgress(){
   var targetFinal=(savedGoals.targetWeight?savedGoals.targetWeight+'kg':null)||targetFromAthlete||'—';
   var startWeight=parseFloat(String(portalStartWeight).replace(/[^0-9.\-]/g,''));
   if(isNaN(startWeight)) startWeight=firstLoggedWeight;
-  document.getElementById('pgStart').textContent=portalStartWeight&&portalStartWeight!=='—'?portalStartWeight+'kg':(startWeight?startWeight+'kg':'—');
+  document.getElementById('pgStart').textContent=portalStartWeight?portalStartWeight+'kg':(startWeight?startWeight+'kg':'');
   document.getElementById('pgCurrent').textContent=currentWeight?currentWeight+'kg':'—';
   document.getElementById('pgTarget').textContent=targetFinal;
   if(startWeight&&currentWeight&&!isNaN(startWeight)){
