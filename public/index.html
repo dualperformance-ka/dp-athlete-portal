@@ -1594,6 +1594,7 @@ async function loadWeek(){
   document.getElementById('loadingEl').style.display='block';
   document.getElementById('calEl').style.display='none';document.getElementById('noplanEl').style.display='none';
   await fetchRunLibrary();
+  await loadRunningLibrary();
   var data=await api('databases/'+CALENDAR_DB+'/query',{filter:{property:'Athlete',relation:{contains:athlete.notionPageId}},sorts:[{property:'Planned Date',direction:'ascending'}],page_size:100});
   document.getElementById('loadingEl').style.display='none';
   if(!data||!data.results){showNoplan();return;}
@@ -1641,16 +1642,12 @@ function buildCard(s,i){
   var meta=[];if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);
   var displayName=s.name||'Session';
   
-  // Extract Running Library URL if available
-  var runningLibraryUrl = '';
-  if (s.runningLibraryIds && s.runningLibraryIds.length > 0) {
-    runningLibraryUrl = s.runningLibraryIds[0]; // Take first linked workout
-  }
-  
   // Determine onclick behavior - use enhanced modal for runs with library link
   var onclickHandler = 'togS('+i+')';
-  if (type === 'run' && runningLibraryUrl) {
-    onclickHandler = 'showEnhancedWorkoutModal({name:\''+esc(displayName).replace(/'/g, "\\'")+ '\',runningLibraryUrl:\''+runningLibraryUrl+'\'})';
+  if (type === 'run' && s.runningLibraryIds && s.runningLibraryIds.length > 0) {
+    // Pass the IDs array to the modal
+    var idsJson = JSON.stringify(s.runningLibraryIds);
+    onclickHandler = 'showEnhancedWorkoutModal({name:\''+esc(displayName).replace(/'/g, "\\'")+ '\',runningLibraryIds:'+idsJson+'})';
   }
   
   var h='<div class="sc'+(done?' done':'')+'" id="sc_'+i+'">';
@@ -1874,66 +1871,52 @@ else document.getElementById('loginScreen').style.display='block';
 // Enhances calendar sessions with full workout details from Notion
 // ============================================================================
 
-const RUNNING_LIBRARY_CACHE = {};
+const RUNNING_LIBRARY_BY_ID = {};
 
-// Fetch Running Library workout details from Notion
-async function fetchRunningLibraryWorkout(workoutUrl) {
-  if (!workoutUrl) return null;
-  if (RUNNING_LIBRARY_CACHE[workoutUrl]) return RUNNING_LIBRARY_CACHE[workoutUrl];
-  
+// Fetch all Running Library workouts on page load
+async function loadRunningLibrary() {
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
-        mcp_servers: [{
-          type: "url",
-          url: "https://mcp.notion.com/mcp",
-          name: "notion-mcp"
-        }],
-        messages: [{
-          role: "user",
-          content: `Fetch the Notion page at ${workoutUrl} and return all its properties`
-        }]
-      })
+    console.log('Loading Running Library...');
+    const data = await api('databases/' + '3465a96cc70b80e1aa77d484b9dc197c' + '/query', {
+      page_size: 100
     });
-
-    const data = await response.json();
-    const toolResults = data.content.filter(item => item.type === "mcp_tool_result");
     
-    if (toolResults.length > 0 && toolResults[0].content?.[0]?.text) {
-      const workoutData = JSON.parse(toolResults[0].content[0].text);
-      
-      const workout = {
-        name: workoutData["Session Name"],
-        type: workoutData["Workout Type"],
-        description: workoutData.Description,
-        difficulty: workoutData.Difficulty,
-        distance: workoutData["Distance Focus"],
-        duration: workoutData["Duration (mins)"],
-        rpe: workoutData.RPE,
-        intensity: workoutData["Intensity Zone"],
-        phase: workoutData["Training Phase"],
-        surface: workoutData.Surface,
-        fatigue: workoutData["Fatigue Cost"],
-        recovery: workoutData["Recovery Time (hrs)"],
-        goal: workoutData["Session Goal"],
-        warmup: workoutData["Warm Up"],
-        cooldown: workoutData["Cool Down"],
-        prereqs: workoutData.Prerequisites,
-        slot: workoutData["Weekly Slot"]
-      };
-      
-      RUNNING_LIBRARY_CACHE[workoutUrl] = workout;
-      return workout;
+    if (data && data.results) {
+      data.results.forEach(function(page) {
+        const pr = page.properties;
+        RUNNING_LIBRARY_BY_ID[page.id] = {
+          name: getPropText(pr['Session Name']) || getNotionTitle(pr),
+          type: getPropText(pr['Workout Type']),
+          description: getPropText(pr['Description']),
+          difficulty: getPropText(pr['Difficulty']),
+          distance: getPropText(pr['Distance Focus']),
+          duration: getPropText(pr['Duration (mins)']),
+          rpe: getPropText(pr['RPE']),
+          intensity: getPropText(pr['Intensity Zone']),
+          phase: getPropText(pr['Training Phase']),
+          surface: getPropText(pr['Surface']),
+          fatigue: getPropText(pr['Fatigue Cost']),
+          recovery: getPropText(pr['Recovery Time (hrs)']),
+          goal: getPropText(pr['Session Goal']),
+          warmup: getPropText(pr['Warm Up']),
+          cooldown: getPropText(pr['Cool Down']),
+          prereqs: getPropText(pr['Prerequisites']),
+          slot: getPropText(pr['Weekly Slot'])
+        };
+      });
+      console.log('Running Library loaded:', Object.keys(RUNNING_LIBRARY_BY_ID).length, 'workouts');
     }
   } catch (error) {
-    console.error("Failed to fetch Running Library workout:", error);
+    console.error('Failed to load Running Library:', error);
   }
-  
-  return null;
+}
+
+// Get workout details from pre-loaded library using page ID
+function getRunningLibraryWorkout(workoutIds) {
+  if (!workoutIds || !workoutIds.length) return null;
+  // Take first linked workout ID
+  const workoutId = workoutIds[0];
+  return RUNNING_LIBRARY_BY_ID[workoutId] || null;
 }
 
 // Enhanced workout modal with Running Library details
@@ -1949,20 +1932,10 @@ async function showEnhancedWorkoutModal(sessionData) {
     });
   }
   
-  modal.innerHTML = `
-    <div style="max-width:600px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin:auto;">
-      <div style="text-align:center;padding:32px 0;">
-        <div style="font-family:var(--mono);font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Loading workout details...</div>
-        <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
-      </div>
-    </div>
-  `;
   modal.style.display = 'flex';
   
-  let workout = null;
-  if (sessionData.runningLibraryUrl) {
-    workout = await fetchRunningLibraryWorkout(sessionData.runningLibraryUrl);
-  }
+  // Get workout from pre-loaded library using IDs
+  const workout = getRunningLibraryWorkout(sessionData.runningLibraryIds);
   
   const modalHTML = `
     <div style="max-width:600px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin:auto;max-height:90vh;overflow-y:auto;">
