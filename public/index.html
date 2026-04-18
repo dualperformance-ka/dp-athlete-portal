@@ -793,7 +793,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const CALENDAR_DB        = '0b85a96cc70b836898fd013e0e15c4f2';
 const ATHLETE_DB         = '4a25a96cc70b82ffa6790139eaa8b458';
-const RUN_DB             = '3645a96cc70b820dadf101c498f3df9f';
+const RUN_DB             = '3465a96cc70b80e1aa77d484b9dc197c';
 const WEEKLY_KM_DB       = 'PASTE_YOUR_WEEKLY_KM_DATABASE_ID_HERE';
 const NUTRITION_DB       = '3405a96cc70b80de9221c2a40653277c';
 const DAILY_BODY_DB      = '3405a96cc70b80a4b1b9cf5b9c236f18';
@@ -1665,11 +1665,44 @@ function buildCard(s,i){
 
 function resolveRunDisplay(s){
   var related=null;
-  if(s.runningSessionIds&&s.runningSessionIds.length){for(var ri=0;ri<s.runningSessionIds.length;ri++){if(runLibraryById[s.runningSessionIds[ri]]){related=runLibraryById[s.runningSessionIds[ri]];break;}}}
-  var rsTitle=s.runningSession||(related&&related.name)||s.name||'';
-  var rsDetail=s.runDetails||(related&&related.description)||'';
-  var rs=null;var lookupKey=(rsTitle||(related&&related.name)||s.name||'').toLowerCase();
-  if(related){rs={type:related.type||'',phase:related.phase||'',distance:related.distance||'',intensity:related.intensity||'',surface:related.surface||'',difficulty:related.difficulty||'',tags:related.tags||'',rpe:related.rpe||'',target:related.target||'',targetPace:related.targetPace||'',duration:related.duration||'',warmUp:related.warmUp||'',coolDown:related.coolDown||'',sessionGoal:related.sessionGoal||'',recoveryType:related.recoveryType||'',description:related.description||''};}
+  if(s.runningLibraryIds&&s.runningLibraryIds.length){
+    for(var li=0;li<s.runningLibraryIds.length;li++){
+      if(RUNNING_LIBRARY_BY_ID[s.runningLibraryIds[li]]){related=RUNNING_LIBRARY_BY_ID[s.runningLibraryIds[li]];break;}
+      if(runLibraryById[s.runningLibraryIds[li]]){related=runLibraryById[s.runningLibraryIds[li]];break;}
+    }
+  }
+  if(!related&&s.runningSessionIds&&s.runningSessionIds.length){
+    for(var ri=0;ri<s.runningSessionIds.length;ri++){
+      if(runLibraryById[s.runningSessionIds[ri]]){related=runLibraryById[s.runningSessionIds[ri]];break;}
+      if(RUNNING_LIBRARY_BY_ID[s.runningSessionIds[ri]]){related=RUNNING_LIBRARY_BY_ID[s.runningSessionIds[ri]];break;}
+    }
+  }
+
+  var rsTitle=(related&&related.name)||s.runningSession||s.name||'';
+  var rsDetail=(related&&related.description)||s.runDetails||'';
+  var rs=null;
+  var lookupKey=(rsTitle||(related&&related.name)||s.name||'').toLowerCase();
+
+  if(related){
+    rs={
+      type:related.type||'',
+      phase:related.phase||'',
+      distance:related.distance||'',
+      intensity:related.intensity||'',
+      surface:related.surface||'',
+      difficulty:related.difficulty||'',
+      tags:related.tags||'',
+      rpe:related.rpe||'',
+      target:related.target||related.goal||'',
+      targetPace:related.targetPace||'',
+      duration:related.duration||'',
+      warmUp:related.warmUp||related.warmup||'',
+      coolDown:related.coolDown||related.cooldown||'',
+      sessionGoal:related.sessionGoal||related.goal||'',
+      recoveryType:related.recoveryType||related.recovery||'',
+      description:related.description||''
+    };
+  }
   if(!rs&&lookupKey){rs=RUN[rsTitle]||runLibraryByName[lookupKey]||null;}
   if(!rs&&lookupKey){for(var k in RUN){if(lookupKey.indexOf(k.toLowerCase())>=0||k.toLowerCase().indexOf(lookupKey)>=0){rs=RUN[k];break;}}}
   return{related:related,title:rsTitle,detail:rsDetail,meta:rs};
@@ -1877,32 +1910,42 @@ const RUNNING_LIBRARY_BY_ID = {};
 async function loadRunningLibrary() {
   try {
     console.log('Loading Running Library...');
-    const data = await api('databases/' + '3465a96cc70b80e1aa77d484b9dc197c' + '/query', {
+    const data = await api('databases/' + RUN_DB + '/query', {
       page_size: 100
     });
     
     if (data && data.results) {
       data.results.forEach(function(page) {
         const pr = page.properties;
-        RUNNING_LIBRARY_BY_ID[page.id] = {
-          name: getPropText(pr['Session Name']) || getNotionTitle(pr),
-          type: getPropText(pr['Workout Type']),
-          description: getPropText(pr['Description']),
+        const mapped = {
+          name: getPropText(pr['Session Name']) || getPropText(pr['Running Session']) || getNotionTitle(pr),
+          type: getPropText(pr['Workout Type']) || getPropText(pr['Type']) || getPropText(pr['Session Type']),
+          description: getPropText(pr['Description']) || getPropText(pr['Run Details']) || getPropText(pr['Notes']) || getPropText(pr['Coach Notes']),
           difficulty: getPropText(pr['Difficulty']),
-          distance: getPropText(pr['Distance Focus']),
-          duration: getPropText(pr['Duration (mins)']),
+          distance: getPropText(pr['Distance Focus']) || getPropText(pr['Distance']),
+          duration: getPropText(pr['Duration (mins)']) || getPropText(pr['Duration']) || getPropText(pr['Time']),
           rpe: getPropText(pr['RPE']),
-          intensity: getPropText(pr['Intensity Zone']),
-          phase: getPropText(pr['Training Phase']),
+          intensity: getPropText(pr['Intensity Zone']) || getPropText(pr['Intensity']),
+          phase: getPropText(pr['Training Phase']) || getPropText(pr['Phase']),
           surface: getPropText(pr['Surface']),
           fatigue: getPropText(pr['Fatigue Cost']),
-          recovery: getPropText(pr['Recovery Time (hrs)']),
-          goal: getPropText(pr['Session Goal']),
-          warmup: getPropText(pr['Warm Up']),
-          cooldown: getPropText(pr['Cool Down']),
+          recovery: getPropText(pr['Recovery Time (hrs)']) || getPropText(pr['Recovery']) || getPropText(pr['Recovery Type']),
+          goal: getPropText(pr['Session Goal']) || getPropText(pr['Goal']) || getPropText(pr['Target']),
+          warmup: getPropText(pr['Warm Up']) || getPropText(pr['Warmup']),
+          cooldown: getPropText(pr['Cool Down']) || getPropText(pr['Cooldown']),
           prereqs: getPropText(pr['Prerequisites']),
-          slot: getPropText(pr['Weekly Slot'])
+          slot: getPropText(pr['Weekly Slot']),
+          targetPace: getPropText(pr['Target Pace']) || getPropText(pr['Pace Target']),
+          tags: getPropText(pr['Tags'])
         };
+        RUNNING_LIBRARY_BY_ID[page.id] = mapped;
+        runLibraryById[page.id] = Object.assign({}, runLibraryById[page.id] || {}, mapped, {
+          warmUp: mapped.warmup || '',
+          coolDown: mapped.cooldown || '',
+          sessionGoal: mapped.goal || '',
+          recoveryType: mapped.recovery || ''
+        });
+        if (mapped.name) runLibraryByName[mapped.name.toLowerCase()] = runLibraryById[page.id];
       });
       console.log('Running Library loaded:', Object.keys(RUNNING_LIBRARY_BY_ID).length, 'workouts');
     }
