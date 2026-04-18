@@ -387,7 +387,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="card-title">Body Composition</div>
       <div class="stat-grid">
         <div class="stat-field">
-          <label>Starting Weight</label>
+          <label>Current Weight</label>
           <input class="stat-input" id="gWeight" type="text" placeholder="72.0" />
           <div class="field-hint">kg</div>
         </div>
@@ -693,7 +693,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <div class="tab-content" id="tab-progress">
     <div class="stitle">Progress</div>
     <div class="progress-stats" style="margin-bottom:12px">
-      <div class="pstat"><div class="pstat-val" id="pgStart"></div><div class="pstat-lbl">Start kg</div></div>
+      <div class="pstat"><div class="pstat-val" id="pgStart">—</div><div class="pstat-lbl">Start kg</div></div>
       <div class="pstat"><div class="pstat-val" id="pgCurrent">—</div><div class="pstat-lbl">Current kg</div></div>
       <div class="pstat"><div class="pstat-val" id="pgTarget">—</div><div class="pstat-lbl">Target kg</div></div>
     </div>
@@ -794,7 +794,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 const CALENDAR_DB        = '0b85a96cc70b836898fd013e0e15c4f2';
 const ATHLETE_DB         = '4a25a96cc70b82ffa6790139eaa8b458';
 const RUN_DB             = '3645a96cc70b820dadf101c498f3df9f';
-const WEEKLY_KM_DB       = 'PASTE_YOUR_WEEKLY_KM_DATABASE_ID_HERE';
+const ATHLETE_SESSION_TRACKER_DB = 'PASTE_YOUR_ATHLETE_SESSION_TRACKER_DB_ID_HERE';
 const NUTRITION_DB       = '3405a96cc70b80de9221c2a40653277c';
 const DAILY_BODY_DB      = '3405a96cc70b80a4b1b9cf5b9c236f18';
 const WEBHOOK            = 'https://hook.eu1.make.com/yjrg278x8bwehy6y19yiphluynmq3v8x';
@@ -861,13 +861,92 @@ const STR = {
 const RUN={"Threshold Work":{"description":"Warm up 15min easy. Run at sustained threshold effort (RPE 7–8). Cool down easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"Easy Run":{"description":"Relaxed aerobic run at conversational pace (RPE 4–5). Focus on easy breathing and good form.","type":"Easy Run","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"Long Run":{"description":"Long aerobic endurance run. Relaxed steady effort (RPE 5–6). Focus on time on feet and fueling.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Progressive Long Run":{"description":"Long run starting easy, gradually increasing pace in final third toward marathon effort.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Fast Finish Long Run":{"description":"Long run mostly easy with final 3–5km at marathon effort (RPE 7).","type":"Long Run","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"12x1min Fartlek":{"description":"Warm up 10–15min easy. 12x1min strong (RPE 7–8) with 1min jog recovery. Cool down easy.","type":"Fartlek","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"8x2min Fartlek":{"description":"Warm up 10–15min easy + strides. 8x2min steady hard (RPE 7) with 2min jog recovery. Cool down 10min easy.","type":"Fartlek","intensity":"Threshold","surface":"Road","difficulty":"Beginner"},"20min Tempo":{"description":"Warm up 10–15min easy. 20min tempo steady effort (RPE 7). Cool down 10min easy.","type":"Tempo","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"25min Tempo":{"description":"Warm up 15min easy. 25min continuous tempo (RPE 7). Cool down 10–15min easy.","type":"Tempo","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"5x1km Threshold":{"description":"Warm up 15min easy + strides. 5x1km threshold (RPE 7–8) with 90s jog recovery. Cool down 10min easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"6x400m Intervals":{"description":"Warm up 15min easy + drills. 6x400m fast (RPE 8) with 200m jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"6x800m Intervals":{"description":"Warm up 15min easy. 6x800m strong (RPE 8) with 2min jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"10x20s Hill Sprints":{"description":"Warm up 15min easy. 10x20s hill sprints (RPE 9) full recovery. Cool down easy.","type":"Hills","intensity":"Neuromuscular","surface":"Hills","difficulty":"Beginner"},"5km Recovery":{"description":"5km gentle recovery jog (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"},"6km Recovery":{"description":"6km very easy recovery run (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"}};
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let athlete=null,weekOffset=0,nutWeekOffset=0,sessions=[],allSessions=[],ticked={},logs={},currentWeekKmData=null;
+let athlete=null,weekOffset=0,nutWeekOffset=0,sessions=[],allSessions=[],ticked={},logs={},currentKmTarget=null,currentKmCompleted=0;
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function localISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function getMon(d){var day=d.getDay(),diff=day===0?-6:1-day;return new Date(d.getFullYear(),d.getMonth(),d.getDate()+diff);}
 function getWS(){var m=getMon(new Date());m.setDate(m.getDate()+weekOffset*7);return m;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function weekRangeFromOffset(offset){
+  var ws=getMon(new Date());
+  ws.setDate(ws.getDate()+offset*7);
+  var we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);
+  return {start:ws,end:we,startISO:localISO(ws),endISO:localISO(we)};
+}
+function numFromProp(prop){
+  if(!prop) return null;
+  if(prop.type==='number'&&prop.number!=null) return Number(prop.number);
+  if(prop.type==='formula'&&prop.formula&&prop.formula.number!=null) return Number(prop.formula.number);
+  if(prop.type==='rollup'&&prop.rollup&&prop.rollup.type==='number'&&prop.rollup.number!=null) return Number(prop.rollup.number);
+  var txt=getPropText(prop);
+  if(txt==null||txt==='') return null;
+  var n=parseFloat(String(txt).replace(/[^0-9.\-]/g,''));
+  return isNaN(n)?null:n;
+}
+function textFromKeys(pr,keys){
+  for(var i=0;i<keys.length;i++){var v=getPropText(pr[keys[i]]);if(v) return v;}
+  return '';
+}
+function renderKmTracker(target,completed){
+  var kmBar=document.getElementById('kmBar');
+  if(target==null||isNaN(target)||Number(target)<=0){
+    currentKmTarget=null;currentKmCompleted=0;
+    if(kmBar) kmBar.style.display='none';
+    return;
+  }
+  currentKmTarget=Number(target);
+  currentKmCompleted=Number(completed||0);
+  var pct=Math.min(100,Math.round((currentKmCompleted/currentKmTarget)*100));
+  var circ=138.2;
+  var offset=circ-(pct/100*circ);
+  var color=pct>=100?'#22c55e':'#f59e0b';
+  var remain=Math.max(0,currentKmTarget-currentKmCompleted);
+  document.getElementById('kmRingFill').setAttribute('stroke-dashoffset',offset.toFixed(1));
+  document.getElementById('kmRingFill').setAttribute('stroke',color);
+  document.getElementById('kmRingPct').textContent=pct+'%';
+  document.getElementById('kmRingPct').setAttribute('fill',color);
+  document.getElementById('kmNums').innerHTML=currentKmCompleted.toFixed(1).replace(/\.0$/,'')+' <span style="font-size:14px;color:rgba(255,255,255,.35);font-weight:400;letter-spacing:.04em">/ '+currentKmTarget.toFixed(1).replace(/\.0$/,'')+' km</span>';
+  document.getElementById('kmNums').style.color=color;
+  document.getElementById('kmFill').style.width=pct+'%';
+  document.getElementById('kmFill').style.background=color;
+  document.getElementById('kmSub').textContent=remain>0?remain.toFixed(1).replace(/\.0$/,'')+' km to go this week':'Target smashed ✓';
+  if(kmBar) kmBar.style.display='flex';
+}
+async function getCompletedKmFromSessionTracker(offset){
+  if(!ATHLETE_SESSION_TRACKER_DB || ATHLETE_SESSION_TRACKER_DB.indexOf('PASTE_YOUR_')===0) return null;
+  var range=weekRangeFromOffset(offset);
+  var allTracker=await apiAll('databases/'+ATHLETE_SESSION_TRACKER_DB+'/query',{
+    sorts:[{property:'Date',direction:'ascending'}]
+  });
+  if(!allTracker||!allTracker.results) return null;
+  var athleteIdClean=athlete.notionPageId.replace(/-/g,'');
+  var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
+  var athleteCodeUpper=(athlete.code||'').toUpperCase().trim();
+  var total=0, found=false;
+  allTracker.results.forEach(function(r){
+    var pr=r.properties||{};
+    var rowName=(getNotionTitle(pr)||'').toUpperCase().trim();
+    var athleteMatch=rowName===athleteNameUpper||rowName===athleteCodeUpper;
+    if(!athleteMatch){
+      var athRel=pr['Athlete']&&pr['Athlete'].relation||[];
+      athleteMatch=athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
+    }
+    if(!athleteMatch){
+      var athleteText=textFromKeys(pr,['Athlete Name','Athlete','Name','Code']).toUpperCase().trim();
+      athleteMatch=athleteText===athleteNameUpper||athleteText===athleteCodeUpper;
+    }
+    if(!athleteMatch) return;
+    var dateVal=textFromKeys(pr,['Date','Planned Date','Session Date']);
+    if(!dateVal||dateVal.slice(0,10)<range.startISO||dateVal.slice(0,10)>range.endISO) return;
+    var status=(textFromKeys(pr,['Status']).toLowerCase());
+    if(status&&status.indexOf('complete')===-1&&status.indexOf('done')===-1&&status.indexOf('finish')===-1) return;
+    var distance=numFromProp(pr['Distance (km)']) ?? numFromProp(pr['Distance']) ?? numFromProp(pr['KM']) ?? numFromProp(pr['Completed KM']);
+    if(distance!=null && !isNaN(distance)){ total+=distance; found=true; }
+  });
+  return found?total:null;
+}
 
 // ── NOTION HELPERS ────────────────────────────────────────────────────────────
 async function api(endpoint,body){
@@ -974,13 +1053,13 @@ async function doLogin(code){
   athlete={id:p.id,notionPageId:p.id,name:name,code:code,
     goalRace:getSelect(props['Goal Race'])||getRichText(props['Goal Race'])||'',
     peakWeek:(props['Weekly KM Target']&&props['Weekly KM Target'].number!=null?String(props['Weekly KM Target'].number):'')||getRichText(props['Weekly KM Target'])||'',
-    weight:getRichText(props['Body Weight (kg)'])||'',startWeight:getRichText(props['Starting Weight'])||getRichText(props['Body Weight (kg)'])||'',bodyFat:getRichText(props['Body Fat %'])||'',
+    weight:getRichText(props['Body Weight (kg)'])||'',bodyFat:getRichText(props['Body Fat %'])||'',
     time5k:getRichText(props['5km Time'])||'',time10k:getRichText(props['10km Time'])||'',
     timeHalf:getRichText(props['Half Marathon Time'])||'',timeMarathon:getRichText(props['Marathon Time'])||'',
     lrPace:getRichText(props['Long Run Pace'])||'',
     why:getRichText(props['Your Why'])||'',m4:getRichText(props['Milestone W4'])||'',
     m8:getRichText(props['Milestone W8'])||'',m12:getRichText(props['Milestone W12'])||'',
-    targetWeight:getRichText(props['Target Weight'])||'—',
+    startWeight:getRichText(props['Starting Weight'])||'—',targetWeight:getRichText(props['Target Weight'])||'',
     startDate:props['Start Date']&&props['Start Date'].date&&props['Start Date'].date.start||'—',
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
@@ -1000,7 +1079,7 @@ function populateStatic(){
   setRaceFromValue(saved.goalRace||athlete.goalRace||'');
   document.getElementById('gPeakWeek').value=saved.peakWeek||athlete.peakWeek||'';
   document.getElementById('gRaceDate').value=saved.raceDate||'';
-  document.getElementById('gWeight').value=saved.startWeight||saved.weight||athlete.startWeight||athlete.weight||'';
+  document.getElementById('gWeight').value=saved.weight||athlete.weight||'';
   document.getElementById('gTargetWeight').value=saved.targetWeight||(athlete.targetWeight!=='—'?athlete.targetWeight:'')||'';
   document.getElementById('gBodyFat').value=saved.bodyFat||athlete.bodyFat||'';
   document.getElementById('g5k').value=saved.time5k||athlete.time5k||'';
@@ -1040,14 +1119,13 @@ async function saveGoals(){
   var selectedRaceBtn=document.querySelector('.race-opt.selected');
   var raceVal=selectedRaceBtn?(selectedRaceBtn.dataset.val==='Other'?document.getElementById('gRaceOther').value.trim():selectedRaceBtn.dataset.val):'';
   var goals={goalRace:raceVal,peakWeek:document.getElementById('gPeakWeek').value.trim(),raceDate:document.getElementById('gRaceDate').value.trim(),
-    startWeight:document.getElementById('gWeight').value.trim(),weight:document.getElementById('gWeight').value.trim(),targetWeight:document.getElementById('gTargetWeight').value.trim(),
+    weight:document.getElementById('gWeight').value.trim(),targetWeight:document.getElementById('gTargetWeight').value.trim(),
     bodyFat:document.getElementById('gBodyFat').value.trim(),time5k:document.getElementById('g5k').value.trim(),
     time10k:document.getElementById('g10k').value.trim(),timeHalf:document.getElementById('gHalf').value.trim(),
     timeMarathon:document.getElementById('gMarathon').value.trim(),lrPace:document.getElementById('gLRPace').value.trim(),
     why:document.getElementById('gWhy').value.trim(),m4:document.getElementById('gM4').value.trim(),
     m8:document.getElementById('gM8').value.trim(),m12:document.getElementById('gM12').value.trim(),savedAt:new Date().toISOString()};
   localStorage.setItem('dp_goals_'+athlete.code,JSON.stringify(goals));
-  athlete.startWeight=goals.startWeight||athlete.startWeight;
   try{await fetch(GOALS_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'goals',athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,submittedAt:goals.savedAt},goals))});}catch(e){}
   btn.textContent='Saved ✓';btn.classList.add('saved');
   var d=new Date(goals.savedAt);
@@ -1145,112 +1223,6 @@ function goToday(){weekOffset=0;loadWeek();}
 function shiftNutWeek(d){nutWeekOffset+=d;loadNutrition();}
 function goNutToday(){nutWeekOffset=0;loadNutrition();}
 
-
-function numFromProp(prop){
-  if(!prop) return null;
-  if(prop.type==='number'&&prop.number!=null) return Number(prop.number);
-  if(prop.type==='formula'&&prop.formula&&prop.formula.number!=null) return Number(prop.formula.number);
-  if(prop.type==='rollup'&&prop.rollup&&prop.rollup.type==='number'&&prop.rollup.number!=null) return Number(prop.rollup.number);
-  var txt=getPropText(prop);
-  if(txt==null||txt==='') return null;
-  var n=parseFloat(String(txt).replace(/[^0-9.\-]/g,''));
-  return isNaN(n)?null:n;
-}
-function textFromAny(pr,keys){
-  for(var i=0;i<keys.length;i++){var v=getPropText(pr[keys[i]]);if(v) return v;}
-  return '';
-}
-function getDisplayWeekNumber(offset){
-  var weekNum=getCurrentProgrammeWeek();
-  var displayWeek=weekNum+offset;
-  if(displayWeek<1) displayWeek=1;
-  if(displayWeek>52) displayWeek=52;
-  return displayWeek;
-}
-function getWeekDateRangeFromOffset(offset){
-  var m=getMon(new Date());m.setDate(m.getDate()+offset*7);
-  var e=new Date(m.getFullYear(),m.getMonth(),m.getDate()+6);
-  return {start:m,end:e,startISO:localISO(m),endISO:localISO(e)};
-}
-function deriveCompletedKmFromSessions(sessionList){
-  return (sessionList||[]).filter(function(s){return getType(s)==='run';}).reduce(function(sum,s){
-    var sessionLog=logs[s.id]||{};
-    var d=parseFloat(String(sessionLog.distance||'').replace(/[^0-9.\-]/g,''));
-    return sum + (isNaN(d)?0:d);
-  },0);
-}
-async function loadWeeklyKmData(offset){
-  currentWeekKmData=null;
-  if(!WEEKLY_KM_DB || WEEKLY_KM_DB.indexOf('PASTE_YOUR')===0) return null;
-  var range=getWeekDateRangeFromOffset(offset);
-  var displayWeek=getDisplayWeekNumber(offset);
-  var allKm=await apiAll('databases/'+WEEKLY_KM_DB+'/query',{sorts:[{property:'Week Start',direction:'ascending'}]});
-  if(!allKm||!allKm.results) return null;
-  var athleteIdClean=athlete.notionPageId.replace(/-/g,'');
-  var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
-  var athleteCodeUpper=(athlete.code||'').toUpperCase().trim();
-  var matched=allKm.results.filter(function(r){
-    var pr=r.properties||{};
-    var rowName=getNotionTitle(pr).toUpperCase().trim();
-    var athleteMatch=rowName===athleteNameUpper||rowName===athleteCodeUpper;
-    if(!athleteMatch){
-      var athRel=pr['Athlete']&&pr['Athlete'].relation||[];
-      athleteMatch=athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
-    }
-    if(!athleteMatch){
-      var athleteTxt=textFromAny(pr,['Athlete Name','Name','Athlete Code','Code']).toUpperCase().trim();
-      athleteMatch=athleteTxt===athleteNameUpper||athleteTxt===athleteCodeUpper;
-    }
-    if(!athleteMatch) return false;
-    var weekStart=textFromAny(pr,['Week Start','Week start','Start Date']);
-    var weekLabel=textFromAny(pr,['Week','Week Label']);
-    var weekNumber=numFromProp(pr['Week Number'])||numFromProp(pr['Week #'])||null;
-    var startMatch=weekStart && weekStart.slice(0,10)===range.startISO;
-    var labelMatch=weekLabel && weekLabel.toLowerCase()===('Week '+displayWeek).toLowerCase();
-    var numMatch=weekNumber===displayWeek;
-    return startMatch||labelMatch||numMatch;
-  });
-  if(!matched.length) return null;
-  var pr=matched[0].properties||{};
-  var target=numFromProp(pr['Target KM']) ?? numFromProp(pr['Weekly KM Target']) ?? numFromProp(pr['KM Target']) ?? numFromProp(pr['Target']);
-  var completed=numFromProp(pr['Completed KM']) ?? numFromProp(pr['Current KM']) ?? numFromProp(pr['KM Completed']) ?? numFromProp(pr['Progress KM']);
-  if(completed==null) completed=deriveCompletedKmFromSessions(sessions);
-  currentWeekKmData={
-    pageId:matched[0].id,
-    target:target,
-    completed:completed||0,
-    weekLabel:textFromAny(pr,['Week','Week Label']) || ('Week '+displayWeek),
-    note:textFromAny(pr,['Notes','Coach Notes','Comment']),
-    weekStart:textFromAny(pr,['Week Start','Week start','Start Date']) || range.startISO,
-    weekEnd:textFromAny(pr,['Week End','Week end','End Date']) || range.endISO
-  };
-  return currentWeekKmData;
-}
-function renderKmTracker(kmData){
-  var bar=document.getElementById('kmBar');
-  if(!bar) return;
-  if(!kmData || kmData.target==null || isNaN(kmData.target) || Number(kmData.target)<=0){
-    bar.style.display='none';
-    return;
-  }
-  var kmTarget=Number(kmData.target);
-  var kmCompleted=Number(kmData.completed||0);
-  var pct=Math.min(100,Math.round((kmCompleted/kmTarget)*100));
-  var circ=138.2;
-  var offset=circ-(pct/100*circ);
-  var color=pct>=100?'#22c55e':'#f59e0b';
-  var remain=Math.max(0,kmTarget-kmCompleted);
-  document.getElementById('kmRingFill').setAttribute('stroke-dashoffset', offset.toFixed(1));
-  document.getElementById('kmRingFill').setAttribute('stroke', color);
-  document.getElementById('kmRingPct').textContent = pct + '%';
-  document.getElementById('kmRingPct').setAttribute('fill', color);
-  document.getElementById('kmNums').innerHTML = kmCompleted.toFixed(1).replace(/\.0$/,'') + ' <span style="font-size:14px;color:rgba(255,255,255,.35);font-weight:400;letter-spacing:.04em">/ ' + kmTarget.toFixed(1).replace(/\.0$/,'') + ' km</span>';
-  document.getElementById('kmNums').style.color = color;
-  document.getElementById('kmFill').style.width = pct + '%';
-  document.getElementById('kmFill').style.background = color;
-  document.getElementById('kmSub').textContent = remain > 0 ? remain.toFixed(1).replace(/\.0$/,'') + ' km to go this week' : 'Target smashed ✓';
-  bar.style.display = 'flex';
-}
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 async function loadNutrition(){
   var weekNum=getCurrentProgrammeWeek();
@@ -1258,22 +1230,19 @@ async function loadNutrition(){
   if(displayWeek<1) displayWeek=1;
   if(displayWeek>12) displayWeek=12;
 
-  currentWeekKmData=null;
   document.getElementById('nutWLabel').textContent='Week '+displayWeek;
   document.getElementById('nutLoadingEl').style.display='block';
   document.getElementById('nutContent').style.display='none';
   document.getElementById('nutNoplan').style.display='none';
 
   var weekLabel='Week '+displayWeek;
-  var allNut=await apiAll('databases/'+NUTRITION_DB+'/query',{
-    sorts:[{property:'Week',direction:'ascending'}]
-  });
+  var allNut=await apiAll('databases/'+NUTRITION_DB+'/query',{sorts:[{property:'Week',direction:'ascending'}]});
 
   document.getElementById('nutLoadingEl').style.display='none';
 
   if(!allNut||!allNut.results){
     document.getElementById('nutNoplan').style.display='block';
-    document.getElementById('kmBar').style.display='none';
+    renderKmTracker(null,0);
     return;
   }
 
@@ -1289,14 +1258,12 @@ async function loadNutrition(){
     if(wkProp.type==='title'&&wkProp.title&&wkProp.title[0]) return (wkProp.title[0].plain_text||'').trim();
     return getPropText(wkProp).trim();
   }
-
   function athleteMatches(pr){
     var rowName=(getNotionTitle(pr)||'').toUpperCase().trim();
-    var athleteProp=pr['Athlete'];
-    var relationIds=getRelationIds(athleteProp).map(function(id){return id.replace(/-/g,'');});
-    var relationText=getPropText(athleteProp).toUpperCase().trim();
-    var idMatch=relationIds.indexOf(athleteIdClean)>=0;
-    var nameMatch=rowName===athleteNameUpper||rowName===athleteCodeUpper||relationText===athleteNameUpper||relationText===athleteCodeUpper;
+    var athRel=pr['Athlete']&&pr['Athlete'].relation||[];
+    var idMatch=athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
+    var athleteTxt=textFromKeys(pr,['Athlete Name','Athlete','Name','Code']).toUpperCase().trim();
+    var nameMatch=rowName===athleteNameUpper||rowName===athleteCodeUpper||athleteTxt===athleteNameUpper||athleteTxt===athleteCodeUpper;
     return idMatch||nameMatch;
   }
 
@@ -1307,13 +1274,11 @@ async function loadNutrition(){
 
   if(!matched){
     document.getElementById('nutNoplan').style.display='block';
-    document.getElementById('kmBar').style.display='none';
+    renderKmTracker(null,0);
     return;
   }
 
   var pr=matched.properties||{};
-  currentWeekKmData={week:weekLabel,target:null,completed:null,source:'nutrition_row'};
-
   function getMacro(keys){
     for(var i=0;i<keys.length;i++){
       var p=pr[keys[i]];
@@ -1321,7 +1286,6 @@ async function loadNutrition(){
       if(p.type==='number'&&p.number!=null) return p.number;
       if(p.type==='rich_text'&&p.rich_text&&p.rich_text[0]) return p.rich_text[0].plain_text||'—';
       if(p.type==='title'&&p.title&&p.title[0]) return p.title[0].plain_text||'—';
-      if(p.type==='select'&&p.select) return p.select.name||'—';
     }
     return '—';
   }
@@ -1334,40 +1298,13 @@ async function loadNutrition(){
 
   var note=getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
   var noteEl=document.getElementById('nutCoachNote');
-  if(note){
-    noteEl.textContent='💬 '+note;
-    noteEl.style.display='block';
-  }else{
-    noteEl.style.display='none';
-  }
+  if(note){noteEl.textContent='💬 '+note;noteEl.style.display='block';}else{noteEl.style.display='none';}
 
-  var kmTarget=pr['Weekly KM Target']&&pr['Weekly KM Target'].number!=null?pr['Weekly KM Target'].number:null;
-  var kmCompleted=pr['Completed KM']&&pr['Completed KM'].number!=null?pr['Completed KM'].number:0;
-
-  currentWeekKmData.target=kmTarget;
-  currentWeekKmData.completed=kmCompleted;
-
-  if(kmTarget!=null){
-    var pct=Math.min(100,Math.round((kmCompleted/kmTarget)*100));
-    var circ=138.2;
-    var offset=circ-(pct/100*circ);
-    var color=pct>=100?'#22c55e':'#f59e0b';
-    var remain=Math.max(0,kmTarget-kmCompleted);
-
-    document.getElementById('kmRingFill').setAttribute('stroke-dashoffset',offset.toFixed(1));
-    document.getElementById('kmRingFill').setAttribute('stroke',color);
-    document.getElementById('kmRingPct').textContent=pct+'%';
-    document.getElementById('kmRingPct').setAttribute('fill',color);
-    document.getElementById('kmNums').innerHTML=
-      kmCompleted+' <span style="font-size:14px;color:rgba(255,255,255,.35);font-weight:400;letter-spacing:.04em">/ '+kmTarget+' km</span>';
-    document.getElementById('kmNums').style.color=color;
-    document.getElementById('kmFill').style.width=pct+'%';
-    document.getElementById('kmFill').style.background=color;
-    document.getElementById('kmSub').textContent=remain>0?remain+' km to go this week':'Target smashed ✓';
-    document.getElementById('kmBar').style.display='flex';
-  }else{
-    document.getElementById('kmBar').style.display='none';
-  }
+  var kmTarget=numFromProp(pr['Weekly KM Target']) ?? numFromProp(pr['Target KM']) ?? numFromProp(pr['KM Target']);
+  var trackerCompleted=await getCompletedKmFromSessionTracker(nutWeekOffset);
+  var nutritionCompleted=numFromProp(pr['Completed KM']) ?? 0;
+  var completed=(trackerCompleted!=null)?trackerCompleted:nutritionCompleted;
+  renderKmTracker(kmTarget, completed);
 
   document.getElementById('nutContent').style.display='block';
 }
@@ -1465,9 +1402,7 @@ function renderWeightChart(entries,targetWeight){
 
 async function loadProgress(){
   renderPhotoGrid();
-  var savedGoals=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
-  var portalStartWeight=savedGoals.startWeight||savedGoals.weight||athlete.startWeight||'—';
-  document.getElementById('pgStart').textContent=portalStartWeight?portalStartWeight+'kg':'';
+  document.getElementById('pgStart').textContent=athlete.startWeight||'—';
   document.getElementById('pgTarget').textContent=athlete.targetWeight||'—';
   document.getElementById('pgLoadingEl').style.display='block';
   document.getElementById('pgWeightLog').style.display='none';
@@ -1486,18 +1421,17 @@ async function loadProgress(){
   .sort(function(a,b){var da=a.properties['Date']&&a.properties['Date'].date&&a.properties['Date'].date.start||'';var db=b.properties['Date']&&b.properties['Date'].date&&b.properties['Date'].date.start||'';return db.localeCompare(da);});
   if(!entries.length){document.getElementById('pgNoData').style.display='block';renderWeightChart([],null);return;}
   var wProp=entries[0].properties['Weight'];var currentWeight=wProp.number!=null?wProp.number:parseFloat(getRichText(wProp));
-  var oldestWProp=entries[entries.length-1].properties['Weight'];var firstLoggedWeight=oldestWProp.number!=null?oldestWProp.number:parseFloat(getRichText(oldestWProp));
+  var oldestWProp=entries[entries.length-1].properties['Weight'];var startWeight=oldestWProp.number!=null?oldestWProp.number:parseFloat(getRichText(oldestWProp));
+  var savedGoals=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
   var targetFromAthlete=athlete.targetWeight&&athlete.targetWeight!=='—'?athlete.targetWeight:null;
   var targetFinal=(savedGoals.targetWeight?savedGoals.targetWeight+'kg':null)||targetFromAthlete||'—';
-  var startWeight=parseFloat(String(portalStartWeight).replace(/[^0-9.\-]/g,''));
-  if(isNaN(startWeight)) startWeight=firstLoggedWeight;
-  document.getElementById('pgStart').textContent=portalStartWeight?portalStartWeight+'kg':(startWeight?startWeight+'kg':'');
+  document.getElementById('pgStart').textContent=startWeight?startWeight+'kg':'—';
   document.getElementById('pgCurrent').textContent=currentWeight?currentWeight+'kg':'—';
   document.getElementById('pgTarget').textContent=targetFinal;
   if(startWeight&&currentWeight&&!isNaN(startWeight)){
     var change=(currentWeight-startWeight).toFixed(1);var positive=change>0;
     var changeEl=document.getElementById('pgChange');changeEl.textContent=(positive?'+':'')+change+'kg';changeEl.style.color=positive?'var(--run)':'var(--ok)';
-    document.getElementById('pgChangeLbl').textContent=portalStartWeight&&portalStartWeight!=='—'?'kg since starting weight':'kg since first weigh-in ('+new Date(entries[entries.length-1].properties['Date'].date.start).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+')';
+    document.getElementById('pgChangeLbl').textContent='kg since first weigh-in ('+new Date(entries[entries.length-1].properties['Date'].date.start).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+')';
   }
   var targetNumber=parseFloat(String(targetFinal).replace(/[^0-9.\-]/g,''));
   renderWeightChart(entries,isNaN(targetNumber)?null:targetNumber);
@@ -1769,6 +1703,10 @@ async function saveRun(i){
   var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
   logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,exerciseLog:'Distance: '+d.distance+'km | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
+  if(currentKmTarget!=null){
+    var trackerCompleted=await getCompletedKmFromSessionTracker(nutWeekOffset);
+    if(trackerCompleted!=null) renderKmTracker(currentKmTarget, trackerCompleted);
+  }
   showToast('Run saved ✓');flashSave(i,'Save run');
 }
 async function saveGym(i,splitKey){
