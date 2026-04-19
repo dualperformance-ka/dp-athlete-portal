@@ -1924,7 +1924,7 @@ async function loadRunningLibrary() {
         const mapped = {
           name: getPropText(pr['Session Name']) || getPropText(pr['Running Session']) || getPropText(pr['Workout']) || getNotionTitle(pr),
           type: getPropText(pr['Workout Type']) || getPropText(pr['Type']) || getPropText(pr['Session Type']),
-          description: getPropText(pr['Description']) || getPropText(pr['Run Details']) || getPropText(pr['Workout Details']) || getPropText(pr['Session Details']) || getPropText(pr['Details']) || getPropText(pr['Notes']) || getPropText(pr['Coach Notes']),
+          description: getPropText(pr['Description']) || getPropText(pr['description']) || getPropText(pr['Session Description']) || getPropText(pr['Workout Description']) || getPropText(pr['Run Description']) || getPropText(pr['Run Details']) || getPropText(pr['Workout Details']) || getPropText(pr['Session Details']) || getPropText(pr['Details']) || getPropText(pr['Notes']) || getPropText(pr['Coach Notes']) || getFormulaString(pr['Description']) || getFormulaString(pr['description']),
           difficulty: getPropText(pr['Difficulty']),
           distance: getPropText(pr['Distance Focus']) || getPropText(pr['Distance']) || getPropText(pr['Distance / Volume']),
           duration: getPropText(pr['Duration (mins)']) || getPropText(pr['Duration']) || getPropText(pr['Time']) || getPropText(pr['Time Cap']),
@@ -2032,7 +2032,7 @@ async function showEnhancedWorkoutModal(sessionData) {
         ${detailText ? `
           <div style="margin-bottom:20px;">
             <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;">Description</div>
-            <div style="font-size:15px;line-height:1.55;color:var(--text);">${detailText}</div>
+            <div style="font-size:15px;line-height:1.55;color:var(--text);white-space:pre-wrap;">${detailText}</div>
           </div>
         ` : ''}
         
