@@ -1602,9 +1602,9 @@ async function loadWeek(){
     var pr=p.properties;
     return{id:p.id,name:getNotionTitle(pr),date:pr['Planned Date']&&pr['Planned Date'].date&&pr['Planned Date'].date.start||'',
       sessionType:getPropText(pr['Session Type']),status:getPropText(pr['Status']),
-      runningSession:getPropText(pr['Running Session'])||'',runningSessionIds:getRelationIds(pr['Running Session']),
-      runningLibraryIds:getRelationIds(pr['NEW Running Library']),
-      runDetails:getPropText(pr['Run Details'])||getPropText(pr['run details'])||getPropText(pr['Description'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
+      runningSession:getPropText(pr['Running Session'])||getPropText(pr['Session Name'])||'',runningSessionIds:[].concat(getRelationIds(pr['Running Session']),getRelationIds(pr['Session Name']),getRelationIds(pr['Workout'])).filter(Boolean),
+      runningLibraryIds:[].concat(getRelationIds(pr['NEW Running Library']),getRelationIds(pr['Running Library']),getRelationIds(pr['Run Library']),getRelationIds(pr['Workout'])).filter(Boolean),
+      runDetails:getPropText(pr['Run Details'])||getPropText(pr['run details'])||getPropText(pr['Description'])||getPropText(pr['Workout Details'])||getPropText(pr['Session Details'])||getPropText(pr['Details'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
       intensity:getPropText(pr['Intensity']),week:getPropText(pr['Week'])};
   });
   renderTodaySection();
@@ -1642,12 +1642,18 @@ function buildCard(s,i){
   var meta=[];if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);
   var displayName=s.name||'Session';
   
-  // Determine onclick behavior - use enhanced modal for runs with library link
   var onclickHandler = 'togS('+i+')';
-  if (type === 'run' && s.runningLibraryIds && s.runningLibraryIds.length > 0) {
-    // Pass the IDs array to the modal
-    var idsJson = JSON.stringify(s.runningLibraryIds);
-    onclickHandler = 'showEnhancedWorkoutModal({name:\''+esc(displayName).replace(/'/g, "\\'")+ '\',runningLibraryIds:'+idsJson+'})';
+  if (type === 'run') {
+    var safeSessionData = {
+      name: displayName,
+      runningLibraryIds: s.runningLibraryIds || [],
+      runningSessionIds: s.runningSessionIds || [],
+      runningSession: s.runningSession || '',
+      runDetails: s.runDetails || '',
+      intensity: s.intensity || '',
+      week: s.week || ''
+    };
+    onclickHandler = 'showEnhancedWorkoutModal('+JSON.stringify(safeSessionData).replace(/"/g,'&quot;')+')';
   }
   
   var h='<div class="sc'+(done?' done':'')+'" id="sc_'+i+'">';
@@ -1952,12 +1958,28 @@ async function loadRunningLibrary() {
   }
 }
 
-// Get workout details from pre-loaded library using page ID
-function getRunningLibraryWorkout(workoutIds) {
-  if (!workoutIds || !workoutIds.length) return null;
-  // Take first linked workout ID
-  const workoutId = workoutIds[0];
-  return RUNNING_LIBRARY_BY_ID[workoutId] || null;
+// Get workout details from pre-loaded library using any available session link
+function getRunningLibraryWorkout(sessionData) {
+  if (!sessionData) return null;
+
+  const directIds = [].concat(sessionData.runningLibraryIds || [], sessionData.runningSessionIds || []).filter(Boolean);
+  for (const workoutId of directIds) {
+    if (RUNNING_LIBRARY_BY_ID[workoutId]) return RUNNING_LIBRARY_BY_ID[workoutId];
+    if (runLibraryById[workoutId]) return runLibraryById[workoutId];
+  }
+
+  const nameKeys = [sessionData.runningSession, sessionData.name]
+    .filter(Boolean)
+    .map(v => String(v).trim().toLowerCase())
+    .filter(Boolean);
+
+  for (const key of nameKeys) {
+    if (runLibraryByName[key]) return runLibraryByName[key];
+    const fuzzyKey = Object.keys(runLibraryByName).find(k => k === key || k.includes(key) || key.includes(k));
+    if (fuzzyKey) return runLibraryByName[fuzzyKey];
+  }
+
+  return null;
 }
 
 // Enhanced workout modal with Running Library details
@@ -1975,78 +1997,96 @@ async function showEnhancedWorkoutModal(sessionData) {
   
   modal.style.display = 'flex';
   
-  // Get workout from pre-loaded library using IDs
-  const workout = getRunningLibraryWorkout(sessionData.runningLibraryIds);
-  
+  const workout = getRunningLibraryWorkout(sessionData) || {};
+  const detailText = workout.description || sessionData.runDetails || '';
+  const titleText = workout.name || sessionData.runningSession || sessionData.name || 'Run Session';
+  const goalText = workout.goal || workout.sessionGoal || '';
+  const typeText = workout.type || sessionData.intensity || '';
+  const difficultyText = workout.difficulty || '';
+  const distanceText = workout.distance || '';
+  const durationText = workout.duration || '';
+  const rpeText = workout.rpe || '';
+  const intensityText = workout.intensity || sessionData.intensity || '';
+  const surfaceText = workout.surface || '';
+  const warmupText = workout.warmup || workout.warmUp || '';
+  const cooldownText = workout.cooldown || workout.coolDown || '';
+  const fatigueText = workout.fatigue || '';
+  const recoveryText = workout.recovery || workout.recoveryType || '';
+  const prereqText = workout.prereqs || '';
+  const targetPaceText = workout.targetPace || '';
+  const phaseText = workout.phase || sessionData.week || '';
+
   const modalHTML = `
     <div style="max-width:600px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin:auto;max-height:90vh;overflow-y:auto;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
         <div style="flex:1;">
           <div style="font-family:var(--display);font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;color:var(--text);line-height:1.2;">
-            ${workout?.name || sessionData.name}
+            ${titleText}
           </div>
-          ${workout?.type ? `<div style="display:inline-block;margin-top:8px;padding:4px 12px;background:rgba(180,83,9,0.1);border:1px solid rgba(180,83,9,0.2);border-radius:6px;font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--run);">${workout.type}</div>` : ''}
+          ${typeText ? `<div style="display:inline-block;margin-top:8px;padding:4px 12px;background:rgba(180,83,9,0.1);border:1px solid rgba(180,83,9,0.2);border-radius:6px;font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--run);">${typeText}</div>` : ''}
         </div>
         <button onclick="closeEnhancedModal()" style="background:transparent;border:none;color:var(--muted);font-size:28px;cursor:pointer;line-height:1;padding:0;margin-left:16px;">&times;</button>
       </div>
       
       <div style="color:var(--text);">
-        ${workout?.description ? `
+        ${detailText ? `
           <div style="margin-bottom:20px;">
             <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;">Description</div>
-            <div style="font-size:15px;line-height:1.55;color:var(--text);">${workout.description}</div>
+            <div style="font-size:15px;line-height:1.55;color:var(--text);">${detailText}</div>
           </div>
         ` : ''}
         
-        ${workout?.goal ? `
+        ${goalText ? `
           <div style="margin-bottom:20px;">
             <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;">Session Goal</div>
-            <div style="font-size:15px;line-height:1.55;color:var(--text);">${workout.goal}</div>
+            <div style="font-size:15px;line-height:1.55;color:var(--text);">${goalText}</div>
           </div>
         ` : ''}
         
-        ${(workout?.difficulty || workout?.duration || workout?.rpe || workout?.intensity) ? `
+        ${(difficultyText || distanceText || durationText || rpeText || intensityText || surfaceText || targetPaceText || phaseText) ? `
           <div style="margin-bottom:20px;">
             <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;">Workout Details</div>
             <div style="font-size:14px;line-height:1.6;color:var(--text);">
-              ${workout.difficulty ? `<div style="margin-bottom:6px;"><strong>Difficulty:</strong> ${workout.difficulty}</div>` : ''}
-              ${workout.distance ? `<div style="margin-bottom:6px;"><strong>Distance Focus:</strong> ${workout.distance}</div>` : ''}
-              ${workout.duration ? `<div style="margin-bottom:6px;"><strong>Duration:</strong> ${workout.duration} mins</div>` : ''}
-              ${workout.rpe ? `<div style="margin-bottom:6px;"><strong>RPE:</strong> ${workout.rpe}</div>` : ''}
-              ${workout.intensity ? `<div style="margin-bottom:6px;"><strong>Intensity Zone:</strong> ${workout.intensity}</div>` : ''}
-              ${workout.surface ? `<div style="margin-bottom:6px;"><strong>Surface:</strong> ${workout.surface}</div>` : ''}
+              ${difficultyText ? `<div style="margin-bottom:6px;"><strong>Difficulty:</strong> ${difficultyText}</div>` : ''}
+              ${distanceText ? `<div style="margin-bottom:6px;"><strong>Distance Focus:</strong> ${distanceText}</div>` : ''}
+              ${durationText ? `<div style="margin-bottom:6px;"><strong>Duration:</strong> ${durationText}</div>` : ''}
+              ${rpeText ? `<div style="margin-bottom:6px;"><strong>RPE:</strong> ${rpeText}</div>` : ''}
+              ${intensityText ? `<div style="margin-bottom:6px;"><strong>Intensity Zone:</strong> ${intensityText}</div>` : ''}
+              ${surfaceText ? `<div style="margin-bottom:6px;"><strong>Surface:</strong> ${surfaceText}</div>` : ''}
+              ${targetPaceText ? `<div style="margin-bottom:6px;"><strong>Target Pace:</strong> ${targetPaceText}</div>` : ''}
+              ${phaseText ? `<div style="margin-bottom:6px;"><strong>Phase:</strong> ${phaseText}</div>` : ''}
             </div>
           </div>
         ` : ''}
         
-        ${(workout?.warmup || workout?.cooldown) ? `
+        ${(warmupText || cooldownText) ? `
           <div style="margin-bottom:20px;">
             <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;">Structure</div>
             <div style="font-size:14px;line-height:1.6;color:var(--text);">
-              ${workout.warmup ? `<div style="margin-bottom:6px;"><strong>Warm Up:</strong> ${workout.warmup}</div>` : ''}
-              ${workout.cooldown ? `<div style="margin-bottom:6px;"><strong>Cool Down:</strong> ${workout.cooldown}</div>` : ''}
+              ${warmupText ? `<div style="margin-bottom:6px;"><strong>Warm Up:</strong> ${warmupText}</div>` : ''}
+              ${cooldownText ? `<div style="margin-bottom:6px;"><strong>Cool Down:</strong> ${cooldownText}</div>` : ''}
             </div>
           </div>
         ` : ''}
         
-        ${(workout?.fatigue || workout?.recovery) ? `
+        ${(fatigueText || recoveryText) ? `
           <div style="margin-bottom:20px;">
             <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;">Recovery</div>
             <div style="font-size:14px;line-height:1.6;color:var(--text);">
-              ${workout.fatigue ? `<div style="margin-bottom:6px;"><strong>Fatigue Cost:</strong> ${workout.fatigue}</div>` : ''}
-              ${workout.recovery ? `<div style="margin-bottom:6px;"><strong>Recovery Time:</strong> ${workout.recovery} hours</div>` : ''}
+              ${fatigueText ? `<div style="margin-bottom:6px;"><strong>Fatigue Cost:</strong> ${fatigueText}</div>` : ''}
+              ${recoveryText ? `<div style="margin-bottom:6px;"><strong>Recovery:</strong> ${recoveryText}</div>` : ''}
             </div>
           </div>
         ` : ''}
         
-        ${workout?.prereqs ? `
+        ${prereqText ? `
           <div style="margin-bottom:20px;">
             <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;">Prerequisites</div>
-            <div style="font-size:14px;line-height:1.6;color:var(--text);">${workout.prereqs}</div>
+            <div style="font-size:14px;line-height:1.6;color:var(--text);">${prereqText}</div>
           </div>
         ` : ''}
         
-        ${!workout ? `
+        ${!titleText && !detailText ? `
           <div style="padding:24px;background:var(--surface2);border-radius:8px;text-align:center;">
             <div style="font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:0.06em;">No Running Library workout linked</div>
             <div style="font-size:13px;color:var(--muted);margin-top:6px;">Basic session: ${sessionData.name}</div>
