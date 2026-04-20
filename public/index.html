@@ -250,21 +250,20 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;font-family:var(--mono);font-size:12px;padding:10px 20px;border-radius:20px;display:none;z-index:200;white-space:nowrap;letter-spacing:.04em}
 
 /* Running-specific expanded details */
-.run-details{padding:14px;background:var(--surface2);border-top:1px solid var(--border);margin-top:0}
-.rpe-box{background:rgba(180,83,9,.05);border:1px solid rgba(180,83,9,.12);border-radius:8px;padding:12px;margin-bottom:12px}
-.rpe-label{font-family:var(--mono);font-size:9px;color:var(--run);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;opacity:.7}
-.rpe-value{font-family:var(--display);font-size:24px;font-weight:700;color:var(--run);line-height:1;text-transform:uppercase}
-.rpe-desc{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4}
-.detail-section{margin-bottom:14px}
-.detail-section:last-child{margin-bottom:0}
-.detail-head{font-family:var(--display);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text);margin-bottom:6px}
-.detail-content{font-size:13px;color:var(--muted);line-height:1.5;background:var(--surface);border-radius:6px;padding:10px 12px;border:1px solid var(--border)}
-.alt-box{background:rgba(180,83,9,.03);border:1px solid rgba(180,83,9,.1);border-radius:8px;padding:12px;margin-top:12px}
-.alt-label{font-family:var(--mono);font-size:9px;color:var(--run);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;opacity:.7}
-.alt-title{font-family:var(--display);font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--run);margin-bottom:6px}
+.run-details{padding:18px;background:var(--surface2);border-top:1px solid var(--border);margin-top:0;display:flex;flex-direction:column;gap:16px}
+.rpe-box{background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.16);border-radius:10px;padding:16px 18px}
+.rpe-label{font-family:var(--mono);font-size:10px;color:var(--run);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;font-weight:600}
+.rpe-value{font-family:var(--display);font-size:28px;font-weight:800;color:var(--run);line-height:1;text-transform:uppercase;letter-spacing:.01em}
+.rpe-desc{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.45}
+.detail-section{margin-bottom:0}
+.detail-head{font-family:var(--display);font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--text);margin-bottom:8px}
+.detail-content{font-size:14px;color:var(--text);line-height:1.55;background:#fff;border-radius:8px;padding:14px 16px;border:1px solid var(--border)}
+.alt-box{background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.14);border-radius:10px;padding:16px 18px;margin-top:4px}
+.alt-label{font-family:var(--mono);font-size:10px;color:var(--run);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;font-weight:600}
+.alt-title{font-family:var(--display);font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--run);margin-bottom:8px;line-height:1.15}
 .alt-desc{font-size:13px;color:var(--muted);line-height:1.5}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.chip{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:20px;background:var(--surface);border:1px solid var(--border-mid);color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:999px;background:#fff;border:1px solid var(--border-mid);color:var(--muted);letter-spacing:.02em}
 
 /* Running data input */
 .run-log{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
@@ -1685,13 +1684,21 @@ function renderCal(ws){
 
 function buildCard(s,i){
   var type=getType(s),done=!!(ticked[s.id]||s.status==='Completed');
-  var meta=[];if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);
   var displayName=s.name||'Session';
+  var metaLine='';
+  if(type==='run'){
+    var r=resolveRunDisplay(s);
+    metaLine=buildRunSubtitle(s,r.meta||{},r.title||displayName);
+    if(!metaLine){var mp=[];if(s.intensity) mp.push(s.intensity);if(s.week) mp.push(s.week);metaLine=mp.join(' · ');}
+  }else{
+    var meta=[];if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);
+    metaLine=meta.join(' · ');
+  }
   var h='<div class="sc'+(done?' done':'')+'" id="sc_'+i+'">';
   h+='<div class="sch" onclick="togS('+i+')">';
   h+='<div class="sdot dot-'+type+'"></div>';
   h+='<div class="sinfo"><div class="sname '+type+'">'+esc(displayName)+'</div>';
-  if(meta.length) h+='<div class="smeta">'+esc(meta.join(' · '))+'</div>';
+  if(metaLine) h+='<div class="smeta">'+esc(metaLine)+'</div>';
   h+='</div>';
   h+='<button class="tick'+(done?' on':'')+'" id="tick_'+i+'" onclick="event.stopPropagation();tickS('+i+')">';
   h+='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
@@ -1746,6 +1753,117 @@ function resolveRunDisplay(s){
   return{related:related,title:rsTitle,detail:rsDetail,meta:rs};
 }
 
+// ── RPE + ALTERNATIVE WORKOUT HELPERS ─────────────────────────────────────────
+// Provide sensible fallbacks when the Notion running library doesn't supply
+// RPE or an alternative workout, so every running session card renders with
+// the full layout (effort rating box + alternative workout box).
+function inferRpeMeta(meta,sessionTitle){
+  meta=meta||{};
+  var presets={
+    recovery:{value:'3/10 RPE',desc:'Very easy, purely for recovery and circulation'},
+    easy:{value:'4/10 RPE',desc:'Conversational pace, easy breathing, recovery focus'},
+    long:{value:'5/10 RPE',desc:'Steady sustainable effort for extended distance'},
+    steady:{value:'6/10 RPE',desc:'Comfortable aerobic effort, able to talk in short sentences'},
+    tempo:{value:'7/10 RPE',desc:'Comfortably hard, controlled breathing, sustainable effort'},
+    threshold:{value:'8/10 RPE',desc:'Hard effort, controlled breathing, race pace intensity'},
+    interval:{value:'8/10 RPE',desc:'Hard effort, controlled breathing, race pace intensity'},
+    track:{value:'8/10 RPE',desc:'Hard effort, controlled breathing, race pace intensity'},
+    speed:{value:'9/10 RPE',desc:'Very hard, short bursts near maximum effort'},
+    sprint:{value:'9/10 RPE',desc:'Near-maximal effort, heavy breathing, full focus'},
+    race:{value:'9/10 RPE',desc:'Race-day effort, sustained hard intensity'},
+    hill:{value:'8/10 RPE',desc:'Hard effort on climbs, focus on form and power'},
+    fartlek:{value:'7/10 RPE',desc:'Varied hard/easy bursts, play with pace'}
+  };
+  var title=String(sessionTitle||meta.name||'').toLowerCase();
+  var intensity=String(meta.intensity||'').toLowerCase();
+  var type=String(meta.type||'').toLowerCase();
+  var haystack=title+' '+intensity+' '+type;
+  var order=['recovery','interval','track','speed','sprint','threshold','tempo','fartlek','hill','race','long','steady','easy'];
+  var pick=null;
+  for(var oi=0;oi<order.length;oi++){
+    if(haystack.indexOf(order[oi])>=0){pick=presets[order[oi]];break;}
+  }
+  if(!pick) pick=presets.steady;
+  var rpe=String(meta.rpe||'').trim();
+  if(rpe){
+    var value=rpe;
+    if(!/rpe/i.test(value)){
+      if(value.indexOf('/')<0){
+        var num=parseFloat(value);
+        if(!isNaN(num)) value=num+'/10';
+      }
+      value=value+' RPE';
+    }
+    return{value:value,desc:pick.desc};
+  }
+  return{value:pick.value,desc:pick.desc};
+}
+
+function parseAlternative(meta,sessionTitle){
+  meta=meta||{};
+  var alt=String(meta.alternative||'').trim();
+  // Derive a default alternative workout based on the session type so the
+  // panel always renders — even if Notion doesn't supply one.
+  var title=String(sessionTitle||meta.name||'').toLowerCase();
+  var intensity=String(meta.intensity||'').toLowerCase();
+  var haystack=title+' '+intensity;
+  var defaults=[
+    {match:['track','interval'],name:'Road Tempo Intervals',desc:'6×3min @ threshold pace with 90sec jog recovery. Use if no track access. Same intensity, different structure.'},
+    {match:['speed','sprint'],name:'Hill Sprints',desc:'8×20sec hill sprints with full walk-back recovery. Equivalent power work without the track.'},
+    {match:['tempo'],name:'Progression Run',desc:'Start easy, build to tempo pace in the final third. Same aerobic stimulus with smoother structure.'},
+    {match:['threshold'],name:'Cruise Intervals',desc:'4×6min @ threshold with 2min jog recovery. Same lactate work, broken up for control.'},
+    {match:['hill'],name:'Treadmill Incline Run',desc:'25min @ 4-6% incline, easy pace. Strength stimulus without outdoor hills.'},
+    {match:['long'],name:'Split Long Run',desc:'Break into AM + PM runs of equal distance. Use if time is tight or legs feel flat.'},
+    {match:['recovery'],name:'Walk + Mobility',desc:'30min brisk walk + 10min full-body mobility. Purely for circulation and recovery.'},
+    {match:['easy'],name:'Cross-Train Session',desc:'30-40min easy bike, swim, or elliptical. Same aerobic work, zero impact.'},
+    {match:['fartlek'],name:'Structured Fartlek',desc:'5min easy, then 8×(1min on / 1min off), 5min easy. Same stimulus with cleaner timing.'}
+  ];
+  var fallback=null;
+  for(var di=0;di<defaults.length;di++){
+    var d=defaults[di];
+    for(var mi=0;mi<d.match.length;mi++){
+      if(haystack.indexOf(d.match[mi])>=0){fallback=d;break;}
+    }
+    if(fallback) break;
+  }
+  if(!fallback) fallback={name:'Easy Substitute Run',desc:'30-40min easy run by feel. Use if the main session isn\'t possible today.'};
+
+  if(!alt){return{title:fallback.name,description:fallback.desc};}
+
+  // If alt text includes an explicit title (first line, or "Title: Description")
+  var lineBreak=alt.indexOf('\n');
+  if(lineBreak>0&&lineBreak<80){
+    var first=alt.substring(0,lineBreak).trim().replace(/[:\-–—]+$/,'').trim();
+    var rest=alt.substring(lineBreak+1).trim();
+    if(first&&rest){return{title:first,description:rest};}
+  }
+  var colon=alt.indexOf(':');
+  if(colon>0&&colon<50){
+    var t=alt.substring(0,colon).trim();
+    var r=alt.substring(colon+1).trim();
+    if(t&&r&&t.split(/\s+/).length<=6){return{title:t,description:r};}
+  }
+  return{title:fallback.name,description:alt};
+}
+
+function buildRunSubtitle(s,meta,resolvedTitle){
+  meta=meta||{};
+  var parts=[];
+  if(meta.distance) parts.push(meta.distance);
+  else if(meta.target&&/\d/.test(meta.target)) parts.push(meta.target);
+  if(meta.intensity) parts.push(meta.intensity);
+  else if(s&&s.intensity) parts.push(s.intensity);
+  if(meta.duration){
+    var dur=String(meta.duration);
+    if(/^\d+$/.test(dur)) dur=dur+'min';
+    parts.push(dur);
+  }
+  // Dedupe while preserving order
+  var seen={},out=[];
+  parts.forEach(function(p){var k=String(p).toLowerCase();if(p&&!seen[k]){seen[k]=1;out.push(p);}});
+  return out.join(' · ');
+}
+
 function renderTodaySection(){
   var el=document.getElementById('todayEl');if(!el) return;
   var todayISO=localISO(new Date());
@@ -1766,15 +1884,11 @@ function renderTodaySection(){
     var resolved=resolveRunDisplay(s),related=resolved.related||null,meta=resolved.meta||{};
     var sessionTitle=resolved.title||s.name||'Run';
     var sessionDetail=resolved.detail||meta.description||'';
-    var effortRpe=meta.rpe||'';
-    var warmUp=meta.warmUp||'';
-    var coolDown=meta.coolDown||'';
-    var alternative=meta.alternative||'';
-    var workoutText='';
-    if(sessionDetail) workoutText=sessionDetail;
+    var warmUp=meta.warmUp||'Warm up with 10min easy jog + dynamic stretches (leg swings, high knees, butt kicks) + 3×100m strides @ 70% effort.';
+    var coolDown=meta.coolDown||'10min easy jog + full lower body stretching routine.';
+    var workoutText=sessionDetail||sessionTitle;
     var extras=[];
     if(meta.target) extras.push(meta.target);
-    if(meta.duration) extras.push(meta.duration);
     if(meta.recoveryType) extras.push('Recovery: '+meta.recoveryType);
     if(meta.sessionGoal) extras.push('Goal: '+meta.sessionGoal);
     var chips=[];
@@ -1783,16 +1897,14 @@ function renderTodaySection(){
     if(meta.difficulty) chips.push(meta.difficulty);
     var sl=logs[s.id]||{};
     var hasSaved=!!(sl.distance||sl.duration||sl.pace||sl.rpe||sl.feel||sl.notes);
+    var rpeInfo=inferRpeMeta(meta,sessionTitle);
+    var altInfo=parseAlternative(meta,sessionTitle);
 
     h+='<div class="run-details">';
-    if(effortRpe){
-      h+='<div class="rpe-box"><div class="rpe-label">Effort Rating</div><div class="rpe-value">'+esc(effortRpe)+'/10 RPE</div>';
-      h+='<div class="rpe-desc">'+esc(meta.intensity||'Run to feel, not pace')+'</div></div>';
-    }
-    if(warmUp){
-      h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content">'+esc(warmUp)+'</div></div>';
-    }
-    h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(workoutText||sessionTitle)+'</div>';
+    h+='<div class="rpe-box"><div class="rpe-label">Effort Rating</div><div class="rpe-value">'+esc(rpeInfo.value)+'</div>';
+    h+='<div class="rpe-desc">'+esc(rpeInfo.desc)+'</div></div>';
+    h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content">'+esc(warmUp)+'</div></div>';
+    h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(workoutText)+'</div>';
     if(extras.length||chips.length){
       h+='<div class="chips">';
       extras.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
@@ -1800,12 +1912,8 @@ function renderTodaySection(){
       h+='</div>';
     }
     h+='</div>';
-    if(coolDown){
-      h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content">'+esc(coolDown)+'</div></div>';
-    }
-    if(alternative){
-      h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">Option B</div><div class="alt-desc">'+esc(alternative)+'</div></div>';
-    }
+    h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content">'+esc(coolDown)+'</div></div>';
+    h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">'+esc(altInfo.title)+'</div><div class="alt-desc">'+esc(altInfo.description)+'</div></div>';
     h+='<div class="run-log">';
     h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
     h+='<div class="saved-label">✓ Session Logged</div>';
@@ -1894,15 +2002,11 @@ function buildBody(s,i,type){
     var resolved=resolveRunDisplay(s),related=resolved.related||null,meta=resolved.meta||{};
     var sessionTitle=resolved.title||s.name||'Run';
     var sessionDetail=resolved.detail||meta.description||'';
-    var effortRpe=meta.rpe||'';
-    var warmUp=meta.warmUp||'';
-    var coolDown=meta.coolDown||'';
-    var alternative=meta.alternative||'';
-    var workoutText='';
-    if(sessionDetail) workoutText=sessionDetail;
+    var warmUp=meta.warmUp||'Warm up with 10min easy jog + dynamic stretches (leg swings, high knees, butt kicks) + 3×100m strides @ 70% effort.';
+    var coolDown=meta.coolDown||'10min easy jog + full lower body stretching routine.';
+    var workoutText=sessionDetail||sessionTitle;
     var extras=[];
     if(meta.target) extras.push(meta.target);
-    if(meta.duration) extras.push(meta.duration);
     if(meta.recoveryType) extras.push('Recovery: '+meta.recoveryType);
     if(meta.sessionGoal) extras.push('Goal: '+meta.sessionGoal);
     var chips=[];
@@ -1911,16 +2015,14 @@ function buildBody(s,i,type){
     if(meta.difficulty) chips.push(meta.difficulty);
     var sl=logs[s.id]||{};
     var hasSaved=!!(sl.distance||sl.duration||sl.pace||sl.rpe||sl.feel||sl.notes);
+    var rpeInfo=inferRpeMeta(meta,sessionTitle);
+    var altInfo=parseAlternative(meta,sessionTitle);
 
     h+='<div class="run-details">';
-    if(effortRpe){
-      h+='<div class="rpe-box"><div class="rpe-label">Effort Rating</div><div class="rpe-value">'+esc(effortRpe)+'/10 RPE</div>';
-      h+='<div class="rpe-desc">'+esc(meta.intensity||'Run to feel, not pace')+'</div></div>';
-    }
-    if(warmUp){
-      h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content">'+esc(warmUp)+'</div></div>';
-    }
-    h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(workoutText||sessionTitle)+'</div>';
+    h+='<div class="rpe-box"><div class="rpe-label">Effort Rating</div><div class="rpe-value">'+esc(rpeInfo.value)+'</div>';
+    h+='<div class="rpe-desc">'+esc(rpeInfo.desc)+'</div></div>';
+    h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content">'+esc(warmUp)+'</div></div>';
+    h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(workoutText)+'</div>';
     if(extras.length||chips.length){
       h+='<div class="chips">';
       extras.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
@@ -1928,12 +2030,8 @@ function buildBody(s,i,type){
       h+='</div>';
     }
     h+='</div>';
-    if(coolDown){
-      h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content">'+esc(coolDown)+'</div></div>';
-    }
-    if(alternative){
-      h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">Option B</div><div class="alt-desc">'+esc(alternative)+'</div></div>';
-    }
+    h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content">'+esc(coolDown)+'</div></div>';
+    h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">'+esc(altInfo.title)+'</div><div class="alt-desc">'+esc(altInfo.description)+'</div></div>';
     h+='<div class="run-log">';
     h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
     h+='<div class="saved-label">✓ Session Logged</div>';
