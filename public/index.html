@@ -1687,9 +1687,8 @@ function buildCard(s,i){
   var type=getType(s),done=!!(ticked[s.id]||s.status==='Completed');
   var meta=[];if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);
   var displayName=s.name||'Session';
-  var onclickHandler='togS('+i+')';
   var h='<div class="sc'+(done?' done':'')+'" id="sc_'+i+'">';
-  h+='<div class="sch" onclick="'+onclickHandler+'">';
+  h+='<div class="sch" onclick="togS('+i+')">';
   h+='<div class="sdot dot-'+type+'"></div>';
   h+='<div class="sinfo"><div class="sname '+type+'">'+esc(displayName)+'</div>';
   if(meta.length) h+='<div class="smeta">'+esc(meta.join(' · '))+'</div>';
@@ -1764,84 +1763,76 @@ function renderTodaySection(){
       html+='<div class="todayname '+type+'">'+esc(displayName)+'</div>';
       if(meta.length) html+='<div class="todaymeta">'+esc(meta.join(' · '))+'</div>';
       if(type==='run'){
-    var resolved=resolveRunDisplay(s),sl=logs[s.id]||{},metaR=resolved.meta||{},relatedR=resolved.related||{};
-    var workoutTitle=resolved.title||s.runningSession||s.name||'Run';
-    var detailText=resolved.detail||metaR.description||'';
-    var effortRpe=metaR.rpe||relatedR.rpe||'';
-    var warmUp=metaR.warmUp||relatedR.warmUp||relatedR.warmup||'';
-    var coolDown=metaR.coolDown||relatedR.coolDown||relatedR.cooldown||'';
-    var alternative=metaR.alternative||relatedR.alternative||'';
-    var durationPlan=metaR.duration||relatedR.duration||'';
-    var distancePlan=metaR.distance||relatedR.distance||'';
-    var intensityLabel=metaR.intensity||relatedR.intensity||s.intensity||'';
-    var surfaceLabel=metaR.surface||relatedR.surface||'';
-    var difficultyLabel=metaR.difficulty||relatedR.difficulty||'';
-    var typeLabel=metaR.type||relatedR.type||'';
-    var goalLabel=metaR.sessionGoal||relatedR.sessionGoal||relatedR.goal||metaR.target||relatedR.target||'';
+    var resolved=resolveRunDisplay(s),related=resolved.related||null,meta=resolved.meta||{};
+    var sessionTitle=resolved.title||s.name||'Run';
+    var sessionDetail=resolved.detail||meta.description||'';
+    var effortRpe=meta.rpe||'';
+    var warmUp=meta.warmUp||'';
+    var coolDown=meta.coolDown||'';
+    var alternative=meta.alternative||'';
+    var workoutText='';
+    if(sessionDetail) workoutText=sessionDetail;
+    var extras=[];
+    if(meta.target) extras.push(meta.target);
+    if(meta.duration) extras.push(meta.duration);
+    if(meta.recoveryType) extras.push('Recovery: '+meta.recoveryType);
+    if(meta.sessionGoal) extras.push('Goal: '+meta.sessionGoal);
     var chips=[];
-    if(intensityLabel) chips.push(intensityLabel);
-    if(surfaceLabel) chips.push(surfaceLabel);
-    if(difficultyLabel) chips.push(difficultyLabel);
-    if(typeLabel && chips.indexOf(typeLabel)===-1) chips.push(typeLabel);
+    if(meta.intensity) chips.push(meta.intensity);
+    if(meta.surface) chips.push(meta.surface);
+    if(meta.difficulty) chips.push(meta.difficulty);
+    var sl=logs[s.id]||{};
+    var hasSaved=!!(sl.distance||sl.duration||sl.pace||sl.rpe||sl.feel||sl.notes);
 
     h+='<div class="run-details">';
-
     if(effortRpe){
-      h+='<div class="rpe-box">';
-      h+='<div class="rpe-label">Effort Rating</div>';
-      h+='<div class="rpe-value">'+esc(effortRpe)+'/10 RPE</div>';
-      if(goalLabel) h+='<div class="rpe-desc">'+esc(goalLabel)+'</div>';
-      h+='</div>';
+      h+='<div class="rpe-box"><div class="rpe-label">Effort Rating</div><div class="rpe-value">'+esc(effortRpe)+'/10 RPE</div>';
+      h+='<div class="rpe-desc">'+esc(meta.intensity||'Run to feel, not pace')+'</div></div>';
     }
-
     if(warmUp){
       h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content">'+esc(warmUp)+'</div></div>';
     }
-
-    h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(detailText||workoutTitle)+'</div>';
-    if(chips.length){
-      h+='<div class="chips">'+chips.map(function(c){return '<div class="chip">'+esc(c)+'</div>';}).join('')+'</div>';
+    h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(workoutText||sessionTitle)+'</div>';
+    if(extras.length||chips.length){
+      h+='<div class="chips">';
+      extras.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
+      chips.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
+      h+='</div>';
     }
     h+='</div>';
-
     if(coolDown){
       h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content">'+esc(coolDown)+'</div></div>';
     }
-
     if(alternative){
-      h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">'+esc(typeLabel||'Alternative')+'</div><div class="alt-desc">'+esc(alternative)+'</div></div>';
+      h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">Option B</div><div class="alt-desc">'+esc(alternative)+'</div></div>';
     }
-
-    if(sl && (sl.distance||sl.duration||sl.pace||sl.rpe||sl.feel||sl.notes)){
-      h+='<div class="run-log">';
-      h+='<div class="saved-data">';
-      h+='<div class="saved-label">✓ Session Completed</div>';
-      h+='<div class="saved-grid">';
-      h+='<div class="saved-item"><div class="saved-item-label">Distance</div><div class="saved-item-value">'+(sl.distance?esc(sl.distance)+'km':'-')+'</div></div>';
-      h+='<div class="saved-item"><div class="saved-item-label">Duration</div><div class="saved-item-value">'+(sl.duration?esc(sl.duration)+'min':'-')+'</div></div>';
-      h+='<div class="saved-item"><div class="saved-item-label">Avg Pace</div><div class="saved-item-value">'+(sl.pace?esc(sl.pace):'-')+'</div></div>';
-      h+='<div class="saved-item"><div class="saved-item-label">RPE</div><div class="saved-item-value">'+(sl.rpe?esc(sl.rpe)+'/10':'-')+'</div></div>';
-      h+='</div>';
-      if(sl.feel) h+='<div class="saved-feeling">'+esc(sl.feel)+'</div>';
-      if(sl.notes) h+='<div class="saved-notes">'+esc(sl.notes)+'</div>';
-      h+='</div>';
-    }
-
     h+='<div class="run-log">';
-    h+='<div class="run-log-title">Log Your Session</div>';
-    h+='<div class="run-inputs">';
-    h+='<div class="run-field"><label>Distance (km)</label><input type="number" class="li" id="rd_'+i+'" step="0.1" placeholder="'+esc(distancePlan||'0.0')+'" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="run-field"><label>Duration (min)</label><input type="number" class="li" id="rdur_'+i+'" step="1" placeholder="'+esc(durationPlan||'30')+'" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="run-field"><label>Avg Pace (min/km)</label><input type="text" class="li" id="rp_'+i+'" placeholder="6:00" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="run-field"><label>RPE /10</label><input type="number" class="li" id="rr_'+i+'" min="1" max="10" placeholder="'+esc(effortRpe||'')+'" value="'+esc(sl.rpe||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
+    h+='<div class="saved-label">✓ Session Logged</div>';
+    h+='<div class="saved-grid">';
+    h+='<div class="saved-item"><div class="saved-item-label">Distance</div><div class="saved-item-value" id="saved_run_'+i+'_distance">'+esc(sl.distance?sl.distance+'km':'-')+'</div></div>';
+    h+='<div class="saved-item"><div class="saved-item-label">Duration</div><div class="saved-item-value" id="saved_run_'+i+'_duration">'+esc(sl.duration?sl.duration+'min':'-')+'</div></div>';
+    h+='<div class="saved-item"><div class="saved-item-label">Avg Pace</div><div class="saved-item-value" id="saved_run_'+i+'_pace">'+esc(sl.pace||'-')+'</div></div>';
+    h+='<div class="saved-item"><div class="saved-item-label">RPE</div><div class="saved-item-value" id="saved_run_'+i+'_rpe">'+esc(sl.rpe?sl.rpe+'/10':'-')+'</div></div>';
     h+='</div>';
-    h+='<div class="run-field run-input-full" style="margin-bottom:8px;"><label>How did it feel?</label><select class="li" id="rf_'+i+'" onchange="draftRun('+i+')"><option value="">Select feeling...</option>';
-    ['💀 Awful','😮‍💨 Struggling','😐 Average','💪 Feeling Strong','🔥 Crushing It'].forEach(function(f){h+='<option value="'+esc(f)+'"'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
+    h+='<div class="saved-feeling" id="saved_run_'+i+'_feel" style="display:'+(sl.feel?'block':'none')+';">'+esc(sl.feel||'')+'</div>';
+    h+='<div class="saved-notes" id="saved_run_'+i+'_notes" style="display:'+(sl.notes?'block':'none')+';">'+esc(sl.notes||'')+'</div>';
+    h+='<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>';
+    h+='</div>';
+    h+='<div id="run_form_'+i+'" style="display:'+(hasSaved?'none':'block')+';">';
+    h+='<div class="run-log-title">Log your session</div><div class="run-inputs">';
+    h+='<div class="run-field"><label>Distance (km)</label><input type="number" step="0.1" id="rd_'+i+'" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="run-field"><label>Duration (min)</label><input type="number" step="1" id="rdur_'+i+'" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="run-field"><label>Avg Pace (min/km)</label><input type="text" id="rp_'+i+'" placeholder="6:00" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="rr_'+i+'" placeholder="..." value="'+esc(sl.rpe||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='</div>';
+    h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>How did it feel?</label><select id="rf_'+i+'" class="li" onchange="draftRun('+i+')"><option value="">Select feeling...</option>';
+    ['💀 Awful','😮‍💨 Struggling','😐 Average','💪 Feeling Strong','🔥 Crushing It'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
     h+='</select></div>';
-    h+='<div class="run-field run-input-full"><label>Notes (Optional)</label><textarea class="li" id="rn_'+i+'" placeholder="Any additional thoughts..." oninput="draftRun('+i+')">'+esc(sl.notes||'')+'</textarea></div>';
-    h+='<button class="save-run-btn" id="sb_'+i+'" onclick="saveRun('+i+')">Save Session</button>';
+    h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="rn_'+i+'" class="li" placeholder="Any additional thoughts..." oninput="draftRun('+i+')">'+esc(sl.notes||'')+'</textarea></div>';
+    h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save Session</button>';
     h+='</div>';
-
+    h+='</div>';
     h+='</div>';
   }else if(type==='strength'){html+='<div class="todaytarget"><div class="label">Strength session</div><div class="value">'+esc(displayName)+'</div><div class="desc">Open the schedule below to log your sets and previous efforts.</div></div>';}
       else{html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';}
@@ -1900,66 +1891,77 @@ function refreshStrengthFeedback(i,splitKey){
 function buildBody(s,i,type){
   var h='';
   if(type==='run'){
-    var resolved=resolveRunDisplay(s),rsTitle=resolved.title,rsDetail=resolved.detail,rs=resolved.meta||{},sl=logs[s.id]||{};
-    var primary=rsDetail||rs.description||'';
-    var warmUp=rs.warmUp||rs.warmup||'';
-    var coolDown=rs.coolDown||rs.cooldown||'';
-    var effortRpe=rs.rpe||'';
-    var alternative=rs.alternative||'';
-    var sessionGoal=rs.sessionGoal||'';
-    var duration=rs.duration||'';
-    var distance=rs.distance||'';
-    var recovery=rs.recoveryType||'';
-    var chips=[rs.intensity,rs.surface,rs.difficulty,rs.phase].filter(Boolean);
-    if(rs.tags){rs.tags.split(',').map(function(t){return t.trim();}).filter(Boolean).forEach(function(t){chips.push(t);});}
+    var resolved=resolveRunDisplay(s),related=resolved.related||null,meta=resolved.meta||{};
+    var sessionTitle=resolved.title||s.name||'Run';
+    var sessionDetail=resolved.detail||meta.description||'';
+    var effortRpe=meta.rpe||'';
+    var warmUp=meta.warmUp||'';
+    var coolDown=meta.coolDown||'';
+    var alternative=meta.alternative||'';
+    var workoutText='';
+    if(sessionDetail) workoutText=sessionDetail;
+    var extras=[];
+    if(meta.target) extras.push(meta.target);
+    if(meta.duration) extras.push(meta.duration);
+    if(meta.recoveryType) extras.push('Recovery: '+meta.recoveryType);
+    if(meta.sessionGoal) extras.push('Goal: '+meta.sessionGoal);
+    var chips=[];
+    if(meta.intensity) chips.push(meta.intensity);
+    if(meta.surface) chips.push(meta.surface);
+    if(meta.difficulty) chips.push(meta.difficulty);
+    var sl=logs[s.id]||{};
+    var hasSaved=!!(sl.distance||sl.duration||sl.pace||sl.rpe||sl.feel||sl.notes);
 
-    h+='<div class="rtarget" style="background:#111214;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 16px 14px;margin:12px 0;color:#fff;">';
-    h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">';
-    h+='<div>'; 
-    h+='<div class="rtn" style="color:#fbbf24;margin-bottom:6px;">'+esc(rsTitle||(rs&&rs.type)||s.name)+'</div>';
-    if(chips.length) h+='<div class="rtt" style="color:rgba(255,255,255,.45);">'+chips.map(function(bit){return '<span>'+esc(bit)+'</span>';}).join('')+'</div>';
-    h+='</div>';
-    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">';
-    if(distance) h+='<span class="todaychip" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.08);color:#fff;">'+esc(distance)+'</span>';
-    if(duration) h+='<span class="todaychip" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.08);color:#fff;">'+esc(duration)+'</span>';
-    if(effortRpe) h+='<span class="todaychip" style="background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.22);color:#fbbf24;">RPE '+esc(effortRpe)+'</span>';
-    h+='</div></div>';
-    h+='<div style="display:grid;grid-template-columns:1.35fr .95fr;gap:12px;align-items:start;">';
-    h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;">';
-    h+='<div class="ltitle" style="color:rgba(255,255,255,.45);margin:0 0 8px;">Session details</div>';
-    h+='<div style="font-size:17px;line-height:1.55;color:#fff;white-space:pre-wrap;">'+esc(primary||'No session details yet.')+'</div>';
-    if(sessionGoal) h+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);font-size:14px;line-height:1.55;color:rgba(255,255,255,.82);"><span style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.42);display:block;margin-bottom:4px;">Coaching focus</span><strong style="color:#fbbf24;">Goal:</strong> '+esc(sessionGoal)+'</div>';
-    h+='</div>';
-    h+='<div style="display:grid;gap:12px;">';
-    if(warmUp) h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;"><div class="ltitle" style="color:rgba(255,255,255,.45);margin:0 0 8px;">Warm up</div><div style="font-size:14px;line-height:1.6;color:#fff;white-space:pre-wrap;">'+esc(warmUp)+'</div></div>';
-    if(coolDown) h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;"><div class="ltitle" style="color:rgba(255,255,255,.45);margin:0 0 8px;">Cool down</div><div style="font-size:14px;line-height:1.6;color:#fff;white-space:pre-wrap;">'+esc(coolDown)+'</div></div>';
-    if(effortRpe||recovery) {
-      h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;">';
-      h+='<div class="ltitle" style="color:rgba(255,255,255,.45);margin:0 0 8px;">Execution cues</div>';
-      if(effortRpe) h+='<div style="font-size:14px;line-height:1.6;color:#fff;margin-bottom:'+(recovery?'8px':'0')+';"><strong style="color:#fbbf24;">Effort:</strong> RPE '+esc(effortRpe)+'</div>';
-      if(recovery) h+='<div style="font-size:14px;line-height:1.6;color:#fff;"><strong style="color:#fbbf24;">Recovery:</strong> '+esc(recovery)+'</div>';
+    h+='<div class="run-details">';
+    if(effortRpe){
+      h+='<div class="rpe-box"><div class="rpe-label">Effort Rating</div><div class="rpe-value">'+esc(effortRpe)+'/10 RPE</div>';
+      h+='<div class="rpe-desc">'+esc(meta.intensity||'Run to feel, not pace')+'</div></div>';
+    }
+    if(warmUp){
+      h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content">'+esc(warmUp)+'</div></div>';
+    }
+    h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(workoutText||sessionTitle)+'</div>';
+    if(extras.length||chips.length){
+      h+='<div class="chips">';
+      extras.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
+      chips.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
       h+='</div>';
     }
-    h+='</div></div>';
+    h+='</div>';
+    if(coolDown){
+      h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content">'+esc(coolDown)+'</div></div>';
+    }
     if(alternative){
-      h+='<div style="margin-top:12px;padding:14px 16px;background:rgba(180,83,9,.10);border:1px solid rgba(180,83,9,.20);border-radius:12px;">';
-      h+='<div class="ltitle" style="color:rgba(255,255,255,.45);margin:0 0 8px;">Alternative</div>';
-      h+='<div style="font-size:14px;line-height:1.6;color:#fff;white-space:pre-wrap;">'+esc(alternative)+'</div>';
-      h+='</div>';
+      h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">Option B</div><div class="alt-desc">'+esc(alternative)+'</div></div>';
     }
+    h+='<div class="run-log">';
+    h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
+    h+='<div class="saved-label">✓ Session Logged</div>';
+    h+='<div class="saved-grid">';
+    h+='<div class="saved-item"><div class="saved-item-label">Distance</div><div class="saved-item-value" id="saved_run_'+i+'_distance">'+esc(sl.distance?sl.distance+'km':'-')+'</div></div>';
+    h+='<div class="saved-item"><div class="saved-item-label">Duration</div><div class="saved-item-value" id="saved_run_'+i+'_duration">'+esc(sl.duration?sl.duration+'min':'-')+'</div></div>';
+    h+='<div class="saved-item"><div class="saved-item-label">Avg Pace</div><div class="saved-item-value" id="saved_run_'+i+'_pace">'+esc(sl.pace||'-')+'</div></div>';
+    h+='<div class="saved-item"><div class="saved-item-label">RPE</div><div class="saved-item-value" id="saved_run_'+i+'_rpe">'+esc(sl.rpe?sl.rpe+'/10':'-')+'</div></div>';
     h+='</div>';
-    h+='<div class="ltitle">Log your run</div><div class="rlog">';
-    h+='<div class="lf"><label>Distance (km)</label><input type="number" class="li" id="rd_'+i+'" step="0.1" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="lf"><label>Duration (min)</label><input type="number" class="li" id="rdur_'+i+'" step="1" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="lf"><label>Avg Pace (min/km)</label><input type="text" class="li" id="rp_'+i+'" placeholder="6:00" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="lf"><label>RPE /10</label><select class="li" id="rr_'+i+'" onchange="draftRun('+i+')"><option value="">...</option>';
-    for(var n=1;n<=10;n++) h+='<option value="'+n+'"'+(sl.rpe==n?' selected':'')+'>'+n+'/10</option>';
-    h+='</select></div></div>';
-    h+='<div class="lf" style="margin-bottom:8px"><label>How did it feel?</label><select class="li" id="rf_'+i+'" onchange="draftRun('+i+')"><option value="">Select feeling...</option>';
+    h+='<div class="saved-feeling" id="saved_run_'+i+'_feel" style="display:'+(sl.feel?'block':'none')+';">'+esc(sl.feel||'')+'</div>';
+    h+='<div class="saved-notes" id="saved_run_'+i+'_notes" style="display:'+(sl.notes?'block':'none')+';">'+esc(sl.notes||'')+'</div>';
+    h+='<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>';
+    h+='</div>';
+    h+='<div id="run_form_'+i+'" style="display:'+(hasSaved?'none':'block')+';">';
+    h+='<div class="run-log-title">Log your session</div><div class="run-inputs">';
+    h+='<div class="run-field"><label>Distance (km)</label><input type="number" step="0.1" id="rd_'+i+'" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="run-field"><label>Duration (min)</label><input type="number" step="1" id="rdur_'+i+'" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="run-field"><label>Avg Pace (min/km)</label><input type="text" id="rp_'+i+'" placeholder="6:00" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="rr_'+i+'" placeholder="..." value="'+esc(sl.rpe||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='</div>';
+    h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>How did it feel?</label><select id="rf_'+i+'" class="li" onchange="draftRun('+i+')"><option value="">Select feeling...</option>';
     ['💀 Awful','😮‍💨 Struggling','😐 Average','💪 Feeling Strong','🔥 Crushing It'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
     h+='</select></div>';
-    h+='<div class="lf" style="margin-bottom:8px"><label>Notes (Optional)</label><input type="text" class="li" id="rn_'+i+'" placeholder="Any additional thoughts..." value="'+esc(sl.notes||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save run</button>';
+    h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="rn_'+i+'" class="li" placeholder="Any additional thoughts..." oninput="draftRun('+i+')">'+esc(sl.notes||'')+'</textarea></div>';
+    h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save Session</button>';
+    h+='</div>';
+    h+='</div>';
+    h+='</div>';
   }else if(type==='strength'){
 
     var splitKey=GYM_KEYS.find(function(k){return(s.name||'').indexOf(k)>=0;})||'Upper A';
@@ -2010,13 +2012,13 @@ function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),
 function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+ei),si=c.querySelectorAll('.setrow').length,row=document.createElement('div');row.className='setrow';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div><input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" /><input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" /><button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>';c.appendChild(row);}
 function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;if(s>=60){var m=Math.floor(s/60),rem=s%60;return rem?m+'min '+rem+'s rest':m+' min rest';}return s+'s rest';}
 function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
+function editRun(i){var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);if(form) form.style.display='block';if(saved) saved.style.display='none';}
 function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=STR[splitKey]||[];var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);log[ex.exercise]=arr;});logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
 async function saveRun(i){
-  var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
+  var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
   logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
-  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
-  showToast('Run saved ✓');flashSave(i,'Save Session');
-  renderCal(getWS());
+  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,exerciseLog:'Distance: '+d.distance+'km | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
+  showToast('Run saved ✓');flashSave(i,'Save run');
   await loadNutrition();
 }
 async function saveGym(i,splitKey){
