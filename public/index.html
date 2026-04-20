@@ -248,7 +248,6 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .lbtn{width:100%;padding:14px;background:#0a0a0a;color:#fff;border:none;border-radius:8px;font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
 .lerr{font-family:var(--mono);font-size:12px;color:#b91c1c;margin-top:10px;text-align:center;display:none}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;font-family:var(--mono);font-size:12px;padding:10px 20px;border-radius:20px;display:none;z-index:200;white-space:nowrap;letter-spacing:.04em}
-@media(max-width:860px){.run-modal-grid{grid-template-columns:1fr!important}.run-exec-grid{grid-template-columns:1fr!important}}
 @media(max-width:400px){.hn{font-size:36px}.sname{font-size:17px}.rlog{grid-template-columns:1fr}.milestone-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
@@ -1604,9 +1603,8 @@ async function loadWeek(){
     return{id:p.id,name:getNotionTitle(pr),date:pr['Planned Date']&&pr['Planned Date'].date&&pr['Planned Date'].date.start||'',
       sessionType:getPropText(pr['Session Type']),status:getPropText(pr['Status']),
       runningSession:getPropText(pr['Running Session'])||'',runningSessionIds:getRelationIds(pr['Running Session']),
-      runningLibraryIds:(getRelationIds(pr['NEW Running Library']).length?getRelationIds(pr['NEW Running Library']):getRelationIds(pr['Running Library'])),
-      runDetails:getPropText(pr['Run Details'])||getPropText(pr['run details'])||getPropText(pr['Workout Details'])||getPropText(pr['Session Details'])||getPropText(pr['Description'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
-      alternative:getPropText(pr['Alternative'])||getPropText(pr['Alternative Workout'])||getPropText(pr['Alternate Workout'])||getPropText(pr['Option B'])||'',
+      runningLibraryIds:[].concat(getRelationIds(pr['NEW Running Library'])||[], getRelationIds(pr['Running Library'])||[]).filter(Boolean),
+      runDetails:getPropText(pr['Run Details'])||getPropText(pr['run details'])||getPropText(pr['Description'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
       intensity:getPropText(pr['Intensity']),week:getPropText(pr['Week'])};
   });
   renderTodaySection();
@@ -1644,13 +1642,8 @@ function buildCard(s,i){
   var meta=[];if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);
   var displayName=s.name||'Session';
   
-  // Determine onclick behavior - use enhanced modal for runs with library link
-  var onclickHandler = 'togS('+i+')';
-  if (type === 'run' && s.runningLibraryIds && s.runningLibraryIds.length > 0) {
-    // Pass the IDs array to the modal
-    var idsJson = JSON.stringify(s.runningLibraryIds);
-    onclickHandler = 'showEnhancedWorkoutModal({name:\''+esc(displayName).replace(/'/g, "\\'")+ '\',runningLibraryIds:'+idsJson+'})';
-  }
+  var onclickHandler='togS('+i+')';
+  if(type==='run') onclickHandler='showEnhancedWorkoutModal('+i+')';
   
   var h='<div class="sc'+(done?' done':'')+'" id="sc_'+i+'">';
   h+='<div class="sch" onclick="'+onclickHandler+'">';
@@ -1933,7 +1926,7 @@ async function loadRunningLibrary() {
           goal: getPropText(pr['Session Goal']) || getPropText(pr['Goal']) || getPropText(pr['Target']) || getPropText(pr['Focus']),
           warmup: getPropText(pr['Warm Up']) || getPropText(pr['Warmup']) || getPropText(pr['Warm-up']),
           cooldown: getPropText(pr['Cool Down']) || getPropText(pr['Cooldown']) || getPropText(pr['Cool-down']),
-          alternative: getPropText(pr['Alternative']) || getPropText(pr['Alternative Workout']) || getPropText(pr['Alternate Workout']) || getPropText(pr['Option B']) || getPropText(pr['Alternative Session']),
+          alternative: getPropText(pr['Alternative']) || getPropText(pr['Alternative Workout']) || getPropText(pr['Alternate Workout']) || getPropText(pr['Option B']) || getPropText(pr['Alternative Session']) || getPropText(pr['Regression']),
           prereqs: getPropText(pr['Prerequisites']),
           slot: getPropText(pr['Weekly Slot']),
           targetPace: getPropText(pr['Target Pace']) || getPropText(pr['Pace Target']) || getPropText(pr['Pace']) || '',
@@ -1944,7 +1937,8 @@ async function loadRunningLibrary() {
           warmUp: mapped.warmup || '',
           coolDown: mapped.cooldown || '',
           sessionGoal: mapped.goal || '',
-          recoveryType: mapped.recovery || ''
+          recoveryType: mapped.recovery || '',
+          alternative: mapped.alternative || ''
         });
         if (mapped.name) runLibraryByName[mapped.name.toLowerCase()] = runLibraryById[page.id];
       });
@@ -1989,11 +1983,9 @@ async function showEnhancedWorkoutModal(sessionIndex) {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'enhancedWorkoutModal';
-    modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:10000;align-items:center;justify-content:center;padding:24px;overflow-y:auto;';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:10000;align-items:center;justify-content:center;padding:18px;overflow-y:auto;';
     document.body.appendChild(modal);
-    modal.addEventListener('click', function(e) {
-      if (e.target === modal) closeEnhancedModal();
-    });
+    modal.addEventListener('click', function(e) { if (e.target === modal) closeEnhancedModal(); });
   }
 
   const resolved = resolveRunDisplay(s);
@@ -2010,76 +2002,48 @@ async function showEnhancedWorkoutModal(sessionIndex) {
   const distance = (workout && workout.distance) || (meta && meta.distance) || '';
   const duration = (workout && workout.duration) || (meta && meta.duration) || '';
   const rpe = (workout && workout.rpe) || (meta && meta.rpe) || '';
-  const warmup = (workout && workout.warmup) || (workout && workout.warmUp) || (meta && meta.warmUp) || '';
-  const cooldown = (workout && workout.cooldown) || (workout && workout.coolDown) || (meta && meta.coolDown) || '';
-  const recovery = (workout && workout.recovery) || (workout && workout.recoveryType) || (meta && meta.recoveryType) || '';
-  const goal = (workout && workout.goal) || (meta && meta.sessionGoal) || '';
-  const alternative = (workout && workout.alternative) || s.alternative || '';
-  const quickBits = [distance, duration, intensity, surface].filter(Boolean);
+  const warmup = (workout && (workout.warmup || workout.warmUp)) || (meta && meta.warmUp) || '';
+  const cooldown = (workout && (workout.cooldown || workout.coolDown)) || (meta && meta.coolDown) || '';
+  const recovery = (workout && (workout.recovery || workout.recoveryType)) || (meta && meta.recoveryType) || '';
+  const goal = (workout && (workout.goal || workout.sessionGoal)) || (meta && meta.sessionGoal) || '';
+  const alternative = (workout && workout.alternative) || (meta && meta.alternative) || '';
 
-  modal.innerHTML = `
-    <div style="width:min(1040px,100%);background:#0c0c0c;border:1px solid rgba(255,255,255,.08);border-radius:22px;box-shadow:0 24px 80px rgba(0,0,0,.35);overflow:hidden;">
-      <div style="padding:28px 28px 18px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:flex-start;justify-content:space-between;gap:18px;">
-        <div style="min-width:0;">
-          <div style="font-family:var(--display);font-size:42px;font-weight:700;line-height:.95;letter-spacing:.02em;text-transform:uppercase;color:#f7f7f5;">${esc(title)}</div>
-          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;">
-            ${type ? `<span style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;padding:6px 10px;border-radius:999px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.18);color:#fbbf24;">${esc(type)}</span>` : ''}
-            ${phase ? `<span style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.72);">${esc(phase)}</span>` : ''}
-            ${difficulty ? `<span style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.72);">${esc(difficulty)}</span>` : ''}
-          </div>
+  const quickCards = [
+    rpe ? `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:6px;">Effort</div><div style="font-family:var(--display);font-size:28px;line-height:1;color:#fbbf24;">${esc(rpe)}</div><div style="font-size:13px;color:rgba(255,255,255,.72);margin-top:6px;">RPE target for the work</div></div>` : '',
+    duration ? `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:6px;">Duration</div><div style="font-family:var(--display);font-size:28px;line-height:1;color:#fff;">${esc(duration)}</div><div style="font-size:13px;color:rgba(255,255,255,.72);margin-top:6px;">Estimated session time</div></div>` : '',
+    distance ? `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:6px;">Distance</div><div style="font-family:var(--display);font-size:28px;line-height:1;color:#fff;">${esc(distance)}</div><div style="font-size:13px;color:rgba(255,255,255,.72);margin-top:6px;">Planned volume</div></div>` : '',
+    surface ? `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:6px;">Surface</div><div style="font-family:var(--display);font-size:20px;line-height:1.1;color:#fff;">${esc(surface)}</div><div style="font-size:13px;color:rgba(255,255,255,.72);margin-top:8px;">${esc(intensity || type || '')}</div></div>` : ''
+  ].filter(Boolean).join('');
+
+  const modalHTML = `
+    <div style="max-width:1020px;width:100%;background:#0a0a0a;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:28px 28px 24px;margin:auto;box-shadow:0 18px 60px rgba(0,0,0,.35);color:#fff;max-height:90vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:22px;">
+        <div>
+          <div style="font-family:var(--display);font-size:42px;line-height:.95;text-transform:uppercase;letter-spacing:.02em;color:#fbbf24;">${esc(title)}</div>
+          <div style="font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em;margin-top:10px;">${esc([type, intensity, phase].filter(Boolean).join(' • '))}</div>
         </div>
-        <button onclick="closeEnhancedModal()" style="width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:rgba(255,255,255,.7);font-size:26px;line-height:1;cursor:pointer;flex-shrink:0;">×</button>
+        <button onclick="closeEnhancedModal()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#fff;width:42px;height:42px;border-radius:999px;font-size:22px;cursor:pointer;line-height:1;flex-shrink:0;">×</button>
       </div>
 
-      <div class="run-modal-grid" style="padding:26px 28px 30px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:20px;">
-        <div style="min-width:0;display:grid;gap:16px;">
-          <div style="background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px 18px 16px;">
-            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.5);margin-bottom:10px;">Session Brief</div>
-            <div style="font-size:18px;line-height:1.65;color:rgba(255,255,255,.92);">${nl2brSafe(description || 'Run to the intended effort for the day.')}</div>
-            ${goal ? `<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.07);font-size:15px;line-height:1.6;color:rgba(255,255,255,.82);"><span style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.45);display:block;margin-bottom:5px;">Goal</span>${nl2brSafe(goal)}</div>` : ''}
-          </div>
-
-          <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.14);border-radius:18px;padding:18px;">
-            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.5);margin-bottom:12px;">How To Execute</div>
-            <div class="run-exec-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
-              <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px;min-height:124px;">
-                <div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.42);margin-bottom:8px;">Warm Up</div>
-                <div style="font-size:17px;line-height:1.55;color:rgba(255,255,255,.92);">${nl2brSafe(warmup || 'No warm up added yet.')}</div>
-              </div>
-              <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px;min-height:124px;">
-                <div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.42);margin-bottom:8px;">Effort / RPE</div>
-                <div style="font-size:26px;line-height:1.1;color:#fbbf24;font-family:var(--display);text-transform:uppercase;">${esc(rpe || 'Use feel')}</div>
-                <div style="margin-top:10px;font-size:13px;line-height:1.55;color:rgba(255,255,255,.74);">${intensity ? `Work to the intended ${esc(intensity)} stimulus.` : 'Run by effort rather than pace.'}</div>
-              </div>
-              <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px;min-height:124px;">
-                <div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.42);margin-bottom:8px;">Cool Down</div>
-                <div style="font-size:17px;line-height:1.55;color:rgba(255,255,255,.92);">${nl2brSafe(cooldown || 'No cool down added yet.')}</div>
-              </div>
-            </div>
-          </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:18px;align-items:start;">
+        <div style="background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;">
+          ${description ? `<div style="margin-bottom:16px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:7px;">Session Details</div><div style="font-size:20px;line-height:1.55;color:#fff;white-space:pre-wrap;">${nl2brSafe(description)}</div></div>` : ''}
+          ${warmup ? `<div style="margin-bottom:14px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:7px;">Warm Up</div><div style="font-size:18px;line-height:1.55;color:#fff;white-space:pre-wrap;">${nl2brSafe(warmup)}</div></div>` : ''}
+          ${cooldown ? `<div style="margin-bottom:14px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:7px;">Cool Down</div><div style="font-size:18px;line-height:1.55;color:#fff;white-space:pre-wrap;">${nl2brSafe(cooldown)}</div></div>` : ''}
+          ${goal ? `<div style="margin-bottom:14px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:7px;">Goal</div><div style="font-size:18px;line-height:1.55;color:#fbbf24;white-space:pre-wrap;">${nl2brSafe(goal)}</div></div>` : ''}
+          ${alternative ? `<div style="margin-top:18px;padding:16px 18px;background:rgba(180,83,9,.14);border:1px solid rgba(180,83,9,.24);border-radius:14px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.55);margin-bottom:7px;">Alternative</div><div style="font-size:18px;line-height:1.55;color:#fff;white-space:pre-wrap;">${nl2brSafe(alternative)}</div></div>` : ''}
+          ${!description && !warmup && !cooldown && !goal && !alternative ? `<div style="font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.06em;">No detailed run data found yet.</div>` : ''}
         </div>
 
-        <div style="min-width:0;display:grid;gap:16px;align-content:start;">
-          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px;">
-            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.5);margin-bottom:12px;">Quick Details</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-              ${distance ? `<div style="padding:12px 12px 10px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);"><div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.42);margin-bottom:6px;">Distance</div><div style="font-family:var(--display);font-size:24px;line-height:1;color:#f7f7f5;">${esc(distance)}</div></div>` : ''}
-              ${duration ? `<div style="padding:12px 12px 10px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);"><div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.42);margin-bottom:6px;">Duration</div><div style="font-family:var(--display);font-size:24px;line-height:1;color:#f7f7f5;">${esc(duration)}</div></div>` : ''}
-              ${surface ? `<div style="padding:12px 12px 10px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);"><div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.42);margin-bottom:6px;">Surface</div><div style="font-size:16px;line-height:1.3;color:#f7f7f5;">${esc(surface)}</div></div>` : ''}
-              ${recovery ? `<div style="padding:12px 12px 10px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);"><div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.42);margin-bottom:6px;">Recovery</div><div style="font-size:16px;line-height:1.3;color:#f7f7f5;">${esc(recovery)}</div></div>` : ''}
-            </div>
-            ${quickBits.length ? `<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">${quickBits.map(function(bit){ return `<span style="font-family:var(--mono);font-size:10px;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.66);">${esc(bit)}</span>`; }).join('')}</div>` : ''}
-          </div>
-
-          <div style="background:rgba(180,83,9,.10);border:1px solid rgba(180,83,9,.18);border-radius:18px;padding:18px;">
-            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.5);margin-bottom:10px;">Alternative Workout</div>
-            <div style="font-size:17px;line-height:1.65;color:rgba(255,255,255,.9);">${nl2brSafe(alternative || 'Add an alternative option in the running library to show it here — e.g. a flatter option, reduced volume, or a lower-demand version with the same stimulus.')}</div>
-          </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          ${quickCards || `<div style="grid-column:1/-1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:6px;">Session Meta</div><div style="font-size:15px;color:rgba(255,255,255,.7);">Add RPE, duration, distance or surface in the library to fill this area.</div></div>`}
+          ${(recovery || difficulty) ? `<div style="grid-column:1/-1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:8px;">Extra Notes</div>${recovery ? `<div style="font-size:14px;color:#fff;margin-bottom:${difficulty ? '8px':'0'};"><strong style="color:#fbbf24;">Recovery:</strong> ${esc(recovery)}</div>` : ''}${difficulty ? `<div style="font-size:14px;color:#fff;"><strong style="color:#fbbf24;">Difficulty:</strong> ${esc(difficulty)}</div>` : ''}</div>` : ''}
         </div>
       </div>
     </div>
   `;
 
+  modal.innerHTML = modalHTML;
   modal.style.display = 'flex';
 }
 
