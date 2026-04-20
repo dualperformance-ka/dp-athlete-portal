@@ -1888,13 +1888,15 @@ function buildBody(s,i,type){
     h+='</div>';
     h+='<div class="ltitle">Log your run</div><div class="rlog">';
     h+='<div class="lf"><label>Distance (km)</label><input type="number" class="li" id="rd_'+i+'" step="0.1" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="lf"><label>Pace</label><input type="text" class="li" id="rp_'+i+'" placeholder="5:30 /km" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="lf"><label>RPE</label><select class="li" id="rr_'+i+'" onchange="draftRun('+i+')"><option value="">...</option>';
+    h+='<div class="lf"><label>Duration (min)</label><input type="number" class="li" id="rdur_'+i+'" step="1" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="lf"><label>Avg Pace (min/km)</label><input type="text" class="li" id="rp_'+i+'" placeholder="6:00" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="lf"><label>RPE /10</label><select class="li" id="rr_'+i+'" onchange="draftRun('+i+')"><option value="">...</option>';
     for(var n=1;n<=10;n++) h+='<option value="'+n+'"'+(sl.rpe==n?' selected':'')+'>'+n+'/10</option>';
-    h+='</select></div><div class="lf"><label>How it felt</label><select class="li" id="rf_'+i+'" onchange="draftRun('+i+')"><option value="">...</option>';
-    ['Great — felt easy','Good — solid session','Average — got through it','Tough — struggled','Bad — cut it short'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
     h+='</select></div></div>';
-    h+='<div class="lf" style="margin-bottom:8px"><label>Notes</label><input type="text" class="li" id="rn_'+i+'" placeholder="Anything to flag..." value="'+esc(sl.notes||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="lf" style="margin-bottom:8px"><label>How did it feel?</label><select class="li" id="rf_'+i+'" onchange="draftRun('+i+')"><option value="">Select feeling...</option>';
+    ['💀 Awful','😮‍💨 Struggling','😐 Average','💪 Feeling Strong','🔥 Crushing It'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
+    h+='</select></div>';
+    h+='<div class="lf" style="margin-bottom:8px"><label>Notes (Optional)</label><input type="text" class="li" id="rn_'+i+'" placeholder="Any additional thoughts..." value="'+esc(sl.notes||'')+'" oninput="draftRun('+i+')" /></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save run</button>';
   }else if(type==='strength'){
 
@@ -1945,7 +1947,7 @@ async function tickS(i){
 function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),on=!btn.classList.contains('on');btn.classList.toggle('on',on);btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';}
 function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+ei),si=c.querySelectorAll('.setrow').length,row=document.createElement('div');row.className='setrow';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div><input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" /><input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" /><button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>';c.appendChild(row);}
 function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;if(s>=60){var m=Math.floor(s/60),rem=s%60;return rem?m+'min '+rem+'s rest':m+' min rest';}return s+'s rest';}
-function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
+function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
 function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=STR[splitKey]||[];var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);log[ex.exercise]=arr;});logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
 async function saveRun(i){
   var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
@@ -2210,114 +2212,6 @@ function closeEnhancedModal() {
 
 window.showEnhancedWorkoutModal = showEnhancedWorkoutModal;
 window.closeEnhancedModal = closeEnhancedModal;
-
-// ============================================================================
-// RUNNING DATA INPUT - RPE & FEELING TRACKING
-// ============================================================================
-
-// Load saved run data on page load
-window.addEventListener('DOMContentLoaded', function() {
-  loadAllRunData();
-});
-
-function saveRunData(sessionId) {
-  const data = {
-    distance: document.getElementById(`input-${sessionId}-distance`).value,
-    duration: document.getElementById(`input-${sessionId}-duration`).value,
-    pace: document.getElementById(`input-${sessionId}-pace`).value,
-    rpe: document.getElementById(`input-${sessionId}-rpe`).value,
-    feeling: document.getElementById(`input-${sessionId}-feeling`).value,
-    notes: document.getElementById(`input-${sessionId}-notes`).value,
-    timestamp: new Date().toISOString()
-  };
-  
-  // Save to localStorage
-  localStorage.setItem(`run-${sessionId}`, JSON.stringify(data));
-  
-  // Update display
-  displaySavedData(sessionId, data);
-  
-  // Visual feedback
-  const btn = event.target;
-  btn.textContent = '✓ SAVED';
-  btn.classList.add('saved');
-  setTimeout(() => {
-    btn.textContent = 'SAVE SESSION';
-    btn.classList.remove('saved');
-  }, 2000);
-}
-
-function displaySavedData(sessionId, data) {
-  // Hide input form
-  const inputForm = document.getElementById(`input-${sessionId}`);
-  if (inputForm) inputForm.style.display = 'none';
-  
-  // Show saved data card
-  const savedCard = document.getElementById(`saved-${sessionId}`);
-  if (!savedCard) return;
-  savedCard.style.display = 'block';
-  
-  // Populate saved data
-  const distanceEl = document.getElementById(`saved-${sessionId}-distance`);
-  const durationEl = document.getElementById(`saved-${sessionId}-duration`);
-  const paceEl = document.getElementById(`saved-${sessionId}-pace`);
-  const rpeEl = document.getElementById(`saved-${sessionId}-rpe`);
-  
-  if (distanceEl) distanceEl.textContent = data.distance ? `${data.distance}km` : '-';
-  if (durationEl) durationEl.textContent = data.duration ? `${data.duration}min` : '-';
-  if (paceEl) paceEl.textContent = data.pace || '-';
-  if (rpeEl) rpeEl.textContent = data.rpe ? `${data.rpe}/10` : '-';
-  
-  // Show feeling if selected
-  const feelingEl = document.getElementById(`saved-${sessionId}-feeling`);
-  if (feelingEl) {
-    if (data.feeling) {
-      feelingEl.textContent = data.feeling;
-      feelingEl.style.display = 'block';
-    } else {
-      feelingEl.style.display = 'none';
-    }
-  }
-  
-  // Show notes if provided
-  const notesEl = document.getElementById(`saved-${sessionId}-notes`);
-  if (notesEl) {
-    if (data.notes) {
-      notesEl.textContent = data.notes;
-      notesEl.style.display = 'block';
-    } else {
-      notesEl.style.display = 'none';
-    }
-  }
-}
-
-function loadAllRunData() {
-  // List of all running session IDs
-  const sessions = [
-    'mon-easy',
-    'tue-intervals',
-    'wed-recovery',
-    'thu-hills',
-    'sat-long',
-    'sun-easy'
-  ];
-  
-  sessions.forEach(sessionId => {
-    const saved = localStorage.getItem(`run-${sessionId}`);
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        displaySavedData(sessionId, data);
-      } catch (e) {
-        console.error('Error loading saved data for', sessionId, e);
-      }
-    }
-  });
-}
-
-// Make functions globally available
-window.saveRunData = saveRunData;
-window.loadAllRunData = loadAllRunData;
 
 // ============================================================================
 // END RUNNING LIBRARY INTEGRATION
