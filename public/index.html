@@ -249,6 +249,46 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .lerr{font-family:var(--mono);font-size:12px;color:#b91c1c;margin-top:10px;text-align:center;display:none}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;font-family:var(--mono);font-size:12px;padding:10px 20px;border-radius:20px;display:none;z-index:200;white-space:nowrap;letter-spacing:.04em}
 
+/* Running-specific expanded details */
+.run-details{padding:14px;background:var(--surface2);border-top:1px solid var(--border);margin-top:0}
+.rpe-box{background:rgba(180,83,9,.05);border:1px solid rgba(180,83,9,.12);border-radius:8px;padding:12px;margin-bottom:12px}
+.rpe-label{font-family:var(--mono);font-size:9px;color:var(--run);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;opacity:.7}
+.rpe-value{font-family:var(--display);font-size:24px;font-weight:700;color:var(--run);line-height:1;text-transform:uppercase}
+.rpe-desc{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4}
+.detail-section{margin-bottom:14px}
+.detail-section:last-child{margin-bottom:0}
+.detail-head{font-family:var(--display);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text);margin-bottom:6px}
+.detail-content{font-size:13px;color:var(--muted);line-height:1.5;background:var(--surface);border-radius:6px;padding:10px 12px;border:1px solid var(--border)}
+.alt-box{background:rgba(180,83,9,.03);border:1px solid rgba(180,83,9,.1);border-radius:8px;padding:12px;margin-top:12px}
+.alt-label{font-family:var(--mono);font-size:9px;color:var(--run);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;opacity:.7}
+.alt-title{font-family:var(--display);font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--run);margin-bottom:6px}
+.alt-desc{font-size:13px;color:var(--muted);line-height:1.5}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:20px;background:var(--surface);border:1px solid var(--border-mid);color:var(--muted)}
+
+/* Running data input */
+.run-log{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.run-log-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:10px}
+.run-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.run-input-full{grid-column:1/-1}
+.run-field{display:flex;flex-direction:column;gap:4px}
+.run-field label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.run-field input,.run-field textarea,.run-field select{width:100%;background:var(--surface);border:1px solid var(--border-mid);border-radius:7px;padding:11px 12px;color:var(--text);font-family:var(--mono);font-size:14px;outline:none}
+.run-field select{cursor:pointer}
+.run-field textarea{font-family:var(--body);font-size:13px;resize:vertical;min-height:70px;line-height:1.5}
+.run-field input:focus,.run-field textarea:focus,.run-field select:focus{border-color:var(--border-strong);background:#fff}
+.save-run-btn{width:100%;padding:13px;background:#0a0a0a;color:#fff;border:none;border-radius:8px;font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:background .2s}
+.save-run-btn:active{transform:scale(.98)}
+.save-run-btn.saved{background:var(--ok)}
+.saved-data{background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:8px;padding:12px;margin-bottom:10px}
+.saved-label{font-family:var(--mono);font-size:9px;color:var(--ok);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.saved-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;color:var(--text)}
+.saved-item{display:flex;flex-direction:column;gap:2px}
+.saved-item-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase}
+.saved-item-value{font-weight:500}
+.saved-notes{margin-top:8px;font-size:13px;color:var(--muted);font-style:italic;padding-top:8px;border-top:1px solid var(--ok-border)}
+.saved-feeling{margin-top:8px;padding:8px 10px;background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.14);border-radius:6px;font-size:12px;color:var(--run);font-weight:500}
+
 @media(max-width:760px){
   .rtarget > div[style*='grid-template-columns:1.35fr .95fr']{grid-template-columns:1fr !important;}
 }
@@ -1647,8 +1687,17 @@ function buildCard(s,i){
   var type=getType(s),done=!!(ticked[s.id]||s.status==='Completed');
   var meta=[];if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);
   var displayName=s.name||'Session';
+  
+  // Determine onclick behavior - use enhanced modal for runs with library link
+  var onclickHandler = 'togS('+i+')';
+  if (type === 'run' && s.runningLibraryIds && s.runningLibraryIds.length > 0) {
+    // Pass the IDs array to the modal
+    var idsJson = JSON.stringify(s.runningLibraryIds);
+    onclickHandler = 'showEnhancedWorkoutModal({name:\''+esc(displayName).replace(/'/g, "\\'")+ '\',runningLibraryIds:'+idsJson+'})';
+  }
+  
   var h='<div class="sc'+(done?' done':'')+'" id="sc_'+i+'">';
-  h+='<div class="sch" onclick="togS('+i+')">';
+  h+='<div class="sch" onclick="'+onclickHandler+'">';
   h+='<div class="sdot dot-'+type+'"></div>';
   h+='<div class="sinfo"><div class="sname '+type+'">'+esc(displayName)+'</div>';
   if(meta.length) h+='<div class="smeta">'+esc(meta.join(' · '))+'</div>';
@@ -1845,7 +1894,7 @@ function buildBody(s,i,type){
     h+='</select></div><div class="lf"><label>How it felt</label><select class="li" id="rf_'+i+'" onchange="draftRun('+i+')"><option value="">...</option>';
     ['Great — felt easy','Good — solid session','Average — got through it','Tough — struggled','Bad — cut it short'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
     h+='</select></div></div>';
-    h+='<div class="lf" style="margin-bottom:8px"><label>Notes</label><textarea class="li" id="rn_'+i+'" placeholder="Anything to flag..." oninput="draftRun('+i+')" style="min-height:74px;resize:vertical;font-family:var(--body);font-size:13px">'+esc(sl.notes||'')+'</textarea></div>';
+    h+='<div class="lf" style="margin-bottom:8px"><label>Notes</label><input type="text" class="li" id="rn_'+i+'" placeholder="Anything to flag..." value="'+esc(sl.notes||'')+'" oninput="draftRun('+i+')" /></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save run</button>';
   }else if(type==='strength'){
 
@@ -2161,6 +2210,114 @@ function closeEnhancedModal() {
 
 window.showEnhancedWorkoutModal = showEnhancedWorkoutModal;
 window.closeEnhancedModal = closeEnhancedModal;
+
+// ============================================================================
+// RUNNING DATA INPUT - RPE & FEELING TRACKING
+// ============================================================================
+
+// Load saved run data on page load
+window.addEventListener('DOMContentLoaded', function() {
+  loadAllRunData();
+});
+
+function saveRunData(sessionId) {
+  const data = {
+    distance: document.getElementById(`input-${sessionId}-distance`).value,
+    duration: document.getElementById(`input-${sessionId}-duration`).value,
+    pace: document.getElementById(`input-${sessionId}-pace`).value,
+    rpe: document.getElementById(`input-${sessionId}-rpe`).value,
+    feeling: document.getElementById(`input-${sessionId}-feeling`).value,
+    notes: document.getElementById(`input-${sessionId}-notes`).value,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Save to localStorage
+  localStorage.setItem(`run-${sessionId}`, JSON.stringify(data));
+  
+  // Update display
+  displaySavedData(sessionId, data);
+  
+  // Visual feedback
+  const btn = event.target;
+  btn.textContent = '✓ SAVED';
+  btn.classList.add('saved');
+  setTimeout(() => {
+    btn.textContent = 'SAVE SESSION';
+    btn.classList.remove('saved');
+  }, 2000);
+}
+
+function displaySavedData(sessionId, data) {
+  // Hide input form
+  const inputForm = document.getElementById(`input-${sessionId}`);
+  if (inputForm) inputForm.style.display = 'none';
+  
+  // Show saved data card
+  const savedCard = document.getElementById(`saved-${sessionId}`);
+  if (!savedCard) return;
+  savedCard.style.display = 'block';
+  
+  // Populate saved data
+  const distanceEl = document.getElementById(`saved-${sessionId}-distance`);
+  const durationEl = document.getElementById(`saved-${sessionId}-duration`);
+  const paceEl = document.getElementById(`saved-${sessionId}-pace`);
+  const rpeEl = document.getElementById(`saved-${sessionId}-rpe`);
+  
+  if (distanceEl) distanceEl.textContent = data.distance ? `${data.distance}km` : '-';
+  if (durationEl) durationEl.textContent = data.duration ? `${data.duration}min` : '-';
+  if (paceEl) paceEl.textContent = data.pace || '-';
+  if (rpeEl) rpeEl.textContent = data.rpe ? `${data.rpe}/10` : '-';
+  
+  // Show feeling if selected
+  const feelingEl = document.getElementById(`saved-${sessionId}-feeling`);
+  if (feelingEl) {
+    if (data.feeling) {
+      feelingEl.textContent = data.feeling;
+      feelingEl.style.display = 'block';
+    } else {
+      feelingEl.style.display = 'none';
+    }
+  }
+  
+  // Show notes if provided
+  const notesEl = document.getElementById(`saved-${sessionId}-notes`);
+  if (notesEl) {
+    if (data.notes) {
+      notesEl.textContent = data.notes;
+      notesEl.style.display = 'block';
+    } else {
+      notesEl.style.display = 'none';
+    }
+  }
+}
+
+function loadAllRunData() {
+  // List of all running session IDs
+  const sessions = [
+    'mon-easy',
+    'tue-intervals',
+    'wed-recovery',
+    'thu-hills',
+    'sat-long',
+    'sun-easy'
+  ];
+  
+  sessions.forEach(sessionId => {
+    const saved = localStorage.getItem(`run-${sessionId}`);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        displaySavedData(sessionId, data);
+      } catch (e) {
+        console.error('Error loading saved data for', sessionId, e);
+      }
+    }
+  });
+}
+
+// Make functions globally available
+window.saveRunData = saveRunData;
+window.loadAllRunData = loadAllRunData;
 
 // ============================================================================
 // END RUNNING LIBRARY INTEGRATION
