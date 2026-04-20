@@ -1647,17 +1647,8 @@ function buildCard(s,i){
   var type=getType(s),done=!!(ticked[s.id]||s.status==='Completed');
   var meta=[];if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);
   var displayName=s.name||'Session';
-  
-  // Determine onclick behavior - use enhanced modal for runs with library link
-  var onclickHandler = 'togS('+i+')';
-  if (type === 'run' && s.runningLibraryIds && s.runningLibraryIds.length > 0) {
-    // Pass the IDs array to the modal
-    var idsJson = JSON.stringify(s.runningLibraryIds);
-    onclickHandler = 'showEnhancedWorkoutModal({name:\''+esc(displayName).replace(/'/g, "\\'")+ '\',runningLibraryIds:'+idsJson+'})';
-  }
-  
   var h='<div class="sc'+(done?' done':'')+'" id="sc_'+i+'">';
-  h+='<div class="sch" onclick="'+onclickHandler+'">';
+  h+='<div class="sch" onclick="togS('+i+')">';
   h+='<div class="sdot dot-'+type+'"></div>';
   h+='<div class="sinfo"><div class="sname '+type+'">'+esc(displayName)+'</div>';
   if(meta.length) h+='<div class="smeta">'+esc(meta.join(' · '))+'</div>';
@@ -1854,7 +1845,7 @@ function buildBody(s,i,type){
     h+='</select></div><div class="lf"><label>How it felt</label><select class="li" id="rf_'+i+'" onchange="draftRun('+i+')"><option value="">...</option>';
     ['Great — felt easy','Good — solid session','Average — got through it','Tough — struggled','Bad — cut it short'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
     h+='</select></div></div>';
-    h+='<div class="lf" style="margin-bottom:8px"><label>Notes</label><input type="text" class="li" id="rn_'+i+'" placeholder="Anything to flag..." value="'+esc(sl.notes||'')+'" oninput="draftRun('+i+')" /></div>';
+    h+='<div class="lf" style="margin-bottom:8px"><label>Notes</label><textarea class="li" id="rn_'+i+'" placeholder="Anything to flag..." oninput="draftRun('+i+')" style="min-height:74px;resize:vertical;font-family:var(--body);font-size:13px">'+esc(sl.notes||'')+'</textarea></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save run</button>';
   }else if(type==='strength'){
 
