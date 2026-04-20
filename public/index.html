@@ -102,20 +102,6 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .rtn{font-family:var(--display);font-size:16px;font-weight:700;text-transform:uppercase;color:var(--run);margin-bottom:4px}
 .rtd{font-size:13px;color:var(--run);opacity:.85;line-height:1.5;margin-bottom:8px}
 .rtt{font-family:var(--mono);font-size:10px;color:var(--run);opacity:.5;display:flex;flex-wrap:wrap;gap:6px}
-.run-detail-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start}
-.run-detail-stack{display:grid;gap:12px}
-.run-detail-card{background:rgba(180,83,9,.045);border:1px solid rgba(180,83,9,.12);border-radius:10px;padding:12px 13px}
-.run-detail-label{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:rgba(180,83,9,.55);margin-bottom:5px}
-.run-detail-value{font-size:13px;line-height:1.55;color:var(--run)}
-.run-detail-value strong{font-family:var(--display);font-size:15px;letter-spacing:.02em;color:var(--run);font-weight:700}
-.run-side-list{display:grid;gap:8px}
-.run-side-row{display:flex;justify-content:space-between;gap:12px;padding:9px 10px;border-radius:8px;background:rgba(180,83,9,.03);border:1px solid rgba(180,83,9,.08)}
-.run-side-row .k{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:rgba(180,83,9,.55)}
-.run-side-row .v{font-size:12px;line-height:1.35;color:var(--run);text-align:right}
-.run-alt{margin-top:14px;padding:12px 13px;border-radius:10px;background:rgba(10,10,10,.03);border:1px solid rgba(10,10,10,.08)}
-.run-alt .k{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:rgba(10,10,10,.5);margin-bottom:5px}
-.run-alt .v{font-size:13px;line-height:1.55;color:var(--text)}
-@media(max-width:640px){.run-detail-grid{grid-template-columns:1fr}}
 .ltitle{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:14px 0 8px}
 .rlog{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .lf{display:flex;flex-direction:column;gap:4px}
@@ -1617,8 +1603,8 @@ async function loadWeek(){
     return{id:p.id,name:getNotionTitle(pr),date:pr['Planned Date']&&pr['Planned Date'].date&&pr['Planned Date'].date.start||'',
       sessionType:getPropText(pr['Session Type']),status:getPropText(pr['Status']),
       runningSession:getPropText(pr['Running Session'])||'',runningSessionIds:getRelationIds(pr['Running Session']),
-      runningLibraryIds:getRelationIds(pr['NEW Running Library']).concat(getRelationIds(pr['Running Library'])).filter(Boolean),
-      runDetails:getPropText(pr['Run Details'])||getPropText(pr['run details'])||getPropText(pr['Description'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
+      runningLibraryIds:(getRelationIds(pr['NEW Running Library']).length?getRelationIds(pr['NEW Running Library']):getRelationIds(pr['Running Library'])),
+      runDetails:getPropText(pr['Run Details'])||getPropText(pr['run details'])||getPropText(pr['Description'])||getPropText(pr['Workout Details'])||getPropText(pr['Session Details'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
       intensity:getPropText(pr['Intensity']),week:getPropText(pr['Week'])};
   });
   renderTodaySection();
@@ -1740,26 +1726,90 @@ function renderTodaySection(){
       html+='<div class="todayname '+type+'">'+esc(displayName)+'</div>';
       if(meta.length) html+='<div class="todaymeta">'+esc(meta.join(' · '))+'</div>';
       if(type==='run'){
+        var chips=[];
+        if(resolved&&resolved.meta){if(resolved.meta.intensity) chips.push(resolved.meta.intensity);if(resolved.meta.surface) chips.push(resolved.meta.surface);if(resolved.meta.difficulty) chips.push(resolved.meta.difficulty);if(resolved.meta.phase) chips.push(resolved.meta.phase);if(resolved.meta.tags){resolved.meta.tags.split(',').map(function(t){return t.trim();}).filter(Boolean).forEach(function(t){chips.push(t);});}}
+        if(resolved&&(resolved.title||resolved.detail||resolved.meta)){
+          html+='<div class="todaytarget"><div class="label">Running session</div><div class="value">'+esc(resolved.title||(resolved.meta&&resolved.meta.type)||displayName)+'</div>';
+          var desc=(resolved.detail||(resolved.meta&&resolved.meta.description)||'');
+          if(resolved.meta){var extras=[];if(resolved.meta.target) extras.push('Target: '+resolved.meta.target);if(resolved.meta.targetPace) extras.push('Target Pace: '+resolved.meta.targetPace);if(resolved.meta.rpe) extras.push('RPE: '+resolved.meta.rpe);if(resolved.meta.distance) extras.push('Distance: '+resolved.meta.distance);if(resolved.meta.duration) extras.push('Duration: '+resolved.meta.duration);if(resolved.meta.recoveryType) extras.push('Recovery: '+resolved.meta.recoveryType);if(resolved.meta.sessionGoal) extras.push('Goal: '+resolved.meta.sessionGoal);if(extras.length){desc+=(desc?'\n':'')+extras.join(' · ');}}
+          html+='<div class="desc">'+esc(desc)+'</div></div>';
+        }
+        if(chips.length) html+='<div class="todaychips">'+chips.map(function(c){return '<span class="todaychip">'+esc(c)+'</span>';}).join('')+'</div>';
+      }else if(type==='strength'){html+='<div class="todaytarget"><div class="label">Strength session</div><div class="value">'+esc(displayName)+'</div><div class="desc">Open the schedule below to log your sets and previous efforts.</div></div>';}
+      else{html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';}
+      html+='</div></div></div>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';el.innerHTML=html;el.style.display='block';
+}
+
+function getExercisePreviousEffort(sessionId,exerciseName){
+  var prevEffort=null;var allSessIds=Object.keys(logs||{});
+  for(var li=allSessIds.length-1;li>=0;li--){var lid=allSessIds[li];if(lid===sessionId) continue;var ldata=logs[lid];if(ldata&&ldata[exerciseName]&&ldata[exerciseName].length){var lsets=ldata[exerciseName].filter(function(ls){return ls&&((ls.weight&&String(ls.weight).trim()!=='')||(ls.reps&&String(ls.reps).trim()!==''));});if(lsets.length){prevEffort=lsets;break;}}}
+  return prevEffort;
+}
+function getWorkingSlice(ex,arr){arr=(arr||[]).filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!==''));});var workingSets=parseInt(ex.workingSets||ex.sets||arr.length||0)||0;if(!workingSets||arr.length<=workingSets) return arr;return arr.slice(arr.length-workingSets);}
+function formatSetSummary(arr){arr=(arr||[]).filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!==''));});if(!arr.length) return '';return arr.map(function(ps){return(ps.weight?ps.weight+'kg':'—')+(ps.reps?' × '+ps.reps:'');}).join(' | ');}
+function getTopRep(ex){var range=String(ex.repRange||ex.reps||'').split('-');var top=parseInt(range[range.length-1],10);return isNaN(top)?parseInt(ex.reps,10)||0:top;}
+function getNumeric(v){var n=parseFloat(v);return isNaN(n)?null:n;}
+function getProgressionFeedback(ex,prevEffort,currentEffort){
+  var prevWorking=getWorkingSlice(ex,prevEffort||[]);var currentWorking=getWorkingSlice(ex,currentEffort||[]);
+  if(!currentWorking.length) return{tone:'dim',text:(ex.repRange?'Target '+ex.repRange:'Build this session')};
+  var topRep=getTopRep(ex);
+  var currentWeights=currentWorking.map(function(s){return getNumeric(s.weight);}).filter(function(v){return v!=null;});
+  var prevWeights=prevWorking.map(function(s){return getNumeric(s.weight);}).filter(function(v){return v!=null;});
+  var currentLoad=currentWeights.length?Math.max.apply(null,currentWeights):null;
+  var prevLoad=prevWeights.length?Math.max.apply(null,prevWeights):null;
+  var currentTotal=currentWorking.reduce(function(a,s){return a+(parseInt(s.reps,10)||0);},0);
+  var prevTotal=prevWorking.reduce(function(a,s){return a+(parseInt(s.reps,10)||0);},0);
+  var allAtTop=currentWorking.length&&currentWorking.every(function(s){return(parseInt(s.reps,10)||0)>=topRep;});
+  if(allAtTop) return{tone:'ok',text:'Increase load next time'};
+  if(prevLoad!=null&&currentLoad!=null&&currentLoad>prevLoad&&currentTotal>0) return{tone:'ok',text:'Load PB'};
+  if(prevWorking.length){
+    if(currentLoad===prevLoad&&currentTotal>prevTotal) return{tone:'ok',text:'Rep PB +'+(currentTotal-prevTotal)};
+    if(currentLoad===prevLoad&&currentTotal===prevTotal) return{tone:'dim',text:'Matched last effort'};
+    if(currentLoad!=null&&prevLoad!=null&&currentLoad<prevLoad) return{tone:'dim',text:'Build reps before load'};
+    if(currentTotal>prevTotal) return{tone:'ok',text:'Progressed this session'};
+  }
+  return{tone:'dim',text:'Progress reps to '+topRep};
+}
+function getFeedbackStyle(tone){if(tone==='ok') return 'color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-border);';if(tone==='warn') return 'color:var(--run);background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.18);';return 'color:var(--dim);background:var(--surface);border:1px solid var(--border),';}
+function collectExerciseSets(i,ei){var c=document.getElementById('sets_'+i+'_'+ei),arr=[];if(!c) return arr;c.querySelectorAll('.setrow').forEach(function(_,si){var w=(document.getElementById('w_'+i+'_'+ei+'_'+si)||{}).value||'';var r=(document.getElementById('r_'+i+'_'+ei+'_'+si)||{}).value||'';var doneEl=document.getElementById('st_'+i+'_'+ei+'_'+si);var done=doneEl?doneEl.classList.contains('on'):false;if(w||r||done) arr.push({weight:w,reps:r,done:done});});return arr;}
+function refreshStrengthFeedback(i,splitKey){
+  var exercises=STR[splitKey]||[];var s=sessions[i];
+  exercises.forEach(function(ex,ei){
+    var currentEffort=collectExerciseSets(i,ei);
+    if(!currentEffort.length&&logs[s.id]&&logs[s.id][ex.exercise]) currentEffort=logs[s.id][ex.exercise];
+    var prevEffort=getExercisePreviousEffort(s.id,ex.exercise);
+    var lastEl=document.getElementById('prev_'+i+'_'+ei);var nowEl=document.getElementById('curr_'+i+'_'+ei);var progEl=document.getElementById('prog_'+i+'_'+ei);
+    if(lastEl) lastEl.innerHTML=prevEffort?('LAST: '+esc(formatSetSummary(getWorkingSlice(ex,prevEffort)))):('TARGET: '+esc(ex.repRange||ex.reps));
+    if(nowEl){var currSummary=formatSetSummary(getWorkingSlice(ex,currentEffort));nowEl.style.display=currSummary?'inline-block':'none';nowEl.innerHTML=currSummary?('TODAY: '+esc(currSummary)):'';}
+    if(progEl){var feedback=getProgressionFeedback(ex,prevEffort,currentEffort);progEl.setAttribute('style','font-family:var(--mono);font-size:9px;border-radius:4px;padding:3px 8px;margin-top:4px;display:inline-block;'+getFeedbackStyle(feedback.tone));progEl.textContent=feedback.text;}
+  });
+}
+
+function buildBody(s,i,type){
+  var h='';
+  if(type==='run'){
     var resolved=resolveRunDisplay(s),rsTitle=resolved.title,rsDetail=resolved.detail,rs=resolved.meta;
     if(rsTitle||rsDetail||rs){
-      h+='<div class="rtarget">';
-      h+='<div class="rtn">'+esc(rsTitle||(rs&&rs.type)||s.name)+'</div>';
-      h+='<div class="run-detail-grid">';
-      h+='<div class="run-detail-stack">';
-      if(rsDetail||(rs&&rs.description)) h+='<div class="run-detail-card"><div class="run-detail-label">Session details</div><div class="run-detail-value">'+esc(rsDetail||(rs&&rs.description)||'').replace(/\n/g,'<br>')+'</div></div>';
-      if(rs&&rs.warmUp) h+='<div class="run-detail-card"><div class="run-detail-label">Warm up</div><div class="run-detail-value">'+esc(rs.warmUp).replace(/\n/g,'<br>')+'</div></div>';
-      if(rs&&rs.coolDown) h+='<div class="run-detail-card"><div class="run-detail-label">Cool down</div><div class="run-detail-value">'+esc(rs.coolDown).replace(/\n/g,'<br>')+'</div></div>';
-      h+='</div>';
-      h+='<div class="run-side-list">';
-      if(rs&&rs.target) h+='<div class="run-side-row"><div class="k">Prescription</div><div class="v">'+esc(rs.target)+'</div></div>';
-      if(rs&&rs.rpe) h+='<div class="run-side-row"><div class="k">Target RPE</div><div class="v">'+esc(rs.rpe)+'</div></div>';
-      if(rs&&rs.distance) h+='<div class="run-side-row"><div class="k">Distance</div><div class="v">'+esc(rs.distance)+'</div></div>';
-      if(rs&&rs.duration) h+='<div class="run-side-row"><div class="k">Duration</div><div class="v">'+esc(rs.duration)+'</div></div>';
-      if(rs&&rs.recoveryType) h+='<div class="run-side-row"><div class="k">Recovery</div><div class="v">'+esc(rs.recoveryType)+'</div></div>';
-      if(rs&&rs.sessionGoal) h+='<div class="run-side-row"><div class="k">Goal</div><div class="v">'+esc(rs.sessionGoal)+'</div></div>';
-      h+='</div>';
-      h+='</div>';
-      if(rs){var metaBits=[rs.intensity,rs.surface,rs.difficulty,rs.phase].filter(Boolean);if(rs.tags){rs.tags.split(',').map(function(t){return t.trim();}).filter(Boolean).forEach(function(t){metaBits.push(t);});}if(metaBits.length) h+='<div class="rtt">'+metaBits.map(function(bit){return '<span>'+esc(bit)+'</span>';}).join('')+'</div>';if(rs.alternative) h+='<div class="run-alt"><div class="k">Alternative</div><div class="v">'+esc(rs.alternative).replace(/\n/g,'<br>')+'</div></div>';}
+      h+='<div class="rtarget"><div class="rtn">'+esc(rsTitle||(rs&&rs.type)||s.name)+'</div>';
+      h+='<div class="rtd">'+esc(rsDetail||(rs&&rs.description)||'')+'</div>';
+      if(rs&&(rs.target||rs.targetPace||rs.rpe||rs.duration||rs.warmUp||rs.coolDown||rs.sessionGoal||rs.recoveryType||rs.distance)){
+        h+='<div class="rtd" style="margin-top:10px">';
+        if(rs.rpe) h+='<div><strong>RPE:</strong> '+esc(rs.rpe)+'</div>';
+        if(rs.distance) h+='<div><strong>Distance:</strong> '+esc(rs.distance)+'</div>';
+        if(rs.duration) h+='<div><strong>Duration:</strong> '+esc(rs.duration)+'</div>';
+        if(rs.recoveryType) h+='<div><strong>Recovery:</strong> '+esc(rs.recoveryType)+'</div>';
+        if(rs.warmUp) h+='<div><strong>Warm up:</strong> '+esc(rs.warmUp)+'</div>';
+        if(rs.coolDown) h+='<div><strong>Cool down:</strong> '+esc(rs.coolDown)+'</div>';
+        if(rs.sessionGoal) h+='<div><strong>Goal:</strong> '+esc(rs.sessionGoal)+'</div>';
+        if(rs.target) h+='<div><strong>Execution:</strong> '+esc(rs.target)+'</div>';
+        if(rs.alternative) h+='<div><strong>Alternative:</strong> '+esc(rs.alternative)+'</div>';
+        h+='</div>';
+      }
+      if(rs){var metaBits=[rs.intensity,rs.surface,rs.difficulty,rs.phase].filter(Boolean);if(rs.tags){rs.tags.split(',').map(function(t){return t.trim();}).filter(Boolean).forEach(function(t){metaBits.push(t);});}if(metaBits.length) h+='<div class="rtt">'+metaBits.map(function(bit){return '<span>'+esc(bit)+'</span>';}).join('')+'</div>';}
       h+='</div>';
     }
     var sl=logs[s.id]||{};
@@ -1882,7 +1932,6 @@ async function loadRunningLibrary() {
           goal: getPropText(pr['Session Goal']) || getPropText(pr['Goal']) || getPropText(pr['Target']) || getPropText(pr['Focus']),
           warmup: getPropText(pr['Warm Up']) || getPropText(pr['Warmup']) || getPropText(pr['Warm-up']),
           cooldown: getPropText(pr['Cool Down']) || getPropText(pr['Cooldown']) || getPropText(pr['Cool-down']),
-          alternative: getPropText(pr['Alternative']) || getPropText(pr['Alternative Option']) || getPropText(pr['Alternative Session']) || getPropText(pr['Regression']) || getPropText(pr['Fallback']),
           prereqs: getPropText(pr['Prerequisites']),
           slot: getPropText(pr['Weekly Slot']),
           targetPace: getPropText(pr['Target Pace']) || getPropText(pr['Pace Target']) || getPropText(pr['Pace']) || '',
@@ -1893,8 +1942,7 @@ async function loadRunningLibrary() {
           warmUp: mapped.warmup || '',
           coolDown: mapped.cooldown || '',
           sessionGoal: mapped.goal || '',
-          recoveryType: mapped.recovery || '',
-          alternative: mapped.alternative || ''
+          recoveryType: mapped.recovery || ''
         });
         if (mapped.name) runLibraryByName[mapped.name.toLowerCase()] = runLibraryById[page.id];
       });
@@ -1939,7 +1987,7 @@ async function showEnhancedWorkoutModal(sessionIndex) {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'enhancedWorkoutModal';
-    modal.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:10000;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+    modal.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:10000;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
     document.body.appendChild(modal);
     modal.addEventListener('click', function(e) {
       if (e.target === modal) closeEnhancedModal();
@@ -1950,135 +1998,58 @@ async function showEnhancedWorkoutModal(sessionIndex) {
   const workout = resolved && resolved.related ? resolved.related : null;
   const meta = resolved && resolved.meta ? resolved.meta : null;
 
-  const title =
-    (resolved && resolved.title) ||
-    (workout && workout.name) ||
-    s.runningSession ||
-    s.name ||
-    'Run';
+  const title = (resolved && resolved.title) || (workout && workout.name) || s.runningSession || s.name || 'Run';
+  const description = (workout && workout.description) || (resolved && resolved.detail) || s.runDetails || '';
+  const type = (workout && workout.type) || (meta && meta.type) || s.sessionType || '';
+  const goal = (workout && workout.goal) || (meta && meta.sessionGoal) || '';
+  const intensity = (workout && workout.intensity) || (meta && meta.intensity) || s.intensity || '';
+  const phase = (workout && workout.phase) || (meta && meta.phase) || s.week || '';
+  const surface = (workout && workout.surface) || (meta && meta.surface) || '';
+  const difficulty = (workout && workout.difficulty) || (meta && meta.difficulty) || '';
+  const distance = (workout && workout.distance) || (meta && meta.distance) || '';
+  const duration = (workout && workout.duration) || (meta && meta.duration) || '';
+  const rpe = (workout && workout.rpe) || (meta && meta.rpe) || '';
+  const warmup = (workout && workout.warmup) || (workout && workout.warmUp) || (meta && meta.warmUp) || '';
+  const cooldown = (workout && workout.cooldown) || (workout && workout.coolDown) || (meta && meta.coolDown) || '';
+  const recovery = (workout && workout.recovery) || (workout && workout.recoveryType) || (meta && meta.recoveryType) || '';
+  const alternative = (workout && workout.alternative) || (meta && meta.alternative) || '';
 
-  const description =
-    (workout && workout.description) ||
-    (resolved && resolved.detail) ||
-    s.runDetails ||
-    '';
+  const infoCards = [
+    rpe ? '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;"><div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:5px;">Target RPE</div><div style="font-family:var(--display);font-size:24px;line-height:1;color:var(--run);">'+esc(rpe)+'</div></div>' : '',
+    duration ? '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;"><div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:5px;">Duration</div><div style="font-family:var(--display);font-size:24px;line-height:1;color:var(--text);">'+esc(duration)+'</div></div>' : '',
+    distance ? '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;"><div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:5px;">Distance</div><div style="font-family:var(--display);font-size:24px;line-height:1;color:var(--text);">'+esc(distance)+'</div></div>' : '',
+    recovery ? '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;"><div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:5px;">Recovery</div><div style="font-family:var(--display);font-size:24px;line-height:1;color:var(--text);">'+esc(recovery)+'</div></div>' : ''
+  ].filter(Boolean).join('');
 
-  const type =
-    (workout && workout.type) ||
-    (meta && meta.type) ||
-    s.sessionType ||
-    '';
+  modal.innerHTML = '<div style="max-width:980px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px;margin:auto;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.22);">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border);">'
+    +   '<div style="flex:1;min-width:0;">'
+    +     '<div style="font-family:var(--display);font-size:34px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;line-height:1;color:var(--text);">'+esc(title)+'</div>'
+    +     (type ? '<div style="display:inline-block;margin-top:10px;padding:5px 12px;border-radius:999px;background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.15);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--run);">'+esc(type)+'</div>' : '')
+    +   '</div>'
+    +   '<button onclick="closeEnhancedModal()" style="background:transparent;border:none;color:var(--muted);font-size:30px;line-height:1;cursor:pointer;">&times;</button>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.9fr);gap:18px;">'
+    +   '<div>'
+    +     (description ? '<div style="margin-bottom:16px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:7px;">Session Details</div><div style="font-size:15px;line-height:1.7;color:var(--text);white-space:pre-wrap;">'+nl2brSafe(description)+'</div></div>' : '')
+    +     (goal ? '<div style="margin-bottom:16px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:7px;">Execution</div><div style="font-size:15px;line-height:1.7;color:var(--text);">'+nl2brSafe(goal)+'</div></div>' : '')
+    +     (warmup ? '<div style="margin-bottom:14px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:7px;">Warm Up</div><div style="font-size:15px;line-height:1.7;color:var(--text);">'+nl2brSafe(warmup)+'</div></div>' : '')
+    +     (cooldown ? '<div style="margin-bottom:14px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:7px;">Cool Down</div><div style="font-size:15px;line-height:1.7;color:var(--text);">'+nl2brSafe(cooldown)+'</div></div>' : '')
+    +     (alternative ? '<div style="margin-top:18px;padding:14px 16px;background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.16);border-radius:12px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--run);margin-bottom:6px;">Alternative</div><div style="font-size:15px;line-height:1.7;color:var(--text);">'+nl2brSafe(alternative)+'</div></div>' : '')
+    +     ((!description && !goal && !warmup && !cooldown && !alternative) ? '<div style="padding:22px;background:var(--surface2);border-radius:10px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;">No detailed run data found</div>' : '')
+    +   '</div>'
+    +   '<div>'
+    +     (infoCards ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'+infoCards+'</div>' : '')
+    +     ((intensity || phase || surface || difficulty) ? '<div style="margin-top:14px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:8px;">Session Profile</div>'
+    +       + (intensity ? '<div style="font-size:14px;color:var(--text);margin-bottom:5px;"><strong>Intensity:</strong> '+esc(intensity)+'</div>' : '')
+    +       + (phase ? '<div style="font-size:14px;color:var(--text);margin-bottom:5px;"><strong>Phase:</strong> '+esc(phase)+'</div>' : '')
+    +       + (surface ? '<div style="font-size:14px;color:var(--text);margin-bottom:5px;"><strong>Surface:</strong> '+esc(surface)+'</div>' : '')
+    +       + (difficulty ? '<div style="font-size:14px;color:var(--text);"><strong>Difficulty:</strong> '+esc(difficulty)+'</div>' : '')
+    +     '</div>' : '')
+    +   '</div>'
+    + '</div>'
+    + '</div>';
 
-  const goal =
-    (workout && workout.goal) ||
-    (meta && meta.sessionGoal) ||
-    '';
-
-  const intensity =
-    (workout && workout.intensity) ||
-    (meta && meta.intensity) ||
-    s.intensity ||
-    '';
-
-  const phase =
-    (workout && workout.phase) ||
-    (meta && meta.phase) ||
-    s.week ||
-    '';
-
-  const surface =
-    (workout && workout.surface) ||
-    (meta && meta.surface) ||
-    '';
-
-  const difficulty =
-    (workout && workout.difficulty) ||
-    (meta && meta.difficulty) ||
-    '';
-
-  const distance =
-    (workout && workout.distance) ||
-    (meta && meta.distance) ||
-    '';
-
-  const duration =
-    (workout && workout.duration) ||
-    (meta && meta.duration) ||
-    '';
-
-  const rpe =
-    (workout && workout.rpe) ||
-    (meta && meta.rpe) ||
-    '';
-
-  const warmup =
-    (workout && workout.warmup) ||
-    (workout && workout.warmUp) ||
-    (meta && meta.warmUp) ||
-    '';
-
-  const cooldown =
-    (workout && workout.cooldown) ||
-    (workout && workout.coolDown) ||
-    (meta && meta.coolDown) ||
-    '';
-
-  const recovery =
-    (workout && workout.recovery) ||
-    (workout && workout.recoveryType) ||
-    (meta && meta.recoveryType) ||
-    '';
-
-  const alternative =
-    (workout && workout.alternative) ||
-    (meta && meta.alternative) ||
-    '';
-
-  const modalHTML = `
-    <div style="max-width:880px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:30px;margin:auto;max-height:90vh;overflow-y:auto;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-        <div style="flex:1;">
-          <div style="font-family:var(--display);font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;color:var(--text);line-height:1.2;">
-            ${esc(title)}
-          </div>
-          ${type ? `<div style="display:inline-block;margin-top:8px;padding:4px 12px;background:rgba(180,83,9,0.1);border:1px solid rgba(180,83,9,0.2);border-radius:6px;font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--run);">${esc(type)}</div>` : ''}
-        </div>
-        <button onclick="closeEnhancedModal()" style="background:transparent;border:none;color:var(--muted);font-size:28px;cursor:pointer;line-height:1;padding:0;margin-left:16px;">&times;</button>
-      </div>
-
-      <div style="color:var(--text);">
-        <div style="display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:18px;align-items:start;">
-          <div>
-            ${detailRow('Description', description)}
-            ${warmup ? detailRow('Warm up', warmup) : ''}
-            ${cooldown ? detailRow('Cool down', cooldown) : ''}
-            ${alternative ? `<div style="margin-top:14px;padding:13px 14px;background:rgba(10,10,10,.03);border:1px solid rgba(10,10,10,.08);border-radius:10px;"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;">Alternative</div><div style="font-size:14px;line-height:1.6;color:var(--text);">${nl2brSafe(alternative)}</div></div>` : ''}
-          </div>
-          <div>
-            <div style="display:grid;gap:10px;">
-              ${goal ? `<div style="padding:11px 12px;border-radius:10px;background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.12);"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;">Goal</div><div style="font-size:14px;line-height:1.5;color:var(--text);">${esc(goal)}</div></div>` : ''}
-              ${intensity ? `<div style="padding:11px 12px;border-radius:10px;background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.12);"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;">Intensity zone</div><div style="font-size:14px;line-height:1.5;color:var(--text);">${esc(intensity)}</div></div>` : ''}
-              ${rpe ? `<div style="padding:11px 12px;border-radius:10px;background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.12);"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;">Target RPE</div><div style="font-size:14px;line-height:1.5;color:var(--text);">${esc(rpe)}</div></div>` : ''}
-              ${distance ? `<div style="padding:11px 12px;border-radius:10px;background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.12);"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;">Distance</div><div style="font-size:14px;line-height:1.5;color:var(--text);">${esc(distance)}</div></div>` : ''}
-              ${duration ? `<div style="padding:11px 12px;border-radius:10px;background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.12);"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;">Duration</div><div style="font-size:14px;line-height:1.5;color:var(--text);">${esc(duration)}</div></div>` : ''}
-              ${recovery ? `<div style="padding:11px 12px;border-radius:10px;background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.12);"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;">Recovery</div><div style="font-size:14px;line-height:1.5;color:var(--text);">${esc(recovery)}</div></div>` : ''}
-              ${phase ? `<div style="padding:11px 12px;border-radius:10px;background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.12);"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;">Phase</div><div style="font-size:14px;line-height:1.5;color:var(--text);">${esc(phase)}</div></div>` : ''}
-              ${(surface || difficulty) ? `<div style="padding:11px 12px;border-radius:10px;background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.12);"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;">Context</div><div style="font-size:14px;line-height:1.5;color:var(--text);">${[surface,difficulty].filter(Boolean).map(esc).join(' · ')}</div></div>` : ''}
-            </div>
-          </div>
-        </div>
-
-        ${!description && !goal && !alternative && !(intensity || phase || surface || difficulty || distance || duration || rpe || recovery || warmup || cooldown) ? `
-          <div style="padding:24px;background:var(--surface2);border-radius:8px;text-align:center;">
-            <div style="font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:0.06em;">No detailed run data found</div>
-            <div style="font-size:13px;color:var(--muted);margin-top:6px;">Basic session: ${esc(s.name || 'Run')}</div>
-          </div>
-        ` : ''}
-      </div>
-    </div>
-  `;
-
-  modal.innerHTML = modalHTML;
   modal.style.display = 'flex';
 }
 
