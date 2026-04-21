@@ -1870,85 +1870,49 @@ function renderTodaySection(){
   var todaySessions=sortSessionsForDisplay(allSessions.filter(function(s){return s.date===todayISO;}));
   var label=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
   var html='<div class="todaypanel"><div class="todayeyebrow">Today</div><div class="todayhead"><div class="todaytitle">Your session'+(todaySessions.length>1?'s':'')+'</div><div class="todaydate">'+esc(label)+'</div></div>';
-  if(!todaySessions.length){html+='<div class="todayempty">No session scheduled today. Recover well and check ahead.</div>';}
-  else{
+  if(!todaySessions.length){
+    html+='<div class="todayempty">No session scheduled today. Recover well and check ahead.</div>';
+  }else{
     html+='<div class="todaylist">';
     todaySessions.forEach(function(s){
       var type=getType(s),meta=[],resolved=type==='run'?resolveRunDisplay(s):null;
-      if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);if(s.status) meta.push(s.status);
+      if(s.intensity) meta.push(s.intensity);
+      if(s.week) meta.push(s.week);
+      if(s.status) meta.push(s.status);
       var displayName=s.name||'Session';
       html+='<div class="todayitem"><div class="todaytop"><div class="todaydot '+type+'"></div><div class="todaymain">';
       html+='<div class="todayname '+type+'">'+esc(displayName)+'</div>';
       if(meta.length) html+='<div class="todaymeta">'+esc(meta.join(' · '))+'</div>';
       if(type==='run'){
-    var resolved=resolveRunDisplay(s),related=resolved.related||null,meta=resolved.meta||{};
-    var sessionTitle=resolved.title||s.name||'Run';
-    var sessionDetail=resolved.detail||meta.description||'';
-    var warmUp=meta.warmUp||'Warm up with 10min easy jog + dynamic stretches (leg swings, high knees, butt kicks) + 3×100m strides @ 70% effort.';
-    var coolDown=meta.coolDown||'10min easy jog + full lower body stretching routine.';
-    var workoutText=sessionDetail||sessionTitle;
-    var extras=[];
-    if(meta.target) extras.push(meta.target);
-    if(meta.recoveryType) extras.push('Recovery: '+meta.recoveryType);
-    if(meta.sessionGoal) extras.push('Goal: '+meta.sessionGoal);
-    var chips=[];
-    if(meta.intensity) chips.push(meta.intensity);
-    if(meta.surface) chips.push(meta.surface);
-    if(meta.difficulty) chips.push(meta.difficulty);
-    var sl=logs[s.id]||{};
-    var hasSaved=!!(sl.distance||sl.duration||sl.pace||sl.rpe||sl.feel||sl.notes);
-    var rpeInfo=inferRpeMeta(meta,sessionTitle);
-    var altInfo=parseAlternative(meta,sessionTitle);
-
-    h+='<div class="run-details">';
-    h+='<div class="rpe-box"><div class="rpe-label">Effort Rating</div><div class="rpe-value">'+esc(rpeInfo.value)+'</div>';
-    h+='<div class="rpe-desc">'+esc(rpeInfo.desc)+'</div></div>';
-    h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content">'+esc(warmUp)+'</div></div>';
-    h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(workoutText)+'</div>';
-    if(extras.length||chips.length){
-      h+='<div class="chips">';
-      extras.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
-      chips.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
-      h+='</div>';
-    }
-    h+='</div>';
-    h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content">'+esc(coolDown)+'</div></div>';
-    h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">'+esc(altInfo.title)+'</div><div class="alt-desc">'+esc(altInfo.description)+'</div></div>';
-    h+='<div class="run-log">';
-    h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
-    h+='<div class="saved-label">✓ Session Logged</div>';
-    h+='<div class="saved-grid">';
-    h+='<div class="saved-item"><div class="saved-item-label">Distance</div><div class="saved-item-value" id="saved_run_'+i+'_distance">'+esc(sl.distance?sl.distance+'km':'-')+'</div></div>';
-    h+='<div class="saved-item"><div class="saved-item-label">Duration</div><div class="saved-item-value" id="saved_run_'+i+'_duration">'+esc(sl.duration?sl.duration+'min':'-')+'</div></div>';
-    h+='<div class="saved-item"><div class="saved-item-label">Avg Pace</div><div class="saved-item-value" id="saved_run_'+i+'_pace">'+esc(sl.pace||'-')+'</div></div>';
-    h+='<div class="saved-item"><div class="saved-item-label">RPE</div><div class="saved-item-value" id="saved_run_'+i+'_rpe">'+esc(sl.rpe?sl.rpe+'/10':'-')+'</div></div>';
-    h+='</div>';
-    h+='<div class="saved-feeling" id="saved_run_'+i+'_feel" style="display:'+(sl.feel?'block':'none')+';">'+esc(sl.feel||'')+'</div>';
-    h+='<div class="saved-notes" id="saved_run_'+i+'_notes" style="display:'+(sl.notes?'block':'none')+';">'+esc(sl.notes||'')+'</div>';
-    h+='<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>';
-    h+='</div>';
-    h+='<div id="run_form_'+i+'" style="display:'+(hasSaved?'none':'block')+';">';
-    h+='<div class="run-log-title">Log your session</div><div class="run-inputs">';
-    h+='<div class="run-field"><label>Distance (km)</label><input type="number" step="0.1" id="rd_'+i+'" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="run-field"><label>Duration (min)</label><input type="number" step="1" id="rdur_'+i+'" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="run-field"><label>Avg Pace (min/km)</label><input type="text" id="rp_'+i+'" placeholder="6:00" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="rr_'+i+'" placeholder="..." value="'+esc(sl.rpe||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='</div>';
-    h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>How did it feel?</label><select id="rf_'+i+'" class="li" onchange="draftRun('+i+')"><option value="">Select feeling...</option>';
-    ['💀 Awful','😮‍💨 Struggling','😐 Average','💪 Feeling Strong','🔥 Crushing It'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
-    h+='</select></div>';
-    h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="rn_'+i+'" class="li" placeholder="Any additional thoughts..." oninput="draftRun('+i+')">'+esc(sl.notes||'')+'</textarea></div>';
-    h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save Session</button>';
-    h+='</div>';
-    h+='</div>';
-    h+='</div>';
-  }else if(type==='strength'){html+='<div class="todaytarget"><div class="label">Strength session</div><div class="value">'+esc(displayName)+'</div><div class="desc">Open the schedule below to log your sets and previous efforts.</div></div>';}
-      else{html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';}
+        var runMeta=(resolved&&resolved.meta)||{};
+        var sessionTitle=(resolved&&resolved.title)||s.name||'Run';
+        var sessionDetail=(resolved&&resolved.detail)||runMeta.description||'';
+        var targetValue=runMeta.target||runMeta.sessionGoal||runMeta.type||runMeta.intensity||sessionTitle;
+        html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(targetValue)+'</div>';
+        if(sessionDetail){ html+='<div class="desc">'+esc(sessionDetail)+'</div>'; }
+        var chips=[];
+        if(runMeta.rpe) chips.push('RPE '+runMeta.rpe);
+        if(runMeta.surface) chips.push(runMeta.surface);
+        if(runMeta.duration) chips.push(runMeta.duration);
+        if(runMeta.distance) chips.push(runMeta.distance);
+        if(chips.length){
+          html+='<div class="todaychips">';
+          chips.forEach(function(c){ html+='<div class="todaychip">'+esc(c)+'</div>'; });
+          html+='</div>';
+        }
+        html+='</div>';
+      }else if(type==='strength'){
+        html+='<div class="todaytarget"><div class="label">Strength session</div><div class="value">'+esc(displayName)+'</div><div class="desc">Open the schedule below to log your sets and previous efforts.</div></div>';
+      }else{
+        html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
+      }
       html+='</div></div></div>';
     });
     html+='</div>';
   }
-  html+='</div>';el.innerHTML=html;el.style.display='block';
+  html+='</div>';
+  el.innerHTML=html;
+  el.style.display='block';
 }
 
 function getExercisePreviousEffort(sessionId,exerciseName){
