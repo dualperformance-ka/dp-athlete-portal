@@ -954,25 +954,15 @@ var sbClient=null,_skipSbSync=false;
   };
 })();
 
-function showDebug(msg){
-  var el=document.getElementById('debugBar');
-  if(!el){el=document.createElement('div');el.id='debugBar';el.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a1a2e;color:#a0f0a0;font-family:monospace;font-size:11px;padding:8px 12px;white-space:pre-wrap;word-break:break-all;border-bottom:1px solid #333;max-height:40vh;overflow-y:auto';document.body.appendChild(el);}
-  el.textContent+=msg+'\n';
-}
-
 async function loadCloudData(code){
-  if(!sbClient){showDebug('❌ sbClient is null — Supabase not initialised');return;}
-  showDebug('🔄 Querying Supabase for: '+code);
+  if(!sbClient) return;
   _skipSbSync=true;
   try{
     var res=await sbClient.from('athlete_data').select('key,value').eq('athlete_code',code);
-    if(res.error){showDebug('❌ Supabase error: '+JSON.stringify(res.error));_skipSbSync=false;return;}
-    if(!res.data||!res.data.length){showDebug('⚠️ No rows in Supabase for this athlete');_skipSbSync=false;return;}
-    showDebug('✅ Supabase returned '+res.data.length+' rows: '+res.data.map(function(r){return r.key;}).join(', '));
+    if(res.error||!res.data||!res.data.length){_skipSbSync=false;return;}
     // Build a set of keys that exist in Supabase
     var cloudKeys={};
     res.data.forEach(function(row){cloudKeys[row.key]=row.value;});
-    showDebug('Goals in Supabase: '+(cloudKeys['goals']?'YES (savedAt='+cloudKeys['goals'].savedAt+')':'NO'));
     // Write cloud data to localStorage (cloud is authoritative)
     res.data.forEach(function(row){
       var lsKey=null;
