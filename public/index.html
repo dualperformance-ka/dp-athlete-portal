@@ -23,8 +23,18 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .logo-text .d{color:#fff}.logo-text .p{color:rgba(255,255,255,.32)}
 .hpill{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.12);padding:3px 10px;border-radius:20px;letter-spacing:.04em}
 .header-actions{display:flex;align-items:center;gap:6px}
-.hicon{background:transparent;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;transition:border-color .15s,color .15s;white-space:nowrap}
+.hicon{background:transparent;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;transition:border-color .15s,color .15s;white-space:nowrap;display:flex;align-items:center;gap:5px}
 .hicon:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.8)}
+.hicon-goals{border-color:rgba(245,158,11,.5);color:#f59e0b}
+.hicon-goals:hover{border-color:#f59e0b;color:#fbbf24}
+.hicon-dot{width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0;animation:pdot 2s ease-in-out infinite}
+@keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.65)}}
+.goals-prompt{background:#0a0a0a;border:1px solid rgba(245,158,11,.22);border-radius:12px;padding:18px 16px;margin-bottom:16px;display:none}
+.goals-prompt-label{font-family:var(--mono);font-size:9px;color:#f59e0b;text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px}
+.goals-prompt-title{font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;margin-bottom:6px}
+.goals-prompt-sub{font-size:13px;color:rgba(255,255,255,.5);line-height:1.5;margin-bottom:14px}
+.goals-prompt-btn{background:#f59e0b;color:#0a0a0a;font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;transition:background .15s}
+.goals-prompt-btn:active{background:#d97706}
 .hero{background:#0a0a0a;padding:14px 16px 14px;text-align:left}
 .hi{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px}
 .hn{font-family:var(--display);font-size:38px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:#fff;line-height:1;margin-bottom:10px;text-align:left}
@@ -328,7 +338,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="logo-text"><span class="d">DUAL</span> <span class="p">PERFORMANCE</span></div>
     </div>
     <div class="header-actions">
-      <button class="hicon" onclick="switchTab('goals')">Goals</button>
+      <button class="hicon hicon-goals" id="goalsBtn" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
       <button class="hicon" onclick="switchTab('handbook')">Guide</button>
       <div class="hpill" id="apill"></div>
     </div>
@@ -368,6 +378,12 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 
   <!-- TRAINING -->
   <div class="tab-content active" id="tab-training">
+    <div class="goals-prompt" id="goalsBanner">
+      <div class="goals-prompt-label">Start here</div>
+      <div class="goals-prompt-title">Set your goals first</div>
+      <div class="goals-prompt-sub">Karl & Alex build everything around your targets. Takes 2 minutes — do this before anything else.</div>
+      <button class="goals-prompt-btn" onclick="switchTab('goals')">Set my goals →</button>
+    </div>
     <div class="loading" id="loadingEl">
       <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
       <div class="ltxt">Loading your plan...</div>
@@ -1051,6 +1067,10 @@ function populateStatic(){
   document.getElementById('gM4').value=saved.m4||athlete.m4||'';
   document.getElementById('gM8').value=saved.m8||athlete.m8||'';
   document.getElementById('gM12').value=saved.m12||athlete.m12||'';
+  var goalsComplete=!!(saved.savedAt);
+  var gBanner=document.getElementById('goalsBanner'),gDot=document.getElementById('goalsDot');
+  if(gBanner) gBanner.style.display=goalsComplete?'none':'block';
+  if(gDot) gDot.style.display=goalsComplete?'none':'inline-block';
   if(saved.savedAt){
     var d=new Date(saved.savedAt);
     document.getElementById('goalsSavedTime').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -1092,6 +1112,9 @@ async function saveGoals(){
   var d=new Date(goals.savedAt);
   document.getElementById('goalsSavedTime').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('goalsSavedBadge').classList.add('show');
+  var gBanner=document.getElementById('goalsBanner'),gDot=document.getElementById('goalsDot');
+  if(gBanner) gBanner.style.display='none';
+  if(gDot) gDot.style.display='none';
   setTimeout(function(){btn.textContent='Save Goals';btn.classList.remove('saved');btn.disabled=false;},2500);
 }
 
