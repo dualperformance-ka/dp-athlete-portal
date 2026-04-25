@@ -599,10 +599,15 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
         <div class="accordion-arrow" id="accWeeklyArrow">+</div>
       </div>
       <div class="accordion-body" id="accWeeklyContent" style="display:none">
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-          <div><div style="font-size:13px;font-weight:500;">Book your weekly coaching call</div><div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px;">45 min · Karl & Alex</div></div>
-          <a href="https://calendly.com/dualperformanceka/45min" target="_blank" style="background:#0a0a0a;color:#fff;text-decoration:none;border-radius:6px;padding:8px 14px;font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;">Book →</a>
+        <!-- STEP 1: BOOK -->
+        <div style="background:#0a0a0a;border-radius:10px;padding:18px;margin-bottom:16px">
+          <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">Step 1 — Do this first</div>
+          <div style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.1;margin-bottom:4px">Book your coaching call</div>
+          <div style="font-size:13px;color:rgba(255,255,255,.45);margin-bottom:14px;line-height:1.5">45 min with Karl &amp; Alex · Book first, then fill in the check-in below so we can review it together on the call.</div>
+          <a href="https://calendly.com/dualperformanceka/45min" target="_blank" style="display:block;width:100%;padding:13px;background:#f59e0b;color:#0a0a0a;text-decoration:none;border-radius:8px;font-family:var(--display);font-size:17px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;text-align:center;box-sizing:border-box;">Book your call →</a>
         </div>
+        <!-- STEP 2: CHECK-IN FORM -->
+        <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.14em;margin-bottom:12px">Step 2 — Complete your check-in</div>
         <div id="ciFormContent">
           <!-- Always-visible details -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
