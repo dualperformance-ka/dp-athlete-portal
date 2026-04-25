@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Dual Performance</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{
   --bg:#f4f3f0;--surface:#ffffff;--surface2:#eceae5;--surface3:#e4e2dc;
@@ -900,8 +901,73 @@ const DAILY_NUT_WEBHOOK  = 'https://hook.eu1.make.com/ub1fq7r25teunvb6zu54azmpgx
 const GOALS_WEBHOOK      = 'https://hook.eu1.make.com/jaarg8xo3kepd8mnyytr6akrrgn15hw1';
 const CLOUDINARY_CLOUD   = 'dtkpg96ci';
 const CLOUDINARY_PRESET  = 'dp_progress';
+const SUPABASE_URL       = 'https://rugdupplsswxmpoudhpv.supabase.co';
+const SUPABASE_ANON_KEY  = 'sb_publishable_KJU_GYqUOwthiLo5WQjfog_MLaVKw5R';
 const GYM_KEYS = ['Upper A','Upper B','Lower A','Lower B'];
 const DAYS     = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+// ── SUPABASE ──────────────────────────────────────────────────────────────────
+var sbClient=null,_skipSbSync=false;
+(function(){
+  if(!SUPABASE_URL||SUPABASE_URL==='YOUR_SUPABASE_URL') return;
+  try{sbClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);}catch(e){console.warn('Supabase init failed',e);}
+})();
+
+// Intercept all localStorage writes — auto-sync dp_ keys to Supabase
+(function(){
+  var _orig=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(key,value){
+    _orig(key,value);
+    if(_skipSbSync||!sbClient||!key.startsWith('dp_')) return;
+    var code=(athlete&&athlete.code)||'';if(!code) return;
+    var sbKey=null;
+    if(key==='dp_goals_'+code) sbKey='goals';
+    else if(key==='dp_logs_'+code) sbKey='logs';
+    else if(key==='dp_ticked_'+code) sbKey='ticked';
+    else if(key==='dp_photos_'+code) sbKey='photos';
+    else if(key.startsWith('dp_daily_body_'+code+'_')) sbKey='daily_body_'+key.slice(('dp_daily_body_'+code+'_').length);
+    else if(key.startsWith('dp_daily_nut_'+code+'_')) sbKey='daily_nut_'+key.slice(('dp_daily_nut_'+code+'_').length);
+    if(!sbKey) return;
+    try{
+      var parsed=JSON.parse(value);
+      sbClient.from('athlete_data').upsert(
+        {athlete_code:code,key:sbKey,value:parsed,updated_at:new Date().toISOString()},
+        {onConflict:'athlete_code,key'}
+      ).then(function(){}).catch(function(){});
+    }catch(e){}
+  };
+})();
+
+async function loadCloudData(code){
+  if(!sbClient) return;
+  _skipSbSync=true;
+  try{
+    var res=await sbClient.from('athlete_data').select('key,value').eq('athlete_code',code);
+    if(!res.data||res.error){return;}
+    res.data.forEach(function(row){
+      var lsKey=null;
+      if(row.key==='goals') lsKey='dp_goals_'+code;
+      else if(row.key==='logs') lsKey='dp_logs_'+code;
+      else if(row.key==='ticked') lsKey='dp_ticked_'+code;
+      else if(row.key==='photos') lsKey='dp_photos_'+code;
+      else if(row.key.startsWith('daily_body_')) lsKey='dp_daily_body_'+code+'_'+row.key.slice('daily_body_'.length);
+      else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);
+      if(!lsKey||!row.value) return;
+      var existing=localStorage.getItem(lsKey);
+      if(!existing||existing==='{}'||existing==='null'){
+        localStorage.setItem(lsKey,JSON.stringify(row.value));
+      } else {
+        try{
+          var local=JSON.parse(existing),cloud=row.value;
+          if(cloud.savedAt&&local.savedAt&&cloud.savedAt>local.savedAt){
+            localStorage.setItem(lsKey,JSON.stringify(cloud));
+          }
+        }catch(e){}
+      }
+    });
+  }catch(e){console.warn('Cloud sync failed:',e);}
+  finally{_skipSbSync=false;}
+}
 
 // ── STRENGTH LIBRARY ──────────────────────────────────────────────────────────
 const STR = {
@@ -1081,6 +1147,7 @@ async function doLogin(code){
     startDate:props['Start Date']&&props['Start Date'].date&&props['Start Date'].date.start||'—',
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
+  await loadCloudData(code);
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
   document.getElementById('loginScreen').style.display='none';
