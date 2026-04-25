@@ -904,9 +904,13 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
           <div class="lf"><label>Date</label><input type="date" class="li" id="qlnDate" /></div>
           <div class="lf"><label>Calories (kcal)</label><input type="number" class="li" id="qlnCal" placeholder="2300" /></div>
         </div>
-        <div class="rlog" style="margin-bottom:16px">
+        <div class="rlog" style="margin-bottom:14px">
           <div class="lf"><label>Protein (g)</label><input type="number" class="li" id="qlnPro" placeholder="165" /></div>
           <div class="lf"><label>Carbs (g)</label><input type="number" class="li" id="qlnCarbs" placeholder="295" /></div>
+        </div>
+        <div class="rlog" style="margin-bottom:16px">
+          <div class="lf"><label>Fat (g)</label><input type="number" class="li" id="qlnFat" placeholder="55" /></div>
+          <div class="lf"><label>Fibre (g)</label><input type="number" class="li" id="qlnFibre" placeholder="35" /></div>
         </div>
         <button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Log Nutrition</button>
       </div>
@@ -1448,7 +1452,7 @@ async function submitQuickNut(){
   var payload={type:'daily_nutrition',athleteName:athlete.name,athleteId:athlete.notionPageId,
     date:document.getElementById('qlnDate').value,calories:document.getElementById('qlnCal').value||'',
     protein:document.getElementById('qlnPro').value||'',carbs:document.getElementById('qlnCarbs').value||'',
-    fat:'',fibre:'',notes:''};
+    fat:document.getElementById('qlnFat').value||'',fibre:document.getElementById('qlnFibre').value||'',notes:''};
   try{await fetch(DAILY_NUT_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
   localStorage.setItem('dp_daily_nut_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
   closeQuickLog('nut');
@@ -1457,6 +1461,7 @@ async function submitQuickNut(){
   // Reset for next use
   document.getElementById('qlnDate').value='';document.getElementById('qlnCal').value='';
   document.getElementById('qlnPro').value='';document.getElementById('qlnCarbs').value='';
+  document.getElementById('qlnFat').value='';document.getElementById('qlnFibre').value='';
 }
 
 // ── HANDBOOK ──────────────────────────────────────────────────────────────────
