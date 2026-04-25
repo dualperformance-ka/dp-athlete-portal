@@ -1870,8 +1870,8 @@ async function loadWeek(){
       runDetails:getPropText(pr['Run Details'])||getPropText(pr['run details'])||getPropText(pr['Description'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
       intensity:getPropText(pr['Intensity']),week:getPropText(pr['Week'])};
   });
-  renderTodaySection();
   sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
+  renderTodaySection();
   var wkS=sessions.find(function(s){return s.week;});if(wkS) document.getElementById('heroWeek').textContent=wkS.week;
   var runs=sessions.filter(function(s){return getType(s)==='run';});
   var lifts=sessions.filter(function(s){return getType(s)==='strength';});
