@@ -37,10 +37,10 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .tabs::-webkit-scrollbar{display:none}
 .tab{font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.35);padding:12px 16px;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;flex-shrink:0;transition:color .15s}
 .tab.active{color:#fff;border-bottom-color:#fff}
-.km-stat{display:inline-flex;align-items:baseline;gap:5px;margin-top:12px}
-.km-stat-num{font-family:var(--display);font-size:28px;font-weight:800;color:#f59e0b;letter-spacing:.02em;line-height:1}
-.km-stat-unit{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.38);text-transform:uppercase;letter-spacing:.1em}
-.km-stat-label{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
+.km-pill{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:20px;padding:5px 12px;display:flex;align-items:baseline;gap:5px}
+.km-pill-label{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.38);text-transform:uppercase;letter-spacing:.1em}
+.km-pill-val{font-family:var(--display);font-size:17px;font-weight:800;color:#f59e0b;letter-spacing:.02em;line-height:1}
+.km-pill-unit{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.38);text-transform:uppercase;letter-spacing:.08em}
 .tab-content{display:none;max-width:700px;margin:0 auto;padding:16px 14px 80px}
 .tab-content.active{display:block}
 .stitle{font-family:var(--display);font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:14px;margin-top:4px}
@@ -332,13 +332,11 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="hp">Week &nbsp;<span id="heroWeek">—</span></div>
       <div class="hp">🏃 <span id="heroRuns">—</span> runs</div>
       <div class="hp">🏋️ <span id="heroLifts">—</span> lifts</div>
-    </div>
-    <!-- KM TARGET -->
-    <div id="kmBar" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.07)">
-      <div class="km-stat-label">Weekly Target</div>
-      <div class="km-stat">
-        <span class="km-stat-num" id="kmTargetVal">—</span>
-        <span class="km-stat-unit">km</span>
+      <!-- KM TARGET -->
+      <div id="kmBar" style="display:none" class="km-pill">
+        <span class="km-pill-label">target</span>
+        <span class="km-pill-val" id="kmTargetVal">—</span>
+        <span class="km-pill-unit">km</span>
       </div>
     </div>
   </div>
@@ -1337,7 +1335,7 @@ function renderKmTracker(kmData){
     return;
   }
   document.getElementById('kmTargetVal').textContent=Number(kmData.target).toFixed(1).replace(/\.0$/,'');
-  bar.style.display='block';
+  bar.style.display='flex';
 }
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 
