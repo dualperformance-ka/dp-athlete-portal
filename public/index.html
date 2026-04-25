@@ -57,7 +57,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .km-pill-label{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.38);text-transform:uppercase;letter-spacing:.1em}
 .km-pill-val{font-family:var(--display);font-size:17px;font-weight:800;color:#f59e0b;letter-spacing:.02em;line-height:1}
 .km-pill-unit{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.38);text-transform:uppercase;letter-spacing:.08em}
-.tab-content{display:none;max-width:700px;margin:0 auto;padding:16px 14px 80px}
+.tab-content{display:none;max-width:700px;margin:0 auto;padding:16px 14px 120px}
 .tab-content.active{display:block}
 .stitle{font-family:var(--display);font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:14px;margin-top:4px}
 .loading{text-align:center;padding:52px 20px}
@@ -263,7 +263,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .cinput:focus{border-color:var(--border-strong);background:#fff}
 .lbtn{width:100%;padding:14px;background:#0a0a0a;color:#fff;border:none;border-radius:8px;font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
 .lerr{font-family:var(--mono);font-size:12px;color:#b91c1c;margin-top:10px;text-align:center;display:none}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;font-family:var(--mono);font-size:12px;padding:10px 20px;border-radius:20px;display:none;z-index:200;white-space:nowrap;letter-spacing:.04em}
+.toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;font-family:var(--mono);font-size:12px;padding:10px 20px;border-radius:20px;display:none;z-index:200;white-space:nowrap;letter-spacing:.04em}
 
 /* Running-specific expanded details */
 .run-details{padding:18px;background:var(--surface2);border-top:1px solid var(--border);margin-top:0;display:flex;flex-direction:column;gap:16px}
@@ -324,6 +324,20 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 }
 
 @media(max-width:400px){.hn{font-size:36px}.sname{font-size:17px}.rlog{grid-template-columns:1fr}.milestone-grid{grid-template-columns:1fr 1fr}}
+
+/* Quick-log bottom strip */
+.quicklog-strip{position:fixed;bottom:0;left:0;right:0;z-index:140;background:#0a0a0a;border-top:1px solid rgba(255,255,255,.1);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:none;gap:10px}
+.quicklog-btn{flex:1;padding:11px;border:none;border-radius:8px;font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:opacity .12s}
+.quicklog-btn:active{opacity:.75}
+.quicklog-btn.ql-body{background:rgba(255,255,255,.08);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.12)}
+.quicklog-btn.ql-nut{background:#f59e0b;color:#0a0a0a}
+.ql-modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);align-items:flex-end}
+.ql-modal.open{display:flex}
+.ql-modal-inner{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+.ql-modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 18px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:1}
+.ql-modal-title{font-family:var(--display);font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.ql-modal-close{font-size:22px;color:var(--dim);background:var(--surface2);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ql-modal-body{padding:18px}
 </style>
 </head>
 <body>
@@ -367,6 +381,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="hp">Week &nbsp;<span id="heroWeek">—</span></div>
       <div class="hp">🏃 <span id="heroRuns">—</span> runs</div>
       <div class="hp">🏋️ <span id="heroLifts">—</span> lifts</div>
+      <div class="hp" id="heroSessionsDone" style="display:none">✓ <span id="heroSessionsDoneVal">—</span></div>
       <!-- KM TARGET -->
       <div id="kmBar" style="display:none" class="km-pill">
         <span class="km-pill-label">target</span>
@@ -844,8 +859,62 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
     </div>
   </div>
 
+  <!-- QUICK LOG STRIP -->
+  <div class="quicklog-strip" id="quicklogStrip">
+    <button class="quicklog-btn ql-body" onclick="openQuickLog('body')">📊 Log Body</button>
+    <button class="quicklog-btn ql-nut" onclick="openQuickLog('nut')">🍽 Log Nutrition</button>
+  </div>
+
+  <!-- QUICK LOG BODY MODAL -->
+  <div class="ql-modal" id="qlBodyModal" onclick="if(event.target===this)closeQuickLog('body')">
+    <div class="ql-modal-inner">
+      <div class="ql-modal-header">
+        <div class="ql-modal-title">Log Body</div>
+        <button class="ql-modal-close" onclick="closeQuickLog('body')">×</button>
+      </div>
+      <div class="ql-modal-body">
+        <div class="rlog" style="margin-bottom:14px">
+          <div class="lf"><label>Date</label><input type="date" class="li" id="qlbDate" /></div>
+          <div class="lf"><label>Weight (kg)</label><input type="number" class="li" id="qlbWeight" step="0.1" placeholder="72.0" /></div>
+        </div>
+        <div class="lf" style="margin-bottom:14px">
+          <label>Sleep Quality <span id="qlbSleepVal" style="font-family:var(--mono)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Terrible</span><span>Amazing</span></div>
+        </div>
+        <div class="lf" style="margin-bottom:16px">
+          <label>Energy <span id="qlbEnergyVal" style="font-family:var(--mono)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Drained</span><span>Energised</span></div>
+        </div>
+        <button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Log Body</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK LOG NUTRITION MODAL -->
+  <div class="ql-modal" id="qlNutModal" onclick="if(event.target===this)closeQuickLog('nut')">
+    <div class="ql-modal-inner">
+      <div class="ql-modal-header">
+        <div class="ql-modal-title">Log Nutrition</div>
+        <button class="ql-modal-close" onclick="closeQuickLog('nut')">×</button>
+      </div>
+      <div class="ql-modal-body">
+        <div class="rlog" style="margin-bottom:14px">
+          <div class="lf"><label>Date</label><input type="date" class="li" id="qlnDate" /></div>
+          <div class="lf"><label>Calories (kcal)</label><input type="number" class="li" id="qlnCal" placeholder="2300" /></div>
+        </div>
+        <div class="rlog" style="margin-bottom:16px">
+          <div class="lf"><label>Protein (g)</label><input type="number" class="li" id="qlnPro" placeholder="165" /></div>
+          <div class="lf"><label>Carbs (g)</label><input type="number" class="li" id="qlnCarbs" placeholder="295" /></div>
+        </div>
+        <button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Log Nutrition</button>
+      </div>
+    </div>
+  </div>
+
   <!-- FLOATING WHATSAPP -->
-  <a class="wa-fab" href="https://wa.me/PHONENUMBER" target="_blank" title="Message Karl & Alex on WhatsApp">
+  <a class="wa-fab" href="https://wa.me/PHONENUMBER" target="_blank" title="Message Karl & Alex on WhatsApp" style="bottom:76px">
     <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.528 5.856L0 24l6.336-1.508A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.007-1.371l-.36-.214-3.724.887.924-3.618-.235-.372A9.818 9.818 0 1112 21.818z"/></svg>
   </a>
 
@@ -1152,6 +1221,7 @@ async function doLogin(code){
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('portalScreen').style.display='block';
+  document.getElementById('quicklogStrip').style.display='flex';
   document.getElementById('apill').textContent=athlete.name;
   document.getElementById('heroName').textContent=athlete.name;
   populateStatic();
@@ -1269,6 +1339,9 @@ function initCheckin(){
   var weEl=document.getElementById('ciWeekEnding');
   if(weEl&&!weEl.value){var d=new Date(),day=d.getDay(),diff=day===0?0:7-day,sun=new Date(d);sun.setDate(d.getDate()+diff);weEl.value=sun.toISOString().split('T')[0];}
   initDailyDates();
+  // Auto-open weekly check-in accordion when switching to this tab
+  var accContent=document.getElementById('accWeeklyContent');
+  if(accContent&&accContent.style.display==='none') toggleAcc('accWeekly');
 }
 
 async function submitCheckin(){
@@ -1322,6 +1395,69 @@ async function submitDailyNut(){
   document.getElementById('dailyNutForm').style.display='none';document.getElementById('dnSuccess').style.display='block';
 }
 function resetDailyNut(){document.getElementById('dailyNutForm').style.display='block';document.getElementById('dnSuccess').style.display='none';var btn=document.getElementById('dnSubmitBtn');btn.textContent="Log Today's Nutrition";btn.disabled=false;}
+
+// ── SESSION COUNTER ───────────────────────────────────────────────────────────
+function updateSessionCounter(){
+  var total=sessions.length;
+  var done=sessions.filter(function(s){return ticked[s.id];}).length;
+  var el=document.getElementById('heroSessionsDone');
+  var val=document.getElementById('heroSessionsDoneVal');
+  if(!el||!val) return;
+  if(total>0){val.textContent=done+' / '+total+' done';el.style.display='';}
+  else{el.style.display='none';}
+}
+
+// ── QUICK LOG ─────────────────────────────────────────────────────────────────
+function openQuickLog(type){
+  var today=todayISO2();
+  if(type==='body'){
+    var dateEl=document.getElementById('qlbDate');
+    if(dateEl&&!dateEl.value) dateEl.value=today;
+    document.getElementById('qlBodyModal').classList.add('open');
+    document.body.style.overflow='hidden';
+  } else {
+    var dateEl=document.getElementById('qlnDate');
+    if(dateEl&&!dateEl.value) dateEl.value=today;
+    document.getElementById('qlNutModal').classList.add('open');
+    document.body.style.overflow='hidden';
+  }
+}
+function closeQuickLog(type){
+  var id=type==='body'?'qlBodyModal':'qlNutModal';
+  var el=document.getElementById(id);if(el) el.classList.remove('open');
+  document.body.style.overflow='';
+}
+async function submitQuickBody(){
+  var btn=document.getElementById('qlbSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
+  var payload={type:'daily_body',athleteName:athlete.name,athleteId:athlete.notionPageId,
+    date:document.getElementById('qlbDate').value,weight:document.getElementById('qlbWeight').value||'',
+    sleep:document.getElementById('qlbSleep').value,energy:document.getElementById('qlbEnergy').value,
+    stress:'5',soreness:'5',notes:''};
+  try{await fetch(DAILY_BODY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
+  localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
+  closeQuickLog('body');
+  showToast('Body logged ✓');
+  btn.textContent='Log Body';btn.disabled=false;
+  // Reset for next use
+  document.getElementById('qlbDate').value='';document.getElementById('qlbWeight').value='';
+  document.getElementById('qlbSleep').value='5';document.getElementById('qlbSleepVal').textContent='5';
+  document.getElementById('qlbEnergy').value='5';document.getElementById('qlbEnergyVal').textContent='5';
+}
+async function submitQuickNut(){
+  var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
+  var payload={type:'daily_nutrition',athleteName:athlete.name,athleteId:athlete.notionPageId,
+    date:document.getElementById('qlnDate').value,calories:document.getElementById('qlnCal').value||'',
+    protein:document.getElementById('qlnPro').value||'',carbs:document.getElementById('qlnCarbs').value||'',
+    fat:'',fibre:'',notes:''};
+  try{await fetch(DAILY_NUT_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
+  localStorage.setItem('dp_daily_nut_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
+  closeQuickLog('nut');
+  showToast('Nutrition logged ✓');
+  btn.textContent='Log Nutrition';btn.disabled=false;
+  // Reset for next use
+  document.getElementById('qlnDate').value='';document.getElementById('qlnCal').value='';
+  document.getElementById('qlnPro').value='';document.getElementById('qlnCarbs').value='';
+}
 
 // ── HANDBOOK ──────────────────────────────────────────────────────────────────
 var HB_CONTENT=[
@@ -1794,6 +1930,7 @@ async function loadWeek(){
   var lifts=sessions.filter(function(s){return getType(s)==='strength';});
   document.getElementById('heroRuns').textContent=runs.length;document.getElementById('heroLifts').textContent=lifts.length;
   document.getElementById('ciRuns').textContent=runs.length;document.getElementById('ciLifts').textContent=lifts.length;
+  updateSessionCounter();
   updateProgress();
   loadNutrition(); // also populates KM tracker
   if(!sessions.length){showNoplan();return;}
@@ -2202,6 +2339,7 @@ async function tickS(i){
   var card=document.getElementById('sc_'+i),btn=document.getElementById('tick_'+i);
   if(card) card.classList.toggle('done',done);
   if(btn){btn.classList.toggle('on',done);btn.querySelector('svg').style.opacity=done?1:0;}
+  updateSessionCounter();
   updateProgress();
   api('pages/'+s.id,{properties:{Status:{select:{name:done?'Completed':'Planned'}}}});
 }
