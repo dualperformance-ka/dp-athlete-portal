@@ -403,7 +403,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <div class="tabs">
     <div class="tab active" data-tab="training" onclick="switchTab('training')">Training</div>
     <div class="tab" data-tab="nutrition" onclick="switchTab('nutrition')">Nutrition</div>
-    <div class="tab" data-tab="checkin" onclick="switchTab('checkin')">Check-in</div>
+    <div class="tab" data-tab="checkin" onclick="switchTab('checkin')">Weekly Check-in</div>
     <div class="tab" data-tab="progress" onclick="switchTab('progress')">Progress</div>
   </div>
 
@@ -585,7 +585,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 
   <!-- CHECK-IN -->
   <div class="tab-content" id="tab-checkin">
-    <div class="stitle">Check-ins</div>
+    <div class="stitle">Weekly Check-in</div>
     <div class="ci-grid" style="margin-bottom:14px">
       <div class="ci-card run"><div class="ci-val" id="ciRuns">—</div><div class="ci-lbl">Runs this week</div></div>
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
@@ -735,63 +735,6 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
         </div>
       </div>
     </div>
-    <div style="margin-top:24px">
-      <div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Daily Logs</div>
-      <div class="accordion-card" id="accBody">
-        <div class="accordion-header" onclick="toggleAcc('accBody')">
-          <div class="accordion-left"><div class="accordion-title">Daily Body Check-in</div><div class="accordion-sub">Weight · sleep · energy · soreness</div></div>
-          <div class="accordion-arrow" id="accBodyArrow">+</div>
-        </div>
-        <div class="accordion-body" id="accBodyContent" style="display:none">
-          <div id="dailyBodyForm">
-            <div class="rlog" style="margin-bottom:10px">
-              <div class="lf"><label>Date</label><input type="date" class="li" id="dbDate" /></div>
-              <div class="lf"><label>Weight (kg)</label><input type="number" class="li" id="dbWeight" step="0.1" placeholder="72.0" /></div>
-            </div>
-            <div class="lf" style="margin-bottom:10px"><label>Sleep Quality <span id="dbSleepVal" style="font-family:var(--mono)">5</span>/10</label><input type="range" min="1" max="10" value="5" id="dbSleep" oninput="document.getElementById('dbSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" /><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Terrible</span><span>Amazing</span></div></div>
-            <div class="lf" style="margin-bottom:10px"><label>Energy <span id="dbEnergyVal" style="font-family:var(--mono)">5</span>/10</label><input type="range" min="1" max="10" value="5" id="dbEnergy" oninput="document.getElementById('dbEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" /><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Drained</span><span>Energised</span></div></div>
-            <div class="lf" style="margin-bottom:10px"><label>Stress <span id="dbStressVal" style="font-family:var(--mono)">5</span>/10</label><input type="range" min="1" max="10" value="5" id="dbStress" oninput="document.getElementById('dbStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" /><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Calm</span><span>Maxed out</span></div></div>
-            <div class="lf" style="margin-bottom:10px"><label>Muscle Soreness <span id="dbSoreVal" style="font-family:var(--mono)">5</span>/10</label><input type="range" min="1" max="10" value="5" id="dbSore" oninput="document.getElementById('dbSoreVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" /><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Destroyed</span><span>Fresh</span></div></div>
-            <div class="lf" style="margin-bottom:12px"><label>Notes (optional)</label><input type="text" class="li" id="dbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
-            <button class="savebtn" id="dbSubmitBtn" onclick="submitDailyBody()">Log Today's Body</button>
-          </div>
-          <div id="dbSuccess" style="display:none;background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:10px;padding:16px;text-align:center">
-            <div style="font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;color:var(--ok);margin-bottom:4px">Body logged ✓</div>
-            <div style="font-size:13px;color:var(--muted);margin-bottom:10px">See you tomorrow.</div>
-            <button onclick="resetDailyBody()" style="font-family:var(--mono);font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;text-decoration:underline">Log again</button>
-          </div>
-        </div>
-      </div>
-      <div class="accordion-card" id="accNut" style="margin-top:8px">
-        <div class="accordion-header" onclick="toggleAcc('accNut')">
-          <div class="accordion-left"><div class="accordion-title">Daily Nutrition Log</div><div class="accordion-sub">Calories · protein · carbs · fat · fibre</div></div>
-          <div class="accordion-arrow" id="accNutArrow">+</div>
-        </div>
-        <div class="accordion-body" id="accNutContent" style="display:none">
-          <div id="dailyNutForm">
-            <div class="rlog" style="margin-bottom:10px">
-              <div class="lf"><label>Date</label><input type="date" class="li" id="dnDate" /></div>
-              <div class="lf"><label>Calories (kcal)</label><input type="number" class="li" id="dnCal" placeholder="2300" /></div>
-            </div>
-            <div class="rlog" style="margin-bottom:10px">
-              <div class="lf"><label>Protein (g)</label><input type="number" class="li" id="dnPro" placeholder="165" /></div>
-              <div class="lf"><label>Carbs (g)</label><input type="number" class="li" id="dnCarbs" placeholder="295" /></div>
-            </div>
-            <div class="rlog" style="margin-bottom:10px">
-              <div class="lf"><label>Fat (g)</label><input type="number" class="li" id="dnFat" placeholder="55" /></div>
-              <div class="lf"><label>Fibre (g)</label><input type="number" class="li" id="dnFibre" placeholder="35" /></div>
-            </div>
-            <div class="lf" style="margin-bottom:12px"><label>Notes (optional)</label><input type="text" class="li" id="dnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
-            <button class="savebtn" id="dnSubmitBtn" onclick="submitDailyNut()">Log Today's Nutrition</button>
-          </div>
-          <div id="dnSuccess" style="display:none;background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:10px;padding:16px;text-align:center">
-            <div style="font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;color:var(--ok);margin-bottom:4px">Nutrition logged ✓</div>
-            <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Keep it consistent.</div>
-            <button onclick="resetDailyNut()" style="font-family:var(--mono);font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;text-decoration:underline">Log again</button>
-          </div>
-        </div>
-      </div>
-    </div>
     <div style="height:20px"></div>
   </div>
 
@@ -897,6 +840,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
           <input type="range" min="1" max="10" value="5" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Destroyed</span><span>Fresh</span></div>
         </div>
+        <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
         <button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Log Body</button>
       </div>
     </div>
@@ -918,10 +862,11 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
           <div class="lf"><label>Protein (g)</label><input type="number" class="li" id="qlnPro" placeholder="165" /></div>
           <div class="lf"><label>Carbs (g)</label><input type="number" class="li" id="qlnCarbs" placeholder="295" /></div>
         </div>
-        <div class="rlog" style="margin-bottom:16px">
+        <div class="rlog" style="margin-bottom:14px">
           <div class="lf"><label>Fat (g)</label><input type="number" class="li" id="qlnFat" placeholder="55" /></div>
           <div class="lf"><label>Fibre (g)</label><input type="number" class="li" id="qlnFibre" placeholder="35" /></div>
         </div>
+        <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
         <button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Log Nutrition</button>
       </div>
     </div>
@@ -1446,7 +1391,7 @@ async function submitQuickBody(){
   var payload={type:'daily_body',athleteName:athlete.name,athleteId:athlete.notionPageId,
     date:document.getElementById('qlbDate').value,weight:document.getElementById('qlbWeight').value||'',
     sleep:document.getElementById('qlbSleep').value,energy:document.getElementById('qlbEnergy').value,
-    stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,notes:''};
+    stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,notes:document.getElementById('qlbNotes').value||''};
   try{await fetch(DAILY_BODY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
   closeQuickLog('body');
@@ -1458,13 +1403,14 @@ async function submitQuickBody(){
   document.getElementById('qlbEnergy').value='5';document.getElementById('qlbEnergyVal').textContent='5';
   document.getElementById('qlbStress').value='5';document.getElementById('qlbStressVal').textContent='5';
   document.getElementById('qlbSore').value='5';document.getElementById('qlbSoreVal').textContent='5';
+  document.getElementById('qlbNotes').value='';
 }
 async function submitQuickNut(){
   var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
   var payload={type:'daily_nutrition',athleteName:athlete.name,athleteId:athlete.notionPageId,
     date:document.getElementById('qlnDate').value,calories:document.getElementById('qlnCal').value||'',
     protein:document.getElementById('qlnPro').value||'',carbs:document.getElementById('qlnCarbs').value||'',
-    fat:document.getElementById('qlnFat').value||'',fibre:document.getElementById('qlnFibre').value||'',notes:''};
+    fat:document.getElementById('qlnFat').value||'',fibre:document.getElementById('qlnFibre').value||'',notes:document.getElementById('qlnNotes').value||''};
   try{await fetch(DAILY_NUT_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
   localStorage.setItem('dp_daily_nut_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
   closeQuickLog('nut');
@@ -1474,6 +1420,7 @@ async function submitQuickNut(){
   document.getElementById('qlnDate').value='';document.getElementById('qlnCal').value='';
   document.getElementById('qlnPro').value='';document.getElementById('qlnCarbs').value='';
   document.getElementById('qlnFat').value='';document.getElementById('qlnFibre').value='';
+  document.getElementById('qlnNotes').value='';
 }
 
 // ── HANDBOOK ──────────────────────────────────────────────────────────────────
