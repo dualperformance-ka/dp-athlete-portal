@@ -969,17 +969,8 @@ async function loadCloudData(code){
       else if(row.key.startsWith('daily_body_')) lsKey='dp_daily_body_'+code+'_'+row.key.slice('daily_body_'.length);
       else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);
       if(!lsKey||!row.value) return;
-      var existing=localStorage.getItem(lsKey);
-      if(!existing||existing==='{}'||existing==='null'){
-        localStorage.setItem(lsKey,JSON.stringify(row.value));
-      } else {
-        try{
-          var local=JSON.parse(existing),cloud=row.value;
-          if(cloud.savedAt&&local.savedAt&&cloud.savedAt>local.savedAt){
-            localStorage.setItem(lsKey,JSON.stringify(cloud));
-          }
-        }catch(e){}
-      }
+      // Cloud is always authoritative — every save syncs instantly to Supabase
+      localStorage.setItem(lsKey,JSON.stringify(row.value));
     });
   }catch(e){console.warn('Cloud sync failed:',e);}
   finally{_skipSbSync=false;}
