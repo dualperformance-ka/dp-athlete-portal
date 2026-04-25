@@ -959,7 +959,11 @@ async function loadCloudData(code){
   _skipSbSync=true;
   try{
     var res=await sbClient.from('athlete_data').select('key,value').eq('athlete_code',code);
-    if(!res.data||res.error){return;}
+    if(!res.data||res.error){_skipSbSync=false;return;}
+    // Build a set of keys that exist in Supabase
+    var cloudKeys={};
+    res.data.forEach(function(row){cloudKeys[row.key]=row.value;});
+    // Write cloud data to localStorage (cloud is authoritative)
     res.data.forEach(function(row){
       var lsKey=null;
       if(row.key==='goals') lsKey='dp_goals_'+code;
@@ -969,9 +973,22 @@ async function loadCloudData(code){
       else if(row.key.startsWith('daily_body_')) lsKey='dp_daily_body_'+code+'_'+row.key.slice('daily_body_'.length);
       else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);
       if(!lsKey||!row.value) return;
-      // Cloud is always authoritative — every save syncs instantly to Supabase
       localStorage.setItem(lsKey,JSON.stringify(row.value));
     });
+    // Backfill: if goals exist locally but not in Supabase, push them up now
+    if(!cloudKeys['goals']){
+      var localGoals=localStorage.getItem('dp_goals_'+code);
+      if(localGoals&&localGoals!=='{}'){
+        try{
+          var parsed=JSON.parse(localGoals);
+          if(parsed.savedAt){
+            _skipSbSync=false;
+            await sbClient.from('athlete_data').upsert({athlete_code:code,key:'goals',value:parsed,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});
+            _skipSbSync=true;
+          }
+        }catch(e){}
+      }
+    }
   }catch(e){console.warn('Cloud sync failed:',e);}
   finally{_skipSbSync=false;}
 }
@@ -1222,6 +1239,8 @@ async function saveGoals(){
     why:document.getElementById('gWhy').value.trim(),m4:document.getElementById('gM4').value.trim(),
     m8:document.getElementById('gM8').value.trim(),m12:document.getElementById('gM12').value.trim(),savedAt:new Date().toISOString()};
   localStorage.setItem('dp_goals_'+athlete.code,JSON.stringify(goals));
+  // Explicit Supabase upsert — don't rely solely on the monkey-patch
+  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'goals',value:goals,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){console.warn('Goals Supabase sync failed:',e);}}
   athlete.startWeight=goals.startWeight||athlete.startWeight;
   try{await fetch(GOALS_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'goals',athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,submittedAt:goals.savedAt},goals))});}catch(e){}
   btn.textContent='Saved ✓';btn.classList.add('saved');
