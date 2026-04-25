@@ -861,15 +861,15 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 
   <!-- QUICK LOG STRIP -->
   <div class="quicklog-strip" id="quicklogStrip">
-    <button class="quicklog-btn ql-body" onclick="openQuickLog('body')">📊 Log Body</button>
-    <button class="quicklog-btn ql-nut" onclick="openQuickLog('nut')">🍽 Log Nutrition</button>
+    <button class="quicklog-btn ql-body" onclick="openQuickLog('body')">📊 Daily Body Log</button>
+    <button class="quicklog-btn ql-nut" onclick="openQuickLog('nut')">🍽 Daily Nutrition Log</button>
   </div>
 
   <!-- QUICK LOG BODY MODAL -->
   <div class="ql-modal" id="qlBodyModal" onclick="if(event.target===this)closeQuickLog('body')">
     <div class="ql-modal-inner">
       <div class="ql-modal-header">
-        <div class="ql-modal-title">Log Body</div>
+        <div class="ql-modal-title">Daily Body Log</div>
         <button class="ql-modal-close" onclick="closeQuickLog('body')">×</button>
       </div>
       <div class="ql-modal-body">
@@ -882,10 +882,20 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
           <input type="range" min="1" max="10" value="5" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Terrible</span><span>Amazing</span></div>
         </div>
-        <div class="lf" style="margin-bottom:16px">
+        <div class="lf" style="margin-bottom:14px">
           <label>Energy <span id="qlbEnergyVal" style="font-family:var(--mono)">5</span>/10</label>
           <input type="range" min="1" max="10" value="5" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Drained</span><span>Energised</span></div>
+        </div>
+        <div class="lf" style="margin-bottom:14px">
+          <label>Stress <span id="qlbStressVal" style="font-family:var(--mono)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="qlbStress" oninput="document.getElementById('qlbStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Calm</span><span>Maxed out</span></div>
+        </div>
+        <div class="lf" style="margin-bottom:16px">
+          <label>Muscle Soreness <span id="qlbSoreVal" style="font-family:var(--mono)">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Destroyed</span><span>Fresh</span></div>
         </div>
         <button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Log Body</button>
       </div>
@@ -896,7 +906,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <div class="ql-modal" id="qlNutModal" onclick="if(event.target===this)closeQuickLog('nut')">
     <div class="ql-modal-inner">
       <div class="ql-modal-header">
-        <div class="ql-modal-title">Log Nutrition</div>
+        <div class="ql-modal-title">Daily Nutrition Log</div>
         <button class="ql-modal-close" onclick="closeQuickLog('nut')">×</button>
       </div>
       <div class="ql-modal-body">
@@ -1436,7 +1446,7 @@ async function submitQuickBody(){
   var payload={type:'daily_body',athleteName:athlete.name,athleteId:athlete.notionPageId,
     date:document.getElementById('qlbDate').value,weight:document.getElementById('qlbWeight').value||'',
     sleep:document.getElementById('qlbSleep').value,energy:document.getElementById('qlbEnergy').value,
-    stress:'5',soreness:'5',notes:''};
+    stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,notes:''};
   try{await fetch(DAILY_BODY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
   closeQuickLog('body');
@@ -1446,6 +1456,8 @@ async function submitQuickBody(){
   document.getElementById('qlbDate').value='';document.getElementById('qlbWeight').value='';
   document.getElementById('qlbSleep').value='5';document.getElementById('qlbSleepVal').textContent='5';
   document.getElementById('qlbEnergy').value='5';document.getElementById('qlbEnergyVal').textContent='5';
+  document.getElementById('qlbStress').value='5';document.getElementById('qlbStressVal').textContent='5';
+  document.getElementById('qlbSore').value='5';document.getElementById('qlbSoreVal').textContent='5';
 }
 async function submitQuickNut(){
   var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
