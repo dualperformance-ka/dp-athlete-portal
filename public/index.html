@@ -1738,11 +1738,11 @@ async function handleAngleUpload(input){
   var file=input.files[0],week=currentPhotoWeek,angle=currentAngle,key=angle.toLowerCase().replace(/\s/g,'_');
   var slot=document.getElementById('aslot_'+key);if(slot) slot.classList.add('uploading');
   var safeName=(athlete.name||athlete.code).toLowerCase().replace(/\s+/g,'_');
+  var fullPublicId='dp_progress/'+safeName+'/week'+week+'/'+safeName+'_week'+week+'_'+key;
   var formData=new FormData();
   formData.append('file',file);
   formData.append('upload_preset',CLOUDINARY_PRESET);
-  formData.append('folder','dp_progress/'+safeName+'/week'+week);
-  formData.append('public_id',safeName+'_week'+week+'_'+key);
+  formData.append('public_id',fullPublicId);
   formData.append('context','athlete='+athlete.name+'|week=Week '+week+'|angle='+angle);
   formData.append('tags','dp_progress,'+safeName+',week'+week);
   try{
