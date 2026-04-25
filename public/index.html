@@ -39,8 +39,9 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .hero{background:#0a0a0a;padding:14px 16px 14px;text-align:left}
 .hi{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px}
 .hn{font-family:var(--display);font-size:38px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:#fff;line-height:1;margin-bottom:10px;text-align:left}
-.hpills{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start}
-.hp{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.1);padding:5px 12px;border-radius:20px}
+.hpills{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.hpills::-webkit-scrollbar{display:none}
+.hp{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.1);padding:5px 12px;border-radius:20px;flex-shrink:0;white-space:nowrap}
 .hp span{color:rgba(255,255,255,.8)}
 .wa-fab{position:fixed;bottom:20px;right:16px;z-index:150;width:52px;height:52px;border-radius:50%;background:#5865F2;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(88,101,242,.4);cursor:pointer;text-decoration:none;transition:transform .15s,box-shadow .15s}
 .wa-fab:active{transform:scale(.93);box-shadow:0 2px 8px rgba(88,101,242,.25)}
