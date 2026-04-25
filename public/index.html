@@ -37,10 +37,10 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .tabs::-webkit-scrollbar{display:none}
 .tab{font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.35);padding:12px 16px;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;flex-shrink:0;transition:color .15s}
 .tab.active{color:#fff;border-bottom-color:#fff}
-.prow{background:#0a0a0a;border-bottom:1px solid rgba(255,255,255,.08);padding:10px 16px;display:flex;align-items:center;gap:10px}
-.pbar{flex:1;height:4px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
-.pfill{height:100%;background:var(--run);transition:width .5s ease}
-.plbl{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap;font-weight:500}
+.km-stat{display:inline-flex;align-items:baseline;gap:5px;margin-top:12px}
+.km-stat-num{font-family:var(--display);font-size:28px;font-weight:800;color:#f59e0b;letter-spacing:.02em;line-height:1}
+.km-stat-unit{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.38);text-transform:uppercase;letter-spacing:.1em}
+.km-stat-label{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
 .tab-content{display:none;max-width:700px;margin:0 auto;padding:16px 14px 80px}
 .tab-content.active{display:block}
 .stitle{font-family:var(--display);font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:14px;margin-top:4px}
@@ -333,23 +333,12 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="hp">🏃 <span id="heroRuns">—</span> runs</div>
       <div class="hp">🏋️ <span id="heroLifts">—</span> lifts</div>
     </div>
-    <!-- KM TRACKER -->
-    <div id="kmBar" style="display:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 16px;align-items:center;gap:16px;margin-top:14px">
-      <svg width="56" height="56" viewBox="0 0 56 56" style="flex-shrink:0">
-        <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"/>
-        <circle id="kmRingFill" cx="28" cy="28" r="22" fill="none" stroke="#f59e0b" stroke-width="5"
-          stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="138.2"
-          transform="rotate(-90 28 28)"/>
-        <text x="28" y="33" text-anchor="middle" fill="#f59e0b"
-          style="font-family:var(--mono);font-size:12px;font-weight:500" id="kmRingPct">0%</text>
-      </svg>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Weekly KM target</div>
-        <div style="font-family:var(--display);font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#f59e0b;line-height:1;margin-bottom:6px" id="kmNums">—</div>
-        <div style="width:100%;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden">
-          <div style="height:100%;background:#f59e0b;border-radius:2px;transition:width .6s ease;width:0%" id="kmFill"></div>
-        </div>
-        <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.06em;margin-top:5px" id="kmSub"></div>
+    <!-- KM TARGET -->
+    <div id="kmBar" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.07)">
+      <div class="km-stat-label">Weekly Target</div>
+      <div class="km-stat">
+        <span class="km-stat-num" id="kmTargetVal">—</span>
+        <span class="km-stat-unit">km</span>
       </div>
     </div>
   </div>
@@ -371,11 +360,6 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
     <div class="tab" data-tab="progress" onclick="switchTab('progress')">Progress</div>
     <div class="tab" data-tab="handbook" onclick="switchTab('handbook')">Handbook</div>
     <div class="tab" data-tab="comms" onclick="switchTab('comms')">Contact</div>
-  </div>
-
-  <div class="prow" id="prow" style="display:none">
-    <div class="pbar"><div class="pfill" id="pfill" style="width:0%"></div></div>
-    <div class="plbl" id="plbl">0 / 0 done</div>
   </div>
 
   <!-- TRAINING -->
@@ -1108,7 +1092,6 @@ function switchTab(tab){
   document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+tab);});
   var isTraining=tab==='training';
   document.getElementById('wbar').style.display=isTraining?'':'none';
-  document.getElementById('prow').style.display=isTraining?'':'none';
   if(tab==='nutrition') loadNutrition();
   if(tab==='checkin') initCheckin();
   if(tab==='progress') loadProgress();
@@ -1353,23 +1336,8 @@ function renderKmTracker(kmData){
     bar.style.display='none';
     return;
   }
-  var kmTarget=Number(kmData.target);
-  var kmCompleted=Number(kmData.completed||0);
-  var pct=Math.min(100,Math.round((kmCompleted/kmTarget)*100));
-  var circ=138.2;
-  var offset=circ-(pct/100*circ);
-  var color=pct>=100?'#22c55e':'#f59e0b';
-  var remain=Math.max(0,kmTarget-kmCompleted);
-  document.getElementById('kmRingFill').setAttribute('stroke-dashoffset', offset.toFixed(1));
-  document.getElementById('kmRingFill').setAttribute('stroke', color);
-  document.getElementById('kmRingPct').textContent = pct + '%';
-  document.getElementById('kmRingPct').setAttribute('fill', color);
-  document.getElementById('kmNums').innerHTML = kmCompleted.toFixed(1).replace(/\.0$/,'') + ' <span style="font-size:14px;color:rgba(255,255,255,.35);font-weight:400;letter-spacing:.04em">/ ' + kmTarget.toFixed(1).replace(/\.0$/,'') + ' km</span>';
-  document.getElementById('kmNums').style.color = color;
-  document.getElementById('kmFill').style.width = pct + '%';
-  document.getElementById('kmFill').style.background = color;
-  document.getElementById('kmSub').textContent = remain > 0 ? remain.toFixed(1).replace(/\.0$/,'') + ' km to go this week' : 'Target smashed ✓';
-  bar.style.display = 'flex';
+  document.getElementById('kmTargetVal').textContent=Number(kmData.target).toFixed(1).replace(/\.0$/,'');
+  bar.style.display='block';
 }
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 
@@ -1635,7 +1603,7 @@ async function loadWeek(){
   var wsISO=localISO(ws),weISO=localISO(we);
   var label=ws.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' – '+we.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
   document.getElementById('wlabel').textContent=label;
-  document.getElementById('wbar').style.display='';document.getElementById('prow').style.display='';
+  document.getElementById('wbar').style.display='';
   document.getElementById('loadingEl').style.display='block';
   document.getElementById('calEl').style.display='none';document.getElementById('noplanEl').style.display='none';
   await fetchRunLibrary();
@@ -2092,7 +2060,7 @@ async function saveGym(i,splitKey){
   showToast('Session saved ✓');flashSave(i,'Save session');
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;},2500);}}
-function updateProgress(){var total=sessions.length,done=sessions.filter(function(s){return ticked[s.id]||s.status==='Completed';}).length,pct=total?Math.round(done/total*100):0;document.getElementById('pfill').style.width=pct+'%';document.getElementById('plbl').textContent=done+' / '+total+' done';}
+function updateProgress(){}
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},2500);}
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
