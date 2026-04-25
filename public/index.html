@@ -377,7 +377,6 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="hp">Week &nbsp;<span id="heroWeek">—</span></div>
       <div class="hp">🏃 <span id="heroRuns">—</span> runs</div>
       <div class="hp">🏋️ <span id="heroLifts">—</span> lifts</div>
-      <div class="hp" id="heroSessionsDone" style="display:none">✓ <span id="heroSessionsDoneVal">—</span></div>
       <!-- KM TARGET -->
       <div id="kmBar" style="display:none;background:#f59e0b;border-color:#f59e0b;color:#0a0a0a" class="hp">🎯 <span id="kmTargetVal">—</span> km target</div>
     </div>
@@ -582,15 +581,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="ci-card run"><div class="ci-val" id="ciRuns">—</div><div class="ci-lbl">Runs this week</div></div>
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
     </div>
-    <div class="accordion-card" id="accWeekly" style="margin-bottom:8px">
-      <div class="accordion-header" onclick="toggleAcc('accWeekly')">
-        <div class="accordion-left">
-          <div class="accordion-title">Weekly Check-in</div>
-          <div class="accordion-sub">Running · lifting · recovery · nutrition · mindset</div>
-        </div>
-        <div class="accordion-arrow" id="accWeeklyArrow">+</div>
-      </div>
-      <div class="accordion-body" id="accWeeklyContent" style="display:none">
+    <div id="accWeeklyContent">
         <!-- STEP 1: BOOK -->
         <div style="background:#0a0a0a;border-radius:10px;padding:18px;margin-bottom:16px">
           <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">Step 1 — Do this first</div>
@@ -731,7 +722,6 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
           <button class="savebtn" style="max-width:240px" onclick="resetCheckin()">Submit another</button>
         </div>
       </div>
-    </div>
     <div style="height:20px"></div>
   </div>
 
@@ -1285,8 +1275,7 @@ function ciGoStep(n){
   if(back){back.style.display=n>1?'':'none';}
   if(next){next.style.display=isLast?'none':'';}
   if(navRow){navRow.classList.toggle('solo',n===1||isLast);}
-  var accEl=document.getElementById('accWeeklyContent');
-  if(accEl) accEl.scrollIntoView({behavior:'smooth',block:'start'});
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 function ciStep(dir){ciGoStep(CI_STEP+dir);}
 
@@ -1295,9 +1284,6 @@ function initCheckin(){
   var weEl=document.getElementById('ciWeekEnding');
   if(weEl&&!weEl.value){var d=new Date(),day=d.getDay(),diff=day===0?0:7-day,sun=new Date(d);sun.setDate(d.getDate()+diff);weEl.value=sun.toISOString().split('T')[0];}
   initDailyDates();
-  // Auto-open weekly check-in accordion when switching to this tab
-  var accContent=document.getElementById('accWeeklyContent');
-  if(accContent&&accContent.style.display==='none') toggleAcc('accWeekly');
 }
 
 async function submitCheckin(){
