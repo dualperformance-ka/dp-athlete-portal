@@ -2357,8 +2357,8 @@ function buildBody(s,i,type){
     var resolved=resolveRunDisplay(s),related=resolved.related||null,meta=resolved.meta||{};
     var sessionTitle=resolved.title||s.name||'Run';
     var sessionDetail=resolved.detail||meta.description||'';
-    var warmUp=meta.warmUp||'Warm up with 10min easy jog + dynamic stretches (leg swings, high knees, butt kicks) + 3×100m strides @ 70% effort.';
-    var coolDown=meta.coolDown||'10min easy jog + full lower body stretching routine.';
+    var warmUp=meta.warmUp||'2km easy jog or 10 min easy jog (RPE 4).';
+    var coolDown=meta.coolDown||'10min easy jog (RPE 3–4).';
     var workoutText=sessionDetail||sessionTitle;
     var extras=[];
     if(meta.target) extras.push(meta.target);
@@ -2373,39 +2373,68 @@ function buildBody(s,i,type){
     var rpeInfo=inferRpeMeta(meta,sessionTitle);
     var altInfo=parseAlternative(meta,sessionTitle);
 
+    // ── Training zone badge ───────────────────────────────────────────────────
+    var zoneMap={
+      recovery:{label:'Recovery',color:'#059669',bg:'#d1fae5'},
+      easy:{label:'Easy Run',color:'#16a34a',bg:'#dcfce7'},
+      long:{label:'Long Run',color:'#0891b2',bg:'#cffafe'},
+      steady:{label:'Steady State',color:'#0284c7',bg:'#e0f2fe'},
+      tempo:{label:'Tempo',color:'#d97706',bg:'#fef3c7'},
+      threshold:{label:'Lactate Threshold',color:'#ea580c',bg:'#ffedd5'},
+      interval:{label:'VO2 Max / Intervals',color:'#dc2626',bg:'#fee2e2'},
+      track:{label:'VO2 Max / Intervals',color:'#dc2626',bg:'#fee2e2'},
+      speed:{label:'Speed Work',color:'#9333ea',bg:'#f3e8ff'},
+      sprint:{label:'Sprint',color:'#7c3aed',bg:'#ede9fe'},
+      race:{label:'Race Pace',color:'#dc2626',bg:'#fee2e2'},
+      hill:{label:'Hill Training',color:'#b45309',bg:'#fef3c7'},
+      fartlek:{label:'Fartlek',color:'#d97706',bg:'#fef3c7'}
+    };
+    var zHaystack=(sessionTitle+' '+(meta&&meta.intensity||'')+' '+(meta&&meta.type||'')+' '+(meta&&meta.tags||'')).toLowerCase();
+    var zOrder=['recovery','interval','track','speed','sprint','threshold','tempo','fartlek','hill','race','long','steady','easy'];
+    var zKey=null;
+    for(var zi=0;zi<zOrder.length;zi++){if(zHaystack.indexOf(zOrder[zi])>=0){zKey=zOrder[zi];break;}}
+    var zone=zKey?zoneMap[zKey]:{label:'Aerobic',color:'#0284c7',bg:'#e0f2fe'};
+
     h+='<div class="run-details">';
 
     // ── Unified session card ──────────────────────────────────────────────────
     h+='<div style="background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden">';
 
-    // Header — session title + RPE
+    // Header — session title + RPE + zone
     h+='<div style="padding:14px 16px;border-bottom:1px solid var(--border)">';
     h+='<div style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--text);line-height:1.1;margin-bottom:8px">'+esc(sessionTitle)+'</div>';
-    h+='<div style="display:flex;align-items:center;gap:10px">';
+    h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
     h+='<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;background:var(--run);padding:3px 9px;border-radius:5px;letter-spacing:.04em;white-space:nowrap">'+esc(rpeInfo.value)+'</div>';
+    h+='<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+zone.color+';background:'+zone.bg+';padding:3px 9px;border-radius:5px;letter-spacing:.04em;white-space:nowrap">'+esc(zone.label)+'</div>';
     h+='<div style="font-size:12px;color:var(--muted);line-height:1.4">'+esc(rpeInfo.desc)+'</div>';
     h+='</div></div>';
 
     // Body
     h+='<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">';
 
-    // Workout description + chips
-    h+='<div style="font-size:13px;color:var(--text);line-height:1.5">'+esc(workoutText)+'</div>';
-    if(chips.length){
-      h+='<div class="chips" style="margin-top:-4px">';
+    // ── Workout — main focus ─────────────────────────────────────────────────
+    h+='<div style="font-size:15px;font-weight:600;color:var(--text);line-height:1.55">'+esc(workoutText)+'</div>';
+
+    // Rest pill + optional chips — subtle, secondary
+    var intervalRest=getIntervalRestInfo(meta,sessionTitle);
+    var hasSecondary=intervalRest||chips.length;
+    if(hasSecondary){
+      h+='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:-4px">';
+      if(intervalRest){
+        h+='<div style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border-radius:6px;padding:4px 10px">';
+        h+='<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--run);letter-spacing:.04em">'+esc(intervalRest.restTime)+'</span>';
+        h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">'+esc(intervalRest.restType)+'</span>';
+        h+='</div>';
+      }
       chips.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
       h+='</div>';
     }
 
-    // Rest between reps
-    var intervalRest=getIntervalRestInfo(meta,sessionTitle);
-    if(intervalRest){
-      h+='<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border-radius:8px;padding:9px 12px">';
-      h+='<span style="font-family:var(--display);font-size:16px;font-weight:800;color:var(--run);text-transform:uppercase">'+esc(intervalRest.restTime)+'</span>';
-      h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">'+esc(intervalRest.restType)+'</span>';
-      if(intervalRest.recoveryNote){
-        h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto;text-align:right;line-height:1.4;max-width:55%">'+esc(intervalRest.recoveryNote)+'</span>';
-      }
+    // Coaching note — own row, breathing room
+    if(intervalRest&&intervalRest.recoveryNote){
+      h+='<div style="border-left:3px solid var(--run);padding:8px 12px;background:var(--surface2);border-radius:0 6px 6px 0">';
+      h+='<div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px">Coach Note</div>';
+      h+='<div style="font-size:12px;color:var(--text);line-height:1.6">'+esc(intervalRest.recoveryNote)+'</div>';
       h+='</div>';
     }
 
