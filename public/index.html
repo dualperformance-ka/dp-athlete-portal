@@ -263,7 +263,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;font-family:var(--mono);font-size:12px;padding:10px 20px;border-radius:20px;display:none;z-index:200;white-space:nowrap;letter-spacing:.04em}
 
 /* Running-specific expanded details */
-.run-details{padding:14px 16px;background:var(--surface2);border-top:1px solid var(--border);margin-top:0;display:flex;flex-direction:column;gap:10px}
+.run-details{padding:12px 14px;background:var(--surface2);border-top:1px solid var(--border);margin-top:0}
 .rpe-box{background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.16);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:14px}
 .rpe-label{font-family:var(--mono);font-size:10px;color:var(--run);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;font-weight:600}
 .rpe-value{font-family:var(--display);font-size:22px;font-weight:800;color:var(--run);line-height:1;text-transform:uppercase;letter-spacing:.01em;white-space:nowrap}
@@ -2375,38 +2375,56 @@ function buildBody(s,i,type){
 
     h+='<div class="run-details">';
 
-    // RPE — inline horizontal
-    h+='<div class="rpe-box"><div style="flex:1"><div class="rpe-label">Effort Rating</div><div class="rpe-desc" style="margin-top:2px">'+esc(rpeInfo.desc)+'</div></div><div class="rpe-value">'+esc(rpeInfo.value)+'</div></div>';
+    // ── Unified session card ──────────────────────────────────────────────────
+    h+='<div style="background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden">';
 
-    // Workout
-    h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(workoutText)+'</div>';
+    // Header — session title + RPE
+    h+='<div style="padding:14px 16px;border-bottom:1px solid var(--border)">';
+    h+='<div style="font-family:var(--mono);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--run);margin-bottom:6px">'+esc(sessionTitle)+'</div>';
+    h+='<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">';
+    h+='<div style="font-family:var(--display);font-size:24px;font-weight:800;color:var(--run);text-transform:uppercase;line-height:1">'+esc(rpeInfo.value)+'</div>';
+    h+='<div style="font-size:12px;color:var(--muted);text-align:right;line-height:1.4">'+esc(rpeInfo.desc)+'</div>';
+    h+='</div></div>';
+
+    // Body
+    h+='<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">';
+
+    // Workout description + chips
+    h+='<div style="font-size:13px;color:var(--text);line-height:1.5">'+esc(workoutText)+'</div>';
     if(chips.length){
-      h+='<div class="chips">';
+      h+='<div class="chips" style="margin-top:-4px">';
       chips.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
       h+='</div>';
     }
-    h+='</div>';
 
-    // Rest between reps — interval sessions only
+    // Rest between reps
     var intervalRest=getIntervalRestInfo(meta,sessionTitle);
     if(intervalRest){
-      h+='<div class="detail-section"><div class="detail-head">Rest Between Reps</div>';
-      h+='<div class="detail-content" style="display:flex;align-items:center;gap:10px">';
-      h+='<span style="font-family:var(--display);font-size:17px;font-weight:800;color:var(--run);text-transform:uppercase">'+esc(intervalRest.restTime)+'</span>';
+      h+='<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border-radius:8px;padding:9px 12px">';
+      h+='<span style="font-family:var(--display);font-size:16px;font-weight:800;color:var(--run);text-transform:uppercase">'+esc(intervalRest.restTime)+'</span>';
       h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">'+esc(intervalRest.restType)+'</span>';
       if(intervalRest.recoveryNote){
-        h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto;text-align:right;line-height:1.4">'+esc(intervalRest.recoveryNote)+'</span>';
+        h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto;text-align:right;line-height:1.4;max-width:55%">'+esc(intervalRest.recoveryNote)+'</span>';
       }
-      h+='</div></div>';
+      h+='</div>';
     }
 
-    // Warm Up + Cool Down side by side
+    // Warm up + Cool down
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-    h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content" style="height:100%;box-sizing:border-box">'+esc(warmUp)+'</div></div>';
-    h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content" style="height:100%;box-sizing:border-box">'+esc(coolDown)+'</div></div>';
+    h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Warm up</div>';
+    h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(warmUp)+'</div></div>';
+    h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Cool down</div>';
+    h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(coolDown)+'</div></div>';
     h+='</div>';
 
-    h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">'+esc(altInfo.title)+'</div><div class="alt-desc">'+esc(altInfo.description)+'</div></div>';
+    // Alternative
+    h+='<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:-2px">';
+    h+='<div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Alternative</div>';
+    h+='<div style="font-size:13px;font-weight:700;color:var(--run);margin-bottom:3px">'+esc(altInfo.title)+'</div>';
+    h+='<div style="font-size:12px;color:var(--muted);line-height:1.45">'+esc(altInfo.description)+'</div>';
+    h+='</div>';
+
+    h+='</div></div>'; // end body + card
     h+='<div class="run-log">';
     h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
     h+='<div class="saved-label">✓ Session Logged</div>';
