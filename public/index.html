@@ -2438,13 +2438,16 @@ function buildBody(s,i,type){
       h+='</div>';
     }
 
-    // Warm up + Cool down
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-    h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Warm up</div>';
-    h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(warmUp)+'</div></div>';
-    h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Cool down</div>';
-    h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(coolDown)+'</div></div>';
-    h+='</div>';
+    // Warm up + Cool down — skip for easy/recovery/long runs
+    var isLowIntensity=/\beasy\b|\brecovery\b|\blong run\b|\blong\b/.test(zHaystack);
+    if(!isLowIntensity){
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+      h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Warm up</div>';
+      h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(warmUp)+'</div></div>';
+      h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Cool down</div>';
+      h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(coolDown)+'</div></div>';
+      h+='</div>';
+    }
 
     // Alternative
     h+='<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:-2px">';
