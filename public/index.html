@@ -878,7 +878,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   </div>
 
   <!-- FLOATING DISCORD -->
-  <a class="wa-fab" href="https://discord.gg/M48yEN9N" target="_blank" title="Join the Discord" style="bottom:76px">
+  <a class="wa-fab" href="https://discord.gg/uyqKU8BK" target="_blank" title="Join the Discord" style="bottom:76px">
     <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.033.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
   </a>
 
@@ -888,7 +888,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
     <div class="comms-card">
       <div class="comms-title">Need to reach us?</div>
       <div class="comms-body">Join the Dual Performance Discord — message us, ask questions, and connect with the group. We typically respond within 24 hours.</div>
-      <a class="comms-btn" href="https://discord.gg/M48yEN9N" target="_blank">Join the Discord →</a>
+      <a class="comms-btn" href="https://discord.gg/uyqKU8BK" target="_blank">Join the Discord →</a>
       <div class="comms-note">Karl & Alex · Dual Performance</div>
     </div>
     <div class="card">
@@ -2503,7 +2503,7 @@ function buildBody(s,i,type){
     h+='</select></div>';
     h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="rn_'+i+'" class="li" placeholder="Any additional thoughts..." oninput="draftRun('+i+')">'+esc(sl.notes||'')+'</textarea></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save Session</button>';
-    if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save run');}(i),0);}
+    if(isSessionLogged(s.id)){setTimeout(function(idx){showRunSaved(idx);}(i),0);}
     h+='</div>';
     h+='</div>';
     h+='</div>';
@@ -2572,6 +2572,24 @@ function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+e
 function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;if(s>=60){var m=Math.floor(s/60),rem=s%60;return rem?m+'min '+rem+'s rest':m+' min rest';}return s+'s rest';}
 function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
 function editRun(i){var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);if(form) form.style.display='block';if(saved) saved.style.display='none';}
+function showRunSaved(i,d){
+  var s=sessions[i];if(!d){d=logs[s?s.id:null]||{};}
+  var distEl=document.getElementById('saved_run_'+i+'_distance');
+  var durEl=document.getElementById('saved_run_'+i+'_duration');
+  var paceEl=document.getElementById('saved_run_'+i+'_pace');
+  var rpeEl=document.getElementById('saved_run_'+i+'_rpe');
+  var feelEl=document.getElementById('saved_run_'+i+'_feel');
+  var notesEl=document.getElementById('saved_run_'+i+'_notes');
+  if(distEl) distEl.textContent=d.distance?d.distance+'km':'-';
+  if(durEl) durEl.textContent=d.duration?d.duration+'min':'-';
+  if(paceEl) paceEl.textContent=d.pace||'-';
+  if(rpeEl) rpeEl.textContent=d.rpe?d.rpe+'/10':'-';
+  if(feelEl){feelEl.textContent=d.feel||'';feelEl.style.display=d.feel?'block':'none';}
+  if(notesEl){notesEl.textContent=d.notes||'';notesEl.style.display=d.notes?'block':'none';}
+  var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);
+  if(form) form.style.display='none';
+  if(saved) saved.style.display='block';
+}
 function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=STR[splitKey]||[];var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
 // ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
 var sessionLoggedCache={};
@@ -2599,12 +2617,12 @@ function lockSaveButton(i,label){
 }
 async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
-  var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
+  var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
   logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
-  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
+  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
   await markSessionLogged(s.id);
   showToast('Run saved ✓');
-  lockSaveButton(i,'Save run');
+  showRunSaved(i,d);
   await loadNutrition();
 }
 async function saveGym(i,splitKey){
