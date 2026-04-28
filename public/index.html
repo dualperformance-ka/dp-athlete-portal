@@ -522,12 +522,6 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
         <div class="milestone-field"><label>Week 12</label><textarea class="milestone-input" id="gM12" placeholder="e.g. Race goal, weight target, PB..."></textarea></div>
       </div>
     </div>
-    <div class="card" id="gymPrefsCard">
-      <div class="card-title">Your Gym Setup</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:16px">Pick the equipment you have at your gym for each upper body movement. We lock this in so your progress tracking stays consistent week to week — you only need to do this once.</div>
-      <div id="gymPrefsFields"></div>
-      <button class="savebtn" id="gymPrefsSaveBtn" onclick="saveGymPrefs()" style="margin-top:4px">Save gym setup</button>
-    </div>
     <button class="savebtn" id="goalsSaveBtn" onclick="saveGoals()">Save Goals</button>
     <div style="height:8px"></div>
   </div>
@@ -995,7 +989,7 @@ async function loadCloudData(code){
       else if(row.key==='photos') lsKey='dp_photos_'+code;
       else if(row.key.startsWith('daily_body_')) lsKey='dp_daily_body_'+code+'_'+row.key.slice('daily_body_'.length);
       else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);
-      else if(row.key==='gym_prefs') lsKey='dp_gym_prefs_'+code;
+      else if(row.key==='ex_picks') lsKey='dp_ex_picks_'+code;
       if(!lsKey||!row.value) return;
       localStorage.setItem(lsKey,JSON.stringify(row.value));
     });
@@ -1071,7 +1065,7 @@ const STR = {
 const RUN={"Threshold Work":{"description":"Warm up 15min easy. Run at sustained threshold effort (RPE 7–8). Cool down easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"Easy Run":{"description":"Relaxed aerobic run at conversational pace (RPE 4–5). Focus on easy breathing and good form.","type":"Easy Run","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"Long Run":{"description":"Long aerobic endurance run. Relaxed steady effort (RPE 5–6). Focus on time on feet and fueling.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Progressive Long Run":{"description":"Long run starting easy, gradually increasing pace in final third toward marathon effort.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Fast Finish Long Run":{"description":"Long run mostly easy with final 3–5km at marathon effort (RPE 7).","type":"Long Run","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"12x1min Fartlek":{"description":"Warm up 10–15min easy. 12x1min strong (RPE 7–8) with 1min jog recovery. Cool down easy.","type":"Fartlek","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"8x2min Fartlek":{"description":"Warm up 10–15min easy + strides. 8x2min steady hard (RPE 7) with 2min jog recovery. Cool down 10min easy.","type":"Fartlek","intensity":"Threshold","surface":"Road","difficulty":"Beginner"},"20min Tempo":{"description":"Warm up 10–15min easy. 20min tempo steady effort (RPE 7). Cool down 10min easy.","type":"Tempo","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"25min Tempo":{"description":"Warm up 15min easy. 25min continuous tempo (RPE 7). Cool down 10–15min easy.","type":"Tempo","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"5x1km Threshold":{"description":"Warm up 15min easy + strides. 5x1km threshold (RPE 7–8) with 90s jog recovery. Cool down 10min easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"6x400m Intervals":{"description":"Warm up 15min easy + drills. 6x400m fast (RPE 8) with 200m jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"6x800m Intervals":{"description":"Warm up 15min easy. 6x800m strong (RPE 8) with 2min jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"10x20s Hill Sprints":{"description":"Warm up 15min easy. 10x20s hill sprints (RPE 9) full recovery. Cool down easy.","type":"Hills","intensity":"Neuromuscular","surface":"Hills","difficulty":"Beginner"},"5km Recovery":{"description":"5km gentle recovery jog (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"},"6km Recovery":{"description":"6km very easy recovery run (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"}};
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let athlete=null,weekOffset=0,nutWeekOffset=0,sessions=[],allSessions=[],ticked={},logs={},currentWeekKmData=null,gymPrefs={};
+let athlete=null,weekOffset=0,nutWeekOffset=0,sessions=[],allSessions=[],ticked={},logs={},currentWeekKmData=null,exPicks={};
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function localISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -1200,7 +1194,7 @@ async function doLogin(code){
   await loadSessionLogs();
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
-  gymPrefs=JSON.parse(localStorage.getItem('dp_gym_prefs_'+code)||'{}');
+  exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('portalScreen').style.display='block';
   document.getElementById('quicklogStrip').style.display='flex';
@@ -1239,7 +1233,6 @@ function populateStatic(){
   }
   document.getElementById('commsStart').textContent=athlete.startDate;
   if(athlete.checkinUrl!=='CHECKIN_URL'){document.querySelectorAll('[href="CHECKIN_URL"]').forEach(function(el){el.href=athlete.checkinUrl;});}
-  renderGymPrefsFields();
 }
 
 function selectRace(btn){
@@ -1255,66 +1248,16 @@ function setRaceFromValue(val){
   if(!matched&&v){btns.forEach(function(b){if(b.dataset.val==='Other') b.classList.add('selected');});document.getElementById('otherRaceField').style.display='';document.getElementById('gRaceOther').value=v;}
 }
 
-// ── GYM PREFS ─────────────────────────────────────────────────────────────────
-function buildGymOptionsMap(){
-  var map={};
-  Object.values(STR).forEach(function(exercises){
-    exercises.forEach(function(ex){
-      if(ex.alts&&ex.alts.length&&!map[ex.exercise]){
-        map[ex.exercise]=[ex.exercise].concat(ex.alts);
-      }
-    });
+// ── EXERCISE PICKS (persisted per-exercise memory) ───────────────────────────
+function pickEx(exName,chosen){
+  exPicks[exName]=chosen;
+  localStorage.setItem('dp_ex_picks_'+athlete.code,JSON.stringify(exPicks));
+  if(sbClient){try{sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'ex_picks',value:exPicks,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'}).then(function(){}).catch(function(){});}catch(e){}}
+  document.querySelectorAll('[data-pg="'+exName.replace(/[^a-z0-9]/gi,'_')+'"]').forEach(function(p){
+    p.classList.toggle('active',p.dataset.pv===chosen);
   });
-  return map;
-}
-function renderGymPrefsFields(){
-  var container=document.getElementById('gymPrefsFields');if(!container) return;
-  var map=buildGymOptionsMap();
-  var LABELS={
-    'Low Machine Row':'Low row',
-    'Close Grip Cable Row':'Close grip row (Upper A)',
-    'Mid Machine Row':'Mid row (Upper B)',
-    'Pec Dec':'Chest fly',
-    'Incline Dumbbell Press':'Incline press',
-    'Lat Pulldown':'Lat pulldown',
-    'Machine Dips':'Tricep dip',
-    'Machine Shoulder Press':'Shoulder press',
-    'Dumbbell Hammer Curl':'Bicep curl',
-    'Lateral Dumbbell Raise':'Lateral raise',
-    'Tricep Rope Extension':'Tricep extension',
-    'Rear Delt Fly':'Rear delt fly',
-    'Cable Abdominal Crunch':'Abs'
-  };
-  var html='';
-  Object.keys(map).forEach(function(exName){
-    var opts=map[exName];
-    var saved=gymPrefs[exName]||exName;
-    var label=LABELS[exName]||exName;
-    var safeId='gp_'+exName.replace(/[^a-z0-9]/gi,'_');
-    html+='<div class="lf" style="margin-bottom:12px">';
-    html+='<label>'+esc(label)+'</label>';
-    html+='<select class="li" id="'+safeId+'" style="margin-top:4px">';
-    opts.forEach(function(opt){
-      html+='<option value="'+esc(opt)+'"'+(opt===saved?' selected':'')+'>'+esc(opt)+'</option>';
-    });
-    html+='</select></div>';
-  });
-  container.innerHTML=html;
-}
-async function saveGymPrefs(){
-  var btn=document.getElementById('gymPrefsSaveBtn');btn.textContent='Saving...';btn.disabled=true;
-  var map=buildGymOptionsMap();
-  var prefs={};
-  Object.keys(map).forEach(function(exName){
-    var safeId='gp_'+exName.replace(/[^a-z0-9]/gi,'_');
-    var sel=document.getElementById(safeId);
-    if(sel) prefs[exName]=sel.value;
-  });
-  gymPrefs=prefs;
-  localStorage.setItem('dp_gym_prefs_'+athlete.code,JSON.stringify(prefs));
-  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'gym_prefs',value:prefs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
-  btn.textContent='Saved ✓';btn.classList.add('saved');
-  setTimeout(function(){btn.textContent='Save gym setup';btn.classList.remove('saved');btn.disabled=false;},2000);
+  var nameEl=document.getElementById('exn_'+exName.replace(/[^a-z0-9]/gi,'_'));
+  if(nameEl) nameEl.textContent=chosen;
 }
 
 async function saveGoals(){
@@ -2418,7 +2361,7 @@ function collectExerciseSets(i,ei){var c=document.getElementById('sets_'+i+'_'+e
 function refreshStrengthFeedback(i,splitKey){
   var exercises=STR[splitKey]||[];var s=sessions[i];
   exercises.forEach(function(ex,ei){
-    var resolvedEx=gymPrefs[ex.exercise]||ex.exercise;
+    var resolvedEx=exPicks[ex.exercise]||ex.exercise;
     var currentEffort=collectExerciseSets(i,ei);
     if(!currentEffort.length&&logs[s.id]&&logs[s.id][resolvedEx]) currentEffort=logs[s.id][resolvedEx];
     var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
@@ -2571,10 +2514,11 @@ function buildBody(s,i,type){
     if(exercises.length){
       h+='<div class="ltitle">Log your sets</div><div class="exlist">';
       exercises.forEach(function(ex,ei){
-        var resolvedEx=gymPrefs[ex.exercise]||ex.exercise;
+        var resolvedEx=exPicks[ex.exercise]||ex.exercise;
+        var safeKey=ex.exercise.replace(/[^a-z0-9]/gi,'_');
         var savedEx=sl2[resolvedEx]||sl2[ex.exercise]||[],sets=parseInt(ex.sets)||2;
         var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
-        h+='<div class="exc"><div class="exh"><div class="exn">'+esc(resolvedEx)+'</div>';
+        h+='<div class="exc"><div class="exh"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>';
         h+='<div class="exm">'+esc(ex.sets)+' sets'+(ex.rest?' · '+formatRest(ex.rest)+' rest':'')+'</div>';
         if(ex.notes) h+='<div class="exnotes">'+esc(ex.notes)+'</div>';
         h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">';
@@ -2583,6 +2527,16 @@ function buildBody(s,i,type){
         h+='<div id="curr_'+i+'_'+ei+'" style="font-family:var(--mono);font-size:9px;color:var(--run);background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.18);border-radius:4px;padding:3px 8px;display:none"></div>';
         h+='<div id="prog_'+i+'_'+ei+'" style="font-family:var(--mono);font-size:9px;color:var(--dim);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 8px;display:inline-block">'+esc(ex.repRange?'Target '+ex.repRange:'Build this session')+'</div>';
         h+='</div></div>';
+        if(ex.alts&&ex.alts.length){
+          var allOpts=[ex.exercise].concat(ex.alts);
+          h+='<div class="ex-picker">';
+          allOpts.forEach(function(opt){
+            var safeOpt=opt.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            var exNameSafe=ex.exercise.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            h+='<button class="ex-pill'+(opt===resolvedEx?' active':'')+'" onclick="pickEx(\''+exNameSafe+'\',\''+safeOpt+'\')" data-pg="'+safeKey+'" data-pv="'+esc(opt)+'">'+esc(opt)+'</button>';
+          });
+          h+='</div>';
+        }
         h+='<div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">✓</div></div>';
         h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
         for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;
@@ -2618,7 +2572,7 @@ function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+e
 function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;if(s>=60){var m=Math.floor(s/60),rem=s%60;return rem?m+'min '+rem+'s rest':m+' min rest';}return s+'s rest';}
 function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
 function editRun(i){var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);if(form) form.style.display='block';if(saved) saved.style.display='none';}
-function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=STR[splitKey]||[];var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=gymPrefs[ex.exercise]||ex.exercise;log[useName]=arr;});logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
+function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=STR[splitKey]||[];var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
 // ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
 var sessionLoggedCache={};
 async function markSessionLogged(sessionId){
@@ -2656,7 +2610,7 @@ async function saveRun(i){
 async function saveGym(i,splitKey){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i],exercises=STR[splitKey]||[],log={};
-  exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);var useName=gymPrefs[ex.exercise]||ex.exercise;if(sets.length) log[useName]=sets;});
+  exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;if(sets.length) log[useName]=sets;});
   logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   var fetches=Object.keys(log).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+s.date,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});});
   await Promise.all(fetches);
