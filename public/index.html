@@ -2101,8 +2101,14 @@ function getIntervalRestInfo(meta, sessionTitle) {
   var description = String(meta.description || meta.target || '').toLowerCase();
   var haystack = title + ' ' + intensity + ' ' + type + ' ' + description;
 
+  // Exclude continuous/easy/recovery sessions — these never have rep-based rest
+  var isContinuous = /\beasy run\b|\blong run\b|\brecovery run\b|\brecovery\b|\beasy\b|\bcontinuous\b|\bsteady state\b/.test(type) ||
+    /\beasy run\b|\blong run\b|\brecovery run\b/.test(title) ||
+    intensity === 'aerobic' || intensity === 'easy';
+  if (isContinuous) return null;
+
   // Check if this is actually an interval/speed session
-  var isInterval = /interval|track|repeat|rep|speed|fartlek|800|400|200|\d+\.?\d*\s*km|\d+\s*k\b|km rep|mile rep|yasso|cruise/.test(haystack);
+  var isInterval = /interval|track|repeat|rep|speed|fartlek|800|400|200|\d+\s*[x×]\s*\d|km rep|mile rep|yasso|cruise/.test(haystack);
   if (!isInterval) return null;
 
   // Try to extract interval duration/distance from description or title
