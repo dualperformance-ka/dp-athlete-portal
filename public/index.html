@@ -859,6 +859,35 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
         <button class="ql-modal-close" onclick="closeQuickLog('nut')">×</button>
       </div>
       <div class="ql-modal-body">
+        <!-- Previous day reference panel -->
+        <div id="qlnPrevDay" style="display:none;background:#0a0a0a;border-radius:10px;padding:12px 14px;margin-bottom:14px">
+          <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px" id="qlnPrevDayLabel">Yesterday</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px">
+            <div style="text-align:center">
+              <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#fff;line-height:1" id="qlnPrevCal">—</div>
+              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">kcal</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#93c5fd;line-height:1" id="qlnPrevPro">—</div>
+              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">protein</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#f59e0b;line-height:1" id="qlnPrevCarb">—</div>
+              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">carbs</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="text-align:center">
+              <div style="font-family:var(--display);font-size:16px;font-weight:700;color:rgba(255,255,255,.7);line-height:1" id="qlnPrevFat">—</div>
+              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">fat g</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:var(--display);font-size:16px;font-weight:700;color:rgba(255,255,255,.7);line-height:1" id="qlnPrevFibre">—</div>
+              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">fibre g</div>
+            </div>
+          </div>
+          <div id="qlnPrevNotes" style="display:none;margin-top:8px;font-size:12px;color:rgba(255,255,255,.45);font-style:italic;border-top:1px solid rgba(255,255,255,.08);padding-top:8px"></div>
+        </div>
         <div class="rlog" style="margin-bottom:14px">
           <div class="lf"><label>Date</label><input type="date" class="li" id="qlnDate" /></div>
           <div class="lf"><label>Calories (kcal)</label><input type="number" class="li" id="qlnCal" placeholder="2300" /></div>
@@ -1403,6 +1432,36 @@ function openQuickLog(type){
   } else {
     var dateEl=document.getElementById('qlnDate');
     if(dateEl&&!dateEl.value) dateEl.value=today;
+    // Load previous day nutrition for reference
+    (function(){
+      var prevPanel=document.getElementById('qlnPrevDay');
+      if(!prevPanel||!athlete||!athlete.code) return;
+      // Calculate yesterday's date
+      var d=new Date(today+'T00:00:00');
+      d.setDate(d.getDate()-1);
+      var yest=d.toISOString().slice(0,10);
+      var raw=null;
+      // Check Supabase-synced localStorage first
+      try{raw=localStorage.getItem('dp_daily_nut_'+athlete.code+'_'+yest);}catch(e){}
+      if(!raw){prevPanel.style.display='none';return;}
+      var prev=null;try{prev=JSON.parse(raw);}catch(e){}
+      if(!prev){prevPanel.style.display='none';return;}
+      // Format label e.g. "Yesterday (Mon 27 Apr)"
+      var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var dd=new Date(yest+'T00:00:00');
+      var lbl='Yesterday ('+days[dd.getDay()]+' '+dd.getDate()+' '+months[dd.getMonth()]+')';
+      document.getElementById('qlnPrevDayLabel').textContent=lbl;
+      document.getElementById('qlnPrevCal').textContent=prev.calories||'—';
+      document.getElementById('qlnPrevPro').textContent=prev.protein?prev.protein+'g':'—';
+      document.getElementById('qlnPrevCarb').textContent=prev.carbs?prev.carbs+'g':'—';
+      document.getElementById('qlnPrevFat').textContent=prev.fat?prev.fat+'g':'—';
+      document.getElementById('qlnPrevFibre').textContent=prev.fibre?prev.fibre+'g':'—';
+      var notesEl=document.getElementById('qlnPrevNotes');
+      if(prev.notes){notesEl.textContent='"'+prev.notes+'"';notesEl.style.display='block';}
+      else{notesEl.style.display='none';}
+      prevPanel.style.display='block';
+    })();
     document.getElementById('qlNutModal').classList.add('open');
     document.body.style.overflow='hidden';
   }
@@ -1447,6 +1506,7 @@ async function submitQuickNut(){
   document.getElementById('qlnPro').value='';document.getElementById('qlnCarbs').value='';
   document.getElementById('qlnFat').value='';document.getElementById('qlnFibre').value='';
   document.getElementById('qlnNotes').value='';
+  var prevPanel=document.getElementById('qlnPrevDay');if(prevPanel) prevPanel.style.display='none';
 }
 
 // ── HANDBOOK ──────────────────────────────────────────────────────────────────
