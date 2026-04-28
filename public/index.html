@@ -335,6 +335,12 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .ql-modal-title{font-family:var(--display);font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
 .ql-modal-close{font-size:22px;color:var(--dim);background:var(--surface2);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ql-modal-body{padding:18px}
+/* Exercise picker */
+.ex-picker-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;padding:8px 14px 2px;display:block}
+.ex-picker{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 10px}
+.ex-pill{font-family:var(--mono);font-size:10px;padding:5px 10px;border:1px solid var(--border-mid);border-radius:20px;background:var(--surface);color:var(--muted);cursor:pointer;letter-spacing:.02em;white-space:nowrap;line-height:1.4;transition:all .12s;-webkit-tap-highlight-color:transparent}
+.ex-pill.active{background:#0a0a0a;border-color:#0a0a0a;color:#fff}
+.ex-pill:active{opacity:.7}
 </style>
 </head>
 <body>
@@ -1007,50 +1013,50 @@ async function loadCloudData(code){
 // ── STRENGTH LIBRARY ──────────────────────────────────────────────────────────
 const STR = {
   "Lower A":[
-    {"exercise":"Leg Extension","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up"},
-    {"exercise":"Bulgarian Split Squat","sets":"3","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"3","rest":"90s","notes":""},
-    {"exercise":"Seated Hamstring Curl","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up"},
-    {"exercise":"Barbell Romanian Dead Lift","sets":"3","reps":"8","repRange":"6-10","warmupSets":"0","workingSets":"3","rest":"90s","notes":""},
-    {"exercise":"Adduction Machine","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Standing Calf Raise","sets":"4","reps":"8","repRange":"10-15","warmupSets":"1","workingSets":"3","rest":"90s","notes":""},
-    {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":""}
+    {"exercise":"Leg Extension","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up","alts":["Cable leg extension","Seated leg extension"]},
+    {"exercise":"Bulgarian Split Squat","sets":"3","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Dumbbell split squat","Smith machine split squat"]},
+    {"exercise":"Seated Hamstring Curl","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up","alts":["Lying leg curl","Nordic curl"]},
+    {"exercise":"Barbell Romanian Dead Lift","sets":"3","reps":"8","repRange":"6-10","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Dumbbell RDL","Single leg RDL"]},
+    {"exercise":"Adduction Machine","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Cable adductor","Banded adductor"]},
+    {"exercise":"Standing Calf Raise","sets":"4","reps":"8","repRange":"10-15","warmupSets":"1","workingSets":"3","rest":"90s","notes":"","alts":["Calf press (leg press)","Donkey calf raise"]},
+    {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Crunch machine","Hanging knee raise"]}
   ],
   "Lower B":[
-    {"exercise":"Lying Down Leg Press","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"120s","notes":""},
-    {"exercise":"Seated Hamstring Curl","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Single Leg Step Down","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Hip Flexors","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":""},
-    {"exercise":"Tibialis Raise","sets":"4","reps":"10","repRange":"12-20","warmupSets":"0","workingSets":"4","rest":"90s","notes":""},
-    {"exercise":"Seated Calf Raise","sets":"4","reps":"8","repRange":"10-15","warmupSets":"1","workingSets":"3","rest":"90s","notes":""},
-    {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":""}
+    {"exercise":"Lying Down Leg Press","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"120s","notes":"","alts":["Hack squat machine","Smith machine squat"]},
+    {"exercise":"Seated Hamstring Curl","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"90s","notes":"","alts":["Lying leg curl","Nordic curl"]},
+    {"exercise":"Single Leg Step Down","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"90s","notes":"","alts":["Reverse lunge","Split squat"]},
+    {"exercise":"Hip Flexors","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Cable hip flexor","Banded hip flexor"]},
+    {"exercise":"Tibialis Raise","sets":"4","reps":"10","repRange":"12-20","warmupSets":"0","workingSets":"4","rest":"90s","notes":"","alts":["Tib bar raise"]},
+    {"exercise":"Seated Calf Raise","sets":"4","reps":"8","repRange":"10-15","warmupSets":"1","workingSets":"3","rest":"90s","notes":"","alts":["Calf press (leg press)","Standing calf raise"]},
+    {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Crunch machine","Hanging knee raise"]}
   ],
   "Upper A":[
-    {"exercise":"Low Machine Row","sets":"4","reps":"8","repRange":"8-12","warmupSets":"2","workingSets":"2","rest":"90s","notes":"First 2 sets warm-up"},
-    {"exercise":"Close Grip Cable Row","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Pec Dec","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"90s","notes":"First set warm-up"},
-    {"exercise":"Incline Dumbbell Press","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Lat Pulldown","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Machine Dips","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Machine Shoulder Press","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Dumbbell Hammer Curl","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Lateral Dumbbell Raise","sets":"2","reps":"10","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Tricep Rope Extension","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Rear Delt Fly","sets":"2","reps":"10","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":""}
+    {"exercise":"Low Machine Row","sets":"4","reps":"8","repRange":"8-12","warmupSets":"2","workingSets":"2","rest":"90s","notes":"First 2 sets warm-up","alts":["Cable row (close grip)","Low pulley row"]},
+    {"exercise":"Close Grip Cable Row","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Machine row (wide grip)","Seated cable row"]},
+    {"exercise":"Pec Dec","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"90s","notes":"First set warm-up","alts":["Cable fly","Chest fly machine"]},
+    {"exercise":"Incline Dumbbell Press","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Barbell incline bench press","Machine incline bench press"]},
+    {"exercise":"Lat Pulldown","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Cable lat pulldown","Assisted pull-up"]},
+    {"exercise":"Machine Dips","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Parallel bar dip","Cable pushdown"]},
+    {"exercise":"Machine Shoulder Press","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Dumbbell shoulder press","Seated barbell press"]},
+    {"exercise":"Dumbbell Hammer Curl","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Bicep curl","Barbell curl"]},
+    {"exercise":"Lateral Dumbbell Raise","sets":"2","reps":"10","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Machine lateral raise","Cable lateral raise"]},
+    {"exercise":"Tricep Rope Extension","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Overhead rope extension","Cable pushdown (bar)"]},
+    {"exercise":"Rear Delt Fly","sets":"2","reps":"10","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Cable rear delt fly","Face pull"]},
+    {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Crunch machine","Hanging knee raise"]}
   ],
   "Upper B":[
-    {"exercise":"Low Machine Row","sets":"4","reps":"8","repRange":"8-12","warmupSets":"2","workingSets":"2","rest":"90s","notes":"First 2 sets warm-up"},
-    {"exercise":"Mid Machine Row","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Pec Dec","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"90s","notes":"First set warm up"},
-    {"exercise":"Incline Dumbbell Press","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Lat Pulldown","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Machine Dips","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Machine Shoulder Press","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Dumbbell Hammer Curl","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Lateral Dumbbell Raise","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Tricep Rope Extension","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Rear Delt Fly","sets":"2","reps":"10","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":""}
+    {"exercise":"Low Machine Row","sets":"4","reps":"8","repRange":"8-12","warmupSets":"2","workingSets":"2","rest":"90s","notes":"First 2 sets warm-up","alts":["Cable row (close grip)","Low pulley row"]},
+    {"exercise":"Mid Machine Row","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Seated cable row (wide)","Cable row (wide grip)"]},
+    {"exercise":"Pec Dec","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"90s","notes":"First set warm up","alts":["Cable fly","Chest fly machine"]},
+    {"exercise":"Incline Dumbbell Press","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Barbell incline bench press","Machine incline bench press"]},
+    {"exercise":"Lat Pulldown","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Cable lat pulldown","Assisted pull-up"]},
+    {"exercise":"Machine Dips","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Parallel bar dip","Cable pushdown"]},
+    {"exercise":"Machine Shoulder Press","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Dumbbell shoulder press","Seated barbell press"]},
+    {"exercise":"Dumbbell Hammer Curl","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Bicep curl","Barbell curl"]},
+    {"exercise":"Lateral Dumbbell Raise","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Machine lateral raise","Cable lateral raise"]},
+    {"exercise":"Tricep Rope Extension","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Overhead rope extension","Cable pushdown (bar)"]},
+    {"exercise":"Rear Delt Fly","sets":"2","reps":"10","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Cable rear delt fly","Face pull"]},
+    {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Crunch machine","Hanging knee raise"]}
   ]
 };
 
@@ -2494,8 +2500,9 @@ function buildBody(s,i,type){
       h+='<div class="ltitle">Log your sets</div><div class="exlist">';
       exercises.forEach(function(ex,ei){
         var savedEx=sl2[ex.exercise]||[],sets=parseInt(ex.sets)||2;
+        var selectedEx=sl2['_pick_'+ei]||ex.exercise;
         var prevEffort=getExercisePreviousEffort(s.id,ex.exercise);
-        h+='<div class="exc"><div class="exh"><div class="exn">'+esc(ex.exercise)+'</div>';
+        h+='<div class="exc"><div class="exh"><div class="exn" id="exn_'+i+'_'+ei+'">'+esc(selectedEx)+'</div>';
         h+='<div class="exm">'+esc(ex.sets)+' sets'+(ex.rest?' · '+formatRest(ex.rest)+' rest':'')+'</div>';
         if(ex.notes) h+='<div class="exnotes">'+esc(ex.notes)+'</div>';
         h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">';
@@ -2504,6 +2511,16 @@ function buildBody(s,i,type){
         h+='<div id="curr_'+i+'_'+ei+'" style="font-family:var(--mono);font-size:9px;color:var(--run);background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.18);border-radius:4px;padding:3px 8px;display:none"></div>';
         h+='<div id="prog_'+i+'_'+ei+'" style="font-family:var(--mono);font-size:9px;color:var(--dim);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 8px;display:inline-block">'+esc(ex.repRange?'Target '+ex.repRange:'Build this session')+'</div>';
         h+='</div></div>';
+        if(ex.alts&&ex.alts.length){
+          var allOpts=[ex.exercise].concat(ex.alts);
+          h+='<span class="ex-picker-label">Choose exercise</span><div class="ex-picker">';
+          allOpts.forEach(function(opt){
+            var active=opt===selectedEx;
+            var safeOpt=opt.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            h+='<button class="ex-pill'+(active?' active':'')+'" onclick="pickEx('+i+','+ei+',\''+safeOpt+'\')" data-pg="'+i+'_'+ei+'" data-pv="'+esc(opt)+'">'+esc(opt)+'</button>';
+          });
+          h+='</div>';
+        }
         h+='<div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">✓</div></div>';
         h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
         for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;
@@ -2535,11 +2552,23 @@ async function tickS(i){
   api('pages/'+s.id,{properties:{Status:{select:{name:done?'Completed':'Planned'}}}});
 }
 function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),on=!btn.classList.contains('on');btn.classList.toggle('on',on);btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';}
+function pickEx(i,ei,name){
+  var s=sessions[i];if(!s) return;
+  var sl2=logs[s.id]||{};
+  sl2['_pick_'+ei]=name;
+  logs[s.id]=sl2;
+  localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+  var exnEl=document.getElementById('exn_'+i+'_'+ei);
+  if(exnEl) exnEl.textContent=name;
+  document.querySelectorAll('[data-pg="'+i+'_'+ei+'"]').forEach(function(p){
+    p.classList.toggle('active',p.dataset.pv===name);
+  });
+}
 function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+ei),si=c.querySelectorAll('.setrow').length,row=document.createElement('div');row.className='setrow';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div><input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" /><input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" /><button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>';c.appendChild(row);}
 function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;if(s>=60){var m=Math.floor(s/60),rem=s%60;return rem?m+'min '+rem+'s rest':m+' min rest';}return s+'s rest';}
 function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
 function editRun(i){var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);if(form) form.style.display='block';if(saved) saved.style.display='none';}
-function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=STR[splitKey]||[];var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);log[ex.exercise]=arr;});logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
+function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=STR[splitKey]||[];var sl2=logs[s.id]||{};var log={};Object.keys(sl2).forEach(function(k){if(k.startsWith('_pick_')) log[k]=sl2[k];});exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=sl2['_pick_'+ei]||ex.exercise;log[useName]=arr;});logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
 // ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
 var sessionLoggedCache={};
 async function markSessionLogged(sessionId){
@@ -2577,7 +2606,7 @@ async function saveRun(i){
 async function saveGym(i,splitKey){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i],exercises=STR[splitKey]||[],log={};
-  exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);if(sets.length) log[ex.exercise]=sets;});
+  var sl2save=logs[s.id]||{};Object.keys(sl2save).forEach(function(k){if(k.startsWith('_pick_')) log[k]=sl2save[k];});exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);var useName=sl2save['_pick_'+ei]||ex.exercise;if(sets.length) log[useName]=sets;});
   logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   var fetches=Object.keys(log).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+s.date,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});});
   await Promise.all(fetches);
