@@ -2391,16 +2391,14 @@ function buildBody(s,i,type){
     if(intervalRest){
       h+='<div class="detail-section">';
       h+='<div class="detail-head">Rest Between Reps</div>';
-      h+='<div style="background:rgba(180,83,9,.05);border:1px solid rgba(180,83,9,.18);border-radius:10px;padding:16px 18px">';
-      h+='<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px">';
-      h+='<div style="font-family:var(--display);font-size:26px;font-weight:800;color:var(--run);line-height:1;text-transform:uppercase">'+esc(intervalRest.restTime)+'</div>';
-      h+='<div style="font-family:var(--mono);font-size:10px;color:var(--run);text-transform:uppercase;letter-spacing:.1em;opacity:.75">'+esc(intervalRest.restType)+'</div>';
+      h+='<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
+      h+='<div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--run);line-height:1;text-transform:uppercase">'+esc(intervalRest.restTime)+'</div>';
+      h+='<div style="font-family:var(--mono);font-size:10px;color:var(--run);text-transform:uppercase;letter-spacing:.08em;opacity:.65">'+esc(intervalRest.restType)+'</div>';
       h+='</div>';
-      h+='<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:'+(intervalRest.recoveryNote?'8px':'0')+'">'+esc(intervalRest.restDesc)+'</div>';
       if(intervalRest.recoveryNote){
-        h+='<div style="font-family:var(--mono);font-size:11px;color:var(--run);opacity:.75;border-top:1px solid rgba(180,83,9,.14);padding-top:8px;line-height:1.5">'+esc(intervalRest.recoveryNote)+'</div>';
+        h+='<div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;opacity:.8">'+esc(intervalRest.recoveryNote)+'</div>';
       }
-      h+='</div></div>';
+      h+='</div>';
     }
 
     h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content">'+esc(coolDown)+'</div></div>';
