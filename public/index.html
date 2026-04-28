@@ -263,15 +263,15 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;font-family:var(--mono);font-size:12px;padding:10px 20px;border-radius:20px;display:none;z-index:200;white-space:nowrap;letter-spacing:.04em}
 
 /* Running-specific expanded details */
-.run-details{padding:18px;background:var(--surface2);border-top:1px solid var(--border);margin-top:0;display:flex;flex-direction:column;gap:16px}
-.rpe-box{background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.16);border-radius:10px;padding:16px 18px}
+.run-details{padding:14px 16px;background:var(--surface2);border-top:1px solid var(--border);margin-top:0;display:flex;flex-direction:column;gap:10px}
+.rpe-box{background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.16);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:14px}
 .rpe-label{font-family:var(--mono);font-size:10px;color:var(--run);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;font-weight:600}
-.rpe-value{font-family:var(--display);font-size:28px;font-weight:800;color:var(--run);line-height:1;text-transform:uppercase;letter-spacing:.01em}
+.rpe-value{font-family:var(--display);font-size:22px;font-weight:800;color:var(--run);line-height:1;text-transform:uppercase;letter-spacing:.01em;white-space:nowrap}
 .rpe-desc{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.45}
 .detail-section{margin-bottom:0}
 .detail-head{font-family:var(--display);font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--text);margin-bottom:8px}
-.detail-content{font-size:14px;color:var(--text);line-height:1.55;background:#fff;border-radius:8px;padding:14px 16px;border:1px solid var(--border)}
-.alt-box{background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.14);border-radius:10px;padding:16px 18px;margin-top:4px}
+.detail-content{font-size:13px;color:var(--text);line-height:1.5;background:#fff;border-radius:8px;padding:10px 14px;border:1px solid var(--border)}
+.alt-box{background:rgba(180,83,9,.04);border:1px solid rgba(180,83,9,.14);border-radius:8px;padding:10px 14px;margin-top:0}
 .alt-label{font-family:var(--mono);font-size:10px;color:var(--run);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;font-weight:600}
 .alt-title{font-family:var(--display);font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--run);margin-bottom:8px;line-height:1.15}
 .alt-desc{font-size:13px;color:var(--muted);line-height:1.5}
@@ -2374,9 +2374,11 @@ function buildBody(s,i,type){
     var altInfo=parseAlternative(meta,sessionTitle);
 
     h+='<div class="run-details">';
-    h+='<div class="rpe-box"><div class="rpe-label">Effort Rating</div><div class="rpe-value">'+esc(rpeInfo.value)+'</div>';
-    h+='<div class="rpe-desc">'+esc(rpeInfo.desc)+'</div></div>';
+    h+='<div class="rpe-box"><div style="flex:1"><div class="rpe-label">Effort Rating</div><div class="rpe-desc" style="margin-top:0">'+esc(rpeInfo.desc)+'</div></div><div class="rpe-value">'+esc(rpeInfo.value)+'</div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
     h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content">'+esc(warmUp)+'</div></div>';
+    // Cool Down now rendered in 2-col grid with Warm Up above
+    h+='</div>';
     h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(workoutText)+'</div>';
     if(extras.length||chips.length){
       h+='<div class="chips">';
@@ -2403,7 +2405,7 @@ function buildBody(s,i,type){
       h+='</div>';
     }
 
-    h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content">'+esc(coolDown)+'</div></div>';
+    // Cool Down rendered in warm up / cool down 2-col grid above
     h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">'+esc(altInfo.title)+'</div><div class="alt-desc">'+esc(altInfo.description)+'</div></div>';
     h+='<div class="run-log">';
     h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
