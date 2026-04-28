@@ -2374,38 +2374,38 @@ function buildBody(s,i,type){
     var altInfo=parseAlternative(meta,sessionTitle);
 
     h+='<div class="run-details">';
-    h+='<div class="rpe-box"><div style="flex:1"><div class="rpe-label">Effort Rating</div><div class="rpe-desc" style="margin-top:0">'+esc(rpeInfo.desc)+'</div></div><div class="rpe-value">'+esc(rpeInfo.value)+'</div></div>';
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-    h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content">'+esc(warmUp)+'</div></div>';
-    // Cool Down now rendered in 2-col grid with Warm Up above
-    h+='</div>';
+
+    // RPE — inline horizontal
+    h+='<div class="rpe-box"><div style="flex:1"><div class="rpe-label">Effort Rating</div><div class="rpe-desc" style="margin-top:2px">'+esc(rpeInfo.desc)+'</div></div><div class="rpe-value">'+esc(rpeInfo.value)+'</div></div>';
+
+    // Workout
     h+='<div class="detail-section"><div class="detail-head">Workout</div><div class="detail-content">'+esc(workoutText)+'</div>';
-    if(extras.length||chips.length){
+    if(chips.length){
       h+='<div class="chips">';
-      extras.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
       chips.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
       h+='</div>';
     }
     h+='</div>';
 
-    // Interval rest panel — only shown for interval/speed sessions
+    // Rest between reps — interval sessions only
     var intervalRest=getIntervalRestInfo(meta,sessionTitle);
     if(intervalRest){
-      h+='<div class="detail-section">';
-      h+='<div class="detail-head">Rest Between Reps</div>';
-      h+='<div class="detail-content" style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">';
-      h+='<div style="display:flex;align-items:baseline;gap:10px">';
-      h+='<span style="font-family:var(--display);font-size:18px;font-weight:800;color:var(--run);text-transform:uppercase;letter-spacing:.01em">'+esc(intervalRest.restTime)+'</span>';
-      h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">'+esc(intervalRest.restType)+'</span>';
-      h+='</div>';
+      h+='<div class="detail-section"><div class="detail-head">Rest Between Reps</div>';
+      h+='<div class="detail-content" style="display:flex;align-items:center;gap:10px">';
+      h+='<span style="font-family:var(--display);font-size:17px;font-weight:800;color:var(--run);text-transform:uppercase">'+esc(intervalRest.restTime)+'</span>';
+      h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">'+esc(intervalRest.restType)+'</span>';
       if(intervalRest.recoveryNote){
-        h+='<div style="font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.5;text-align:right;flex:1;min-width:160px">'+esc(intervalRest.recoveryNote)+'</div>';
+        h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto;text-align:right;line-height:1.4">'+esc(intervalRest.recoveryNote)+'</span>';
       }
-      h+='</div>';
-      h+='</div>';
+      h+='</div></div>';
     }
 
-    // Cool Down rendered in warm up / cool down 2-col grid above
+    // Warm Up + Cool Down side by side
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+    h+='<div class="detail-section"><div class="detail-head">Warm Up</div><div class="detail-content" style="height:100%;box-sizing:border-box">'+esc(warmUp)+'</div></div>';
+    h+='<div class="detail-section"><div class="detail-head">Cool Down</div><div class="detail-content" style="height:100%;box-sizing:border-box">'+esc(coolDown)+'</div></div>';
+    h+='</div>';
+
     h+='<div class="alt-box"><div class="alt-label">Alternative Workout</div><div class="alt-title">'+esc(altInfo.title)+'</div><div class="alt-desc">'+esc(altInfo.description)+'</div></div>';
     h+='<div class="run-log">';
     h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
