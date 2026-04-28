@@ -2487,26 +2487,6 @@ function lockSaveButton(i,label){
   btn.disabled=true;
   btn.style.opacity='0.7';
   btn.style.cursor='default';
-  // Add small edit link
-  var editId='edit_'+i;
-  if(!document.getElementById(editId)){
-    var editLink=document.createElement('div');
-    editLink.id=editId;
-    editLink.style.cssText='text-align:center;margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;';
-    editLink.innerHTML='<span style="cursor:pointer;text-decoration:underline;" onclick="unlockSaveButton('+i+',\''+label+'\')">Edit & re-submit</span>';
-    btn.parentNode.insertBefore(editLink,btn.nextSibling);
-  }
-}
-function unlockSaveButton(i,label){
-  var btn=document.getElementById('sb_'+i);
-  if(!btn) return;
-  btn.classList.remove('saved');
-  btn.textContent=label;
-  btn.disabled=false;
-  btn.style.opacity='';
-  btn.style.cursor='';
-  var editLink=document.getElementById('edit_'+i);
-  if(editLink) editLink.remove();
 }
 async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
