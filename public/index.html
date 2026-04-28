@@ -700,11 +700,22 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
           </div>
           <!-- Step 5: This week -->
           <div class="ci-step-panel" data-step="5">
-            <div class="ci-step-title">📝 This Week</div>
-            <div class="card" style="margin-bottom:14px;border:2px solid #0a0a0a">
-              <div class="card-title">How has this week honestly been for you?</div>
-              <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Inside and outside of training — share as much or as little as you'd like. 🙏</div>
-              <textarea class="li" id="ciTestimonial" placeholder="e.g. This week felt amazing. I felt stronger in every session..." style="min-height:140px;resize:vertical;font-size:13px"></textarea>
+            <div class="ci-step-title">⭐ Your Week in Words</div>
+            <div style="background:#0a0a0a;border-radius:12px;padding:18px;margin-bottom:14px">
+              <div style="font-family:var(--mono);font-size:9px;color:#f59e0b;text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
+              <div style="font-family:var(--display);font-size:20px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.15;margin-bottom:8px">What did this week mean to you?</div>
+              <div style="font-size:13px;color:rgba(255,255,255,.55);line-height:1.6">Your progress is worth sharing. Other people are sitting on the couch wondering if they could do what you're doing — your words might be exactly what they need to hear.</div>
+            </div>
+            <div class="card" style="margin-bottom:10px;border:2px solid #0a0a0a">
+              <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Write freely — we may share this (with your permission) to inspire others 🙌</div>
+              <textarea class="li" id="ciTestimonial" placeholder="e.g. Three weeks ago I could barely run 2km without stopping. This week I nailed every session and hit a new PB. I didn't think I had it in me — but here I am. The coaching from Karl and Alex has completely changed how I train..." style="min-height:180px;resize:vertical;font-size:13px;line-height:1.6"></textarea>
+              <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+                <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Prompts to get you started 💡</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.5">• What's something you did this week you couldn't have done a month ago?</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.5">• How has training been affecting the rest of your life?</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.5">• What moment this week made you feel proud?</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.5">• What would you say to someone thinking about starting?</div>
+              </div>
             </div>
             <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()" style="margin-bottom:10px">Submit Check-in</button>
           </div>
