@@ -2168,6 +2168,22 @@ function getIntervalRestInfo(meta, sessionTitle) {
     restTime = notionRecovery;
     restType = 'Coach-specified Rest';
     restDesc = 'Rest period as prescribed by your coaches. Stick to this — it\'s calibrated to your session.';
+    recoveryNote = null;
+  }
+
+  // Parse rest time explicitly stated in the session title or description — always wins
+  var fullText = String(sessionTitle + ' ' + (meta.description || '') + ' ' + (meta.target || '') + ' ' + (meta.sessionGoal || ''));
+  // Matches patterns like: "60s rest", "90 sec rest", "2min rest", "60 seconds recovery", "w/ 60s", "with 90sec"
+  var inlineRest = fullText.match(/(?:with|w\/|w\s+)?\s*(\d+\.?\d*)\s*(s\b|sec|secs|seconds?|min|mins|minutes?)\s*(?:rest|recovery|jog|walk|between|rec)?/i);
+  if (inlineRest) {
+    var rVal = parseFloat(inlineRest[1]);
+    var rUnit = inlineRest[2].toLowerCase();
+    var isMin = /^min/.test(rUnit);
+    var formatted = isMin ? (rVal === 1 ? '1 min' : rVal + ' min') : (rVal + ' sec');
+    restTime = formatted;
+    restType = 'As prescribed in session';
+    restDesc = 'Rest time stated in your session — stick to this exactly. It\'s been set for your current fitness and the session load.';
+    recoveryNote = 'Don\'t cut the rest short. Consistent reps across all efforts is the goal.';
   }
 
   return { restTime: restTime, restType: restType, restDesc: restDesc, recoveryNote: recoveryNote };
