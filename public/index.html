@@ -1183,6 +1183,7 @@ async function doLogin(code){
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
   await loadCloudData(code);
+  await loadSessionLogs();
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
   document.getElementById('loginScreen').style.display='none';
@@ -2405,6 +2406,7 @@ function buildBody(s,i,type){
     h+='</select></div>';
     h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="rn_'+i+'" class="li" placeholder="Any additional thoughts..." oninput="draftRun('+i+')">'+esc(sl.notes||'')+'</textarea></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save Session</button>';
+    if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save run');}(i),0);}
     h+='</div>';
     h+='</div>';
     h+='</div>';
@@ -2440,6 +2442,7 @@ function buildBody(s,i,type){
       h+='</div>';
     }
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveGym('+i+',\''+esc(splitKey)+'\')">Save session</button>';
+    if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save session');}(i),0);}
   }else{h+='<div style="font-family:var(--mono);font-size:12px;color:var(--dim);padding:8px 0">Rest up. Recovery is training too.</div>';}
   return h;
 }
@@ -2461,12 +2464,58 @@ function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;
 function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
 function editRun(i){var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);if(form) form.style.display='block';if(saved) saved.style.display='none';}
 function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=STR[splitKey]||[];var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);log[ex.exercise]=arr;});logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
+// ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
+var sessionLoggedCache={};
+async function markSessionLogged(sessionId){
+  var key='session_'+athlete.code+'_'+sessionId;
+  sessionLoggedCache[key]=true;
+  if(sbClient){try{await sbClient.from('session_logs').upsert({athlete_code:athlete.code,session_key:key,logged_at:new Date().toISOString()},{onConflict:'athlete_code,session_key'});}catch(e){console.warn('session_logs upsert failed:',e);}}
+}
+async function loadSessionLogs(){
+  if(!sbClient) return;
+  try{
+    var res=await sbClient.from('session_logs').select('session_key').eq('athlete_code',athlete.code);
+    if(res.data){res.data.forEach(function(r){sessionLoggedCache[r.session_key]=true;});}
+  }catch(e){console.warn('session_logs load failed:',e);}
+}
+function isSessionLogged(sessionId){return !!sessionLoggedCache['session_'+athlete.code+'_'+sessionId];}
+function lockSaveButton(i,label){
+  var btn=document.getElementById('sb_'+i);
+  if(!btn) return;
+  btn.classList.add('saved');
+  btn.textContent='Already logged ✓';
+  btn.disabled=true;
+  btn.style.opacity='0.7';
+  btn.style.cursor='default';
+  // Add small edit link
+  var editId='edit_'+i;
+  if(!document.getElementById(editId)){
+    var editLink=document.createElement('div');
+    editLink.id=editId;
+    editLink.style.cssText='text-align:center;margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;';
+    editLink.innerHTML='<span style="cursor:pointer;text-decoration:underline;" onclick="unlockSaveButton('+i+',\''+label+'\')">Edit & re-submit</span>';
+    btn.parentNode.insertBefore(editLink,btn.nextSibling);
+  }
+}
+function unlockSaveButton(i,label){
+  var btn=document.getElementById('sb_'+i);
+  if(!btn) return;
+  btn.classList.remove('saved');
+  btn.textContent=label;
+  btn.disabled=false;
+  btn.style.opacity='';
+  btn.style.cursor='';
+  var editLink=document.getElementById('edit_'+i);
+  if(editLink) editLink.remove();
+}
 async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
   logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
-  showToast('Run saved ✓');flashSave(i,'Save run');
+  await markSessionLogged(s.id);
+  showToast('Run saved ✓');
+  lockSaveButton(i,'Save run');
   await loadNutrition();
 }
 async function saveGym(i,splitKey){
@@ -2476,8 +2525,10 @@ async function saveGym(i,splitKey){
   logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   var fetches=Object.keys(log).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+s.date,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});});
   await Promise.all(fetches);
+  await markSessionLogged(s.id);
   refreshStrengthFeedback(i,splitKey);
-  showToast('Session saved ✓');flashSave(i,'Save session');
+  showToast('Session saved ✓');
+  lockSaveButton(i,'Save session');
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';btn.disabled=true;setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;btn.disabled=false;},2500);}}
 function updateProgress(){}
