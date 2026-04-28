@@ -2465,7 +2465,7 @@ async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
   logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
-  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,type:'Running',exerciseLog:'Distance: '+d.distance+'km | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
+  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,exerciseLog:'Distance: '+d.distance+'km | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
   showToast('Run saved ✓');flashSave(i,'Save run');
   await loadNutrition();
 }
@@ -2474,7 +2474,8 @@ async function saveGym(i,splitKey){
   var s=sessions[i],exercises=STR[splitKey]||[],log={};
   exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);if(sets.length) log[ex.exercise]=sets;});
   logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
-  for(var exName in log){var sets=log[exName];await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+s.date,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:athlete.name,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});}
+  var fetches=Object.keys(log).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+s.date,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:athlete.name,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});});
+  await Promise.all(fetches);
   refreshStrengthFeedback(i,splitKey);
   showToast('Session saved ✓');flashSave(i,'Save session');
 }
