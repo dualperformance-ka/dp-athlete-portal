@@ -2090,7 +2090,7 @@ function getIntervalRestInfo(meta, sessionTitle) {
   var haystack = title + ' ' + intensity + ' ' + type + ' ' + description;
 
   // Check if this is actually an interval/speed session
-  var isInterval = /interval|track|repeat|rep|speed|fartlek|800|400|200|1k|1\.5k|2k|3k|km rep|mile rep|yasso|cruise/.test(haystack);
+  var isInterval = /interval|track|repeat|rep|speed|fartlek|800|400|200|\d+\.?\d*\s*km|\d+\s*k\b|km rep|mile rep|yasso|cruise/.test(haystack);
   if (!isInterval) return null;
 
   // Try to extract interval duration/distance from description or title
@@ -2114,6 +2114,10 @@ function getIntervalRestInfo(meta, sessionTitle) {
     restTime = '2–3 min'; restType = 'Jog / Walk Rest';
     restDesc = 'Easy jog or brisk walk between reps. Aim to start each 800m feeling 80% recovered.';
     recoveryNote = 'Don\'t rush the recovery — 800m reps demand real effort, real rest.';
+  } else if (/1\.6\s*km|1600\s*m/.test(haystack)) {
+    restTime = '2–3 min'; restType = 'Easy Jog Rest';
+    restDesc = 'Easy jog between reps. These are threshold-length efforts — you need real recovery to hold pace each rep.';
+    recoveryNote = 'Aim for consistent splits. If your pace drops >5 sec/km on a rep, the rest wasn\'t long enough.';
   } else if (/1\.5\s*k|1500\s*m/.test(haystack)) {
     restTime = '2–3 min'; restType = 'Easy Jog Rest';
     restDesc = 'Easy jog between reps. You should be breathing comfortably before the next one starts.';
