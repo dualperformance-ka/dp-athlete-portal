@@ -2127,10 +2127,10 @@ function getIntervalRestInfo(meta, sessionTitle) {
     recoveryNote = 'Short and sharp. Full rest is non-negotiable — rushing recovery kills quality.';
 
   } else if (/400\s*m|400m/.test(haystack)) {
-    // 400m reps — VO2max, walk/stand rest
-    restTime = '90 sec'; restType = 'Walk Rest';
-    restDesc = 'Walk or stand rest between each rep. You should feel nearly fully recovered before the next one.';
-    recoveryNote = 'RPE 8–9 per rep. If pace drops >3 sec/lap by rep 6, you started too fast.';
+    // 400m reps — VO2max, 60 sec walk rest
+    restTime = '60 sec'; restType = 'Walk Rest';
+    restDesc = 'Walk rest between each rep. Short and structured — this keeps the stimulus race-sharp.';
+    recoveryNote = 'If pace drops >3 sec/lap by rep 5, add 15–20 sec to rest and hold pace — don\'t sacrifice quality for speed.';
 
   } else if (/800\s*m|800m/.test(haystack)) {
     // 800m reps — VO2max, jog/walk rest
