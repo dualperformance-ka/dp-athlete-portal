@@ -2703,9 +2703,10 @@ function showRunSaved(i,d){
   if(rpeEl) rpeEl.textContent=d.rpe?d.rpe+'/10':'-';
   if(feelEl){feelEl.textContent=d.feel||'';feelEl.style.display=d.feel?'block':'none';}
   if(notesEl){notesEl.textContent=d.notes||'';notesEl.style.display=d.notes?'block':'none';}
-  var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);
-  if(form) form.style.display='none';
+  var saved=document.getElementById('saved_run_'+i);
   if(saved) saved.style.display='block';
+  // Keep the form visible so athletes can see their saved data for reassurance
+  lockSaveButton(i,'Save session');
 }
 function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=STR[splitKey]||[];var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
 // ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
@@ -2727,7 +2728,7 @@ function lockSaveButton(i,label){
   var btn=document.getElementById('sb_'+i);
   if(!btn) return;
   btn.classList.add('saved');
-  btn.textContent='Already logged ✓';
+  btn.textContent='Session Saved ✓';
   btn.disabled=true;
   btn.style.opacity='0.7';
   btn.style.cursor='default';
@@ -2752,6 +2753,12 @@ async function saveGym(i,splitKey){
   await markSessionLogged(s.id);
   refreshStrengthFeedback(i,splitKey);
   showToast('Session saved ✓');
+  var gymSavedBanner=document.getElementById('gym_saved_'+i);
+  if(!gymSavedBanner){
+    var sbBtn=document.getElementById('sb_'+i);
+    if(sbBtn){gymSavedBanner=document.createElement('div');gymSavedBanner.id='gym_saved_'+i;gymSavedBanner.className='saved-data';gymSavedBanner.style.marginBottom='10px';gymSavedBanner.innerHTML='<div class="saved-label">✓ Session Logged — your data above has been saved<\/div>';sbBtn.parentNode.insertBefore(gymSavedBanner,sbBtn);}
+  }
+  if(gymSavedBanner) gymSavedBanner.style.display='block';
   lockSaveButton(i,'Save session');
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';btn.disabled=true;setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;btn.disabled=false;},2500);}}
