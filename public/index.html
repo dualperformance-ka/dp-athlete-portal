@@ -821,6 +821,35 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
         <button class="ql-modal-close" onclick="closeQuickLog('body')">×</button>
       </div>
       <div class="ql-modal-body">
+        <!-- Previous day reference panel -->
+        <div id="qlbPrevDay" style="display:none;background:#0a0a0a;border-radius:10px;padding:12px 14px;margin-bottom:14px">
+          <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" id="qlbPrevDayLabel">Yesterday</div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px">
+            <div style="text-align:center">
+              <div style="font-family:var(--display);font-size:22px;font-weight:700;color:#fff;line-height:1" id="qlbPrevWeight">—</div>
+              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">weight kg</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div style="text-align:center">
+                <div style="font-family:var(--mono);font-size:14px;font-weight:500;color:rgba(255,255,255,.8);line-height:1" id="qlbPrevSleep">—</div>
+                <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;margin-top:3px">sleep</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-family:var(--mono);font-size:14px;font-weight:500;color:rgba(255,255,255,.8);line-height:1" id="qlbPrevEnergy">—</div>
+                <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;margin-top:3px">energy</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-family:var(--mono);font-size:14px;font-weight:500;color:rgba(255,255,255,.8);line-height:1" id="qlbPrevStress">—</div>
+                <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;margin-top:3px">stress</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-family:var(--mono);font-size:14px;font-weight:500;color:rgba(255,255,255,.8);line-height:1" id="qlbPrevSore">—</div>
+                <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;margin-top:3px">soreness</div>
+              </div>
+            </div>
+          </div>
+          <div id="qlbPrevNotes" style="display:none;font-size:12px;color:rgba(255,255,255,.4);font-style:italic;border-top:1px solid rgba(255,255,255,.08);padding-top:8px"></div>
+        </div>
         <div class="rlog" style="margin-bottom:14px">
           <div class="lf"><label>Date</label><input type="date" class="li" id="qlbDate" /></div>
           <div class="lf"><label>Weight (kg)</label><input type="number" class="li" id="qlbWeight" step="0.1" placeholder="72.0" /></div>
@@ -1034,20 +1063,6 @@ async function loadCloudData(code){
             _skipSbSync=true;
           }
         }catch(e){}
-      }
-    }
-    // Backfill: if photos exist locally but not in Supabase, push them up now
-    if(!cloudKeys['photos']){
-      var localPhotos=localStorage.getItem('dp_photos_'+code);
-      if(localPhotos&&localPhotos!=='{}'){
-        try{
-          var parsedPhotos=JSON.parse(localPhotos);
-          if(parsedPhotos&&Object.keys(parsedPhotos).length){
-            _skipSbSync=false;
-            await sbClient.from('athlete_data').upsert({athlete_code:code,key:'photos',value:parsedPhotos,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});
-            _skipSbSync=true;
-          }
-        }catch(e){console.warn('Photos backfill failed:',e);}
       }
     }
   }catch(e){console.warn('Cloud sync failed:',e);}
@@ -1441,6 +1456,33 @@ function openQuickLog(type){
   if(type==='body'){
     var dateEl=document.getElementById('qlbDate');
     if(dateEl&&!dateEl.value) dateEl.value=today;
+    // Load previous day body data for reference
+    (function(){
+      var prevPanel=document.getElementById('qlbPrevDay');
+      if(!prevPanel||!athlete||!athlete.code) return;
+      var d=new Date(today+'T00:00:00');
+      d.setDate(d.getDate()-1);
+      var yest=localISO(d);
+      var raw=null;
+      try{raw=localStorage.getItem('dp_daily_body_'+athlete.code+'_'+yest);}catch(e){}
+      if(!raw){prevPanel.style.display='none';return;}
+      var prev=null;try{prev=JSON.parse(raw);}catch(e){}
+      if(!prev){prevPanel.style.display='none';return;}
+      var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var dd=new Date(yest+'T00:00:00');
+      var lbl='Yesterday ('+days[dd.getDay()]+' '+dd.getDate()+' '+months[dd.getMonth()]+')';
+      document.getElementById('qlbPrevDayLabel').textContent=lbl;
+      document.getElementById('qlbPrevWeight').textContent=prev.weight?prev.weight+'kg':'—';
+      document.getElementById('qlbPrevSleep').textContent=prev.sleep?prev.sleep+'/10':'—';
+      document.getElementById('qlbPrevEnergy').textContent=prev.energy?prev.energy+'/10':'—';
+      document.getElementById('qlbPrevStress').textContent=prev.stress?prev.stress+'/10':'—';
+      document.getElementById('qlbPrevSore').textContent=prev.soreness?prev.soreness+'/10':'—';
+      var notesEl=document.getElementById('qlbPrevNotes');
+      if(prev.notes){notesEl.textContent='"'+prev.notes+'"';notesEl.style.display='block';}
+      else{notesEl.style.display='none';}
+      prevPanel.style.display='block';
+    })();
     document.getElementById('qlBodyModal').classList.add('open');
     document.body.style.overflow='hidden';
   } else {
@@ -1453,7 +1495,7 @@ function openQuickLog(type){
       // Calculate yesterday's date
       var d=new Date(today+'T00:00:00');
       d.setDate(d.getDate()-1);
-      var yest=d.toISOString().slice(0,10);
+      var yest=localISO(d);
       var raw=null;
       // Check Supabase-synced localStorage first
       try{raw=localStorage.getItem('dp_daily_nut_'+athlete.code+'_'+yest);}catch(e){}
@@ -1503,6 +1545,7 @@ async function submitQuickBody(){
   document.getElementById('qlbStress').value='5';document.getElementById('qlbStressVal').textContent='5';
   document.getElementById('qlbSore').value='5';document.getElementById('qlbSoreVal').textContent='5';
   document.getElementById('qlbNotes').value='';
+  var prevPanel=document.getElementById('qlbPrevDay');if(prevPanel) prevPanel.style.display='none';
 }
 async function submitQuickNut(){
   var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
@@ -1865,24 +1908,7 @@ async function handleAngleUpload(input){
   try{
     var res=await fetch('https://api.cloudinary.com/v1_1/'+CLOUDINARY_CLOUD+'/image/upload',{method:'POST',body:formData});
     var data=await res.json();
-    if(data.secure_url){
-      var photos=getPhotos();
-      if(!photos['week'+week]) photos['week'+week]={};
-      photos['week'+week][key]=data.secure_url;
-      savePhotos(photos);
-      // Explicit Supabase upsert — don't rely solely on the monkey-patch
-      if(sbClient){
-        try{
-          var sbRes=await sbClient.from('athlete_data').upsert(
-            {athlete_code:athlete.code,key:'photos',value:photos,updated_at:new Date().toISOString()},
-            {onConflict:'athlete_code,key'}
-          );
-          if(sbRes.error) console.warn('Photo Supabase sync failed:',sbRes.error);
-        }catch(e){console.warn('Photo Supabase sync error:',e);}
-      }
-      renderAngleGrid(week);
-      showToast(angle+' uploaded ✓');
-    }
+    if(data.secure_url){var photos=getPhotos();if(!photos['week'+week]) photos['week'+week]={};photos['week'+week][key]=data.secure_url;savePhotos(photos);renderAngleGrid(week);showToast(angle+' uploaded ✓');}
     else{showToast('Upload failed — try again');}
   }catch(e){showToast('Upload failed — check connection');}
   if(slot) slot.classList.remove('uploading');input.value='';
