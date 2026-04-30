@@ -2736,7 +2736,14 @@ async function loadSessionLogs(){
     if(res.data){res.data.forEach(function(r){sessionLoggedCache[r.session_key]=true;});}
   }catch(e){console.warn('session_logs load failed:',e);}
 }
-function isSessionLogged(sessionId){return !!sessionLoggedCache['session_'+athlete.code+'_'+sessionId];}
+function isSessionLogged(sessionId){
+  // Primary: in-memory cache (set at save time, or loaded from session_logs on login)
+  if(sessionLoggedCache['session_'+athlete.code+'_'+sessionId]) return true;
+  // Fallback: check logs object — reliably synced via athlete_data table in Supabase
+  var l=logs[sessionId];
+  if(l&&typeof l==='object'&&Object.keys(l).length>0) return true;
+  return false;
+}
 function lockSaveButton(i,label){
   var btn=document.getElementById('sb_'+i);
   if(!btn) return;
