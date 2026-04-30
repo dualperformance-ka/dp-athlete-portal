@@ -133,6 +133,8 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .slbl{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;text-align:center}
 .exsets{padding:0 14px 6px;display:grid;gap:5px}
 .setrow{display:grid;grid-template-columns:22px 1fr 1fr 36px;gap:6px;align-items:center}
+.setrow-single{display:grid;grid-template-columns:22px 1fr 1fr 1fr 36px;gap:6px;align-items:center}
+.slbls-single{display:grid;grid-template-columns:22px 1fr 1fr 1fr 36px;gap:6px;padding:0 14px 4px}
 .snum{font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center}
 .sin{width:100%;background:var(--surface);border:1px solid var(--border-mid);border-radius:6px;padding:10px 5px;font-family:var(--mono);font-size:14px;font-weight:500;outline:none;text-align:center;-webkit-appearance:none;-moz-appearance:none}
 .sin:focus{border-color:var(--border-strong)}
@@ -1073,12 +1075,12 @@ async function loadCloudData(code){
 // ── STRENGTH LIBRARY ──────────────────────────────────────────────────────────
 const STR = {
   "Lower A":[
-    {"exercise":"Leg Extension","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up"},
-    {"exercise":"Bulgarian Split Squat","sets":"3","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"3","rest":"90s","notes":""},
-    {"exercise":"Seated Hamstring Curl","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up"},
-    {"exercise":"Barbell Romanian Dead Lift","sets":"3","reps":"8","repRange":"6-10","warmupSets":"0","workingSets":"3","rest":"90s","notes":""},
+    {"exercise":"Leg Extension","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up","alts":["Single Leg Extension"]},
+    {"exercise":"Bulgarian Split Squat","sets":"3","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Dumbbell Bulgarian Split Squat","Hack Squat"]},
+    {"exercise":"Seated Hamstring Curl","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up","alts":["Lying Leg Curl"]},
+    {"exercise":"Barbell Romanian Dead Lift","sets":"3","reps":"8","repRange":"6-10","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Dumbbell Romanian Deadlift"]},
     {"exercise":"Adduction Machine","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
-    {"exercise":"Standing Calf Raise","sets":"4","reps":"8","repRange":"10-15","warmupSets":"1","workingSets":"3","rest":"90s","notes":""},
+    {"exercise":"Standing Calf Raise","sets":"4","reps":"8","repRange":"10-15","warmupSets":"1","workingSets":"3","rest":"90s","notes":"","alts":["Seated Calf Raise"]},
     {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":""}
   ],
   "Lower B":[
@@ -1091,12 +1093,12 @@ const STR = {
     {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":""}
   ],
   "Upper A":[
-    {"exercise":"Low Machine Row","sets":"4","reps":"8","repRange":"8-12","warmupSets":"2","workingSets":"2","rest":"90s","notes":"First 2 sets warm-up","alts":["Cable row (close grip)","Low pulley row"]},
-    {"exercise":"Close Grip Cable Row","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Machine row (wide grip)","Seated cable row"]},
+    {"exercise":"Low Machine Row","sets":"4","reps":"8","repRange":"8-12","warmupSets":"2","workingSets":"2","rest":"90s","notes":"First 2 sets warm-up","alts":["Cable row (close grip)"]},
+    {"exercise":"Close Grip Cable Row","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Plate loaded machine row (wide grip)","Wide grip cable row"]},
     {"exercise":"Pec Dec","sets":"3","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"2","rest":"90s","notes":"First set warm-up","alts":["Cable fly","Chest fly machine"]},
     {"exercise":"Incline Dumbbell Press","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Barbell incline bench press","Machine incline bench press"]},
     {"exercise":"Lat Pulldown","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Cable lat pulldown","Assisted pull-up"]},
-    {"exercise":"Machine Dips","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Parallel bar dip","Cable pushdown"]},
+    {"exercise":"Machine Dips","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Assisted dips","Cable pushdown"]},
     {"exercise":"Machine Shoulder Press","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Dumbbell shoulder press","Seated barbell press"]},
     {"exercise":"Dumbbell Hammer Curl","sets":"2","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Bicep curl","Barbell curl"]},
     {"exercise":"Lateral Dumbbell Raise","sets":"2","reps":"10","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Machine lateral raise","Cable lateral raise"]},
@@ -2485,7 +2487,7 @@ function getProgressionFeedback(ex,prevEffort,currentEffort){
   return{tone:'dim',text:'Progress reps to '+topRep};
 }
 function getFeedbackStyle(tone){if(tone==='ok') return 'color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-border);';if(tone==='warn') return 'color:var(--run);background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.18);';return 'color:var(--dim);background:var(--surface);border:1px solid var(--border),';}
-function collectExerciseSets(i,ei){var c=document.getElementById('sets_'+i+'_'+ei),arr=[];if(!c) return arr;c.querySelectorAll('.setrow').forEach(function(_,si){var w=(document.getElementById('w_'+i+'_'+ei+'_'+si)||{}).value||'';var r=(document.getElementById('r_'+i+'_'+ei+'_'+si)||{}).value||'';var doneEl=document.getElementById('st_'+i+'_'+ei+'_'+si);var done=doneEl?doneEl.classList.contains('on'):false;if(w||r||done) arr.push({weight:w,reps:r,done:done});});return arr;}
+function collectExerciseSets(i,ei){var c=document.getElementById('sets_'+i+'_'+ei),arr=[];if(!c) return arr;c.querySelectorAll('.setrow,.setrow-single').forEach(function(_,si){var w=(document.getElementById('w_'+i+'_'+ei+'_'+si)||{}).value||'';var rLEl=document.getElementById('rL_'+i+'_'+ei+'_'+si);var rREl=document.getElementById('rR_'+i+'_'+ei+'_'+si);var doneEl=document.getElementById('st_'+i+'_'+ei+'_'+si);var done=doneEl?doneEl.classList.contains('on'):false;if(rLEl&&rREl){var rL=rLEl.value||'';var rR=rREl.value||'';if(w||rL||rR||done) arr.push({weight:w,repsLeft:rL,repsRight:rR,done:done});}else{var r=(document.getElementById('r_'+i+'_'+ei+'_'+si)||{}).value||'';if(w||r||done) arr.push({weight:w,reps:r,done:done});}});return arr;}
 function refreshStrengthFeedback(i,splitKey){
   var exercises=STR[splitKey]||[];var s=sessions[i];
   exercises.forEach(function(ex,ei){
@@ -2665,14 +2667,28 @@ function buildBody(s,i,type){
           });
           h+='</div>';
         }
-        h+='<div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">✓</div></div>';
-        h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
-        for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;
-          h+='<div class="setrow" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum">'+(si+1)+'</div>';
-          h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
-          h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(sv.reps||'—')+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
-          h+='<button class="st'+(sv.done?' on':'')+'" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">';
-          h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button></div>';
+        var isSingleLeg=resolvedEx.toLowerCase().indexOf('single leg')>=0;
+        if(isSingleLeg){
+          h+='<div class="slbls-single"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl">✓</div></div>';
+          h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
+          for(var si=0;si<sets;si++){var sv=savedEx[si]||{};
+            h+='<div class="setrow-single" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum">'+(si+1)+'</div>';
+            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+            h+='<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="L" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+            h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="R" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">';
+            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button></div>';
+          }
+        }else{
+          h+='<div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">✓</div></div>';
+          h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
+          for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;
+            h+='<div class="setrow" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum">'+(si+1)+'</div>';
+            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+            h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(sv.reps||'—')+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">';
+            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button></div>';
+          }
         }
         h+='</div><button class="addset" onclick="addSet('+i+','+ei+',\'—\',\''+esc(splitKey)+'\')">+ Add set</button></div>';
       });
@@ -2698,7 +2714,7 @@ async function tickS(i){
   api('pages/'+s.id,{properties:{Status:{select:{name:done?'Completed':'Planned'}}}});
 }
 function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),on=!btn.classList.contains('on');btn.classList.toggle('on',on);btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';}
-function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+ei),si=c.querySelectorAll('.setrow').length,row=document.createElement('div');row.className='setrow';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div><input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" /><input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" /><button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>';c.appendChild(row);}
+function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+ei);var isSL=!!document.getElementById('rL_'+i+'_'+ei+'_0');var si=c.querySelectorAll('.setrow,.setrow-single').length;var row=document.createElement('div');if(isSL){row.className='setrow-single';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div>'+'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="L" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="R" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">'+'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>';}else{row.className='setrow';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div>'+'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">'+'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>';}c.appendChild(row);}
 function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;if(s>=60){var m=Math.floor(s/60),rem=s%60;return rem?m+'min '+rem+'s rest':m+' min rest';}return s+'s rest';}
 function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
 function editRun(i){var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);if(form) form.style.display='block';if(saved) saved.style.display='none';}
