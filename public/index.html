@@ -374,6 +374,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <button class="hicon hicon-goals" id="goalsBtn" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
       <button class="hicon" onclick="switchTab('handbook')">Guide</button>
       <div class="hpill" id="apill"></div>
+      <button class="hicon" onclick="logout()" title="Sign out" style="font-size:10px;padding:4px 9px;opacity:.55">↩</button>
     </div>
   </header>
 
@@ -1225,6 +1226,15 @@ function sortSessionsForDisplay(list){
   });
 }
 
+
+function logout(){
+  localStorage.removeItem('dp_auth_code');
+  athlete=null;sessions=[];allSessions=[];ticked={};logs={};exPicks={};
+  document.getElementById('portalScreen').style.display='none';
+  document.getElementById('quicklogStrip').style.display='none';
+  document.getElementById('loginScreen').style.display='block';
+  document.getElementById('codeInput').value='';
+}
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
 function login(){var c=(document.getElementById('codeInput').value||'').toUpperCase().trim();if(c)doLogin(c);}
 async function doLogin(code){
@@ -1248,6 +1258,7 @@ async function doLogin(code){
     startDate:props['Start Date']&&props['Start Date'].date&&props['Start Date'].date.start||'—',
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
+  localStorage.setItem('dp_auth_code',code);
   await loadCloudData(code);
   await loadSessionLogs();
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
@@ -2771,7 +2782,7 @@ document.getElementById('loginLogo').src=LOGO_DATA;
 document.getElementById('headerLogo').src=LOGO_DATA;
 var urlCode=new URLSearchParams(location.search).get('code');
 if(urlCode) doLogin(urlCode);
-else document.getElementById('loginScreen').style.display='block';
+else { var savedCode=localStorage.getItem('dp_auth_code'); if(savedCode) doLogin(savedCode); else document.getElementById('loginScreen').style.display='block'; }
 
 // ============================================================================
 // RUNNING LIBRARY INTEGRATION
