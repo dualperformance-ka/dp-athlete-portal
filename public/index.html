@@ -2678,6 +2678,7 @@ function buildBody(s,i,type){
       });
       h+='</div>';
     }
+    h+='<div id="gym_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label">✓ Session Logged — your data above has been saved</div></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveGym('+i+',\''+esc(splitKey)+'\')">Save session</button>';
     if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save session');}(i),0);}
   }else{h+='<div style="font-family:var(--mono);font-size:12px;color:var(--dim);padding:8px 0">Rest up. Recovery is training too.</div>';}
@@ -2688,6 +2689,7 @@ function togS(i){var el=document.getElementById('scb_'+i);if(el) el.classList.to
 async function tickS(i){
   var s=sessions[i],done=!ticked[s.id];
   ticked[s.id]=done;localStorage.setItem('dp_ticked_'+athlete.code,JSON.stringify(ticked));
+  if(sbClient){try{sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'ticked',value:ticked,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'}).then(function(){}).catch(function(){});}catch(e){}}
   var card=document.getElementById('sc_'+i),btn=document.getElementById('tick_'+i);
   if(card) card.classList.toggle('done',done);
   if(btn){btn.classList.toggle('on',done);btn.querySelector('svg').style.opacity=done?1:0;}
@@ -2748,6 +2750,7 @@ async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
   logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
   await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
   await markSessionLogged(s.id);
   showToast('Run saved ✓');
@@ -2759,6 +2762,7 @@ async function saveGym(i,splitKey){
   var s=sessions[i],exercises=STR[splitKey]||[],log={};
   exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;if(sets.length) log[useName]=sets;});
   logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
   var fetches=Object.keys(log).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+s.date,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});});
   await Promise.all(fetches);
   await markSessionLogged(s.id);
