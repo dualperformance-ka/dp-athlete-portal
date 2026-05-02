@@ -1230,7 +1230,7 @@ function sortSessionsForDisplay(list){
 
 
 function logout(){
-  localStorage.removeItem('dp_auth_code');
+  sessionStorage.removeItem('dp_auth_code');
   athlete=null;sessions=[];allSessions=[];ticked={};logs={};exPicks={};
   document.getElementById('portalScreen').style.display='none';
   document.getElementById('quicklogStrip').style.display='none';
@@ -1260,7 +1260,7 @@ async function doLogin(code){
     startDate:props['Start Date']&&props['Start Date'].date&&props['Start Date'].date.start||'—',
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
-  localStorage.setItem('dp_auth_code',code);
+  sessionStorage.setItem('dp_auth_code',code);
   await loadCloudData(code);
   await loadSessionLogs();
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
@@ -2809,7 +2809,7 @@ document.getElementById('loginLogo').src=LOGO_DATA;
 document.getElementById('headerLogo').src=LOGO_DATA;
 var urlCode=new URLSearchParams(location.search).get('code');
 if(urlCode) doLogin(urlCode);
-else { var savedCode=localStorage.getItem('dp_auth_code'); if(savedCode) doLogin(savedCode); else document.getElementById('loginScreen').style.display='block'; }
+else { var savedCode=sessionStorage.getItem('dp_auth_code'); if(savedCode) doLogin(savedCode); else document.getElementById('loginScreen').style.display='block'; }
 
 // ============================================================================
 // RUNNING LIBRARY INTEGRATION
