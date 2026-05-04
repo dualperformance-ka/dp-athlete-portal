@@ -1432,7 +1432,14 @@ async function submitCheckin(){
   var name=document.getElementById('ciName').value.trim();
   if(!name){showToast('Please enter your name');return;}
   btn.textContent='Submitting...';btn.disabled=true;
-  var payload={name:name,weekEnding:document.getElementById('ciWeekEnding').value,
+  var weekEndVal=document.getElementById('ciWeekEnding').value;
+  var wkNum=1;
+  if(athlete&&athlete.startDate&&athlete.startDate!=='—'&&weekEndVal){
+    var _s=new Date(athlete.startDate);var _w=new Date(weekEndVal+'T00:00:00');
+    wkNum=Math.max(1,Math.min(12,Math.floor((_w-_s)/(7*24*60*60*1000))+1));
+  }else{wkNum=getCurrentProgrammeWeek();}
+  var notionTitle=name.toUpperCase().trim()+' — Week '+wkNum;
+  var payload={name:notionTitle,weekEnding:weekEndVal,
     runCompleted:document.getElementById('ciRunComp').value||'0',runPlanned:document.getElementById('ciRunPlan').value||'0',
     runKm:document.getElementById('ciRunKm').value||'0',runFeel:document.getElementById('ciRunFeel').value,
     runWins:document.getElementById('ciRunWins').value||'None',runNiggles:document.getElementById('ciRunNiggles').value||'None',
