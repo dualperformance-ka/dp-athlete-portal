@@ -1983,10 +1983,8 @@ async function loadNutrition(){
     if(typeof v==='number') return {display:String(v),min:v};
     if(!v||v==='—') return null;
     var s=String(v).trim();
-    var range=s.match(/^(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)$/);
-    if(range) return {display:range[1]+'–'+range[2],min:parseFloat(range[1])};
-    var n=parseFloat(s.replace(/[^0-9.]/g,''));
-    return isNaN(n)?null:{display:String(n),min:n};
+    var n=parseFloat(s); // stops at first non-numeric char, so "35-38" → 35
+    return isNaN(n)?null:{display:s,min:n};
   }
   currentNutTargets={cal:toNutNum(mCal),pro:toNutNum(mPro),carb:toNutNum(mCarb),fat:toNutNum(mFat),fibre:toNutNum(mFibre)};
 
