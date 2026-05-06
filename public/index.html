@@ -341,6 +341,16 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .ql-modal-title{font-family:var(--display);font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
 .ql-modal-close{font-size:22px;color:var(--dim);background:var(--surface2);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ql-modal-body{padding:18px}
+.qln-tgt{font-family:var(--mono);font-size:9px;color:#15803d;text-transform:uppercase;letter-spacing:.05em;display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:4px;padding:1px 6px;white-space:nowrap;flex-shrink:0}
+.qln-feedback{background:var(--surface2);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:none}
+.qln-fb-title{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.qln-fb-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qln-fb-item{display:flex;flex-direction:column;gap:2px}
+.qln-fb-label{font-family:var(--mono);font-size:8px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em}
+.qln-fb-val{font-family:var(--display);font-size:17px;font-weight:700;line-height:1.1}
+.qln-fb-bar{height:3px;border-radius:2px;background:var(--border-mid);overflow:hidden;margin-top:3px}
+.qln-fb-fill{height:100%;border-radius:2px;transition:width .25s,background .25s}
+.qln-fb-status{font-family:var(--mono);font-size:8px;letter-spacing:.04em;margin-top:1px}
 /* Exercise picker */
 .ex-picker-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;padding:8px 14px 2px;display:block}
 .ex-picker{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 10px}
@@ -949,16 +959,48 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
         </div>
         <div class="rlog" style="margin-bottom:14px">
           <div class="lf"><label>Date</label><input type="date" class="li" id="qlnDate" /></div>
-          <div class="lf"><label>Calories (kcal)</label><input type="number" class="li" id="qlnCal" placeholder="2300" /></div>
+          <div class="lf">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+              <label>Calories (kcal)</label>
+              <span class="qln-tgt" id="qlnTgtCal"></span>
+            </div>
+            <input type="number" class="li" id="qlnCal" placeholder="2300" oninput="updateNutFeedback()" />
+          </div>
         </div>
         <div class="rlog" style="margin-bottom:14px">
-          <div class="lf"><label>Protein (g)</label><input type="number" class="li" id="qlnPro" placeholder="165" /></div>
-          <div class="lf"><label>Carbs (g)</label><input type="number" class="li" id="qlnCarbs" placeholder="295" /></div>
+          <div class="lf">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+              <label>Protein (g)</label>
+              <span class="qln-tgt" id="qlnTgtPro"></span>
+            </div>
+            <input type="number" class="li" id="qlnPro" placeholder="165" oninput="updateNutFeedback()" />
+          </div>
+          <div class="lf">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+              <label>Carbs (g)</label>
+              <span class="qln-tgt" id="qlnTgtCarb"></span>
+            </div>
+            <input type="number" class="li" id="qlnCarbs" placeholder="295" oninput="updateNutFeedback()" />
+          </div>
         </div>
         <div class="rlog" style="margin-bottom:14px">
-          <div class="lf"><label>Fat (g)</label><input type="number" class="li" id="qlnFat" placeholder="55" /></div>
-          <div class="lf"><label>Fibre (g)</label><input type="number" class="li" id="qlnFibre" placeholder="35" /></div>
+          <div class="lf">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+              <label>Fat (g)</label>
+              <span class="qln-tgt" id="qlnTgtFat"></span>
+            </div>
+            <input type="number" class="li" id="qlnFat" placeholder="55" oninput="updateNutFeedback()" />
+          </div>
+          <div class="lf">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+              <label>Fibre (g)</label>
+              <span class="qln-tgt" id="qlnTgtFibre"></span>
+            </div>
+            <input type="number" class="li" id="qlnFibre" placeholder="35" oninput="updateNutFeedback()" />
+          </div>
         </div>
+        <!-- Live macro vs target feedback -->
+        <div id="qlnFeedback" class="qln-feedback"></div>
         <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
         <button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Log Nutrition</button>
       </div>
@@ -1153,7 +1195,7 @@ const STR = {
 const RUN={"Threshold Work":{"description":"Warm up 15min easy. Run at sustained threshold effort (RPE 7–8). Cool down easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"Easy Run":{"description":"Relaxed aerobic run at conversational pace (RPE 4–5). Focus on easy breathing and good form.","type":"Easy Run","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"Long Run":{"description":"Long aerobic endurance run. Relaxed steady effort (RPE 5–6). Focus on time on feet and fueling.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Progressive Long Run":{"description":"Long run starting easy, gradually increasing pace in final third toward marathon effort.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Fast Finish Long Run":{"description":"Long run mostly easy with final 3–5km at marathon effort (RPE 7).","type":"Long Run","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"12x1min Fartlek":{"description":"Warm up 10–15min easy. 12x1min strong (RPE 7–8) with 1min jog recovery. Cool down easy.","type":"Fartlek","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"8x2min Fartlek":{"description":"Warm up 10–15min easy + strides. 8x2min steady hard (RPE 7) with 2min jog recovery. Cool down 10min easy.","type":"Fartlek","intensity":"Threshold","surface":"Road","difficulty":"Beginner"},"20min Tempo":{"description":"Warm up 10–15min easy. 20min tempo steady effort (RPE 7). Cool down 10min easy.","type":"Tempo","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"25min Tempo":{"description":"Warm up 15min easy. 25min continuous tempo (RPE 7). Cool down 10–15min easy.","type":"Tempo","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"5x1km Threshold":{"description":"Warm up 15min easy + strides. 5x1km threshold (RPE 7–8) with 90s jog recovery. Cool down 10min easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"6x400m Intervals":{"description":"Warm up 15min easy + drills. 6x400m fast (RPE 8) with 200m jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"6x800m Intervals":{"description":"Warm up 15min easy. 6x800m strong (RPE 8) with 2min jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"10x20s Hill Sprints":{"description":"Warm up 15min easy. 10x20s hill sprints (RPE 9) full recovery. Cool down easy.","type":"Hills","intensity":"Neuromuscular","surface":"Hills","difficulty":"Beginner"},"5km Recovery":{"description":"5km gentle recovery jog (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"},"6km Recovery":{"description":"6km very easy recovery run (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"}};
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let athlete=null,weekOffset=0,nutWeekOffset=0,sessions=[],allSessions=[],ticked={},logs={},currentWeekKmData=null,exPicks={};
+let athlete=null,weekOffset=0,nutWeekOffset=0,sessions=[],allSessions=[],ticked={},logs={},currentWeekKmData=null,exPicks={},currentNutTargets=null;
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function localISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -1565,6 +1607,22 @@ function openQuickLog(type){
       else{notesEl.style.display='none';}
       prevPanel.style.display='block';
     })();
+    // Populate target badges in form labels
+    (function(){
+      function setTgt(id,val,unit){
+        var el=document.getElementById(id);
+        if(!el) return;
+        if(val!=null){el.textContent='target · '+val+unit;el.style.display='inline';}
+        else{el.style.display='none';}
+      }
+      var t=currentNutTargets||{};
+      setTgt('qlnTgtCal',t.cal,' kcal');
+      setTgt('qlnTgtPro',t.pro,'g');
+      setTgt('qlnTgtCarb',t.carb,'g');
+      setTgt('qlnTgtFat',t.fat,'g');
+      setTgt('qlnTgtFibre',t.fibre,'g');
+    })();
+    updateNutFeedback();
     document.getElementById('qlNutModal').classList.add('open');
     document.body.style.overflow='hidden';
   }
@@ -1573,6 +1631,45 @@ function closeQuickLog(type){
   var id=type==='body'?'qlBodyModal':'qlNutModal';
   var el=document.getElementById(id);if(el) el.classList.remove('open');
   document.body.style.overflow='';
+}
+function updateNutFeedback(){
+  var fb=document.getElementById('qlnFeedback');
+  if(!fb) return;
+  var t=currentNutTargets;
+  var cal=parseFloat(document.getElementById('qlnCal').value)||0;
+  var pro=parseFloat(document.getElementById('qlnPro').value)||0;
+  var carb=parseFloat(document.getElementById('qlnCarbs').value)||0;
+  var fat=parseFloat(document.getElementById('qlnFat').value)||0;
+  var fibre=parseFloat(document.getElementById('qlnFibre').value)||0;
+  var hasAny=cal||pro||carb||fat||fibre;
+  if(!t||!hasAny){fb.style.display='none';return;}
+  function chip(label,val,tgt,unit){
+    if(tgt==null) return '';
+    var pct=tgt>0?Math.round(val/tgt*100):0;
+    var color,status,barColor;
+    if(val===0){color='var(--dim)';status='not entered';barColor='var(--border-mid)';}
+    else if(pct>=100){color='#15803d';status='✓ on target';barColor='#22c55e';}
+    else if(pct>=90){color='#b45309';status='close — '+pct+'%';barColor='#f59e0b';}
+    else if(pct>=75){color='#b45309';status='almost — '+pct+'%';barColor='#fbbf24';}
+    else{color='#dc2626';status='under — '+pct+'%';barColor='#f87171';}
+    var fillW=Math.min(pct,100);
+    return '<div class="qln-fb-item">'
+      +'<div class="qln-fb-label">'+label+'</div>'
+      +'<div class="qln-fb-val" style="color:'+color+'">'+(val||0)+unit
+        +'<span style="font-family:var(--mono);font-size:9px;color:var(--dim);font-weight:400"> / '+tgt+unit+'</span></div>'
+      +'<div class="qln-fb-bar"><div class="qln-fb-fill" style="width:'+fillW+'%;background:'+barColor+'"></div></div>'
+      +'<div class="qln-fb-status" style="color:'+color+'">'+status+'</div>'
+      +'</div>';
+  }
+  var html='<div class="qln-fb-title">vs. this week\'s targets</div><div class="qln-fb-grid">'
+    +chip('Calories',cal,t.cal,' kcal')
+    +chip('Protein',pro,t.pro,'g')
+    +chip('Carbs',carb,t.carb,'g')
+    +chip('Fat',fat,t.fat,'g')
+    +chip('Fibre',fibre,t.fibre,'g')
+    +'</div>';
+  fb.innerHTML=html;
+  fb.style.display='block';
 }
 async function submitQuickBody(){
   var btn=document.getElementById('qlbSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
@@ -1872,11 +1969,18 @@ async function loadNutrition(){
     return '—';
   }
 
-  document.getElementById('nutCal').textContent=getMacro(['Calories','Cal','kcal']);
-  document.getElementById('nutPro').textContent=getMacro(['Protein','Protein (g)','Pro']);
-  document.getElementById('nutCarb').textContent=getMacro(['Carbs','Carbs (g)','Carbohydrates']);
-  document.getElementById('nutFat').textContent=getMacro(['Fats','Fat','Fats (g)','Fat (g)']);
-  document.getElementById('nutFibre').textContent=getMacro(['Fibre','Fiber','Fibre (g)','Fiber (g)']);
+  var mCal=getMacro(['Calories','Cal','kcal']);
+  var mPro=getMacro(['Protein','Protein (g)','Pro']);
+  var mCarb=getMacro(['Carbs','Carbs (g)','Carbohydrates']);
+  var mFat=getMacro(['Fats','Fat','Fats (g)','Fat (g)']);
+  var mFibre=getMacro(['Fibre','Fiber','Fibre (g)','Fiber (g)']);
+  document.getElementById('nutCal').textContent=mCal;
+  document.getElementById('nutPro').textContent=mPro;
+  document.getElementById('nutCarb').textContent=mCarb;
+  document.getElementById('nutFat').textContent=mFat;
+  document.getElementById('nutFibre').textContent=mFibre;
+  function toNutNum(v){return typeof v==='number'?v:(v&&v!=='—'?parseFloat(String(v).replace(/[^0-9.]/g,''))||null:null);}
+  currentNutTargets={cal:toNutNum(mCal),pro:toNutNum(mPro),carb:toNutNum(mCarb),fat:toNutNum(mFat),fibre:toNutNum(mFibre)};
 
   var note=getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
   var noteEl=document.getElementById('nutCoachNote');
