@@ -1612,7 +1612,7 @@ function openQuickLog(type){
       function setTgt(id,val,unit){
         var el=document.getElementById(id);
         if(!el) return;
-        if(val!=null){el.textContent='target · '+val+unit;el.style.display='inline';}
+        if(val!=null){el.textContent='target · '+val.display+unit;el.style.display='inline';}
         else{el.style.display='none';}
       }
       var t=currentNutTargets||{};
@@ -1645,7 +1645,7 @@ function updateNutFeedback(){
   if(!t||!hasAny){fb.style.display='none';return;}
   function chip(label,val,tgt,unit){
     if(tgt==null) return '';
-    var pct=tgt>0?Math.round(val/tgt*100):0;
+    var pct=tgt.min>0?Math.round(val/tgt.min*100):0;
     var color,status,barColor;
     if(val===0){color='var(--dim)';status='not entered';barColor='var(--border-mid)';}
     else if(pct>=100){color='#15803d';status='✓ on target';barColor='#22c55e';}
@@ -1656,7 +1656,7 @@ function updateNutFeedback(){
     return '<div class="qln-fb-item">'
       +'<div class="qln-fb-label">'+label+'</div>'
       +'<div class="qln-fb-val" style="color:'+color+'">'+(val||0)+unit
-        +'<span style="font-family:var(--mono);font-size:9px;color:var(--dim);font-weight:400"> / '+tgt+unit+'</span></div>'
+        +'<span style="font-family:var(--mono);font-size:9px;color:var(--dim);font-weight:400"> / '+tgt.display+unit+'</span></div>'
       +'<div class="qln-fb-bar"><div class="qln-fb-fill" style="width:'+fillW+'%;background:'+barColor+'"></div></div>'
       +'<div class="qln-fb-status" style="color:'+color+'">'+status+'</div>'
       +'</div>';
@@ -1979,7 +1979,15 @@ async function loadNutrition(){
   document.getElementById('nutCarb').textContent=mCarb;
   document.getElementById('nutFat').textContent=mFat;
   document.getElementById('nutFibre').textContent=mFibre;
-  function toNutNum(v){return typeof v==='number'?v:(v&&v!=='—'?parseFloat(String(v).replace(/[^0-9.]/g,''))||null:null);}
+  function toNutNum(v){
+    if(typeof v==='number') return {display:String(v),min:v};
+    if(!v||v==='—') return null;
+    var s=String(v).trim();
+    var range=s.match(/^(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)$/);
+    if(range) return {display:range[1]+'–'+range[2],min:parseFloat(range[1])};
+    var n=parseFloat(s.replace(/[^0-9.]/g,''));
+    return isNaN(n)?null:{display:String(n),min:n};
+  }
   currentNutTargets={cal:toNutNum(mCal),pro:toNutNum(mPro),carb:toNutNum(mCarb),fat:toNutNum(mFat),fibre:toNutNum(mFibre)};
 
   var note=getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
