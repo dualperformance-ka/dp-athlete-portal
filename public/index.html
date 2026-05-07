@@ -296,6 +296,9 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .run-field textarea{font-family:var(--body);font-size:13px;resize:vertical;min-height:70px;line-height:1.5}
 .run-field input:focus,.run-field textarea:focus,.run-field select:focus{border-color:var(--border-strong);background:#fff}
 .save-run-btn{width:100%;padding:13px;background:#0a0a0a;color:#fff;border:none;border-radius:8px;font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:background .2s}
+.effort-section{background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.2);border-radius:8px;padding:12px;margin-bottom:10px}
+.effort-section-title{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--run);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.effort-section-title::before{content:'⚡';font-size:11px}
 .save-run-btn:active{transform:scale(.98)}
 .save-run-btn.saved{background:var(--ok)}
 .saved-data{background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:8px;padding:12px;margin-bottom:10px}
@@ -2761,6 +2764,15 @@ function buildBody(s,i,type){
     h+='<div class="saved-item"><div class="saved-item-label">Avg Pace</div><div class="saved-item-value" id="saved_run_'+i+'_pace">'+esc(sl.pace||'-')+'</div></div>';
     h+='<div class="saved-item"><div class="saved-item-label">RPE</div><div class="saved-item-value" id="saved_run_'+i+'_rpe">'+esc(sl.rpe?sl.rpe+'/10':'-')+'</div></div>';
     h+='</div>';
+    var sessionMeta2=meta||{};
+    if(hasQualityEffort(s.name, sessionMeta2)){
+      h+='<div id="saved_run_'+i+'_effort" style="display:'+(sl.effortPace||sl.effortDist?'block':'none')+';margin-top:6px;background:rgba(180,83,9,.07);border:1px solid rgba(180,83,9,.18);border-radius:6px;padding:8px 10px">';
+      h+='<div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--run);margin-bottom:5px">⚡ Quality Effort</div>';
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      h+='<div class="saved-item"><div class="saved-item-label">Effort Pace</div><div class="saved-item-value" id="saved_run_'+i+'_effortPace">'+esc(sl.effortPace||'-')+'</div></div>';
+      h+='<div class="saved-item"><div class="saved-item-label">Effort Dist</div><div class="saved-item-value" id="saved_run_'+i+'_effortDist">'+esc(sl.effortDist?sl.effortDist+'km':'-')+'</div></div>';
+      h+='</div></div>';
+    }
     h+='<div class="saved-feeling" id="saved_run_'+i+'_feel" style="display:'+(sl.feel?'block':'none')+';">'+esc(sl.feel||'')+'</div>';
     h+='<div class="saved-notes" id="saved_run_'+i+'_notes" style="display:'+(sl.notes?'block':'none')+';">'+esc(sl.notes||'')+'</div>';
     h+='<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>';
@@ -2772,6 +2784,17 @@ function buildBody(s,i,type){
     h+='<div class="run-field"><label>Avg Pace (min/km)</label><input type="text" id="rp_'+i+'" placeholder="6:00" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>';
     h+='<div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="rr_'+i+'" placeholder="..." value="'+esc(sl.rpe||'')+'" oninput="draftRun('+i+')" /></div>';
     h+='</div>';
+    var sessionMeta=meta||{};
+    if(hasQualityEffort(s.name, sessionMeta)){
+      var el=getEffortLabel(s.name, sessionMeta);
+      h+='<div class="effort-section">';
+      h+='<div class="effort-section-title">Quality Effort Data</div>';
+      h+='<div class="run-inputs">';
+      h+='<div class="run-field"><label>'+esc(el.pace)+'</label><input type="text" id="rep_'+i+'" placeholder="'+esc(el.ph)+'" value="'+esc(sl.effortPace||'')+'" oninput="draftRun('+i+')" /></div>';
+      h+='<div class="run-field"><label>'+esc(el.dist)+'</label><input type="number" step="0.1" id="red_'+i+'" placeholder="'+esc(el.dph)+'" value="'+esc(sl.effortDist||'')+'" oninput="draftRun('+i+')" /></div>';
+      h+='</div>';
+      h+='</div>';
+    }
     h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>How did it feel?</label><select id="rf_'+i+'" class="li" onchange="draftRun('+i+')"><option value="">Select feeling...</option>';
     ['💀 Awful','😮‍💨 Struggling','😐 Average','💪 Feeling Strong','🔥 Crushing It'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
     h+='</select></div>';
@@ -2861,7 +2884,26 @@ function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),
 function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+ei);var isSL=!!document.getElementById('rL_'+i+'_'+ei+'_0');var si=c.querySelectorAll('.setrow,.setrow-single').length;var row=document.createElement('div');var delBtn='<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+splitKey+'\')" title="Remove set">×</button>';if(isSL){row.className='setrow-single extra';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div>'+'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="L" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="R" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">'+'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;}else{row.className='setrow extra';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div>'+'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">'+'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;}c.appendChild(row);}
 function deleteSet(btn,i,ei,splitKey){var row=btn.closest('.setrow,.setrow-single');var c=row.parentElement;row.remove();c.querySelectorAll('.setrow,.setrow-single').forEach(function(r,idx){var sn=r.querySelector('.snum');if(sn) sn.textContent=idx+1;});draftGym(i,splitKey);}
 function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;if(s>=60){var m=Math.floor(s/60),rem=s%60;return rem?m+'min '+rem+'s rest':m+' min rest';}return s+'s rest';}
-function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
+function hasQualityEffort(sessionName, sessionMeta) {
+  var haystack = ((sessionName||'') + ' ' + ((sessionMeta&&sessionMeta.intensity)||'') + ' ' + ((sessionMeta&&sessionMeta.type)||'')).toLowerCase();
+  // Always show for structured quality sessions
+  if (/interval|track|threshold|tempo|fartlek|speed|sprint|hill sprint|hill rep|yasso|\d+\s*[x×]\s*\d/.test(haystack)) return true;
+  // Show for long runs that have race-pace or quality efforts embedded
+  if (/long run|progressive|fast finish|marathon pace|race pace/.test(haystack)) return true;
+  return false;
+}
+function getEffortLabel(sessionName, sessionMeta) {
+  var haystack = ((sessionName||'') + ' ' + ((sessionMeta&&sessionMeta.intensity)||'') + ' ' + ((sessionMeta&&sessionMeta.type)||'')).toLowerCase();
+  if (/interval|track|\d+\s*[x×]\s*\d/.test(haystack)) return {pace:'Avg Rep Pace (min/km)', dist:'Working Distance (km)', ph:'e.g. 4:45', dph:'e.g. 5.0'};
+  if (/tempo|threshold/.test(haystack)) return {pace:'Effort Pace (min/km)', dist:'Effort Distance (km)', ph:'e.g. 4:55', dph:'e.g. 6.0'};
+  if (/fartlek|speed|sprint|hill/.test(haystack)) return {pace:'Rep Pace (min/km)', dist:'Rep Distance (km)', ph:'e.g. 4:30', dph:'e.g. 2.4'};
+  // Long run with quality — race pace section
+  return {pace:'Race Pace Effort (min/km)', dist:'Race Pace Distance (km)', ph:'e.g. 5:10', dph:'e.g. 5.0'};
+}
+function draftRun(i){var s=sessions[i];if(!s) return;
+  var epEl=document.getElementById('rep_'+i), edEl=document.getElementById('red_'+i);
+  var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||'',effortPace:epEl?epEl.value||'':'',effortDist:edEl?edEl.value||'':''};
+  logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
 function editRun(i){var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);if(form) form.style.display='block';if(saved) saved.style.display='none';}
 function showRunSaved(i,d){
   var s=sessions[i];if(!d){d=logs[s?s.id:null]||{};}
@@ -2871,12 +2913,20 @@ function showRunSaved(i,d){
   var rpeEl=document.getElementById('saved_run_'+i+'_rpe');
   var feelEl=document.getElementById('saved_run_'+i+'_feel');
   var notesEl=document.getElementById('saved_run_'+i+'_notes');
+  var effortEl=document.getElementById('saved_run_'+i+'_effort');
+  var effortPaceEl=document.getElementById('saved_run_'+i+'_effortPace');
+  var effortDistEl=document.getElementById('saved_run_'+i+'_effortDist');
   if(distEl) distEl.textContent=d.distance?d.distance+'km':'-';
   if(durEl) durEl.textContent=d.duration?d.duration+'min':'-';
   if(paceEl) paceEl.textContent=d.pace||'-';
   if(rpeEl) rpeEl.textContent=d.rpe?d.rpe+'/10':'-';
   if(feelEl){feelEl.textContent=d.feel||'';feelEl.style.display=d.feel?'block':'none';}
   if(notesEl){notesEl.textContent=d.notes||'';notesEl.style.display=d.notes?'block':'none';}
+  if(effortEl){
+    if(effortPaceEl) effortPaceEl.textContent=d.effortPace||'-';
+    if(effortDistEl) effortDistEl.textContent=d.effortDist?d.effortDist+'km':'-';
+    effortEl.style.display=(d.effortPace||d.effortDist)?'block':'none';
+  }
   var saved=document.getElementById('saved_run_'+i);
   if(saved) saved.style.display='block';
   // Keep the form visible so athletes can see their saved data for reassurance
@@ -2916,10 +2966,13 @@ function lockSaveButton(i,label){
 }
 async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
-  var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
+  var s=sessions[i];
+  var epEl=document.getElementById('rep_'+i),edEl=document.getElementById('red_'+i);
+  var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||'',effortPace:epEl?epEl.value||'':'',effortDist:edEl?edEl.value||'':''};
   logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
-  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
+  var effortLine=(d.effortPace||d.effortDist)?(' | Effort Pace: '+(d.effortPace||'-')+' | Effort Dist: '+(d.effortDist?d.effortDist+'km':'-')):'';
+  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel+effortLine,notes:d.notes,effortPace:d.effortPace,effortDist:d.effortDist,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
   await markSessionLogged(s.id);
   showToast('Run saved ✓');
   showRunSaved(i,d);
