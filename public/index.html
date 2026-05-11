@@ -1484,15 +1484,14 @@ async function submitCheckin(){
     wkNum=Math.max(1,Math.min(12,Math.floor((_w-_s)/(7*24*60*60*1000))+1));
   }else{wkNum=getCurrentProgrammeWeek();}
   var notionTitle=name.toUpperCase().trim()+' — Week '+wkNum;
-  var payload={name:notionTitle,weekEnding:weekEndVal,
+      var payload={name:notionTitle,athleteName:name,submitted:new Date().toISOString(),weekEnding:weekEndVal,
     runCompleted:document.getElementById('ciRunComp').value||'0',runPlanned:document.getElementById('ciRunPlan').value||'0',
     runKm:document.getElementById('ciRunKm').value||'0',runFeel:document.getElementById('ciRunFeel').value,
     runWins:document.getElementById('ciRunWins').value||'None',runNiggles:document.getElementById('ciRunNiggles').value||'None',
     liftCompleted:document.getElementById('ciLiftComp').value||'0',liftPlanned:document.getElementById('ciLiftPlan').value||'0',
     liftFeel:document.getElementById('ciLiftFeel').value,liftWins:document.getElementById('ciLiftWins').value||'None',
-    liftNiggles:document.getElementById('ciLiftNiggles').value||'None',sleep:document.getElementById('ciSleep').value,
-    energy:document.getElementById('ciEnergy').value,soreness:document.getElementById('ciSoreness').value,
-    nutrition:document.getElementById('ciNut').value,fuelling:document.getElementById('ciFuelling').value||'Not selected',
+    liftNiggles:document.getElementById('ciLiftNiggles').vaue||'None',sleep:document.getElementById('ciSleep').value,
+    energy:document.getElementById('ciEnergy').value,soreness:document.getElementById('ciSoreness').value,    nutrition:document.getElementById('ciNut').value,fuelling:document.getElementById('ciFuelling').value||'Not selected',
     socialEating:document.getElementById('ciSocial').value||'None',stress:document.getElementById('ciStress').value,
     motivation:document.getElementById('ciMot').value,upcomingImpact:document.getElementById('ciNotes').value||'',
     testimonial:document.getElementById('ciTestimonial').value||''};
