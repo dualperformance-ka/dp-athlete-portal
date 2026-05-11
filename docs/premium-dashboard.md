@@ -4,7 +4,7 @@ This rollout adds the product layer that makes the athlete portal feel like a co
 
 ## New Experience
 
-The premium dashboard module adds:
+The premium dashboard adds:
 
 - Today's training card
 - Weekly coach-focus area
@@ -17,8 +17,10 @@ The premium dashboard module adds:
 
 ## Files
 
-- `public/premium-dashboard.js`: client-side premium command center and check-in flow
+- `public/premium.html`: premium shell used by the root route
+- `public/premium-dashboard.js`: optional in-app command center module for a future direct `index.html` integration
 - `api/checkin.js`: writes athlete check-ins into a dedicated Notion database
+- `vercel.json`: routes `/` to `premium.html`, while preserving `/index.html` as the original portal
 
 ## Vercel Environment Variables
 
@@ -50,15 +52,31 @@ Create a Notion database with these property names and types:
 | Notes | Text |
 | Coach Alert | Select: Normal, Watch, Coach Review |
 
-## Enable The Dashboard
+## Activation
 
-Add this script before the closing `</body>` tag in `public/index.html`:
+The root athlete URL now opens the premium shell automatically:
+
+```text
+https://your-portal.vercel.app?code=ATHLETE_CODE
+```
+
+The original portal remains available at:
+
+```text
+https://your-portal.vercel.app/index.html?code=ATHLETE_CODE
+```
+
+The premium shell wraps the current portal, reads the visible session when available, and stores check-ins locally if `CHECKIN_DATABASE_ID` is not configured yet.
+
+## Optional Direct Integration
+
+For a future cleanup pass, add this script before the closing `</body>` tag in `public/index.html`:
 
 ```html
 <script src="/premium-dashboard.js"></script>
 ```
 
-The module is defensive: it waits for the existing portal UI, injects itself into the active tab, and saves locally if the Notion check-in API is not configured yet.
+That embeds the command center directly into the existing portal instead of using the shell. The root shell was used first because `public/index.html` is a very large single file with embedded image data, so a small routing wrapper is safer than replacing the whole file remotely.
 
 ## Coach Alert Logic
 
