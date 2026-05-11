@@ -14,7 +14,7 @@ In your Vercel project, go to Settings > Environment Variables and add:
 
 - `NOTION_TOKEN`: your private Notion integration token
 - `ALLOWED_ORIGINS`: comma-separated production origins, for example `https://your-portal.vercel.app`
-- `CHECKIN_DATABASE_ID`: optional Notion database for premium athlete check-ins
+- `CHECKIN_DATABASE_ID`: `3405a96cc70b80a4b1b9cf5b9c236f18`
 
 Do not commit real tokens, athlete codes, or private database credentials to GitHub.
 
@@ -25,6 +25,7 @@ The portal currently expects these Notion databases:
 - Athlete Database: `4a25a96cc70b82ffa6790139eaa8b458`
 - Training Calendar: `0b85a96cc70b836898fd013e0e15c4f2`
 - Performance Tracking: `af15a96cc70b821f9f1a012240490fda`
+- Daily Athlete BODY Check-in: `3405a96cc70b80a4b1b9cf5b9c236f18`
 
 Keep database IDs in code only when they are not sensitive. Keep write-capable credentials in environment variables.
 
@@ -68,13 +69,14 @@ The premium shell adds:
 - Today's training card
 - Weekly coach-focus area
 - Readiness score
-- Athlete check-in
+- Athlete body check-in
+- Stress, sleep, energy, soreness, motivation, and bodyweight logging
 - Post-session RPE
 - Pain/injury flag
 - Coach alert state
 - Local fallback saving when Notion check-ins are not configured
 
-Create the check-in database using the properties documented in `docs/premium-dashboard.md`, then set `CHECKIN_DATABASE_ID` in Vercel.
+Your BODY check-in database has already been extended with the premium fields: `Session`, `Motivation`, `RPE`, `Pain`, and `Coach Alert`.
 
 ## Premium Portal Roadmap
 
@@ -91,7 +93,7 @@ The portal already covers training delivery, completion logging, goals, nutritio
 ### Phase 2: Premium Athlete Experience
 
 - Add a today-first dashboard with the athlete's next session, weekly focus, and coach note.
-- Add readiness, sleep, soreness, and motivation check-ins.
+- Add readiness, sleep, soreness, stress, and motivation check-ins.
 - Add post-session RPE, pain flags, and athlete notes.
 - Show the athlete why each session matters inside the current training phase.
 
