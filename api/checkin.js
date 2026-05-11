@@ -39,6 +39,12 @@ function cleanNumber(value, min = 1, max = 10) {
   return Math.min(max, Math.max(min, Math.round(number)));
 }
 
+function cleanBodyweight(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  return Math.max(0, Math.min(400, Number(number.toFixed(1))));
+}
+
 function richText(content) {
   return { rich_text: [{ text: { content: cleanText(content, 1800) } }] };
 }
@@ -51,10 +57,11 @@ function selectProp(value) {
   return value ? { select: { name: value } } : undefined;
 }
 
-function buildAlertLevel({ energy, soreness, painFlag, motivation }) {
+function buildAlertLevel({ energy, soreness, painFlag, motivation, stress }) {
   if (painFlag) return 'Coach Review';
   if ((energy != null && energy <= 3) || (motivation != null && motivation <= 3)) return 'Watch';
   if (soreness != null && soreness >= 8) return 'Watch';
+  if (stress != null && stress >= 8) return 'Watch';
   return 'Normal';
 }
 
@@ -106,11 +113,13 @@ export default async function handler(req, res) {
   const sleep = cleanNumber(payload.sleep);
   const soreness = cleanNumber(payload.soreness);
   const motivation = cleanNumber(payload.motivation);
+  const stress = cleanNumber(payload.stress ?? payload.motivation);
   const rpe = cleanNumber(payload.rpe);
+  const weight = cleanBodyweight(payload.weight);
   const painFlag = Boolean(payload.painFlag);
   const notes = cleanText(payload.notes, 1400);
   const sessionTitle = cleanText(payload.sessionTitle, 180);
-  const alertLevel = buildAlertLevel({ energy, soreness, painFlag, motivation });
+  const alertLevel = buildAlertLevel({ energy, soreness, painFlag, motivation, stress });
 
   if (!athleteCode) {
     return send(res, 400, { error: 'athleteCode is required' });
@@ -118,15 +127,16 @@ export default async function handler(req, res) {
 
   const properties = compactProperties({
     Name: {
-      title: [{ text: { content: `${athleteName} check-in` } }],
+      title: [{ text: { content: `${athleteName} body check-in` } }],
     },
-    'Athlete Code': richText(athleteCode),
-    Athlete: richText(athleteName),
+    AthleteID: richText(athleteCode),
     Date: { date: { start: new Date().toISOString() } },
-    Session: sessionTitle ? richText(sessionTitle) : undefined,
+    Weight: numberProp(weight),
+    'Sleep Score': numberProp(sleep),
     Energy: numberProp(energy),
-    Sleep: numberProp(sleep),
+    Stress: numberProp(stress),
     Soreness: numberProp(soreness),
+    Session: sessionTitle ? richText(sessionTitle) : undefined,
     Motivation: numberProp(motivation),
     RPE: numberProp(rpe),
     Pain: { checkbox: painFlag },
