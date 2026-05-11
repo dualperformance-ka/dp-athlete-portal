@@ -14,6 +14,7 @@ In your Vercel project, go to Settings > Environment Variables and add:
 
 - `NOTION_TOKEN`: your private Notion integration token
 - `ALLOWED_ORIGINS`: comma-separated production origins, for example `https://your-portal.vercel.app`
+- `CHECKIN_DATABASE_ID`: optional Notion database for premium athlete check-ins
 
 Do not commit real tokens, athlete codes, or private database credentials to GitHub.
 
@@ -39,17 +40,41 @@ Current MVP access uses athlete codes:
 https://your-portal.vercel.app?code=ATHLETE_CODE
 ```
 
+The root route now loads the premium shell. The original portal remains available at:
+
+```text
+https://your-portal.vercel.app/index.html?code=ATHLETE_CODE
+```
+
 For a premium production service, replace code-only access with invite links, expiring sessions, or magic-link authentication.
 
 ## Structure
 
 ```text
 api/
-  notion.js      Serverless Notion API proxy
+  notion.js      Hardened Notion API proxy
+  checkin.js     Premium athlete check-in API
 public/
-  index.html     Athlete portal app
-vercel.json      Vercel config
+  premium.html   Premium command center shell
+  index.html     Original athlete portal app
+  premium-dashboard.js  Optional in-app premium dashboard module
+vercel.json      Routes / to the premium shell
 ```
+
+## Premium Command Center
+
+The premium shell adds:
+
+- Today's training card
+- Weekly coach-focus area
+- Readiness score
+- Athlete check-in
+- Post-session RPE
+- Pain/injury flag
+- Coach alert state
+- Local fallback saving when Notion check-ins are not configured
+
+Create the check-in database using the properties documented in `docs/premium-dashboard.md`, then set `CHECKIN_DATABASE_ID` in Vercel.
 
 ## Premium Portal Roadmap
 
