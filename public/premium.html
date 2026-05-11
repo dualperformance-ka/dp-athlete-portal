@@ -22,20 +22,22 @@
       <article class="card" id="readinessCard"><div class="label">Readiness</div><div class="readiness" id="readinessScore">--</div><div class="copy" id="readinessLabel">Check in before training.</div></article>
     </div>
     <div class="actions">
-      <button class="action" data-open="checkin"><strong>Check in</strong><span>Energy, sleep, soreness, motivation.</span></button>
-      <button class="action" data-open="session"><strong>Log session</strong><span>RPE, notes, and pain flag.</span></button>
+      <button class="action" data-open="checkin"><strong>Check in</strong><span>Energy, sleep, stress, soreness.</span></button>
+      <button class="action" data-open="session"><strong>Log session</strong><span>RPE, bodyweight, pain flag.</span></button>
       <button class="action" data-open="coach"><strong>Coach note</strong><span>What needs attention today.</span></button>
     </div>
     <section class="panel" id="checkinPanel">
       <h2>Athlete check-in</h2>
-      <p>Turns subjective feedback into a coach signal before fatigue, pain, or low motivation becomes invisible.</p>
+      <p>Turns body feedback into a coach signal before fatigue, pain, or stress becomes invisible.</p>
       <form id="checkinForm">
         <div class="grid">
           <div class="field"><label>Energy / 10</label><input name="energy" type="number" min="1" max="10" value="7"></div>
-          <div class="field"><label>Sleep / 10</label><input name="sleep" type="number" min="1" max="10" value="7"></div>
+          <div class="field"><label>Sleep score / 10</label><input name="sleep" type="number" min="1" max="10" value="7"></div>
+          <div class="field"><label>Stress / 10</label><input name="stress" type="number" min="1" max="10" value="4"></div>
           <div class="field"><label>Soreness / 10</label><input name="soreness" type="number" min="1" max="10" value="4"></div>
           <div class="field"><label>Motivation / 10</label><input name="motivation" type="number" min="1" max="10" value="7"></div>
           <div class="field"><label>Session RPE / 10</label><input name="rpe" type="number" min="1" max="10" value="7"></div>
+          <div class="field"><label>Bodyweight</label><input name="weight" type="number" min="0" max="400" step="0.1" placeholder="Optional"></div>
         </div>
         <label class="check"><input name="painFlag" type="checkbox"> Pain or injury concern today</label>
         <div class="field"><label>Notes for coach</label><textarea name="notes" placeholder="Anything that changes how today should be coached?"></textarea></div>
@@ -61,14 +63,14 @@
   var storageKey='dp_premium_checkins';
   frame.src='/index.html'+window.location.search;
 
-  function esc(value){return String(value==null?'':value).replace(/[&<>'"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]})}
   function code(){return new URLSearchParams(location.search).get('code')||localStorage.getItem('dp_auth_code')||''}
   function read(){try{return JSON.parse(localStorage.getItem(storageKey)||'[]')}catch(e){return[]}}
   function write(entry){var entries=read();entries.unshift(entry);localStorage.setItem(storageKey,JSON.stringify(entries.slice(0,20)))}
   function latest(){return read()[0]||null}
   function clamp(value){var n=Number(value);return Number.isFinite(n)?Math.max(1,Math.min(10,Math.round(n))):null}
-  function alertLevel(entry){if(entry.painFlag)return'Coach Review';if(entry.energy<=3||entry.motivation<=3||entry.soreness>=8)return'Watch';return'Normal'}
-  function score(entry){if(!entry)return null;return Math.round((entry.energy+entry.sleep+entry.motivation+(11-entry.soreness))/4)}
+  function bodyweight(value){var n=Number(value);return Number.isFinite(n)?Math.max(0,Math.min(400,Math.round(n*10)/10)):null}
+  function alertLevel(entry){if(entry.painFlag)return'Coach Review';if(entry.energy<=3||entry.motivation<=3||entry.soreness>=8||entry.stress>=8)return'Watch';return'Normal'}
+  function score(entry){if(!entry)return null;return Math.round((entry.energy+entry.sleep+entry.motivation+(11-entry.soreness)+(11-entry.stress))/5)}
   function scoreLabel(value){if(value==null)return'Check in before training.';if(value>=8)return'Ready to push.';if(value>=5)return'Steady, monitor response.';return'Coach should review.'}
   function athleteName(){try{var doc=frame.contentDocument;var el=doc&&doc.querySelector('.hn,.goals-name');return el&&el.textContent.trim()?el.textContent.trim():'Athlete'}catch(e){return'Athlete'}}
   function session(){try{var doc=frame.contentDocument;var title=doc&&doc.querySelector('.todayname,.sname');var meta=doc&&doc.querySelector('.todaymeta,.smeta');return{title:title&&title.textContent.trim()?title.textContent.trim():"Today's session",meta:meta&&meta.textContent.trim()?meta.textContent.trim():'Complete the work, log the response, tell the coach what matters.'}}catch(e){return{title:"Today's session",meta:'Complete the work, log the response, tell the coach what matters.'}}}
@@ -81,7 +83,7 @@
   document.getElementById('checkinForm').addEventListener('submit',async function(event){
     event.preventDefault();
     var form=event.currentTarget;var data=new FormData(form);var s=session();
-    var entry={athleteCode:code(),athleteName:athleteName(),sessionTitle:s.title,energy:clamp(data.get('energy')),sleep:clamp(data.get('sleep')),soreness:clamp(data.get('soreness')),motivation:clamp(data.get('motivation')),rpe:clamp(data.get('rpe')),painFlag:data.get('painFlag')==='on',notes:String(data.get('notes')||'').trim(),createdAt:new Date().toISOString()};
+    var entry={athleteCode:code(),athleteName:athleteName(),sessionTitle:s.title,energy:clamp(data.get('energy')),sleep:clamp(data.get('sleep')),stress:clamp(data.get('stress')),soreness:clamp(data.get('soreness')),motivation:clamp(data.get('motivation')),rpe:clamp(data.get('rpe')),weight:bodyweight(data.get('weight')),painFlag:data.get('painFlag')==='on',notes:String(data.get('notes')||'').trim(),createdAt:new Date().toISOString()};
     entry.alertLevel=alertLevel(entry);write(entry);hydrateReadiness();
     var button=form.querySelector('.submit');button.disabled=true;button.textContent='Saving...';
     try{var res=await fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});if(!res.ok)throw new Error('save failed');var saved=await res.json();entry.alertLevel=saved.alertLevel||entry.alertLevel;write(entry);button.textContent=entry.alertLevel==='Coach Review'?'Coach alerted':'Check-in saved'}catch(e){button.textContent='Saved on device'}
