@@ -63,6 +63,7 @@
   var storageKey='dp_premium_checkins';
   frame.src='/index.html'+window.location.search;
 
+  function injectProgressPhotos(){try{var doc=frame.contentDocument;if(!doc||doc.getElementById('progressPhotoCloudScript'))return;var script=doc.createElement('script');script.id='progressPhotoCloudScript';script.src='/progress-photo-cloud.js';doc.head.appendChild(script)}catch(e){}}
   function code(){return new URLSearchParams(location.search).get('code')||localStorage.getItem('dp_auth_code')||''}
   function read(){try{return JSON.parse(localStorage.getItem(storageKey)||'[]')}catch(e){return[]}}
   function write(entry){var entries=read();entries.unshift(entry);localStorage.setItem(storageKey,JSON.stringify(entries.slice(0,20)))}
@@ -89,7 +90,7 @@
     try{var res=await fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});if(!res.ok)throw new Error('save failed');var saved=await res.json();entry.alertLevel=saved.alertLevel||entry.alertLevel;write(entry);button.textContent=entry.alertLevel==='Coach Review'?'Coach alerted':'Check-in saved'}catch(e){button.textContent='Saved on device'}
     button.classList.add('saved');hydrateReadiness();setTimeout(function(){button.disabled=false;button.classList.remove('saved');button.textContent='Save check-in'},1600)
   });
-  frame.addEventListener('load',function(){setTimeout(hydrateSession,900);setTimeout(hydrateSession,2400)});
+  frame.addEventListener('load',function(){injectProgressPhotos();setTimeout(injectProgressPhotos,400);setTimeout(hydrateSession,900);setTimeout(hydrateSession,2400)});
   hydrateReadiness();setInterval(hydrateSession,5000);
 })();
 </script>
