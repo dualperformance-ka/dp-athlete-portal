@@ -120,7 +120,6 @@ async function uploadPhoto(config, payload) {
   const publicId = `dp_progress/${athlete}/${week}/${athlete}_${week}_${slot}`;
   const tags = `dp_progress,${athlete},${week}`;
   const params = {
-    folder: `dp_progress/${athlete}/${week}`,
     overwrite: true,
     public_id: publicId,
     tags,
@@ -132,7 +131,6 @@ async function uploadPhoto(config, payload) {
   form.set('api_key', config.apiKey);
   form.set('timestamp', String(timestamp));
   form.set('public_id', publicId);
-  form.set('folder', params.folder);
   form.set('overwrite', 'true');
   form.set('tags', tags);
   form.set('signature', signParams(params, config.apiSecret));
