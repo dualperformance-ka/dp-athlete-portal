@@ -28,6 +28,13 @@ function cleanSlug(value, fallback = '') {
     .slice(0, 80);
 }
 
+function athleteCandidates(payload) {
+  return Array.from(new Set([
+    cleanSlug(payload.athleteCode),
+    cleanSlug(payload.athleteName),
+  ].filter(Boolean)));
+}
+
 function cleanWeek(value) {
   const match = String(value || '').match(/\d+/);
   const number = match ? Math.max(1, Math.min(80, Number(match[0]))) : 1;
@@ -82,7 +89,7 @@ function normalizeResource(resource) {
   };
 }
 
-async function listPhotos({ cloudName, apiKey, apiSecret }, athlete) {
+async function listPhotosForAthlete({ cloudName, apiKey, apiSecret }, athlete) {
   const prefixes = Array.from(new Set([
     `dp_progress/${athlete}/`,
     `dp_progress/${athlete.toUpperCase()}/`,
@@ -105,7 +112,18 @@ async function listPhotos({ cloudName, apiKey, apiSecret }, athlete) {
     all.push(...(data.resources || []));
   }
 
-  return all
+  return all;
+}
+
+async function listPhotos(config, candidates) {
+  const byPublicId = new Map();
+
+  for (const athlete of candidates) {
+    const resources = await listPhotosForAthlete(config, athlete);
+    resources.forEach((resource) => byPublicId.set(resource.public_id, resource));
+  }
+
+  return Array.from(byPublicId.values())
     .map(normalizeResource)
     .sort((a, b) => String(a.week).localeCompare(String(b.week), undefined, { numeric: true }) || String(a.slot).localeCompare(String(b.slot)));
 }
@@ -153,12 +171,12 @@ export default async function handler(req, res) {
     const config = parseCloudinaryUrl();
     const body = req.body || {};
     const action = String(body.action || 'list');
-    const athlete = cleanSlug(body.athleteCode || body.athleteName, '');
+    const candidates = athleteCandidates(body);
 
-    if (!athlete) return send(res, 400, { error: 'athleteCode is required' });
+    if (candidates.length === 0) return send(res, 400, { error: 'athleteCode is required' });
 
     if (action === 'list') {
-      return send(res, 200, { photos: await listPhotos(config, athlete) });
+      return send(res, 200, { photos: await listPhotos(config, candidates) });
     }
 
     if (action === 'upload') {
