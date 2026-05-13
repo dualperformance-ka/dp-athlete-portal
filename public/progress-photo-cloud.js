@@ -1,6 +1,7 @@
 (function () {
   var loadedFor = '';
   var photosByKey = {};
+  var availableWeeks = [];
   var attached = new WeakSet();
   var slots = ['front', 'side', 'back', 'front_flexed', 'back_flexed'];
 
@@ -12,23 +13,36 @@
       .replace(/^_+|_+$/g, '');
   }
 
+  function athleteName() {
+    var hero = document.querySelector('.hn, .goals-name');
+    return hero && hero.textContent ? hero.textContent.trim() : '';
+  }
+
   function athleteCode() {
     var fromUrl = new URLSearchParams(location.search).get('code');
     var saved = localStorage.getItem('dp_auth_code');
-    var hero = document.querySelector('.hn');
-    return slug(fromUrl || saved || (hero && hero.textContent) || 'athlete');
+    return slug(fromUrl || saved || athleteName() || 'athlete');
   }
 
   function activeWeek() {
-    var label = document.querySelector('.wlabel, .nut-wlabel');
+    var label = document.querySelector('.wlabel, .nut-wlabel, .stitle');
     var text = label && label.textContent ? label.textContent : '';
     var match = text.match(/week\s*(\d+)/i);
     if (match) return 'week' + match[1];
 
     var selected = document.querySelector('[data-week].active, [data-week].selected');
-    if (selected && selected.getAttribute('data-week')) return 'week' + selected.getAttribute('data-week').match(/\d+/)[0];
+    if (selected && selected.getAttribute('data-week')) {
+      var selectedMatch = selected.getAttribute('data-week').match(/\d+/);
+      if (selectedMatch) return 'week' + selectedMatch[0];
+    }
 
-    return 'week1';
+    return availableWeeks[availableWeeks.length - 1] || 'week1';
+  }
+
+  function displayWeek() {
+    var requested = activeWeek();
+    var hasRequested = slots.some(function (slot) { return Boolean(photosByKey[key(requested, slot)]); });
+    return hasRequested ? requested : (availableWeeks[availableWeeks.length - 1] || requested);
   }
 
   function slotForCell(cell, index) {
@@ -64,7 +78,7 @@
   }
 
   function renderCells() {
-    var week = activeWeek();
+    var week = displayWeek();
     document.querySelectorAll('.photo-cell').forEach(function (cell, index) {
       var slot = cell.getAttribute('data-cloudinary-slot') || slotForCell(cell, index);
       cell.setAttribute('data-cloudinary-slot', slot);
@@ -74,24 +88,33 @@
 
   async function loadPhotos() {
     var code = athleteCode();
-    if (!code || loadedFor === code) {
+    var name = athleteName();
+    var loadKey = code + '|' + slug(name);
+
+    if (!code || loadedFor === loadKey) {
       renderCells();
       return;
     }
 
-    loadedFor = code;
+    loadedFor = loadKey;
     photosByKey = {};
+    availableWeeks = [];
 
     try {
       var response = await fetch('/api/progress-photos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list', athleteCode: code }),
+        body: JSON.stringify({ action: 'list', athleteCode: code, athleteName: name }),
       });
       if (!response.ok) throw new Error('Unable to load progress photos');
       var data = await response.json();
+      var weekSet = new Set();
       (data.photos || []).forEach(function (photo) {
         photosByKey[key(photo.week, photo.slot)] = photo;
+        if (photo.week) weekSet.add(photo.week);
+      });
+      availableWeeks = Array.from(weekSet).sort(function (a, b) {
+        return Number((a.match(/\d+/) || [0])[0]) - Number((b.match(/\d+/) || [0])[0]);
       });
     } catch (error) {
       console.warn('[progress photos]', error.message || error);
@@ -118,7 +141,7 @@
       var file = input.files && input.files[0];
       if (!file) return;
 
-      var week = activeWeek();
+      var week = displayWeek();
       var slot = cell.getAttribute('data-cloudinary-slot') || 'front';
       cell.classList.add('uploading');
 
@@ -130,6 +153,7 @@
           body: JSON.stringify({
             action: 'upload',
             athleteCode: athleteCode(),
+            athleteName: athleteName(),
             week: week,
             slot: slot,
             imageData: imageData,
@@ -139,6 +163,7 @@
         var data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Upload failed');
         photosByKey[key(data.photo.week, data.photo.slot)] = data.photo;
+        if (availableWeeks.indexOf(data.photo.week) === -1) availableWeeks.push(data.photo.week);
         renderCells();
       } catch (error) {
         alert(error.message || 'Progress photo upload failed');
