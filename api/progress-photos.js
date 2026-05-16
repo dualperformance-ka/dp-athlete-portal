@@ -8,15 +8,32 @@ function send(res, status, payload) {
 }
 
 function parseCloudinaryUrl() {
-  const value = process.env.CLOUDINARY_URL;
-  if (!value) throw new Error('CLOUDINARY_URL not set');
+  // Prefer individual env vars (simpler, no URL-format mistakes)
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey    = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-  const parsed = new URL(value);
+  if (cloudName && apiKey && apiSecret) {
+    return { cloudName, apiKey, apiSecret };
+  }
+
+  // Fall back to CLOUDINARY_URL (format: cloudinary://API_KEY:API_SECRET@cloud_name)
+  const value = process.env.CLOUDINARY_URL;
+  if (!value) throw new Error('Cloudinary credentials not configured.');
+
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error('CLOUDINARY_URL is not a valid URL. Expected: cloudinary://API_KEY:API_SECRET@cloud_name');
+  }
+
   return {
     cloudName: parsed.hostname,
     apiKey: decodeURIComponent(parsed.username),
     apiSecret: decodeURIComponent(parsed.password),
   };
+}
 }
 
 function cleanSlug(value, fallback = '') {
