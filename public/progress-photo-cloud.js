@@ -45,6 +45,14 @@
     return hasRequested ? requested : (availableWeeks[availableWeeks.length - 1] || requested);
   }
 
+  // Returns the week encoded in a main-grid cell's onclick (e.g. openPhotoModal(3) → 'week3')
+  // Returns null for angle cells inside the modal.
+  function cellGridWeek(cell) {
+    var onclick = cell.getAttribute('onclick') || '';
+    var match = onclick.match(/openPhotoModal\((\d+)\)/);
+    return match ? 'week' + match[1] : null;
+  }
+
   function slotForCell(cell, index) {
     var label = (cell.textContent || '').toLowerCase();
     if (label.indexOf('front flex') !== -1) return 'front_flexed';
@@ -78,11 +86,20 @@
   }
 
   function renderCells() {
-    var week = displayWeek();
     document.querySelectorAll('.photo-cell').forEach(function (cell, index) {
-      var slot = cell.getAttribute('data-cloudinary-slot') || slotForCell(cell, index);
-      cell.setAttribute('data-cloudinary-slot', slot);
-      setCellState(cell, photosByKey[key(week, slot)]);
+      var gridWeek = cellGridWeek(cell);
+
+      if (gridWeek) {
+        // Main photo grid cell — show the best available photo for THIS cell's specific week
+        var bestSlot = slots.find(function (s) { return Boolean(photosByKey[key(gridWeek, s)]); });
+        setCellState(cell, bestSlot ? photosByKey[key(gridWeek, bestSlot)] : null);
+      } else {
+        // Angle cell inside the modal — show by slot for the current display week
+        var week = displayWeek();
+        var slot = cell.getAttribute('data-cloudinary-slot') || slotForCell(cell, index);
+        cell.setAttribute('data-cloudinary-slot', slot);
+        setCellState(cell, photosByKey[key(week, slot)]);
+      }
     });
   }
 
@@ -141,7 +158,8 @@
       var file = input.files && input.files[0];
       if (!file) return;
 
-      var week = displayWeek();
+      // Use the week encoded in the cell's onclick (main grid) or fall back to displayWeek (modal angle cell)
+      var week = cellGridWeek(cell) || displayWeek();
       var slot = cell.getAttribute('data-cloudinary-slot') || 'front';
       cell.classList.add('uploading');
 
@@ -179,7 +197,10 @@
     document.querySelectorAll('.photo-cell').forEach(function (cell, index) {
       if (attached.has(cell)) return;
       attached.add(cell);
-      cell.setAttribute('data-cloudinary-slot', slotForCell(cell, index));
+      // Only pre-assign a slot for angle cells (modal); main grid cells get their week from onclick
+      if (!cellGridWeek(cell)) {
+        cell.setAttribute('data-cloudinary-slot', slotForCell(cell, index));
+      }
       cell.addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
