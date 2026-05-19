@@ -360,6 +360,12 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .ex-pill{font-family:var(--mono);font-size:10px;padding:5px 10px;border:1px solid var(--border-mid);border-radius:20px;background:var(--surface);color:var(--muted);cursor:pointer;letter-spacing:.02em;white-space:nowrap;line-height:1.4;transition:all .12s;-webkit-tap-highlight-color:transparent}
 .ex-pill.active{background:#0a0a0a;border-color:#0a0a0a;color:#fff}
 .ex-pill:active{opacity:.7}
+/* ── Inline Session Date Selector ── */
+.session-date-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;margin:12px 0 0;background:var(--surface);border-radius:12px;border:1.5px solid var(--border-mid);}
+.session-date-label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;}
+.session-date-label span{display:block;font-family:var(--display);font-size:13px;font-weight:600;color:var(--text);letter-spacing:.02em;margin-top:2px;text-transform:none;}
+.session-date-input{padding:8px 12px;border-radius:8px;border:1.5px solid var(--border-mid);background:var(--bg);font-family:var(--mono);font-size:13px;color:var(--text);outline:none;-webkit-appearance:none;cursor:pointer;}
+.session-date-input:focus{border-color:#f59e0b;}
 </style>
 </head>
 <body>
@@ -2798,6 +2804,7 @@ function buildBody(s,i,type){
     ['💀 Awful','😮‍💨 Struggling','😐 Average','💪 Feeling Strong','🔥 Crushing It'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
     h+='</select></div>';
     h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="rn_'+i+'" class="li" placeholder="Any additional thoughts..." oninput="draftRun('+i+')">'+esc(sl.notes||'')+'</textarea></div>';
+    h+='<div class="session-date-row"><div class="session-date-label">Session date<span>Change if you trained on a different day</span></div><input type="date" class="session-date-input" id="session-date-'+i+'" value="'+s.date+'" /></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save Session</button>';
     if(isSessionLogged(s.id)){setTimeout(function(idx){showRunSaved(idx);}(i),0);}
     h+='</div>';
@@ -2861,6 +2868,7 @@ function buildBody(s,i,type){
       h+='</div>';
     }
     h+='<div id="gym_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label">✓ Session Logged — your data above has been saved</div></div>';
+    h+='<div class="session-date-row"><div class="session-date-label">Session date<span>Change if you trained on a different day</span></div><input type="date" class="session-date-input" id="session-date-'+i+'" value="'+s.date+'" /></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveGym('+i+',\''+esc(splitKey)+'\')">Save session</button>';
     if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save session');}(i),0);}
   }else{h+='<div style="font-family:var(--mono);font-size:12px;color:var(--dim);padding:8px 0">Rest up. Recovery is training too.</div>';}
@@ -2963,19 +2971,39 @@ function lockSaveButton(i,label){
   btn.style.opacity='0.7';
   btn.style.cursor='default';
 }
+function getChosenDate(i,fallback){var el=document.getElementById('session-date-'+i);var val=el?el.value:'';return /^\d{4}-\d{2}-\d{2}$/.test(val)?val:(fallback||new Date().toISOString().slice(0,10));}
 async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i];
+  var chosenDate=getChosenDate(i,s.date);
   var epEl=document.getElementById('rep_'+i),edEl=document.getElementById('red_'+i);
   var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||'',effortPace:epEl?epEl.value||'':'',effortDist:edEl?edEl.value||'':''};
   logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
   var effortLine=(d.effortPace||d.effortDist)?(' | Effort Pace: '+(d.effortPace||'-')+' | Effort Dist: '+(d.effortDist?d.effortDist+'km':'-')):'';
-  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel+effortLine,notes:d.notes,effortPace:d.effortPace,effortDist:d.effortDist,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
+  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+chosenDate,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel+effortLine,notes:d.notes,effortPace:d.effortPace,effortDist:d.effortDist,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:chosenDate,submittedAt:new Date().toISOString()})}).catch(function(){});
   await markSessionLogged(s.id);
   showToast('Run saved ✓');
   showRunSaved(i,d);
   await loadNutrition();
+}
+async function saveGym(i,splitKey){
+  var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
+  var s=sessions[i];
+  var chosenDate=getChosenDate(i,s.date);
+  var exercises=STR[splitKey]||[],log={};
+  exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;if(sets.length) log[useName]=sets;});
+  logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
+  var fetches=Object.keys(log).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+chosenDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:chosenDate,submittedAt:new Date().toISOString()})}).catch(function(){});});
+  await Promise.all(fetches);
+  await markSessionLogged(s.id);
+  refreshStrengthFeedback(i,splitKey);
+  showToast('Session saved ✓');
+  var gymSavedBanner=document.getElementById('gym_saved_'+i);
+  if(!gymSavedBanner){var sbBtn=document.getElementById('sb_'+i);if(sbBtn){gymSavedBanner=document.createElement('div');gymSavedBanner.id='gym_saved_'+i;gymSavedBanner.className='saved-data';gymSavedBanner.style.marginBottom='10px';gymSavedBanner.innerHTML='<div class="saved-label">✓ Session Logged — your data above has been saved<\/div>';sbBtn.parentNode.insertBefore(gymSavedBanner,sbBtn);}}
+  if(gymSavedBanner) gymSavedBanner.style.display='block';
+  lockSaveButton(i,'Save session');
 }
 async function saveGym(i,splitKey){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
