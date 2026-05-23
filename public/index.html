@@ -3184,7 +3184,7 @@ async function loadPRs(){
     });
     html+='</tbody></table>';
     wrap.innerHTML=html;
-  }catch(e){if(loading) loading.style.display='none';wrap.style.display='';wrap.innerHTML='<div class="pr-empty">Could not load PRs</div>';showError('Couldn't load PRs — check your connection');}
+  }catch(e){if(loading) loading.style.display='none';wrap.style.display='';wrap.innerHTML='<div class="pr-empty">Could not load PRs</div>';showError('Could not load PRs — check your connection');}
 }
 async function savePR(){
   var dist=document.getElementById('prDist').value.trim();
@@ -3200,7 +3200,7 @@ async function savePR(){
     document.getElementById('prNote').value='';
     showToast('PR saved!');
     loadPRs();
-  }catch(e){showError('Couldn't save PR — check your connection');}
+  }catch(e){showError('Could not save PR — check your connection');}
 }
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},2500);}
 
