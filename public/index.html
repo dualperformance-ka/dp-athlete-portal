@@ -8,6 +8,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{
+  /* ── Layout tokens ── */
+  --z-header:100;--z-tabs:80;--z-quicklog:140;--z-toast:200;
+  --radius-card:10px;--transition-fast:0.15s;
   --bg:#f4f3f0;--surface:#ffffff;--surface2:#eceae5;--surface3:#e4e2dc;
   --border:rgba(0,0,0,0.07);--border-mid:rgba(0,0,0,0.13);--border-strong:rgba(0,0,0,0.24);
   --text:#0a0a0a;--muted:#5a5a5a;--dim:#999;
@@ -366,6 +369,30 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .session-date-label span{display:block;font-family:var(--display);font-size:13px;font-weight:600;color:var(--text);letter-spacing:.02em;margin-top:2px;text-transform:none;}
 .session-date-input{padding:8px 12px;border-radius:8px;border:1.5px solid var(--border-mid);background:var(--bg);font-family:var(--mono);font-size:13px;color:var(--text);outline:none;-webkit-appearance:none;cursor:pointer;}
 .session-date-input:focus{border-color:#f59e0b;}
+
+/* ── CHANGE: Broadcast banner ── */
+.broadcast-banner{background:#0a0a0a;border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-card);padding:14px 16px;margin-bottom:14px;display:none;position:relative}
+.broadcast-banner.visible{display:block}
+.broadcast-eyebrow{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#f59e0b;margin-bottom:5px}
+.broadcast-msg{font-size:14px;color:#fff;line-height:1.5}
+.broadcast-close{position:absolute;top:10px;right:12px;background:transparent;border:none;color:rgba(255,255,255,.4);font-size:18px;cursor:pointer;padding:2px 6px;line-height:1}
+.broadcast-close:hover{color:#fff}
+/* ── CHANGE: Streak pill ── */
+.hp-streak{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.4);color:#f59e0b;display:none}
+.hp-streak span{color:#f59e0b}
+/* ── CHANGE: PR panel ── */
+.pr-table{width:100%;border-collapse:collapse;font-size:14px}
+.pr-table th{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);padding:6px 8px 8px;text-align:left;border-bottom:1px solid var(--border)}
+.pr-table td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.pr-table tr:last-child td{border-bottom:none}
+.pr-dist{font-family:var(--display);font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:.04em}
+.pr-time{font-family:var(--mono);font-size:13px}
+.pr-date{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.pr-add-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.pr-add-row select,.pr-add-row input{border:1px solid var(--border-mid);border-radius:8px;padding:9px 12px;font-size:14px;font-family:var(--body);background:var(--surface);color:var(--text);width:100%}
+.pr-save-btn{margin-top:8px;width:100%;background:#0a0a0a;color:#fff;border:none;border-radius:8px;padding:12px;font-family:var(--display);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;transition:opacity var(--transition-fast)}
+.pr-save-btn:active{opacity:.75}
+.pr-empty{font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:20px}
 </style>
 </head>
 <body>
@@ -412,6 +439,8 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="hp">🏋️ <span id="heroLifts">—</span> lifts</div>
       <!-- KM TARGET -->
       <div id="kmBar" style="display:none;background:#f59e0b;border-color:#f59e0b;color:#0a0a0a" class="hp">🎯 <span id="kmTargetVal">—</span> km</div>
+      <!-- CHANGE: Streak pill -->
+      <div class="hp hp-streak" id="streakPill">🔥 <span id="streakCount">—</span> wk streak</div>
     </div>
   </div>
 
@@ -433,6 +462,12 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 
   <!-- TRAINING -->
   <div class="tab-content active" id="tab-training">
+    <!-- CHANGE: Coach broadcast banner -->
+    <div class="broadcast-banner" id="broadcastBanner">
+      <div class="broadcast-eyebrow">From your coaches</div>
+      <div class="broadcast-msg" id="broadcastMsg"></div>
+      <button class="broadcast-close" onclick="dismissBroadcast()" title="Dismiss">×</button>
+    </div>
     <div class="goals-prompt" id="goalsBanner">
       <div class="goals-prompt-label">Start here</div>
       <div class="goals-prompt-title">Set your goals first</div>
@@ -445,7 +480,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
     </div>
     <div id="todayEl" class="todaywrap" style="display:none"></div>
     <div id="calEl" style="display:none"></div>
-    <div class="noplan" id="noplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
+    <div class="noplan" id="noplanEl" style="display:none">No sessions loaded yet.<br>Karl &amp; Alex are building your plan — check back shortly.</div>
   </div>
 
   <!-- GOALS -->
@@ -823,6 +858,25 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
       <div class="loading" id="pgLoadingEl" style="padding:24px"><div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div><div class="ltxt">Loading...</div></div>
       <div id="pgWeightLog" style="display:none"></div>
       <div id="pgNoData" style="display:none;font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:20px">No weigh-ins logged yet</div>
+    </div>
+    <!-- CHANGE: Personal Records panel -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Personal Records</div>
+      <div id="prLoading" class="ldots" style="justify-content:flex-start;padding:12px 0"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
+      <div id="prContent" style="display:none"></div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:10px">Add a PR</div>
+        <div class="pr-add-row">
+          <select id="prDist">
+            <option value="">Distance</option>
+            <option>1km</option><option>3km</option><option>5km</option>
+            <option>10km</option><option>Half Marathon</option><option>Marathon</option><option>Other</option>
+          </select>
+          <input type="text" id="prTime" placeholder="Time (e.g. 22:30)" />
+        </div>
+        <input type="text" id="prNote" placeholder="Note (optional)" style="border:1px solid var(--border-mid);border-radius:8px;padding:9px 12px;font-size:14px;font-family:var(--body);background:var(--surface);color:var(--text);width:100%;margin-top:8px" />
+        <button class="pr-save-btn" onclick="savePR()">Save PR</button>
+      </div>
     </div>
     <div class="card">
       <div class="card-title">Progress Photos</div>
@@ -1401,6 +1455,9 @@ function setRaceFromValue(val){
 function pickEx(exName,chosen){
   exPicks[exName]=chosen;
   localStorage.setItem('dp_ex_picks_'+athlete.code,JSON.stringify(exPicks));
+  // CHANGE: load broadcast banner and render streak after athlete loads
+  loadBroadcast();
+  setTimeout(renderStreak,500);
   if(sbClient){try{sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'ex_picks',value:exPicks,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'}).then(function(){}).catch(function(){});}catch(e){}}
   document.querySelectorAll('[data-pg="'+exName.replace(/[^a-z0-9]/gi,'_')+'"]').forEach(function(p){
     p.classList.toggle('active',p.dataset.pv===chosen);
@@ -1432,18 +1489,30 @@ async function saveGoals(){
   var gBanner=document.getElementById('goalsBanner'),gDot=document.getElementById('goalsDot');
   if(gBanner) gBanner.style.display='none';
   if(gDot) gDot.style.display='none';
+  showToast('Goals saved!'); // CHANGE: confirmation toast
   setTimeout(function(){btn.textContent='Save Goals';btn.classList.remove('saved');btn.disabled=false;},2500);
 }
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
+// CHANGE: tab scroll memory
+var tabScrollPositions={};
 function switchTab(tab){
+  // Save current tab scroll position
+  var activeContent=document.querySelector('.tab-content.active');
+  if(activeContent) tabScrollPositions[activeContent.id]=window.scrollY;
   document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===tab);});
   document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+tab);});
   var isTraining=tab==='training';
   document.getElementById('wbar').style.display=isTraining?'':'none';
+  // CHANGE: quicklog strip only on training + progress
+  var ql=document.getElementById('quicklogStrip');
+  if(ql) ql.style.display=(tab==='training'||tab==='progress')?'flex':'none';
   if(tab==='nutrition') loadNutrition();
   if(tab==='checkin') initCheckin();
-  if(tab==='progress') loadProgress();
+  if(tab==='progress'){loadProgress();loadPRs();}
+  // Restore scroll position for this tab
+  var savedY=tabScrollPositions['tab-'+tab]||0;
+  setTimeout(function(){window.scrollTo(0,savedY);},30);
 }
 
 // ── CHECK-IN WIZARD ───────────────────────────────────────────────────────────
@@ -1473,6 +1542,13 @@ function ciStep(dir){ciGoStep(CI_STEP+dir);}
 
 function initCheckin(){
   var nameEl=document.getElementById('ciName');if(nameEl&&!nameEl.value) nameEl.value=athlete.name;
+  // CHANGE: auto-fill week ending to coming Sunday
+  var weEl=document.getElementById('ciWeekEnding');
+  if(weEl&&!weEl.value){
+    var now=new Date();var day=now.getDay();var daysToSun=day===0?0:7-day;
+    var sun=new Date(now);sun.setDate(now.getDate()+daysToSun);
+    weEl.value=sun.toISOString().slice(0,10);
+  }
   var weEl=document.getElementById('ciWeekEnding');
   if(weEl&&!weEl.value){var d=new Date(),day=d.getDay(),diff=day===0?0:7-day,sun=new Date(d);sun.setDate(d.getDate()+diff);weEl.value=sun.toISOString().split('T')[0];}
   initDailyDates();
@@ -2212,7 +2288,7 @@ async function loadWeek(){
   if(!sessions.length){showNoplan();return;}
   renderCal(ws);
 }
-function showNoplan(){document.getElementById('noplanEl').style.display='block';var tEl=document.getElementById('todayEl');if(tEl) tEl.style.display='none';updateProgress();}
+function showNoplan(){var el=document.getElementById('noplanEl');if(el){var fn=athlete&&athlete.name?athlete.name.split(' ')[0]:'there';el.innerHTML='No sessions loaded yet, '+fn+'.<br>Karl & Alex are building your plan — check back shortly.';el.style.display='block';}var tEl=document.getElementById('todayEl');if(tEl) tEl.style.display='none';updateProgress();}
 
 // ── RENDER CALENDAR ───────────────────────────────────────────────────────────
 function renderCal(ws){
@@ -2879,6 +2955,8 @@ function togS(i){var el=document.getElementById('scb_'+i);if(el) el.classList.to
 async function tickS(i){
   var s=sessions[i],done=!ticked[s.id];
   ticked[s.id]=done;localStorage.setItem('dp_ticked_'+athlete.code,JSON.stringify(ticked));
+  // CHANGE: haptic feedback
+  try{if(navigator.vibrate) navigator.vibrate(done?40:[20,30,20]);}catch(e){}
   if(sbClient){try{sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'ticked',value:ticked,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'}).then(function(){}).catch(function(){});}catch(e){}}
   var card=document.getElementById('sc_'+i),btn=document.getElementById('tick_'+i);
   if(card) card.classList.toggle('done',done);
@@ -3009,6 +3087,121 @@ async function saveGym(i,splitKey){
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';btn.disabled=true;setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;btn.disabled=false;},2500);}}
 function updateProgress(){}
+
+// ── CHANGE: Global error handler ─────────────────────────────────────────────
+function showError(msg){
+  var t=document.getElementById('toast');
+  if(!t) return;
+  t.textContent=msg;
+  t.style.background='#dc2626';
+  t.style.display='block';
+  setTimeout(function(){t.style.display='none';t.style.background='#0a0a0a';},4000);
+}
+
+// ── CHANGE: Coach broadcast banner ───────────────────────────────────────────
+async function loadBroadcast(){
+  if(!sbClient) return;
+  try{
+    var res=await sbClient.from('broadcasts').select('id,message').eq('active',true).order('created_at',{ascending:false}).limit(1);
+    if(res.error||!res.data||!res.data.length) return;
+    var row=res.data[0];
+    var dismissed=JSON.parse(localStorage.getItem('dp_dismissed_broadcasts')||'[]');
+    if(dismissed.includes(row.id)) return;
+    document.getElementById('broadcastMsg').textContent=row.message;
+    document.getElementById('broadcastBanner').classList.add('visible');
+    document.getElementById('broadcastBanner').dataset.bid=row.id;
+  }catch(e){console.warn('loadBroadcast failed',e);}
+}
+function dismissBroadcast(){
+  var banner=document.getElementById('broadcastBanner');
+  var bid=banner.dataset.bid;
+  if(bid){
+    var dismissed=JSON.parse(localStorage.getItem('dp_dismissed_broadcasts')||'[]');
+    dismissed.push(bid);
+    localStorage.setItem('dp_dismissed_broadcasts',JSON.stringify(dismissed));
+  }
+  banner.classList.remove('visible');
+}
+
+// ── CHANGE: Streak counter ────────────────────────────────────────────────────
+function calcStreak(){
+  if(!athlete||!ticked) return 0;
+  // Group ticked sessions by ISO week (Mon-Sun)
+  function weekKey(dateStr){
+    var d=new Date(dateStr);if(isNaN(d)) return null;
+    d.setHours(0,0,0,0);
+    var day=d.getDay()||7; // Mon=1
+    d.setDate(d.getDate()-day+1);
+    return d.toISOString().slice(0,10);
+  }
+  // We use session completion count vs planned for streak
+  // Simpler: count consecutive weeks where any sessions were ticked
+  // For a >=80% threshold we need total planned — use sessions array
+  if(!sessions||!sessions.length) return 0;
+  var weekPlanned={},weekDone={};
+  sessions.forEach(function(s){
+    var wk=weekKey(s.date||s.dateStr||'');
+    if(!wk) return;
+    weekPlanned[wk]=(weekPlanned[wk]||0)+1;
+    if(ticked[s.id]) weekDone[wk]=(weekDone[wk]||0)+1;
+  });
+  var weeks=Object.keys(weekPlanned).sort().reverse();
+  var streak=0;
+  for(var i=0;i<weeks.length;i++){
+    var wk=weeks[i];
+    var pct=(weekPlanned[wk]>0)?(weekDone[wk]||0)/weekPlanned[wk]:0;
+    if(pct>=0.8) streak++;
+    else break;
+  }
+  return streak;
+}
+function renderStreak(){
+  var s=calcStreak();
+  var pill=document.getElementById('streakPill');
+  var cnt=document.getElementById('streakCount');
+  if(!pill||!cnt) return;
+  if(s>=1){pill.style.display='';cnt.textContent=s;}
+  else{pill.style.display='none';}
+}
+
+// ── CHANGE: Personal Records ──────────────────────────────────────────────────
+async function loadPRs(){
+  var wrap=document.getElementById('prContent');
+  var loading=document.getElementById('prLoading');
+  if(!wrap) return;
+  if(!sbClient){if(loading) loading.style.display='none';wrap.style.display='';wrap.innerHTML='<div class="pr-empty">Connect to load PRs</div>';return;}
+  try{
+    var res=await sbClient.from('prs').select('id,distance,time,date,note').eq('athlete_id',athlete.code).order('date',{ascending:false});
+    if(loading) loading.style.display='none';
+    wrap.style.display='';
+    if(res.error||!res.data||!res.data.length){
+      wrap.innerHTML='<div class="pr-empty">No PRs yet — add your first one below</div>';return;
+    }
+    var html='<table class="pr-table"><thead><tr><th>Distance</th><th>Time</th><th>Date</th></tr></thead><tbody>';
+    res.data.forEach(function(r){
+      var d=r.date?new Date(r.date).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
+      html+='<tr><td><div class="pr-dist">'+r.distance+'</div>'+(r.note?'<div class="pr-date">'+r.note+'</div>':'')+'</td><td><div class="pr-time">'+r.time+'</div></td><td><div class="pr-date">'+d+'</div></td></tr>';
+    });
+    html+='</tbody></table>';
+    wrap.innerHTML=html;
+  }catch(e){if(loading) loading.style.display='none';wrap.style.display='';wrap.innerHTML='<div class="pr-empty">Could not load PRs</div>';showError('Couldn't load PRs — check your connection');}
+}
+async function savePR(){
+  var dist=document.getElementById('prDist').value.trim();
+  var time=document.getElementById('prTime').value.trim();
+  var note=document.getElementById('prNote').value.trim();
+  if(!dist||!time){showToast('Enter distance and time');return;}
+  if(!sbClient){showError('Not connected to database');return;}
+  try{
+    var res=await sbClient.from('prs').insert({athlete_id:athlete.code,distance:dist,time:time,date:new Date().toISOString().slice(0,10),note:note||null});
+    if(res.error) throw res.error;
+    document.getElementById('prDist').value='';
+    document.getElementById('prTime').value='';
+    document.getElementById('prNote').value='';
+    showToast('PR saved!');
+    loadPRs();
+  }catch(e){showError('Couldn't save PR — check your connection');}
+}
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},2500);}
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
