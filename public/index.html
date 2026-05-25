@@ -12,7 +12,7 @@
   --z-header:100;--z-tabs:80;--z-quicklog:140;--z-toast:200;
   --radius-card:10px;--transition-fast:0.15s;
   --bg:#f4f3f0;--surface:#ffffff;--surface2:#eceae5;--surface3:#e4e2dc;
-  --border:rgba(0,0,0,0.07);--border-mid:rgba(0,0,0,0.13);--border-strong:rgba(0,0,0,0.24);
+  --border:rgba(0,0,0,0.07);--border-mid:rgba(0,0,0,0.13);--order-strong:rgba(0,0,00.24);
   --text:#0a0a0a;--muted:#5a5a5a;--dim:#999;
   --run:#b45309;--strength:#1a327a;--rest:#9ca3af;
   --ok:#15803d;--ok-bg:#f0fdf4;--ok-border:#86efac;
@@ -2210,9 +2210,9 @@ async function loadProgress(){
   var entries=allData.results.filter(function(r){
     var pr=r.properties;
     var athRel=pr['Athlete']&&pr['Athlete'].relation||[];var idMatch=athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
-    var idText=getRichText(pr['AthleteID']||{}).replace(/-/g,'');
+    var idText=getRichText(pr['AthleteID']||{}).trim().toUpperCase();
     var nameMatch=getNotionTitle(pr).toLowerCase()===athlete.name.toLowerCase()||getRichText(pr['Athlete Name']||{}).toLowerCase()===athlete.name.toLowerCase();
-    return idMatch||idText===athleteIdClean||nameMatch;
+    var codeMatch=idText===(athlete.code||'').trim().toUpperCase();return idMatch||codeMatch||nameMatch;
   }).filter(function(r){var w=r.properties['Weight'];return w&&(w.number!=null||(w.rich_text&&w.rich_text.length));})
   .sort(function(a,b){var da=a.properties['Date']&&a.properties['Date'].date&&a.properties['Date'].date.start||'';var db=b.properties['Date']&&b.properties['Date'].date&&b.properties['Date'].date.start||'';return db.localeCompare(da);});
   if(!entries.length){document.getElementById('pgNoData').style.display='block';renderWeightChart([],null);return;}
