@@ -3050,6 +3050,7 @@ function lockSaveButton(i,label){
   btn.style.cursor='default';
 }
 function getChosenDate(i,fallback){var el=document.getElementById('session-date-'+i);var val=el?el.value:'';return /^\d{4}-\d{2}-\d{2}$/.test(val)?val:(fallback||new Date().toISOString().slice(0,10));}
+function autoTick(i){var s=sessions[i];if(!s||ticked[s.id]) return;ticked[s.id]=true;localStorage.setItem('dp_ticked_'+athlete.code,JSON.stringify(ticked));if(sbClient){try{sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'ticked',value:ticked,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'}).then(function(){}).catch(function(){});}catch(e){}}var card=document.getElementById('sc_'+i),btn=document.getElementById('tick_'+i);if(card) card.classList.add('done');if(btn){btn.classList.add('on');var svg=btn.querySelector('svg');if(svg) svg.style.opacity=1;}updateSessionCounter();updateProgress();}
 async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i];
@@ -3062,6 +3063,7 @@ async function saveRun(i){
   await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+chosenDate,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel+effortLine,notes:d.notes,effortPace:d.effortPace,effortDist:d.effortDist,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:chosenDate,submittedAt:new Date().toISOString()})}).catch(function(){});
   await markSessionLogged(s.id);
   api('pages/'+s.id,{properties:{'Status ':{status:{name:'Completed'}}}});
+  autoTick(i);
   showToast('Run saved ✓');
   showRunSaved(i,d);
   await loadNutrition();
@@ -3078,6 +3080,7 @@ async function saveGym(i,splitKey){
   await Promise.all(fetches);
   await markSessionLogged(s.id);
   api('pages/'+s.id,{properties:{'Status ':{status:{name:'Completed'}}}});
+  autoTick(i);
   refreshStrengthFeedback(i,splitKey);
   showToast('Session saved ✓');
   var gymSavedBanner=document.getElementById('gym_saved_'+i);
