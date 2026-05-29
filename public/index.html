@@ -410,29 +410,25 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 
   <!-- NUDGE STRIP — call + photos -->
   <div id="callNudge" style="display:none;background:#111;border-top:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.05);padding:10px 16px;cursor:pointer;user-select:none" onclick="openCallBooking()">
-    <div style="display:flex;align-items:center;justify-content:space-between;max-width:700px;margin:0 auto">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:15px">📅</span>
-        <div>
-          <div style="font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.7)">Book your weekly coaching call</div>
-          <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.05em;margin-top:1px">45 min · Karl &amp; Alex</div>
-        </div>
+    <div style="display:flex;align-items:center;gap:10px;max-width:700px;margin:0 auto">
+      <span style="font-size:15px;flex-shrink:0">📅</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.7)">Book your weekly coaching call</div>
+        <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.05em;margin-top:1px">45 min · Karl &amp; Alex</div>
       </div>
-      <span style="font-family:var(--mono);font-size:14px;color:rgba(255,255,255,.25)">›</span>
+      <span style="font-family:var(--mono);font-size:14px;color:rgba(255,255,255,.25);flex-shrink:0">›</span>
     </div>
   </div>
 
   <!-- PHOTO NUDGE — hidden once this week's photos uploaded -->
   <div id="photoNudge" style="display:none;background:#111;border-bottom:1px solid rgba(255,255,255,.05);padding:10px 16px;cursor:pointer;user-select:none" onclick="switchTab('progress')">
-    <div style="display:flex;align-items:center;justify-content:space-between;max-width:700px;margin:0 auto">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:15px">📸</span>
-        <div>
-          <div style="font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.7)">Upload your progress photos</div>
-          <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.05em;margin-top:1px">Same time, same lighting, same angles</div>
-        </div>
+    <div style="display:flex;align-items:center;gap:10px;max-width:700px;margin:0 auto">
+      <span style="font-size:15px;flex-shrink:0">📸</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.7)">Upload your progress photos</div>
+        <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.05em;margin-top:1px">Same time, same lighting, same angles</div>
       </div>
-      <span style="font-family:var(--mono);font-size:14px;color:rgba(255,255,255,.25)">›</span>
+      <span style="font-family:var(--mono);font-size:14px;color:rgba(255,255,255,.25);flex-shrink:0">›</span>
     </div>
   </div>
 
