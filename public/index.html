@@ -56,6 +56,21 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .tab.active{color:#fff;border-bottom-color:#fff}
 .tab-dot{display:none;width:6px;height:6px;border-radius:50%;background:#f59e0b;margin-left:5px;margin-bottom:5px;vertical-align:middle;flex-shrink:0}
 .tab-dot.visible{display:inline-block}
+.nudge-strip{background:#111;border-bottom:1px solid rgba(255,255,255,.05);padding:10px 16px;cursor:pointer;user-select:none}
+.nudge-strip-inner{display:flex;align-items:center;gap:10px;max-width:700px;margin:0 auto}
+.nudge-strip-icon{font-size:15px;flex-shrink:0}
+.nudge-strip-text{flex:1;min-width:0}
+.nudge-strip-title{font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.7)}
+.nudge-strip-sub{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.05em;margin-top:1px}
+.nudge-strip-arr{font-family:var(--mono);font-size:14px;color:rgba(255,255,255,.25);flex-shrink:0}
+@media(min-width:768px){
+  .nudge-strip{padding:16px 24px;border-top:1px solid rgba(255,255,255,.05)}
+  .nudge-strip-icon{font-size:22px}
+  .nudge-strip-title{font-size:18px}
+  .nudge-strip-sub{font-size:11px;margin-top:3px}
+  .nudge-strip-arr{font-size:20px}
+  .nudge-strip-inner{gap:16px;max-width:700px}
+}
 .tab-content{display:none;max-width:700px;margin:0 auto;padding:16px 14px 120px}
 .tab-content.active{display:block}
 .stitle{font-family:var(--display);font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:14px;margin-top:4px}
@@ -409,26 +424,26 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   </div>
 
   <!-- NUDGE STRIP — call + photos -->
-  <div id="callNudge" style="display:none;background:#111;border-top:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.05);padding:10px 16px;cursor:pointer;user-select:none" onclick="openCallBooking()">
-    <div style="display:flex;align-items:center;gap:10px;max-width:700px;margin:0 auto">
-      <span style="font-size:15px;flex-shrink:0">📅</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.7)">Book your weekly coaching call</div>
-        <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.05em;margin-top:1px">45 min · Karl &amp; Alex</div>
+  <div id="callNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)" onclick="openCallBooking()">
+    <div class="nudge-strip-inner">
+      <span class="nudge-strip-icon">📅</span>
+      <div class="nudge-strip-text">
+        <div class="nudge-strip-title">Book your weekly coaching call</div>
+        <div class="nudge-strip-sub">45 min · Karl &amp; Alex</div>
       </div>
-      <span style="font-family:var(--mono);font-size:14px;color:rgba(255,255,255,.25);flex-shrink:0">›</span>
+      <span class="nudge-strip-arr">›</span>
     </div>
   </div>
 
   <!-- PHOTO NUDGE — hidden once this week's photos uploaded -->
-  <div id="photoNudge" style="display:none;background:#111;border-bottom:1px solid rgba(255,255,255,.05);padding:10px 16px;cursor:pointer;user-select:none" onclick="switchTab('progress')">
-    <div style="display:flex;align-items:center;gap:10px;max-width:700px;margin:0 auto">
-      <span style="font-size:15px;flex-shrink:0">📸</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.7)">Upload your progress photos</div>
-        <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.05em;margin-top:1px">Same time, same lighting, same angles</div>
+  <div id="photoNudge" class="nudge-strip" style="display:none" onclick="switchTab('progress')">
+    <div class="nudge-strip-inner">
+      <span class="nudge-strip-icon">📸</span>
+      <div class="nudge-strip-text">
+        <div class="nudge-strip-title">Upload your progress photos</div>
+        <div class="nudge-strip-sub">Same time, same lighting, same angles</div>
       </div>
-      <span style="font-family:var(--mono);font-size:14px;color:rgba(255,255,255,.25);flex-shrink:0">›</span>
+      <span class="nudge-strip-arr">›</span>
     </div>
   </div>
 
