@@ -1507,12 +1507,11 @@ function initCallNudge(){
 function initPhotoNudge(){
   var nudge=document.getElementById('photoNudge');
   if(!nudge) return;
-  var week=getCurrentProgrammeWeek();
   var photos=JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');
-  var hasPhotos=photos['week'+week]&&Object.keys(photos['week'+week]).length>0;
-  nudge.style.display=hasPhotos?'none':'';
+  var hasAnyPhotos=Object.keys(photos).some(function(w){return photos[w]&&Object.keys(photos[w]).length>0;});
+  nudge.style.display=hasAnyPhotos?'none':'';
   var dot=document.getElementById('tabDotProgress');
-  if(dot) dot.classList.toggle('visible',!hasPhotos);
+  if(dot) dot.classList.toggle('visible',!hasAnyPhotos);
 }
 function hidePhotoNudge(){
   var nudge=document.getElementById('photoNudge');
