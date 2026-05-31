@@ -1166,6 +1166,20 @@ async function loadCloudData(code){
       if(!lsKey||!row.value) return;
       localStorage.setItem(lsKey,JSON.stringify(row.value));
     });
+    // Backfill: if photos exist locally but not in Supabase, push them up now
+    if(!cloudKeys['photos']){
+      var localPhotos=localStorage.getItem('dp_photos_'+code);
+      if(localPhotos&&localPhotos!=='{}'){
+        try{
+          var parsedPhotos=JSON.parse(localPhotos);
+          if(Object.keys(parsedPhotos).length>0){
+            _skipSbSync=false;
+            await sbClient.from('athlete_data').upsert({athlete_code:code,key:'photos',value:parsedPhotos,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});
+            _skipSbSync=true;
+          }
+        }catch(e){}
+      }
+    }
     // Backfill: if goals exist locally but not in Supabase, push them up now
     if(!cloudKeys['goals']){
       var localGoals=localStorage.getItem('dp_goals_'+code);
@@ -2174,7 +2188,16 @@ async function handleAngleUpload(input){
   try{
     var res=await fetch('https://api.cloudinary.com/v1_1/'+CLOUDINARY_CLOUD+'/image/upload',{method:'POST',body:formData});
     var data=await res.json();
-    if(data.secure_url){var photos=getPhotos();if(!photos['week'+week]) photos['week'+week]={};photos['week'+week][key]=data.secure_url;savePhotos(photos);renderAngleGrid(week);showToast(angle+' uploaded ✓');}
+    if(data.secure_url){
+      var photos=getPhotos();if(!photos['week'+week]) photos['week'+week]={};photos['week'+week][key]=data.secure_url;
+      savePhotos(photos);
+      // Explicit Supabase sync — don't rely solely on localStorage interceptor
+      if(sbClient&&athlete&&athlete.code){
+        try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'photos',value:photos,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}
+        catch(e){console.warn('Photo cloud sync failed:',e);}
+      }
+      renderAngleGrid(week);showToast(angle+' uploaded ✓');
+    }
     else{showToast('Upload failed — try again');}
   }catch(e){showToast('Upload failed — check connection');}
   if(slot) slot.classList.remove('uploading');input.value='';
