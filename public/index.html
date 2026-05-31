@@ -1509,8 +1509,11 @@ function initPhotoNudge(){
   if(!nudge) return;
   var week=1;
   if(athlete.startDate&&athlete.startDate!=='—'){
-    var diff=Math.floor((new Date()-new Date(athlete.startDate))/(7*24*60*60*1000))+1;
-    week=Math.max(1,Math.min(12,diff));
+    var getMonday=function(d){var day=d.getDay();var m=new Date(d);m.setDate(d.getDate()-((day+6)%7));m.setHours(0,0,0,0);return m;};
+    var startMonday=getMonday(new Date(athlete.startDate));
+    var nowMonday=getMonday(new Date());
+    var weeksDiff=Math.round((nowMonday-startMonday)/(7*24*60*60*1000));
+    week=Math.max(1,Math.min(12,weeksDiff+1));
   }
   var photos=JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');
   var hasPhotos=photos['week'+week]&&Object.keys(photos['week'+week]).length>0;
