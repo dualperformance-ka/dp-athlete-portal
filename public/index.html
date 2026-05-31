@@ -1507,11 +1507,16 @@ function initCallNudge(){
 function initPhotoNudge(){
   var nudge=document.getElementById('photoNudge');
   if(!nudge) return;
+  var week=1;
+  if(athlete.startDate&&athlete.startDate!=='—'){
+    var diff=Math.floor((new Date()-new Date(athlete.startDate))/(7*24*60*60*1000))+1;
+    week=Math.max(1,Math.min(12,diff));
+  }
   var photos=JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');
-  var hasAnyPhotos=Object.keys(photos).some(function(w){return photos[w]&&Object.keys(photos[w]).length>0;});
-  nudge.style.display=hasAnyPhotos?'none':'';
+  var hasPhotos=photos['week'+week]&&Object.keys(photos['week'+week]).length>0;
+  nudge.style.display=hasPhotos?'none':'';
   var dot=document.getElementById('tabDotProgress');
-  if(dot) dot.classList.toggle('visible',!hasAnyPhotos);
+  if(dot) dot.classList.toggle('visible',!hasPhotos);
 }
 function hidePhotoNudge(){
   var nudge=document.getElementById('photoNudge');
