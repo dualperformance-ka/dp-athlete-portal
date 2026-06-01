@@ -2203,7 +2203,7 @@ async function handleAngleUpload(input){
         try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'photos',value:photos,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}
         catch(e){console.warn('Photo cloud sync failed:',e);}
       }
-      renderAngleGrid(week);showToast(angle+' uploaded ✓');
+      renderAngleGrid(week);showToast(angle+' uploaded ✓');initPhotoNudge();
     }
     else{showToast('Upload failed — try again');}
   }catch(e){showToast('Upload failed — check connection');}
