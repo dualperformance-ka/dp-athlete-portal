@@ -2904,7 +2904,7 @@ function buildBody(s,i,type){
     h+='<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>';
     h+='</div>';
     h+='<div id="run_form_'+i+'" style="display:'+(hasSaved?'none':'block')+';">';
-    if(s.date){var _rDate=new Date(s.date+'T00:00:00');var _rDateLabel=_rDate.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric'});h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:9px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px"><span style="font-size:14px">📅</span><span style="font-family:var(--mono);font-size:11px;color:#ffaa00;font-weight:600;text-transform:uppercase;letter-spacing:.05em">'+esc(_rDateLabel)+'</span><span style="font-family:var(--mono);font-size:10px;color:rgba(255,170,0,.6);margin-left:4px">— confirm before submitting</span></div>';}
+    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span>📅</span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="run_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     h+='<div class="run-log-title">Log your session</div><div class="run-inputs">';
     h+='<div class="run-field"><label>Distance (km)</label><input type="number" step="0.1" id="rd_'+i+'" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
     h+='<div class="run-field"><label>Duration (min)</label><input type="number" step="1" id="rdur_'+i+'" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
@@ -2924,7 +2924,7 @@ function buildBody(s,i,type){
 
     var splitKey=GYM_KEYS.find(function(k){return(s.name||'').indexOf(k)>=0;})||'Upper A';
     var exercises=STR[splitKey]||[],sl2=logs[s.id]||{};
-    if(s.date){var _gDate=new Date(s.date+'T00:00:00');var _gDateLabel=_gDate.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric'});h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:9px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px"><span style="font-size:14px">📅</span><span style="font-family:var(--mono);font-size:11px;color:#ffaa00;font-weight:600;text-transform:uppercase;letter-spacing:.05em">'+esc(_gDateLabel)+'</span><span style="font-family:var(--mono);font-size:10px;color:rgba(255,170,0,.6);margin-left:4px">— confirm before submitting</span></div>';}
+    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span>📅</span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     if(exercises.length){
       h+='<div class="ltitle">Log your sets</div><div class="exlist">';
       exercises.forEach(function(ex,ei){
@@ -3059,7 +3059,8 @@ async function saveRun(i){
   var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
   logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
-  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+s.date,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});
+  var runDateEl=document.getElementById('run_date_'+i);var runDate=runDateEl&&runDateEl.value?runDateEl.value:s.date;
+  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+runDate,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:runDate,submittedAt:new Date().toISOString()})}).catch(function(){});
   await markSessionLogged(s.id);
   showToast('Run saved ✓');
   showRunSaved(i,d);
@@ -3071,7 +3072,8 @@ async function saveGym(i,splitKey){
   exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;if(sets.length) log[useName]=sets;});
   logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
-  var fetches=Object.keys(log).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+s.date,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:s.date,submittedAt:new Date().toISOString()})}).catch(function(){});});
+  var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:s.date;
+  var fetches=Object.keys(log).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()})}).catch(function(){});});
   await Promise.all(fetches);
   await markSessionLogged(s.id);
   refreshStrengthFeedback(i,splitKey);
