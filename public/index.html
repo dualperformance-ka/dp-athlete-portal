@@ -1400,7 +1400,6 @@ async function doLogin(code){
   populateStatic();
   loadWeek();
   initCallNudge();
-  initPhotoNudge();
 }
 
 function populateStatic(){
@@ -1507,14 +1506,7 @@ function initCallNudge(){
 function initPhotoNudge(){
   var nudge=document.getElementById('photoNudge');
   if(!nudge) return;
-  var week=1;
-  if(athlete.startDate&&athlete.startDate!=='—'){
-    var getMonday=function(d){var day=d.getDay();var m=new Date(d);m.setDate(d.getDate()-((day+6)%7));m.setHours(0,0,0,0);return m;};
-    var startMonday=getMonday(new Date(athlete.startDate));
-    var nowMonday=getMonday(new Date());
-    var weeksDiff=Math.round((nowMonday-startMonday)/(7*24*60*60*1000));
-    week=Math.max(1,Math.min(12,weeksDiff+1));
-  }
+  var week=getCurrentProgrammeWeek();
   var photos=JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');
   var hasPhotos=photos['week'+week]&&Object.keys(photos['week'+week]).length>0;
   nudge.style.display=hasPhotos?'none':'';
@@ -2331,6 +2323,7 @@ async function loadWeek(){
       intensity:getPropText(pr['Intensity']),week:getPropText(pr['Week'])};
   });
   sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
+  if(weekOffset===0) initPhotoNudge();
   renderTodaySection();
   var wkS=sessions.find(function(s){return s.week;});if(wkS) document.getElementById('heroWeek').textContent=wkS.week;
   var runs=sessions.filter(function(s){return getType(s)==='run';});
