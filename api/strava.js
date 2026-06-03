@@ -37,18 +37,25 @@ function setCors(req, res) {
 
 // ── Supabase helpers ──────────────────────────────────────────────────────────
 
+async function supabaseFetch(path) {
+  const base = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const res  = await fetch(`${base}/rest/v1/${path}`, {
+    headers: {
+      apikey:        process.env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      Accept:        'application/json',
+    },
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Supabase ${res.status}: ${text.slice(0, 200)}`);
+  return JSON.parse(text);
+}
+
 async function getTokens(athleteCode) {
-  const res = await fetch(
-    `${process.env.SUPABASE_URL}/rest/v1/athlete_data?athlete_code=eq.${athleteCode}&key=eq.strava_tokens&select=id,value`,
-    {
-      headers: {
-        apikey: process.env.SUPABASE_SERVICE_KEY,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-      },
-    }
+  const rows = await supabaseFetch(
+    `athlete_data?athlete_code=eq.${encodeURIComponent(athleteCode)}&key=eq.strava_tokens&select=id,value`
   );
-  const rows = await res.json();
-  if (!rows.length) return null;
+  if (!Array.isArray(rows) || !rows.length) return null;
   return { id: rows[0].id, ...rows[0].value };
 }
 
@@ -60,12 +67,13 @@ async function updateTokens(athleteCode, accessToken, expiresAt) {
   const updated = { ...current, access_token: accessToken, expires_at: expiresAt };
   delete updated.id;
 
+  const base = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
   await fetch(
-    `${process.env.SUPABASE_URL}/rest/v1/athlete_data?athlete_code=eq.${athleteCode}&key=eq.strava_tokens`,
+    `${base}/rest/v1/athlete_data?athlete_code=eq.${encodeURIComponent(athleteCode)}&key=eq.strava_tokens`,
     {
       method: 'PATCH',
       headers: {
-        apikey: process.env.SUPABASE_SERVICE_KEY,
+        apikey:        process.env.SUPABASE_SERVICE_KEY,
         Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
         'Content-Type': 'application/json',
         Prefer: 'return=minimal',
