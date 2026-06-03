@@ -1,65 +1,72 @@
 /**
- * GET /api/strava-callback?code={code}&state={athleteName}
+ * GET /api/strava-callback?code={code}&state={athleteCode}
  *
  * Strava redirects here after an athlete approves access.
- * Exchanges the code for tokens, stores them in the Strava Tokens
- * Notion database, then shows a success page the athlete can close.
+ * Exchanges the code for tokens, stores them in Supabase (athlete_data table),
+ * then shows a success page the athlete can close.
  *
- * Required env vars (same as strava.js):
- *   NOTION_TOKEN          — existing Notion integration token
- *   STRAVA_TOKENS_DB_ID  — ID of the "Strava Tokens" Notion database
+ * Required env vars:
+ *   SUPABASE_URL         — Supabase project URL
+ *   SUPABASE_SERVICE_KEY — Supabase service role key (server-side only)
  *   STRAVA_CLIENT_ID     — Strava app client ID
  *   STRAVA_CLIENT_SECRET — Strava app client secret
  */
 
-const NOTION_API  = 'https://api.notion.com/v1';
-const NOTION_VER  = '2022-06-28';
 const STRAVA_AUTH = 'https://www.strava.com/oauth/token';
 
-async function notionReq(endpoint, method, body) {
-  const res = await fetch(`${NOTION_API}/${endpoint}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${process.env.NOTION_TOKEN}`,
-      'Content-Type': 'application/json',
-      'Notion-Version': NOTION_VER,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  return text ? JSON.parse(text) : {};
-}
+async function supabaseUpsert(athleteCode, tokens) {
+  const url = `${process.env.SUPABASE_URL}/rest/v1/athlete_data`;
 
-async function findExistingPage(dbId, athleteName) {
-  const data = await notionReq(`databases/${dbId}/query`, 'POST', {
-    filter: { property: 'Name', title: { equals: athleteName } },
-    page_size: 1,
-  });
-  return data.results?.[0]?.id || null;
-}
+  // Try update first
+  const updateRes = await fetch(
+    `${url}?athlete_code=eq.${athleteCode}&key=eq.strava_tokens`,
+    {
+      method: 'PATCH',
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({ value: tokens, updated_at: new Date().toISOString() }),
+    }
+  );
 
-async function upsertToken(dbId, athleteName, accessToken, refreshToken, expiresAt, stravaAthleteId) {
-  const existingId = await findExistingPage(dbId, athleteName);
-
-  const properties = {
-    Name:           { title: [{ text: { content: athleteName } }] },
-    'Access Token': { rich_text: [{ text: { content: accessToken } }] },
-    'Refresh Token':{ rich_text: [{ text: { content: refreshToken } }] },
-    'Expires At':   { number: expiresAt },
-    'Strava ID':    { number: stravaAthleteId },
-  };
-
-  if (existingId) {
-    await notionReq(`pages/${existingId}`, 'PATCH', { properties });
-  } else {
-    await notionReq('pages', 'POST', {
-      parent: { database_id: dbId },
-      properties,
-    });
+  // If nothing was updated, insert
+  if (updateRes.status === 200 || updateRes.status === 204) {
+    // Check if it actually updated a row
+    const countRes = await fetch(
+      `${url}?athlete_code=eq.${athleteCode}&key=eq.strava_tokens&select=id`,
+      {
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        },
+      }
+    );
+    const rows = await countRes.json();
+    if (!rows.length) {
+      // Insert
+      await fetch(url, {
+        method: 'POST',
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({
+          athlete_code: athleteCode,
+          key: 'strava_tokens',
+          value: tokens,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+    }
   }
 }
 
-function successPage(athleteName) {
+function successPage(athleteCode) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -75,7 +82,6 @@ function successPage(athleteName) {
   .icon{font-size:48px;margin-bottom:16px}
   h1{font-size:22px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
   p{font-size:14px;color:rgba(255,255,255,.55);line-height:1.6}
-  .athlete{color:#f59e0b;font-weight:700}
   .brand{display:inline-flex;align-items:center;gap:6px;background:#fc4c02;
          color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;
          letter-spacing:.1em;padding:5px 12px;border-radius:20px;margin-top:20px}
@@ -85,8 +91,7 @@ function successPage(athleteName) {
 <div class="card">
   <div class="icon">✅</div>
   <h1>Strava Connected</h1>
-  <p>Your Strava account has been linked to<br>
-     <span class="athlete">${athleteName}</span>'s coaching profile.<br><br>
+  <p>Your Strava account has been linked to your coaching profile.<br><br>
      Your coach can now view your activity data. You can close this tab.</p>
   <div class="brand">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -130,13 +135,10 @@ function errorPage(message) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).send('Method not allowed');
-  }
+  if (req.method !== 'GET') return res.status(405).send('Method not allowed');
 
   const { code, state, error } = req.query;
 
-  // Athlete denied access
   if (error) {
     res.setHeader('Content-Type', 'text/html');
     return res.status(400).send(errorPage('Strava access was denied'));
@@ -147,16 +149,16 @@ export default async function handler(req, res) {
     return res.status(400).send(errorPage('Missing code or athlete identifier'));
   }
 
-  const athleteName = decodeURIComponent(state);
+  const athleteCode = decodeURIComponent(state).toUpperCase();
 
   if (!process.env.STRAVA_CLIENT_ID || !process.env.STRAVA_CLIENT_SECRET) {
     res.setHeader('Content-Type', 'text/html');
-    return res.status(500).send(errorPage('Strava credentials not configured on server'));
+    return res.status(500).send(errorPage('Strava credentials not configured'));
   }
 
-  if (!process.env.STRAVA_TOKENS_DB_ID) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     res.setHeader('Content-Type', 'text/html');
-    return res.status(500).send(errorPage('STRAVA_TOKENS_DB_ID not configured'));
+    return res.status(500).send(errorPage('Supabase credentials not configured'));
   }
 
   try {
@@ -168,7 +170,7 @@ export default async function handler(req, res) {
         client_id:     process.env.STRAVA_CLIENT_ID,
         client_secret: process.env.STRAVA_CLIENT_SECRET,
         code,
-        grant_type:    'authorization_code',
+        grant_type: 'authorization_code',
       }),
     });
 
@@ -177,21 +179,22 @@ export default async function handler(req, res) {
       throw new Error(`Strava token exchange failed: ${err}`);
     }
 
-    const tokenData = await tokenRes.json();
-    const { access_token, refresh_token, expires_at, athlete } = tokenData;
+    const { access_token, refresh_token, expires_at, athlete } = await tokenRes.json();
 
-    // Store in Notion
-    await upsertToken(
-      process.env.STRAVA_TOKENS_DB_ID,
-      athleteName,
+    // Store in Supabase
+    await supabaseUpsert(athleteCode, {
       access_token,
       refresh_token,
       expires_at,
-      athlete?.id || 0
-    );
+      strava_athlete_id: athlete?.id || null,
+      athlete_name: athlete?.firstname
+        ? `${athlete.firstname} ${athlete.lastname || ''}`.trim()
+        : null,
+      connected_at: new Date().toISOString(),
+    });
 
     res.setHeader('Content-Type', 'text/html');
-    return res.status(200).send(successPage(athleteName));
+    return res.status(200).send(successPage(athleteCode));
   } catch (err) {
     console.error('[strava-callback]', err);
     res.setHeader('Content-Type', 'text/html');
