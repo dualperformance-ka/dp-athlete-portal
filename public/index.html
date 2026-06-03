@@ -428,6 +428,16 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
     </div>
   </div>
 
+  <!-- STRAVA CONNECTED BANNER -->
+  <div id="strava-ack-banner" style="display:none;margin:0 16px 12px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:12px 16px;align-items:center;gap:12px;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="#22c55e" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg>
+    <div style="flex:1">
+      <div style="color:#22c55e;font-weight:700;font-size:14px;">Strava Connected!</div>
+      <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">Your runs will now sync automatically to your dashboard.</div>
+    </div>
+    <button id="strava-ack-btn" onclick="acknowledgeStrava()" style="background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">Got it</button>
+  </div>
+
   <!-- NUDGE STRIP — call + photos -->
   <div id="callNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)" onclick="openCallBooking()">
     <div class="nudge-strip-inner">
@@ -3373,6 +3383,22 @@ window.closeEnhancedModal = closeEnhancedModal;
       if (data.connected) {
         btn.innerHTML = '✓ Strava';
         btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:rgba(74,222,128,.9);border-color:rgba(74,222,128,.35);box-shadow:none;text-decoration:none;pointer-events:none;';
+        // Check if athlete has acknowledged the connection (cross-device via Supabase)
+        window._stravaAthCode = code;
+        if (sbClient) {
+          try {
+            var { data: ackRow } = await sbClient
+              .from('athlete_data')
+              .select('value')
+              .eq('athlete_code', code)
+              .eq('key', 'strava_ack')
+              .maybeSingle();
+            if (!ackRow || !ackRow.value || !ackRow.value.acked) {
+              var banner = document.getElementById('strava-ack-banner');
+              if (banner) banner.style.display = 'flex';
+            }
+          } catch(e) { /* silently skip banner on error */ }
+        }
       } else {
         btn.href = data.connectUrl || connectUrl;
       }
@@ -3381,6 +3407,21 @@ window.closeEnhancedModal = closeEnhancedModal;
     }
   };
 })();
+
+window.acknowledgeStrava = async function() {
+  var banner = document.getElementById('strava-ack-banner');
+  if (banner) banner.style.display = 'none';
+  if (sbClient && window._stravaAthCode) {
+    try {
+      await sbClient.from('athlete_data').upsert({
+        athlete_code: window._stravaAthCode,
+        key: 'strava_ack',
+        value: { acked: true, acked_at: new Date().toISOString() },
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'athlete_code,key' });
+    } catch(e) { console.warn('Strava ack save failed', e); }
+  }
+};
 // ============================================================================
 // END STRAVA CONNECT BUTTON
 // ============================================================================
