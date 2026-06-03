@@ -236,6 +236,10 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .photo-cell{background:var(--surface2);border:1.5px dashed var(--border-mid);border-radius:8px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;overflow:hidden;position:relative;transition:border-color .15s}
 .photo-cell:active{border-color:var(--border-strong)}
 .photo-cell.has-photo{border-style:solid;border-color:var(--border)}
+.photo-cell.current-week{border-style:solid;border-color:#f59e0b;border-width:2px;background:rgba(245,158,11,.06)}
+.photo-cell.current-week .photo-label{color:#f59e0b}
+.photo-cell.current-week .photo-add{color:#f59e0b}
+.photo-cell.current-week .photo-upload-tag{font-family:var(--mono);font-size:8px;color:#f59e0b;text-transform:uppercase;letter-spacing:.08em;position:relative;z-index:1;margin-top:0}
 .photo-cell img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
 .photo-cell .photo-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;position:relative;z-index:1}
 .photo-cell .photo-add{font-size:20px;color:var(--dim);position:relative;z-index:1}
@@ -2154,10 +2158,13 @@ function savePhotos(photos){localStorage.setItem('dp_photos_'+athlete.code,JSON.
 function renderPhotoGrid(){
   var grid=document.getElementById('photoGrid');if(!grid) return;
   var photos=getPhotos(),html='';
+  var curWeek=getCurrentProgrammeWeek();
   for(var w=1;w<=12;w++){
     var weekPhotos=photos['week'+w]||{};var count=Object.keys(weekPhotos).length;var firstUrl=count?weekPhotos[Object.keys(weekPhotos)[0]]:'';
-    html+='<div class="photo-cell'+(count?' has-photo':'')+'" onclick="openPhotoModal('+w+')">';
+    var isCurrent=(w===curWeek&&!count);
+    html+='<div class="photo-cell'+(count?' has-photo':'')+(isCurrent?' current-week':'')+'" onclick="openPhotoModal('+w+')">';
     if(firstUrl){html+='<img src="'+firstUrl+'" alt="Week '+w+'" /><div class="photo-count">'+count+'/5</div><div class="photo-overlay">Week '+w+'</div>';}
+    else if(isCurrent){html+='<div class="photo-add">+</div><div class="photo-label">Week '+w+'</div><div class="photo-upload-tag">Upload now</div>';}
     else{html+='<div class="photo-add">+</div><div class="photo-label">Week '+w+'</div>';}
     html+='</div>';
   }
