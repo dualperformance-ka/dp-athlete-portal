@@ -3364,27 +3364,20 @@ window.closeEnhancedModal = closeEnhancedModal;
       + '&state=' + encodeURIComponent(code);
 
     btn.href = connectUrl;
-    btn.textContent = 'Connect Strava';
-    btn.style.display = 'block';
-    btn.style.textDecoration = 'none';
+    btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg> Connect Strava';
+    btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#fc4c02;color:#fff;border-color:#fc4c02;box-shadow:0 0 12px rgba(252,76,2,.6);text-decoration:none;font-weight:700;';
 
     try {
       var res  = await fetch('/api/strava?athlete=' + encodeURIComponent(code));
       var data = await res.json();
       if (data.connected) {
-        btn.textContent = '✓ Strava';
-        btn.style.color = 'rgba(255,255,255,.8)';
-        btn.style.borderColor = 'rgba(74,222,128,.4)';
-        btn.style.pointerEvents = 'none';
+        btn.innerHTML = '✓ Strava';
+        btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:rgba(74,222,128,.9);border-color:rgba(74,222,128,.35);box-shadow:none;text-decoration:none;pointer-events:none;';
       } else {
         btn.href = data.connectUrl || connectUrl;
-        btn.style.color = '#fc4c02';
-        btn.style.borderColor = 'rgba(252,76,2,.35)';
       }
     } catch(e) {
-      btn.href = connectUrl;
-      btn.style.color = '#fc4c02';
-      btn.style.borderColor = 'rgba(252,76,2,.35)';
+      btn.href = connectUrl; // keep orange connect state on error
     }
   };
 })();
