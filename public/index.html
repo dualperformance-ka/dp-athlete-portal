@@ -22,10 +22,9 @@
 html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.55;min-height:100vh;-webkit-font-smoothing:antialiased}
 header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .logo{display:flex;align-items:center;gap:10px}
-.logo img{height:40px;width:auto;display:block}
-.logo-text{font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;line-height:1}
-.logo-text .d{color:#fff}.logo-text .p{color:rgba(255,255,255,.32)}
-.hpill{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.12);padding:3px 10px;border-radius:20px;letter-spacing:.04em}
+.logo img{height:32px;width:auto;display:block}
+.logo-text{font-family:var(--display);font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;line-height:1.2}
+.logo-text .d{display:block;color:#fff}.logo-text .p{display:block;color:rgba(255,255,255,.32)}
 .header-actions{display:flex;align-items:center;gap:6px}
 .hicon{background:transparent;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;transition:border-color .15s,color .15s;white-space:nowrap;display:flex;align-items:center;gap:5px}
 .hicon:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.8)}
@@ -39,12 +38,15 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .goals-prompt-sub{font-size:13px;color:rgba(255,255,255,.5);line-height:1.5;margin-bottom:14px}
 .goals-prompt-btn{background:#f59e0b;color:#0a0a0a;font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;transition:background .15s}
 .goals-prompt-btn:active{background:#d97706}
-.hero{background:#0a0a0a;padding:14px 16px 14px;text-align:left}
-.hi{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px}
-.hn{font-family:var(--display);font-size:38px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:#fff;line-height:1;margin-bottom:10px;text-align:left}
-.hpills{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
-.hpills::-webkit-scrollbar{display:none}
-.hp{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.1);padding:6px 13px;border-radius:20px;flex-shrink:0;white-space:nowrap}
+.hero{background:#0a0a0a;padding:14px 16px 12px;text-align:left}
+.hi{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px}
+.hero-name-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px}
+.hn{font-family:var(--display);font-size:40px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:#fff;line-height:1}
+.hero-week{text-align:right;padding-bottom:3px}
+.hero-week-label{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em}
+.hero-week-num{font-family:var(--display);font-size:28px;font-weight:800;color:#fff;line-height:1}
+.hpills{display:flex;gap:6px;flex-wrap:nowrap;align-items:center;margin-bottom:7px}
+.hp{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.1);padding:5px 13px;border-radius:20px;flex-shrink:0;white-space:nowrap}
 .hp span{color:rgba(255,255,255,.8)}
 .wa-fab{position:fixed;bottom:20px;right:16px;z-index:150;width:52px;height:52px;border-radius:50%;background:#5865F2;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(88,101,242,.4);cursor:pointer;text-decoration:none;transition:transform .15s,box-shadow .15s}
 .wa-fab:active{transform:scale(.93);box-shadow:0 2px 8px rgba(88,101,242,.25)}
@@ -404,26 +406,27 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <header>
     <div class="logo">
       <img id="headerLogo" src="/logo.png" alt="DP" />
-      <div class="logo-text"><span class="d">DUAL</span> <span class="p">PERFORMANCE</span></div>
+      <div class="logo-text"><span class="d">DUAL</span><span class="p">PERFORMANCE</span></div>
     </div>
     <div class="header-actions">
       <button class="hicon hicon-goals" id="goalsBtn" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
       <button class="hicon" onclick="switchTab('handbook')">Guide</button>
-      <div class="hpill" id="apill"></div>
       <button class="hicon" onclick="logout()" title="Sign out" style="font-size:10px;padding:4px 9px;opacity:.55">↩</button>
     </div>
   </header>
 
   <div class="hero">
     <div class="hi">Training Portal</div>
-    <div class="hn" id="heroName"></div>
+    <div class="hero-name-row">
+      <div class="hn" id="heroName"></div>
+      <div class="hero-week">
+        <div class="hero-week-label">Week</div>
+        <div class="hero-week-num" id="heroWeek">—</div>
+      </div>
+    </div>
+    <!-- Row 1: KM target + Strava -->
     <div class="hpills">
-      <div class="hp">Week &nbsp;<span id="heroWeek">—</span></div>
-      <div class="hp">🏃 <span id="heroRuns">—</span> runs</div>
-      <div class="hp">🏋️ <span id="heroLifts">—</span> lifts</div>
-      <!-- KM TARGET -->
-      <div id="kmBar" style="display:none;background:#f59e0b;border-color:#f59e0b;color:#0a0a0a" class="hp">🎯 <span id="kmTargetVal">—</span> km</div>
-      <!-- STRAVA -->
+      <div id="kmBar" style="display:none;background:#f59e0b;border-color:#f59e0b;color:#0a0a0a;font-weight:700" class="hp">🎯 <span id="kmTargetVal">—</span> km target</div>
       <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" style="display:none" class="hp"></a>
     </div>
   </div>
@@ -2351,7 +2354,6 @@ async function loadWeek(){
   var wkS=sessions.find(function(s){return s.week;});if(wkS) document.getElementById('heroWeek').textContent=wkS.week;
   var runs=sessions.filter(function(s){return getType(s)==='run';});
   var lifts=sessions.filter(function(s){return getType(s)==='strength';});
-  document.getElementById('heroRuns').textContent=runs.length;document.getElementById('heroLifts').textContent=lifts.length;
   document.getElementById('ciRuns').textContent=runs.length;document.getElementById('ciLifts').textContent=lifts.length;
   updateSessionCounter();
   updateProgress();
