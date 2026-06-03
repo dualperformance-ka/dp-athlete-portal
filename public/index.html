@@ -409,6 +409,7 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
     <div class="header-actions">
       <button class="hicon hicon-goals" id="goalsBtn" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
       <button class="hicon" onclick="switchTab('handbook')">Guide</button>
+      <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" style="display:none" class="hicon"></a>
       <div class="hpill" id="apill"></div>
       <button class="hicon" onclick="logout()" title="Sign out" style="font-size:10px;padding:4px 9px;opacity:.55">↩</button>
     </div>
@@ -3350,14 +3351,7 @@ window.closeEnhancedModal = closeEnhancedModal;
 // STRAVA CONNECT BUTTON
 // ============================================================================
 (function(){
-  var btnHTML = '<a id="dp-strava-btn" href="#" target="_blank" rel="noopener" style="display:none;position:fixed;bottom:18px;right:18px;z-index:9999;align-items:center;gap:8px;background:#fc4c02;color:#fff;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:10px 16px;border-radius:999px;text-decoration:none;box-shadow:0 4px 16px rgba(252,76,2,.4);transition:opacity .15s">'
-    + '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg>'
-    + ' Connect Strava</a>';
-  document.body.insertAdjacentHTML('beforeend', btnHTML);
-
   var btn = document.getElementById('dp-strava-btn');
-  btn.addEventListener('mouseover', function(){ this.style.opacity='.85'; });
-  btn.addEventListener('mouseout',  function(){ this.style.opacity='1'; });
 
   window.initStrava = async function(code) {
     if (!code) return;
@@ -3369,21 +3363,26 @@ window.closeEnhancedModal = closeEnhancedModal;
       + '&state=' + encodeURIComponent(code);
 
     btn.href = connectUrl;
+    btn.textContent = 'Strava';
     btn.style.display = 'inline-flex';
 
     try {
       var res  = await fetch('/api/strava?athlete=' + encodeURIComponent(code));
       var data = await res.json();
       if (data.connected) {
-        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg> ✓ Strava';
-        btn.style.background = '#16803c';
-        btn.style.boxShadow  = '0 4px 16px rgba(22,128,60,.3)';
+        btn.textContent = '✓ Strava';
+        btn.style.borderColor = 'rgba(22,128,60,.5)';
+        btn.style.color = '#4ade80';
         btn.style.pointerEvents = 'none';
       } else {
         btn.href = data.connectUrl || connectUrl;
+        btn.style.borderColor = 'rgba(252,76,2,.5)';
+        btn.style.color = '#fc4c02';
       }
     } catch(e) {
-      btn.href = connectUrl; // still show with fallback URL
+      btn.href = connectUrl;
+      btn.style.borderColor = 'rgba(252,76,2,.5)';
+      btn.style.color = '#fc4c02';
     }
   };
 })();
