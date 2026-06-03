@@ -3352,5 +3352,30 @@ window.closeEnhancedModal = closeEnhancedModal;
 // END RUNNING LIBRARY INTEGRATION
 // ============================================================================
 </script>
+<!-- Strava connect button -->
+<style>
+#dp-strava-btn{position:fixed;bottom:18px;right:18px;z-index:9999;display:inline-flex;align-items:center;gap:7px;background:#fc4c02;color:#fff;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:10px 16px;border-radius:999px;text-decoration:none;box-shadow:0 4px 16px rgba(252,76,2,.4);transition:opacity .15s}
+#dp-strava-btn:hover{opacity:.85}
+#dp-strava-btn.connected{background:#16803c;box-shadow:0 4px 16px rgba(22,128,60,.3);pointer-events:none}
+</style>
+<a id="dp-strava-btn" href="#" target="_blank" rel="noopener">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg>
+  Connect Strava
+</a>
+<script>
+(function(){
+  var btn = document.getElementById('dp-strava-btn');
+  var code = new URLSearchParams(location.search).get('code') || '';
+  if (!code) { btn.style.display = 'none'; return; }
+  var connectUrl = 'https://www.strava.com/oauth/authorize?client_id=254938&response_type=code&redirect_uri=' + encodeURIComponent(location.origin + '/api/strava-callback') + '&scope=activity:read_all&state=' + encodeURIComponent(code);
+  fetch('/api/strava?athlete=' + encodeURIComponent(code))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.connected) { btn.textContent = '✓ Strava'; btn.classList.add('connected'); }
+      else { btn.href = d.connectUrl || connectUrl; }
+    })
+    .catch(function(){ btn.href = connectUrl; });
+})();
+</script>
 </body>
 </html>
