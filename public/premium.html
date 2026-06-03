@@ -3,95 +3,74 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dual Performance Premium Portal</title>
+<title>Dual Performance Portal</title>
 <style>
-:root{--bg:#0b0b0a;--panel:#f6f4ef;--ink:#101010;--muted:#6a6760;--line:rgba(16,16,16,.14);--gold:#d38b24;--blue:#17356f;--green:#16803c;--red:#b42318;--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;--display:Arial Narrow,Barlow Condensed,Impact,sans-serif;--body:Inter,Barlow,Arial,sans-serif}*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);font-family:var(--body);color:var(--ink)}.portal-frame{position:fixed;inset:0;border:0;width:100%;height:100%;background:#f4f3f0}.command{position:fixed;left:14px;right:14px;bottom:14px;z-index:20;max-width:760px;margin:0 auto;background:var(--panel);border:1px solid rgba(255,255,255,.28);border-radius:16px;box-shadow:0 20px 70px rgba(0,0,0,.38);overflow:hidden}.command.collapsed .command-body{display:none}.command-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:#101010;color:#fff}.eyebrow{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:rgba(255,255,255,.5);margin-bottom:3px}.title{font-family:var(--display);font-size:24px;line-height:1;text-transform:uppercase;letter-spacing:.03em;font-weight:900}.status{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 9px;color:rgba(255,255,255,.72);white-space:nowrap}.toggle{border:1px solid rgba(255,255,255,.18);background:transparent;color:#fff;border-radius:9px;width:34px;height:34px;font-size:18px;line-height:1;cursor:pointer}.command-body{padding:14px}.brief{display:grid;grid-template-columns:1.2fr .8fr;gap:10px;margin-bottom:12px}.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px}.label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:6px}.session{font-family:var(--display);font-size:24px;line-height:1;text-transform:uppercase;color:var(--gold);font-weight:900}.copy{font-size:13px;line-height:1.45;color:var(--muted);margin-top:6px}.readiness{font-family:var(--display);font-size:34px;line-height:1;font-weight:900;color:var(--blue)}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}.action{border:1px solid var(--line);background:#fff;border-radius:10px;padding:11px 10px;text-align:left;cursor:pointer;color:var(--ink)}.action strong{display:block;font-family:var(--display);font-size:16px;text-transform:uppercase;letter-spacing:.03em;line-height:1}.action span{display:block;font-size:11px;color:var(--muted);line-height:1.3;margin-top:4px}.panel{display:none;border-top:1px solid var(--line);padding-top:12px}.panel.open{display:block}.panel h2{font-family:var(--display);font-size:24px;line-height:1;text-transform:uppercase;margin:0 0 4px}.panel p{font-size:13px;color:var(--muted);line-height:1.45;margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}.field label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}input,textarea{width:100%;border:1px solid var(--line);background:#fff;border-radius:9px;padding:11px;font:inherit;color:var(--ink);outline:none}textarea{min-height:84px;resize:vertical}.check{display:flex;align-items:center;gap:9px;margin:2px 0 12px;color:var(--muted);font-size:13px}.check input{width:18px;height:18px;accent-color:#101010}.submit{width:100%;border:0;border-radius:10px;background:#101010;color:#fff;padding:13px;font-family:var(--display);font-size:17px;text-transform:uppercase;letter-spacing:.05em;font-weight:900;cursor:pointer}.submit.saved{background:var(--green)}.alert{border-color:rgba(180,35,24,.28);background:rgba(180,35,24,.06)}.coach-copy strong{color:var(--ink)}@media(max-width:620px){.command{left:8px;right:8px;bottom:8px;border-radius:14px}.brief,.actions,.grid{grid-template-columns:1fr}.title{font-size:21px}.status{display:none}.command-body{max-height:72vh;overflow:auto}.session{font-size:22px}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0b0b0a}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0}
+#strava-btn{
+  position:fixed;bottom:20px;right:20px;z-index:100;
+  display:inline-flex;align-items:center;gap:8px;
+  background:#fc4c02;color:#fff;
+  font-family:ui-monospace,monospace;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.08em;
+  padding:10px 16px;border-radius:999px;
+  text-decoration:none;border:none;cursor:pointer;
+  box-shadow:0 4px 16px rgba(252,76,2,.4);
+  transition:opacity .15s;
+}
+#strava-btn:hover{opacity:.85}
+#strava-btn.connected{background:#16803c;box-shadow:0 4px 16px rgba(22,128,60,.3);pointer-events:none}
 </style>
 </head>
 <body>
-<iframe class="portal-frame" id="portalFrame" title="Dual Performance athlete portal"></iframe>
-<section class="command" id="command">
-  <header class="command-head">
-    <div><div class="eyebrow">Premium athlete command center</div><div class="title">Today's coached brief</div></div>
-    <div class="status" id="alertStatus">Awaiting check-in</div>
-    <button class="toggle" id="toggleCommand" aria-label="Toggle command center">-</button>
-  </header>
-  <div class="command-body">
-    <div class="brief">
-      <article class="card"><div class="label">Today's session</div><div class="session" id="sessionTitle">Loading plan</div><div class="copy" id="sessionMeta">Pulling the key session from the athlete plan.</div></article>
-      <article class="card" id="readinessCard"><div class="label">Readiness</div><div class="readiness" id="readinessScore">--</div><div class="copy" id="readinessLabel">Check in before training.</div></article>
-    </div>
-    <div class="actions">
-      <button class="action" data-open="checkin"><strong>Check in</strong><span>Energy, sleep, stress, soreness.</span></button>
-      <button class="action" data-open="session"><strong>Log session</strong><span>RPE, bodyweight, pain flag.</span></button>
-      <button class="action" data-open="coach"><strong>Coach note</strong><span>What needs attention today.</span></button>
-    </div>
-    <section class="panel" id="checkinPanel">
-      <h2>Athlete check-in</h2>
-      <p>Turns body feedback into a coach signal before fatigue, pain, or stress becomes invisible.</p>
-      <form id="checkinForm">
-        <div class="grid">
-          <div class="field"><label>Energy / 10</label><input name="energy" type="number" min="1" max="10" value="7"></div>
-          <div class="field"><label>Sleep score / 10</label><input name="sleep" type="number" min="1" max="10" value="7"></div>
-          <div class="field"><label>Stress / 10</label><input name="stress" type="number" min="1" max="10" value="4"></div>
-          <div class="field"><label>Soreness / 10</label><input name="soreness" type="number" min="1" max="10" value="4"></div>
-          <div class="field"><label>Motivation / 10</label><input name="motivation" type="number" min="1" max="10" value="7"></div>
-          <div class="field"><label>Session RPE / 10</label><input name="rpe" type="number" min="1" max="10" value="7"></div>
-          <div class="field"><label>Bodyweight</label><input name="weight" type="number" min="0" max="400" step="0.1" placeholder="Optional"></div>
-        </div>
-        <label class="check"><input name="painFlag" type="checkbox"> Pain or injury concern today</label>
-        <div class="field"><label>Notes for coach</label><textarea name="notes" placeholder="Anything that changes how today should be coached?"></textarea></div>
-        <button class="submit" type="submit">Save check-in</button>
-      </form>
-    </section>
-    <section class="panel" id="coachPanel">
-      <h2>Coach focus</h2>
-      <p class="coach-copy"><strong>Standard:</strong> complete the key work, log how it felt, and flag pain early. The portal now gives the coach a readiness signal instead of just a completion tick.</p>
-    </section>
-  </div>
-</section>
+<iframe id="portalFrame" title="Dual Performance athlete portal"></iframe>
+<a id="strava-btn" href="#" target="_blank" rel="noopener">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/>
+    <path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/>
+  </svg>
+  Connect Strava
+</a>
 <script>
 (function(){
-  var frame=document.getElementById('portalFrame');
-  var command=document.getElementById('command');
-  var status=document.getElementById('alertStatus');
-  var sessionTitle=document.getElementById('sessionTitle');
-  var sessionMeta=document.getElementById('sessionMeta');
-  var readinessScore=document.getElementById('readinessScore');
-  var readinessLabel=document.getElementById('readinessLabel');
-  var readinessCard=document.getElementById('readinessCard');
-  var storageKey='dp_premium_checkins';
-  frame.src='/index.html'+window.location.search;
+  var frame = document.getElementById('portalFrame');
+  var btn   = document.getElementById('strava-btn');
 
-  function injectProgressPhotos(){try{var doc=frame.contentDocument;if(!doc||doc.getElementById('progressPhotoCloudScript'))return;var script=doc.createElement('script');script.id='progressPhotoCloudScript';script.src='/progress-photo-cloud.js';doc.head.appendChild(script)}catch(e){}}
-  function code(){return new URLSearchParams(location.search).get('code')||localStorage.getItem('dp_auth_code')||''}
-  function read(){try{return JSON.parse(localStorage.getItem(storageKey)||'[]')}catch(e){return[]}}
-  function write(entry){var entries=read();entries.unshift(entry);localStorage.setItem(storageKey,JSON.stringify(entries.slice(0,20)))}
-  function latest(){return read()[0]||null}
-  function clamp(value){var n=Number(value);return Number.isFinite(n)?Math.max(1,Math.min(10,Math.round(n))):null}
-  function bodyweight(value){var n=Number(value);return Number.isFinite(n)?Math.max(0,Math.min(400,Math.round(n*10)/10)):null}
-  function alertLevel(entry){if(entry.painFlag)return'Coach Review';if(entry.energy<=3||entry.motivation<=3||entry.soreness>=8||entry.stress>=8)return'Watch';return'Normal'}
-  function score(entry){if(!entry)return null;return Math.round((entry.energy+entry.sleep+entry.motivation+(11-entry.soreness)+(11-entry.stress))/5)}
-  function scoreLabel(value){if(value==null)return'Check in before training.';if(value>=8)return'Ready to push.';if(value>=5)return'Steady, monitor response.';return'Coach should review.'}
-  function athleteName(){try{var doc=frame.contentDocument;var el=doc&&doc.querySelector('.hn,.goals-name');return el&&el.textContent.trim()?el.textContent.trim():'Athlete'}catch(e){return'Athlete'}}
-  function session(){try{var doc=frame.contentDocument;var title=doc&&doc.querySelector('.todayname,.sname');var meta=doc&&doc.querySelector('.todaymeta,.smeta');return{title:title&&title.textContent.trim()?title.textContent.trim():"Today's session",meta:meta&&meta.textContent.trim()?meta.textContent.trim():'Complete the work, log the response, tell the coach what matters.'}}catch(e){return{title:"Today's session",meta:'Complete the work, log the response, tell the coach what matters.'}}}
-  function hydrateSession(){var s=session();sessionTitle.textContent=s.title;sessionMeta.textContent=s.meta}
-  function hydrateReadiness(){var entry=latest();var value=score(entry);readinessScore.textContent=value==null?'--':value+'/10';readinessLabel.textContent=scoreLabel(value);var alert=entry?entry.alertLevel||alertLevel(entry):'Awaiting check-in';status.textContent=alert;readinessCard.classList.toggle('alert',alert==='Coach Review')}
-  function openPanel(name){document.getElementById('checkinPanel').classList.toggle('open',name==='checkin'||name==='session');document.getElementById('coachPanel').classList.toggle('open',name==='coach')}
+  frame.src = '/index.html' + window.location.search;
 
-  document.getElementById('toggleCommand').addEventListener('click',function(){command.classList.toggle('collapsed');this.textContent=command.classList.contains('collapsed')?'+' : '-'});
-  document.querySelectorAll('[data-open]').forEach(function(btn){btn.addEventListener('click',function(){openPanel(btn.getAttribute('data-open'))})});
-  document.getElementById('checkinForm').addEventListener('submit',async function(event){
-    event.preventDefault();
-    var form=event.currentTarget;var data=new FormData(form);var s=session();
-    var entry={athleteCode:code(),athleteName:athleteName(),sessionTitle:s.title,energy:clamp(data.get('energy')),sleep:clamp(data.get('sleep')),stress:clamp(data.get('stress')),soreness:clamp(data.get('soreness')),motivation:clamp(data.get('motivation')),rpe:clamp(data.get('rpe')),weight:bodyweight(data.get('weight')),painFlag:data.get('painFlag')==='on',notes:String(data.get('notes')||'').trim(),createdAt:new Date().toISOString()};
-    entry.alertLevel=alertLevel(entry);write(entry);hydrateReadiness();
-    var button=form.querySelector('.submit');button.disabled=true;button.textContent='Saving...';
-    try{var res=await fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});if(!res.ok)throw new Error('save failed');var saved=await res.json();entry.alertLevel=saved.alertLevel||entry.alertLevel;write(entry);button.textContent=entry.alertLevel==='Coach Review'?'Coach alerted':'Check-in saved'}catch(e){button.textContent='Saved on device'}
-    button.classList.add('saved');hydrateReadiness();setTimeout(function(){button.disabled=false;button.classList.remove('saved');button.textContent='Save check-in'},1600)
-  });
-  frame.addEventListener('load',function(){injectProgressPhotos();setTimeout(injectProgressPhotos,400);setTimeout(hydrateSession,900);setTimeout(hydrateSession,2400)});
-  hydrateReadiness();setInterval(hydrateSession,5000);
+  function athleteCode() {
+    return new URLSearchParams(location.search).get('code') || '';
+  }
+
+  function connectUrl(code) {
+    return 'https://www.strava.com/oauth/authorize' +
+      '?client_id=254938' +
+      '&response_type=code' +
+      '&redirect_uri=' + encodeURIComponent(window.location.origin + '/api/strava-callback') +
+      '&scope=activity:read_all' +
+      '&state=' + encodeURIComponent(code);
+  }
+
+  async function init() {
+    var code = athleteCode();
+    if (!code) { btn.href = '#'; return; }
+
+    try {
+      var res  = await fetch('/api/strava?athlete=' + encodeURIComponent(code));
+      var data = await res.json();
+      if (data.connected) {
+        btn.textContent = '✓ Strava connected';
+        btn.classList.add('connected');
+      } else {
+        btn.href = data.connectUrl || connectUrl(code);
+      }
+    } catch(e) {
+      btn.href = connectUrl(code);
+    }
+  }
+
+  init();
 })();
 </script>
 </body>
