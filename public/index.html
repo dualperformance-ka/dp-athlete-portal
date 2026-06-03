@@ -236,10 +236,6 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .photo-cell{background:var(--surface2);border:1.5px dashed var(--border-mid);border-radius:8px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;overflow:hidden;position:relative;transition:border-color .15s}
 .photo-cell:active{border-color:var(--border-strong)}
 .photo-cell.has-photo{border-style:solid;border-color:var(--border)}
-.photo-cell.current-week{border-style:solid;border-color:#f59e0b;border-width:2px;background:rgba(245,158,11,.06)}
-.photo-cell.current-week .photo-label{color:#f59e0b}
-.photo-cell.current-week .photo-add{color:#f59e0b}
-.photo-cell.current-week .photo-upload-tag{font-family:var(--mono);font-size:8px;color:#f59e0b;text-transform:uppercase;letter-spacing:.08em;position:relative;z-index:1;margin-top:0}
 .photo-cell img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
 .photo-cell .photo-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;position:relative;z-index:1}
 .photo-cell .photo-add{font-size:20px;color:var(--dim);position:relative;z-index:1}
@@ -1414,6 +1410,7 @@ async function doLogin(code){
   populateStatic();
   loadWeek();
   initCallNudge();
+  if(window.initStrava) window.initStrava(athlete.code);
 }
 
 function populateStatic(){
@@ -2158,13 +2155,10 @@ function savePhotos(photos){localStorage.setItem('dp_photos_'+athlete.code,JSON.
 function renderPhotoGrid(){
   var grid=document.getElementById('photoGrid');if(!grid) return;
   var photos=getPhotos(),html='';
-  var curWeek=getCurrentProgrammeWeek();
   for(var w=1;w<=12;w++){
     var weekPhotos=photos['week'+w]||{};var count=Object.keys(weekPhotos).length;var firstUrl=count?weekPhotos[Object.keys(weekPhotos)[0]]:'';
-    var isCurrent=(w===curWeek&&!count);
-    html+='<div class="photo-cell'+(count?' has-photo':'')+(isCurrent?' current-week':'')+'" onclick="openPhotoModal('+w+')">';
+    html+='<div class="photo-cell'+(count?' has-photo':'')+'" onclick="openPhotoModal('+w+')">';
     if(firstUrl){html+='<img src="'+firstUrl+'" alt="Week '+w+'" /><div class="photo-count">'+count+'/5</div><div class="photo-overlay">Week '+w+'</div>';}
-    else if(isCurrent){html+='<div class="photo-add">+</div><div class="photo-label">Week '+w+'</div><div class="photo-upload-tag">Upload now</div>';}
     else{html+='<div class="photo-add">+</div><div class="photo-label">Week '+w+'</div>';}
     html+='</div>';
   }
@@ -3351,31 +3345,51 @@ window.closeEnhancedModal = closeEnhancedModal;
 // ============================================================================
 // END RUNNING LIBRARY INTEGRATION
 // ============================================================================
-</script>
-<!-- Strava connect button -->
-<style>
-#dp-strava-btn{position:fixed;bottom:18px;right:18px;z-index:9999;display:inline-flex;align-items:center;gap:7px;background:#fc4c02;color:#fff;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:10px 16px;border-radius:999px;text-decoration:none;box-shadow:0 4px 16px rgba(252,76,2,.4);transition:opacity .15s}
-#dp-strava-btn:hover{opacity:.85}
-#dp-strava-btn.connected{background:#16803c;box-shadow:0 4px 16px rgba(22,128,60,.3);pointer-events:none}
-</style>
-<a id="dp-strava-btn" href="#" target="_blank" rel="noopener">
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg>
-  Connect Strava
-</a>
-<script>
+
+// ============================================================================
+// STRAVA CONNECT BUTTON
+// ============================================================================
 (function(){
+  var btnHTML = '<a id="dp-strava-btn" href="#" target="_blank" rel="noopener" style="display:none;position:fixed;bottom:18px;right:18px;z-index:9999;align-items:center;gap:8px;background:#fc4c02;color:#fff;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:10px 16px;border-radius:999px;text-decoration:none;box-shadow:0 4px 16px rgba(252,76,2,.4);transition:opacity .15s">'
+    + '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg>'
+    + ' Connect Strava</a>';
+  document.body.insertAdjacentHTML('beforeend', btnHTML);
+
   var btn = document.getElementById('dp-strava-btn');
-  var code = new URLSearchParams(location.search).get('code') || '';
-  if (!code) { btn.style.display = 'none'; return; }
-  var connectUrl = 'https://www.strava.com/oauth/authorize?client_id=254938&response_type=code&redirect_uri=' + encodeURIComponent(location.origin + '/api/strava-callback') + '&scope=activity:read_all&state=' + encodeURIComponent(code);
-  fetch('/api/strava?athlete=' + encodeURIComponent(code))
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (d.connected) { btn.textContent = '✓ Strava'; btn.classList.add('connected'); }
-      else { btn.href = d.connectUrl || connectUrl; }
-    })
-    .catch(function(){ btn.href = connectUrl; });
+  btn.addEventListener('mouseover', function(){ this.style.opacity='.85'; });
+  btn.addEventListener('mouseout',  function(){ this.style.opacity='1'; });
+
+  window.initStrava = async function(code) {
+    if (!code) return;
+    var connectUrl = 'https://www.strava.com/oauth/authorize'
+      + '?client_id=254938'
+      + '&response_type=code'
+      + '&redirect_uri=' + encodeURIComponent(window.location.origin + '/api/strava-callback')
+      + '&scope=activity:read_all'
+      + '&state=' + encodeURIComponent(code);
+
+    btn.href = connectUrl;
+    btn.style.display = 'inline-flex';
+
+    try {
+      var res  = await fetch('/api/strava?athlete=' + encodeURIComponent(code));
+      var data = await res.json();
+      if (data.connected) {
+        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg> ✓ Strava';
+        btn.style.background = '#16803c';
+        btn.style.boxShadow  = '0 4px 16px rgba(22,128,60,.3)';
+        btn.style.pointerEvents = 'none';
+      } else {
+        btn.href = data.connectUrl || connectUrl;
+      }
+    } catch(e) {
+      btn.href = connectUrl; // still show with fallback URL
+    }
+  };
 })();
+// ============================================================================
+// END STRAVA CONNECT BUTTON
+// ============================================================================
 </script>
 </body>
 </html>
