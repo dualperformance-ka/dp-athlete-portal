@@ -845,19 +845,14 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <!-- PROGRESS -->
   <div class="tab-content" id="tab-progress">
     <div class="stitle">Progress</div>
-    <div class="progress-stats" style="margin-bottom:12px">
+    <div class="progress-stats" style="margin-bottom:12px;grid-template-columns:repeat(2,1fr)">
       <div class="pstat"><div class="pstat-val" id="pgStart"></div><div class="pstat-lbl">Start kg</div></div>
       <div class="pstat"><div class="pstat-val" id="pgCurrent">—</div><div class="pstat-lbl">Current kg</div></div>
       <div class="pstat"><div class="pstat-val" id="pgTarget">—</div><div class="pstat-lbl">Target kg</div></div>
-    </div>
-    <div class="card" style="margin-bottom:12px;text-align:center">
-      <div class="card-title">Change from start</div>
-      <div id="pgChange" style="font-family:var(--display);font-size:42px;font-weight:700;letter-spacing:.02em;line-height:1">—</div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px" id="pgChangeLbl">kg since day 1</div>
+      <div class="pstat"><div class="pstat-val" id="pgChange" style="font-size:22px">—</div><div class="pstat-lbl" id="pgChangeLbl">Change</div></div>
     </div>
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">Weight Trend</div>
-      <div class="nutrnote" style="margin-bottom:12px">A simple visual of body weight over time — focus on the trend, not daily fluctuations.</div>
       <div id="pgChartWrap">
         <div id="pgChartEmpty" style="display:none;font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:20px">Need at least 2 weigh-ins to show the trend</div>
         <div id="pgChart"></div>
