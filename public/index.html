@@ -1329,37 +1329,10 @@ function getPropText(prop){
 function getRelationIds(prop){return prop&&prop.relation?(prop.relation||[]).map(function(r){return r.id;}).filter(Boolean):[];}
 
 let runLibraryById={},runLibraryByName={};
+// fetchRunLibrary is now a no-op — loadRunningLibrary populates all the same data
+// (runLibraryById, runLibraryByName, RUNNING_LIBRARY_BY_ID) in a single RUN_DB query.
 async function fetchRunLibrary(){
-  if(Object.keys(runLibraryById).length) return;
-  var cursor=null;
-  do{
-    var body={page_size:100};if(cursor) body.start_cursor=cursor;
-    var data=await api('databases/'+RUN_DB+'/query',body);
-    if(!data||!data.results) break;
-    data.results.forEach(function(page){
-      var pr=page.properties||{};
-      var name=getNotionTitle(pr)||getPropText(pr['Running Session'])||'';
-      if(!name) return;
-      var entry={id:page.id,name:name,
-        description:getPropText(pr['Description'])||getPropText(pr['description'])||getPropText(pr['Run Details'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
-        type:getPropText(pr['Workout Type'])||getPropText(pr['Type'])||getPropText(pr['Session Type'])||'',
-        phase:getPropText(pr['Phase'])||'',distance:getPropText(pr['Distance'])||'',
-        intensity:getPropText(pr['Intensity'])||'',surface:getPropText(pr['Surface'])||'',
-        difficulty:getPropText(pr['Difficulty'])||'',tags:getPropText(pr['Tags'])||'',
-        rpe:getPropText(pr['RPE'])||'',target:getPropText(pr['Target'])||getPropText(pr['Session Target'])||'',
-        targetPace:getPropText(pr['Target Pace'])||getPropText(pr['Pace Target'])||'',
-        duration:getPropText(pr['Duration'])||getPropText(pr['Time'])||'',
-        warmUp:getPropText(pr['Warm Up'])||getPropText(pr['Warmup'])||'',
-        coolDown:getPropText(pr['Cool Down'])||getPropText(pr['Cooldown'])||'',
-        sessionGoal:getPropText(pr['Session Goal'])||getPropText(pr['Goal'])||'',
-        recoveryType:getPropText(pr['Recovery Type'])||getPropText(pr['Recovery'])||'',
-        repRest:getPropText(pr['Rep Rest'])||'',
-        alternative:getPropText(pr['Alternative'])||getPropText(pr['Alternative Workout'])||getPropText(pr['Alternate Workout'])||getPropText(pr['Option B'])||getPropText(pr['Alternative Session'])||getPropText(pr['Regression'])||''
-      };
-      runLibraryById[page.id]=entry;runLibraryByName[name.toLowerCase()]=entry;
-    });
-    cursor=data.has_more?data.next_cursor:null;
-  }while(cursor);
+  // Data already populated by loadRunningLibrary via Promise.all in loadWeek
 }
 
 // ── SESSION TYPE ──────────────────────────────────────────────────────────────
@@ -2333,9 +2306,12 @@ async function loadWeek(){
   document.getElementById('wbar').style.display='';
   document.getElementById('loadingEl').style.display='block';
   document.getElementById('calEl').style.display='none';document.getElementById('noplanEl').style.display='none';
-  await fetchRunLibrary();
-  await loadRunningLibrary();
-  var data=await api('databases/'+CALENDAR_DB+'/query',{filter:{property:'Athlete',relation:{contains:athlete.notionPageId}},sorts:[{property:'Planned Date',direction:'ascending'}],page_size:100});
+  // Run library and calendar fetch in parallel — saves ~1-2s per load
+  var results=await Promise.all([
+    loadRunningLibrary(),
+    api('databases/'+CALENDAR_DB+'/query',{filter:{property:'Athlete',relation:{contains:athlete.notionPageId}},sorts:[{property:'Planned Date',direction:'ascending'}],page_size:100})
+  ]);
+  var data=results[1];
   document.getElementById('loadingEl').style.display='none';
   if(!data||!data.results){showNoplan();return;}
   allSessions=data.results.map(function(p){
@@ -3126,51 +3102,80 @@ else { var savedCode=localStorage.getItem('dp_auth_code'); if(savedCode) doLogin
 const RUNNING_LIBRARY_BY_ID = {};
 
 // Fetch all Running Library workouts on page load
+var RUN_LIB_CACHE_KEY='dp_run_library_cache';
+var RUN_LIB_CACHE_TTL=10*60*1000; // 10 minutes
+
 async function loadRunningLibrary() {
   try {
-    console.log('Loading Running Library...');
+    // Try localStorage cache first (stores processed data, not raw Notion pages)
+    try {
+      var cached=JSON.parse(localStorage.getItem(RUN_LIB_CACHE_KEY)||'null');
+      if(cached && cached.ts && (Date.now()-cached.ts)<RUN_LIB_CACHE_TTL && cached.byId){
+        var ids=Object.keys(cached.byId);
+        if(ids.length){
+          console.log('Run library: loaded from cache ('+ids.length+' workouts)');
+          ids.forEach(function(id){
+            var entry=cached.byId[id];
+            RUNNING_LIBRARY_BY_ID[id]=entry;
+            runLibraryById[id]=Object.assign({},entry,{warmUp:entry.warmup||'',coolDown:entry.cooldown||'',sessionGoal:entry.goal||'',recoveryType:entry.recovery||''});
+            if(entry.name) runLibraryByName[entry.name.toLowerCase()]=runLibraryById[id];
+          });
+          return;
+        }
+      }
+    } catch(e){}
+
+    console.log('Loading Running Library from Notion...');
     const data = await apiAll('databases/' + RUN_DB + '/query', {});
-    
+
     if (data && data.results) {
-      data.results.forEach(function(page) {
-        const pr = page.properties || {};
-        const mapped = {
-          name: getPropText(pr['Session Name']) || getPropText(pr['Running Session']) || getPropText(pr['Workout']) || getNotionTitle(pr),
-          type: getPropText(pr['Workout Type']) || getPropText(pr['Type']) || getPropText(pr['Session Type']),
-          description: getPropText(pr['Description']) || getPropText(pr['Run Details']) || getPropText(pr['Workout Details']) || getPropText(pr['Session Details']) || getPropText(pr['Details']) || getPropText(pr['Notes']) || getPropText(pr['Coach Notes']),
-          difficulty: getPropText(pr['Difficulty']),
-          distance: getPropText(pr['Distance Focus']) || getPropText(pr['Distance']) || getPropText(pr['Distance / Volume']),
-          duration: getPropText(pr['Duration (mins)']) || getPropText(pr['Duration']) || getPropText(pr['Time']) || getPropText(pr['Time Cap']),
-          rpe: getPropText(pr['RPE']) || getPropText(pr['Effort']),
-          intensity: getPropText(pr['Intensity Zone']) || getPropText(pr['Intensity']) || getPropText(pr['Zone']),
-          phase: getPropText(pr['Training Phase']) || getPropText(pr['Phase']),
-          surface: getPropText(pr['Surface']),
-          fatigue: getPropText(pr['Fatigue Cost']),
-          recovery: getPropText(pr['Recovery Time (hrs)']) || getPropText(pr['Recovery']) || getPropText(pr['Recovery Type']),
-          goal: getPropText(pr['Session Goal']) || getPropText(pr['Goal']) || getPropText(pr['Target']) || getPropText(pr['Focus']),
-          warmup: getPropText(pr['Warm Up']) || getPropText(pr['Warmup']) || getPropText(pr['Warm-up']),
-          cooldown: getPropText(pr['Cool Down']) || getPropText(pr['Cooldown']) || getPropText(pr['Cool-down']),
-          prereqs: getPropText(pr['Prerequisites']),
-          slot: getPropText(pr['Weekly Slot']),
-          targetPace: getPropText(pr['Target Pace']) || getPropText(pr['Pace Target']) || getPropText(pr['Pace']) || '',
-          tags: getPropText(pr['Tags']) || getPropText(pr['Tag']),
-          alternative: getPropText(pr['Alternative']) || getPropText(pr['Alternative Workout']) || getPropText(pr['Alternate Workout']) || getPropText(pr['Option B']) || getPropText(pr['Alternative Session']) || getPropText(pr['Regression']) || ''
-        };
-        RUNNING_LIBRARY_BY_ID[page.id] = mapped;
-        runLibraryById[page.id] = Object.assign({}, runLibraryById[page.id] || {}, mapped, {
-          warmUp: mapped.warmup || '',
-          coolDown: mapped.cooldown || '',
-          sessionGoal: mapped.goal || '',
-          recoveryType: mapped.recovery || '',
-          alternative: mapped.alternative || ''
-        });
-        if (mapped.name) runLibraryByName[mapped.name.toLowerCase()] = runLibraryById[page.id];
-      });
-      console.log('Running Library loaded:', Object.keys(RUNNING_LIBRARY_BY_ID).length, 'workouts');
+      processRunLibraryResults(data.results);
+      // Cache the processed data (much smaller than raw Notion pages)
+      try {
+        localStorage.setItem(RUN_LIB_CACHE_KEY, JSON.stringify({ts:Date.now(), byId:RUNNING_LIBRARY_BY_ID}));
+      } catch(e){}
+      console.log('Running Library loaded from Notion:', Object.keys(RUNNING_LIBRARY_BY_ID).length, 'workouts');
     }
   } catch (error) {
     console.error('Failed to load Running Library:', error);
   }
+}
+
+function processRunLibraryResults(results) {
+  results.forEach(function(page) {
+    const pr = page.properties || {};
+    const mapped = {
+      name: getPropText(pr['Session Name']) || getPropText(pr['Running Session']) || getPropText(pr['Workout']) || getNotionTitle(pr),
+      type: getPropText(pr['Workout Type']) || getPropText(pr['Type']) || getPropText(pr['Session Type']),
+      description: getPropText(pr['Description']) || getPropText(pr['Run Details']) || getPropText(pr['Workout Details']) || getPropText(pr['Session Details']) || getPropText(pr['Details']) || getPropText(pr['Notes']) || getPropText(pr['Coach Notes']),
+      difficulty: getPropText(pr['Difficulty']),
+      distance: getPropText(pr['Distance Focus']) || getPropText(pr['Distance']) || getPropText(pr['Distance / Volume']),
+      duration: getPropText(pr['Duration (mins)']) || getPropText(pr['Duration']) || getPropText(pr['Time']) || getPropText(pr['Time Cap']),
+      rpe: getPropText(pr['RPE']) || getPropText(pr['Effort']),
+      intensity: getPropText(pr['Intensity Zone']) || getPropText(pr['Intensity']) || getPropText(pr['Zone']),
+      phase: getPropText(pr['Training Phase']) || getPropText(pr['Phase']),
+      surface: getPropText(pr['Surface']),
+      fatigue: getPropText(pr['Fatigue Cost']),
+      recovery: getPropText(pr['Recovery Time (hrs)']) || getPropText(pr['Recovery']) || getPropText(pr['Recovery Type']),
+      goal: getPropText(pr['Session Goal']) || getPropText(pr['Goal']) || getPropText(pr['Target']) || getPropText(pr['Focus']),
+      warmup: getPropText(pr['Warm Up']) || getPropText(pr['Warmup']) || getPropText(pr['Warm-up']),
+      cooldown: getPropText(pr['Cool Down']) || getPropText(pr['Cooldown']) || getPropText(pr['Cool-down']),
+      prereqs: getPropText(pr['Prerequisites']),
+      slot: getPropText(pr['Weekly Slot']),
+      targetPace: getPropText(pr['Target Pace']) || getPropText(pr['Pace Target']) || getPropText(pr['Pace']) || '',
+      tags: getPropText(pr['Tags']) || getPropText(pr['Tag']),
+      alternative: getPropText(pr['Alternative']) || getPropText(pr['Alternative Workout']) || getPropText(pr['Alternate Workout']) || getPropText(pr['Option B']) || getPropText(pr['Alternative Session']) || getPropText(pr['Regression']) || ''
+    };
+    RUNNING_LIBRARY_BY_ID[page.id] = mapped;
+    runLibraryById[page.id] = Object.assign({}, runLibraryById[page.id] || {}, mapped, {
+      warmUp: mapped.warmup || '',
+      coolDown: mapped.cooldown || '',
+      sessionGoal: mapped.goal || '',
+      recoveryType: mapped.recovery || '',
+      alternative: mapped.alternative || ''
+    });
+    if (mapped.name) runLibraryByName[mapped.name.toLowerCase()] = runLibraryById[page.id];
+  });
 }
 
 // Get workout details from pre-loaded library using page ID
