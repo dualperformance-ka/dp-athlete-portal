@@ -2278,15 +2278,30 @@ async function loadProgress(){
   var targetNumber=parseFloat(String(targetFinal).replace(/[^0-9.\-]/g,''));
   var syntheticForChart=entries.map(function(e){return{properties:{'Weight':{number:e.weight},'Date':{date:{start:e.date}}}};});
   renderWeightChart(syntheticForChart,isNaN(targetNumber)?null:targetNumber);
+  var COLLAPSED_ROWS=5;
   var html='<table style="width:100%;border-collapse:collapse"><thead><tr><th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:left;border-bottom:1px solid var(--border-mid)">Date</th><th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:right;border-bottom:1px solid var(--border-mid)">Weight</th><th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:right;border-bottom:1px solid var(--border-mid)">Change</th></tr></thead><tbody>';
   entries.forEach(function(e,idx){
     var dateLabel=e.date?formatDateTimeDMY(e.date):'';
     var changeStr='—',changeColor='var(--dim)';
     if(idx<entries.length-1){var prevWeight=entries[idx+1].weight;if(prevWeight!=null){var diff=(e.weight-prevWeight).toFixed(1);changeStr=(diff>0?'+':'')+diff+'kg';changeColor=diff>0?'var(--run)':diff<0?'var(--ok)':'var(--dim)';}}
-    html+='<tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 4px;font-size:13px">'+dateLabel+'</td><td style="padding:10px 4px;font-family:var(--display);font-size:18px;font-weight:700;text-align:right">'+e.weight+'<span style="font-family:var(--mono);font-size:11px;color:var(--dim);font-weight:400">kg</span></td><td style="padding:10px 4px;font-family:var(--mono);font-size:12px;text-align:right;color:'+changeColor+'">'+changeStr+'</td></tr>';
+    var hidden=idx>=COLLAPSED_ROWS?' class="wl-extra" style="display:none;border-bottom:1px solid var(--border)"':' style="border-bottom:1px solid var(--border)"';
+    html+='<tr'+hidden+'><td style="padding:10px 4px;font-size:13px">'+dateLabel+'</td><td style="padding:10px 4px;font-family:var(--display);font-size:18px;font-weight:700;text-align:right">'+e.weight+'<span style="font-family:var(--mono);font-size:11px;color:var(--dim);font-weight:400">kg</span></td><td style="padding:10px 4px;font-family:var(--mono);font-size:12px;text-align:right;color:'+changeColor+'">'+changeStr+'</td></tr>';
   });
   html+='</tbody></table>';
+  var remaining=entries.length-COLLAPSED_ROWS;
+  if(remaining>0){
+    html+='<button id="pgWeightToggle" onclick="toggleWeightLog()" style="width:100%;margin-top:10px;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:rgba(255,255,255,.6);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer">Show all '+entries.length+' entries</button>';
+  }
   var logEl=document.getElementById('pgWeightLog');logEl.innerHTML=html;logEl.style.display='block';
+}
+
+function toggleWeightLog(){
+  var btn=document.getElementById('pgWeightToggle');
+  var rows=document.querySelectorAll('#pgWeightLog .wl-extra');
+  var expanded=btn.getAttribute('data-expanded')==='1';
+  rows.forEach(function(r){r.style.display=expanded?'none':'';});
+  if(expanded){btn.textContent=btn.getAttribute('data-show-label');btn.setAttribute('data-expanded','0');}
+  else{btn.setAttribute('data-show-label',btn.textContent);btn.textContent='Show less';btn.setAttribute('data-expanded','1');}
 }
 
 function getCurrentProgrammeWeek(){
