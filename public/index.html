@@ -2248,21 +2248,21 @@ async function loadProgress(){
   document.getElementById('pgLoadingEl').style.display='block';
   document.getElementById('pgWeightLog').style.display='none';
   document.getElementById('pgNoData').style.display='none';
-  var allData=await apiAll('databases/'+DAILY_BODY_DB+'/query',{});
+  // Pull exclusively from Supabase — faster, always complete, no Make dependency
+  var sbEntries={};
+  if(sbClient){
+    try{
+      var sbRes=await sbClient.from('athlete_data').select('key,value').eq('athlete_code',athlete.code).like('key','daily_body_%');
+      if(sbRes.data){sbRes.data.forEach(function(row){var date=row.key.replace('daily_body_','');if(row.value&&row.value.weight) sbEntries[date]=row.value;});}
+    }catch(e){}
+  }
   document.getElementById('pgLoadingEl').style.display='none';
-  if(!allData||!allData.results){document.getElementById('pgNoData').style.display='block';return;}
-  var athleteIdClean=athlete.notionPageId.replace(/-/g,'');
-  var entries=allData.results.filter(function(r){
-    var pr=r.properties;
-    var athRel=pr['Athlete']&&pr['Athlete'].relation||[];var idMatch=athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
-    var idText=getRichText(pr['AthleteID']||{}).replace(/-/g,'');
-    var nameMatch=getNotionTitle(pr).toLowerCase()===athlete.name.toLowerCase()||getRichText(pr['Athlete Name']||{}).toLowerCase()===athlete.name.toLowerCase();
-    return idMatch||idText===athleteIdClean||nameMatch;
-  }).filter(function(r){var w=r.properties['Weight'];return w&&(w.number!=null||(w.rich_text&&w.rich_text.length));})
-  .sort(function(a,b){var da=a.properties['Date']&&a.properties['Date'].date&&a.properties['Date'].date.start||'';var db=b.properties['Date']&&b.properties['Date'].date&&b.properties['Date'].date.start||'';return db.localeCompare(da);});
+  var entries=Object.values(sbEntries).filter(function(e){return e.weight&&!isNaN(parseFloat(e.weight));}).map(function(e){return{date:e.date,weight:parseFloat(e.weight)};}).sort(function(a,b){return b.date.localeCompare(a.date);});
   if(!entries.length){document.getElementById('pgNoData').style.display='block';renderWeightChart([],null);return;}
-  var wProp=entries[0].properties['Weight'];var currentWeight=wProp.number!=null?wProp.number:parseFloat(getRichText(wProp));
-  var oldestWProp=entries[entries.length-1].properties['Weight'];var firstLoggedWeight=oldestWProp.number!=null?oldestWProp.number:parseFloat(getRichText(oldestWProp));
+  // Remap to format expected by rest of function (weight chart etc uses r.properties)
+  // We'll handle the Supabase path inline below
+  var currentWeight=entries[0].weight;
+  var firstLoggedWeight=entries[entries.length-1].weight;
   var targetFromAthlete=athlete.targetWeight&&athlete.targetWeight!=='—'?athlete.targetWeight:null;
   var targetFinal=(savedGoals.targetWeight?savedGoals.targetWeight+'kg':null)||targetFromAthlete||'—';
   var startWeight=parseFloat(String(portalStartWeight).replace(/[^0-9.\-]/g,''));
@@ -2276,15 +2276,14 @@ async function loadProgress(){
     document.getElementById('pgChangeLbl').textContent=portalStartWeight?'kg since starting weight':'kg since first weigh-in';
   }
   var targetNumber=parseFloat(String(targetFinal).replace(/[^0-9.\-]/g,''));
-  renderWeightChart(entries,isNaN(targetNumber)?null:targetNumber);
+  var syntheticForChart=entries.map(function(e){return{properties:{'Weight':{number:e.weight},'Date':{date:{start:e.date}}}};});
+  renderWeightChart(syntheticForChart,isNaN(targetNumber)?null:targetNumber);
   var html='<table style="width:100%;border-collapse:collapse"><thead><tr><th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:left;border-bottom:1px solid var(--border-mid)">Date</th><th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:right;border-bottom:1px solid var(--border-mid)">Weight</th><th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:right;border-bottom:1px solid var(--border-mid)">Change</th></tr></thead><tbody>';
-  entries.forEach(function(r,idx){
-    var pr=r.properties;var date=pr['Date']&&pr['Date'].date&&pr['Date'].date.start||'';
-    var wPr=r.properties['Weight'];var weight=wPr.number!=null?wPr.number:parseFloat(getRichText(wPr));
-    var dateLabel=date?formatDateTimeDMY(date):'';
+  entries.forEach(function(e,idx){
+    var dateLabel=e.date?formatDateTimeDMY(e.date):'';
     var changeStr='—',changeColor='var(--dim)';
-    if(idx<entries.length-1){var prevWPr=entries[idx+1].properties['Weight'];var prevWeight=prevWPr.number!=null?prevWPr.number:parseFloat(getRichText(prevWPr));if(prevWeight!=null){var diff=(weight-prevWeight).toFixed(1);changeStr=(diff>0?'+':'')+diff+'kg';changeColor=diff>0?'var(--run)':diff<0?'var(--ok)':'var(--dim)';}}
-    html+='<tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 4px;font-size:13px">'+dateLabel+'</td><td style="padding:10px 4px;font-family:var(--display);font-size:18px;font-weight:700;text-align:right">'+weight+'<span style="font-family:var(--mono);font-size:11px;color:var(--dim);font-weight:400">kg</span></td><td style="padding:10px 4px;font-family:var(--mono);font-size:12px;text-align:right;color:'+changeColor+'">'+changeStr+'</td></tr>';
+    if(idx<entries.length-1){var prevWeight=entries[idx+1].weight;if(prevWeight!=null){var diff=(e.weight-prevWeight).toFixed(1);changeStr=(diff>0?'+':'')+diff+'kg';changeColor=diff>0?'var(--run)':diff<0?'var(--ok)':'var(--dim)';}}
+    html+='<tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 4px;font-size:13px">'+dateLabel+'</td><td style="padding:10px 4px;font-family:var(--display);font-size:18px;font-weight:700;text-align:right">'+e.weight+'<span style="font-family:var(--mono);font-size:11px;color:var(--dim);font-weight:400">kg</span></td><td style="padding:10px 4px;font-family:var(--mono);font-size:12px;text-align:right;color:'+changeColor+'">'+changeStr+'</td></tr>';
   });
   html+='</tbody></table>';
   var logEl=document.getElementById('pgWeightLog');logEl.innerHTML=html;logEl.style.display='block';
