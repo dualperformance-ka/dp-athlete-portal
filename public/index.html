@@ -2243,12 +2243,19 @@ async function loadProgress(){
   document.getElementById('pgLoadingEl').style.display='block';
   document.getElementById('pgWeightLog').style.display='none';
   document.getElementById('pgNoData').style.display='none';
-  // Pull exclusively from Supabase — faster, always complete, no Make dependency
+  // Pull from Supabase (primary — portal logs)
   var sbEntries={};
   if(sbClient){
     try{
       var sbRes=await sbClient.from('athlete_data').select('key,value').eq('athlete_code',athlete.code).like('key','daily_body_%');
       if(sbRes.data){sbRes.data.forEach(function(row){var date=row.key.replace('daily_body_','');if(row.value&&row.value.weight) sbEntries[date]=row.value;});}
+    }catch(e){}
+  }
+  // Also pull from Notion — fills in entries logged directly (bypassing portal)
+  if(athlete.notionPageId){
+    try{
+      var nRes=await api('databases/'+DAILY_BODY_DB+'/query',{filter:{property:'AthleteID',rich_text:{equals:athlete.notionPageId}},sorts:[{property:'Date',direction:'descending'}],page_size:100});
+      if(nRes&&nRes.results){nRes.results.forEach(function(row){var props=row.properties||{};var date=props['Date']&&props['Date'].date&&props['Date'].date.start?props['Date'].date.start.slice(0,10):'';var wt=props['Weight']&&props['Weight'].number!=null?props['Weight'].number:null;if(date&&wt!=null&&!sbEntries[date]){sbEntries[date]={date:date,weight:String(wt)};}});}
     }catch(e){}
   }
   document.getElementById('pgLoadingEl').style.display='none';
