@@ -453,15 +453,26 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
     </div>
   </div>
 
-  <!-- CHECK-IN NUDGE — hidden once weekly check-in submitted -->
+  <!-- CHECK-IN NUDGE — disappears once submitted -->
   <div id="checkinNudge" class="nudge-strip" style="display:none;background:linear-gradient(135deg,#16a34a,#15803d);border-top:1px solid rgba(255,255,255,.08)" onclick="switchTab('checkin')">
     <div class="nudge-strip-inner">
-      <span class="nudge-strip-icon">✅</span>
+      <span class="nudge-strip-icon">📋</span>
       <div class="nudge-strip-text">
-        <div class="nudge-strip-title" style="color:#fff">Weekly check-in due</div>
-        <div class="nudge-strip-sub" style="color:rgba(255,255,255,.6)">Takes 2 min · helps us help you</div>
+        <div class="nudge-strip-title" style="color:#fff">Time for your weekly check-in</div>
+        <div class="nudge-strip-sub" style="color:rgba(255,255,255,.6)">2 min · helps us coach you better</div>
       </div>
       <span class="nudge-strip-arr" style="color:rgba(255,255,255,.6)">›</span>
+    </div>
+  </div>
+
+  <!-- CALL CONFIRMED NUDGE — appears once call is booked, shows day/time -->
+  <div id="callConfirmedNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)">
+    <div class="nudge-strip-inner">
+      <span class="nudge-strip-icon">📅</span>
+      <div class="nudge-strip-text">
+        <div class="nudge-strip-title" id="callConfirmedTitle" style="color:rgba(255,255,255,.5)">Call booked this week</div>
+        <div class="nudge-strip-sub" style="color:rgba(255,255,255,.25)">Karl &amp; Alex · confirmed</div>
+      </div>
     </div>
   </div>
 
@@ -1504,11 +1515,23 @@ function callNudgeWeekKey(){
 }
 function initCallNudge(){
   var nudge=document.getElementById('callNudge');
-  if(!nudge) return;
-  var booked=!!localStorage.getItem(callNudgeWeekKey());
-  nudge.style.display=booked?'none':'';
+  var confirmed=document.getElementById('callConfirmedNudge');
   var dot=document.getElementById('tabDotCheckin');
-  if(dot) dot.classList.toggle('visible',!booked);
+  var raw=localStorage.getItem(callNudgeWeekKey());
+  if(!raw){
+    if(nudge) nudge.style.display='';
+    if(confirmed) confirmed.style.display='none';
+    if(dot) dot.classList.add('visible');
+  } else {
+    if(nudge) nudge.style.display='none';
+    // Show confirmed strip with time if available
+    var displayTime=null;
+    try{var p=JSON.parse(raw);if(p&&p!=='1'&&p!==1)displayTime=p;}catch(e){if(raw&&raw!=='1')displayTime=raw;}
+    var titleEl=document.getElementById('callConfirmedTitle');
+    if(titleEl) titleEl.textContent=displayTime?'Call booked · '+displayTime:'Call booked this week';
+    if(confirmed) confirmed.style.display='';
+    if(dot) dot.classList.remove('visible');
+  }
 }
 function checkinWeekKey(){
   var now=new Date();
@@ -1526,6 +1549,7 @@ function initCheckinNudge(){
   nudge.style.display=done?'none':'';
 }
 function hideCheckinNudge(){
+  localStorage.setItem(checkinWeekKey(),'1');
   var nudge=document.getElementById('checkinNudge');
   if(nudge) nudge.style.display='none';
 }
@@ -1563,6 +1587,8 @@ window.addEventListener('message',function(e){
     localStorage.setItem(wkey,'1');
     var nudge=document.getElementById('callNudge');
     if(nudge) nudge.style.display='none';
+    var confirmed=document.getElementById('callConfirmedNudge');
+    if(confirmed) confirmed.style.display='';
     var dot=document.getElementById('tabDotCheckin');
     if(dot) dot.classList.remove('visible');
     if(sbClient&&athlete&&athlete.code){
@@ -1643,8 +1669,6 @@ async function submitCheckin(){
     testimonial:document.getElementById('ciTestimonial').value||''};
   try{
     await fetch(CHECKIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'weekly_checkin'},payload))});
-    var ciWkey=checkinWeekKey();
-    localStorage.setItem(ciWkey,'1');
     hideCheckinNudge();
     if(sbClient&&athlete&&athlete.code){
       var sbCiKey='checkin_'+ciWkey.slice('dp_checkin_'.length);
