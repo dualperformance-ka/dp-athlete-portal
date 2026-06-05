@@ -110,6 +110,11 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .todaytarget .desc{font-size:13px;line-height:1.45;color:rgba(255,255,255,.78);margin-top:5px}
 .todaychips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .todaychip{font-family:var(--mono);font-size:10px;padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.74)}
+.todayprescrow{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.todayprescrow:last-of-type{border-bottom:none}
+.todayprescl{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);white-space:nowrap;padding-right:10px}
+.todayprescv{font-size:13px;color:rgba(255,255,255,.9);text-align:right}
+.todaycoachNote{margin-top:8px;padding:9px 11px;border-radius:8px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.18);font-size:13px;line-height:1.5;color:rgba(255,255,255,.78);font-style:italic}
 .todayempty{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.62);text-transform:uppercase;letter-spacing:.06em;padding:8px 0 2px}
 .dg{margin-bottom:2px}
 .dgh{display:flex;align-items:center;gap:8px;padding:12px 2px 8px;border-bottom:2px solid var(--border-mid)}
@@ -462,6 +467,8 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
     <!-- Row 1: KM target + Strava -->
     <div class="hpills">
       <div id="kmBar" style="display:none;background:#f59e0b;border-color:#f59e0b;color:#0a0a0a;font-weight:700" class="hp">🎯 <span id="kmTargetVal">—</span> km target</div>
+      <div class="hp">🏃 <span id="heroRuns">—</span> runs</div>
+      <div class="hp">🏋️ <span id="heroLifts">—</span> lifts</div>
       <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" style="display:none" class="hp"></a>
       <!-- Streak pill -->
       <div class="hp hp-streak" id="streakPill">🔥 <span id="streakCount">—</span> wk streak</div>
@@ -1556,7 +1563,7 @@ async function saveGoals(){
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'goals',value:goals,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){console.warn('Goals Supabase sync failed:',e);}}
   athlete.startWeight=goals.startWeight||athlete.startWeight;
   try{await fetch(GOALS_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'goals',athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,submittedAt:goals.savedAt},goals))});}catch(e){}
-  btn.textContent='Saved ✓';btn.classList.add('saved');
+  btn.textContent='Saved ✓';btn.classList.add('saved');showToast('Goals saved!');
   var d=new Date(goals.savedAt);
   document.getElementById('goalsSavedTime').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('goalsSavedBadge').classList.add('show');
@@ -1665,7 +1672,11 @@ window.addEventListener('message',function(e){
   }
 });
 
+var tabScrollPositions={};
 function switchTab(tab){
+  // Save current tab scroll position
+  var activeContent=document.querySelector('.tab-content.active');
+  if(activeContent) tabScrollPositions[activeContent.id]=window.scrollY;
   document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===tab);});
   document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+tab);});
   var isTraining=tab==='training';
@@ -1673,6 +1684,9 @@ function switchTab(tab){
   if(tab==='nutrition') loadNutrition();
   if(tab==='checkin') initCheckin();
   if(tab==='progress'){loadProgress();loadPRs();}
+  // Restore scroll position for this tab
+  var savedY=tabScrollPositions['tab-'+tab]||0;
+  setTimeout(function(){window.scrollTo(0,savedY);},30);
 }
 
 // ── CHECK-IN WIZARD ───────────────────────────────────────────────────────────
@@ -2478,6 +2492,9 @@ async function loadWeek(){
   var runs=sessions.filter(function(s){return getType(s)==='run';});
   var lifts=sessions.filter(function(s){return getType(s)==='strength';});
   document.getElementById('ciRuns').textContent=runs.length;document.getElementById('ciLifts').textContent=lifts.length;
+  var runsEl=document.getElementById('heroRuns');var liftsEl=document.getElementById('heroLifts');
+  if(runsEl) runsEl.textContent=runs.length;
+  if(liftsEl) liftsEl.textContent=lifts.length;
   updateSessionCounter();
   updateProgress();
   loadNutrition(); // also populates KM tracker
@@ -2844,11 +2861,22 @@ function renderTodaySection(){
         var targetValue=runMeta.target||runMeta.sessionGoal||runMeta.type||runMeta.intensity||sessionTitle;
         html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(targetValue)+'</div>';
         if(sessionDetail){ html+='<div class="desc">'+esc(sessionDetail)+'</div>'; }
+        // ── Coach prescription override ──
+        if(s.warmUp||s.intervals||s.workingPace||s.restOverride||s.coolDown||s.coachNotes){
+          if(s.warmUp)      html+='<div class="todayprescrow"><span class="todayprescl">Warm up</span><span class="todayprescv">'+esc(s.warmUp)+'</span></div>';
+          if(s.intervals)   html+='<div class="todayprescrow"><span class="todayprescl">Intervals</span><span class="todayprescv">'+esc(s.intervals)+'</span></div>';
+          if(s.workingPace) html+='<div class="todayprescrow"><span class="todayprescl">Working pace</span><span class="todayprescv">'+esc(s.workingPace)+'</span></div>';
+          if(s.restOverride)html+='<div class="todayprescrow"><span class="todayprescl">Rest</span><span class="todayprescv">'+esc(s.restOverride)+'</span></div>';
+          if(s.coolDown)    html+='<div class="todayprescrow"><span class="todayprescl">Cool down</span><span class="todayprescv">'+esc(s.coolDown)+'</span></div>';
+          if(s.coachNotes)  html+='<div class="todaycoachNote">'+esc(s.coachNotes)+'</div>';
+        }
         var chips=[];
         if(runMeta.rpe) chips.push('RPE '+runMeta.rpe);
         if(runMeta.surface) chips.push(runMeta.surface);
         if(runMeta.duration) chips.push(runMeta.duration);
-        if(runMeta.distance) chips.push(runMeta.distance);
+        if(s.distanceOverride!=null) chips.push(s.distanceOverride+' km');
+        else if(runMeta.distance) chips.push(runMeta.distance);
+        if(s.paceOverride) chips.push(s.paceOverride);
         if(chips.length){
           html+='<div class="todaychips">';
           chips.forEach(function(c){ html+='<div class="todaychip">'+esc(c)+'</div>'; });
