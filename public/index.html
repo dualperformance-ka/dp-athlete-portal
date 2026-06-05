@@ -453,6 +453,18 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
     </div>
   </div>
 
+  <!-- CHECK-IN NUDGE — hidden once weekly check-in submitted -->
+  <div id="checkinNudge" class="nudge-strip" style="display:none;background:linear-gradient(135deg,#16a34a,#15803d);border-top:1px solid rgba(255,255,255,.08)" onclick="switchTab('checkin')">
+    <div class="nudge-strip-inner">
+      <span class="nudge-strip-icon">✅</span>
+      <div class="nudge-strip-text">
+        <div class="nudge-strip-title" style="color:#fff">Weekly check-in due</div>
+        <div class="nudge-strip-sub" style="color:rgba(255,255,255,.6)">Takes 2 min · helps us help you</div>
+      </div>
+      <span class="nudge-strip-arr" style="color:rgba(255,255,255,.6)">›</span>
+    </div>
+  </div>
+
   <!-- PHOTO NUDGE — hidden once this week's photos uploaded -->
   <div id="photoNudge" class="nudge-strip" style="display:none" onclick="switchTab('progress')">
     <div class="nudge-strip-inner">
@@ -1183,6 +1195,7 @@ async function loadCloudData(code){
       else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);
       else if(row.key==='ex_picks') lsKey='dp_ex_picks_'+code;
       else if(row.key.startsWith('call_booked_')) lsKey='dp_call_booked_'+row.key.slice('call_booked_'.length);
+      else if(row.key.startsWith('checkin_')) lsKey='dp_checkin_'+row.key.slice('checkin_'.length);
       if(!lsKey||!row.value) return;
       localStorage.setItem(lsKey,JSON.stringify(row.value));
     });
@@ -1392,6 +1405,7 @@ async function doLogin(code){
   populateStatic();
   loadWeek();
   initCallNudge();
+  initCheckinNudge();
   if(window.initStrava) window.initStrava(athlete.code);
 }
 
@@ -1495,6 +1509,25 @@ function initCallNudge(){
   nudge.style.display=booked?'none':'';
   var dot=document.getElementById('tabDotCheckin');
   if(dot) dot.classList.toggle('visible',!booked);
+}
+function checkinWeekKey(){
+  var now=new Date();
+  var d=new Date(now);d.setHours(0,0,0,0);
+  d.setDate(d.getDate()+3-(d.getDay()+6)%7);
+  var w1=new Date(d.getFullYear(),0,4);
+  var isoWeek=1+Math.round(((d-w1)/86400000-3+(w1.getDay()+6)%7)/7);
+  var isoYear=d.getFullYear();
+  return'dp_checkin_'+isoYear+'_'+(isoWeek<10?'0':'')+isoWeek;
+}
+function initCheckinNudge(){
+  var nudge=document.getElementById('checkinNudge');
+  if(!nudge) return;
+  var done=!!localStorage.getItem(checkinWeekKey());
+  nudge.style.display=done?'none':'';
+}
+function hideCheckinNudge(){
+  var nudge=document.getElementById('checkinNudge');
+  if(nudge) nudge.style.display='none';
 }
 function initPhotoNudge(){
   var nudge=document.getElementById('photoNudge');
@@ -1610,6 +1643,16 @@ async function submitCheckin(){
     testimonial:document.getElementById('ciTestimonial').value||''};
   try{
     await fetch(CHECKIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'weekly_checkin'},payload))});
+    var ciWkey=checkinWeekKey();
+    localStorage.setItem(ciWkey,'1');
+    hideCheckinNudge();
+    if(sbClient&&athlete&&athlete.code){
+      var sbCiKey='checkin_'+ciWkey.slice('dp_checkin_'.length);
+      sbClient.from('athlete_data').upsert(
+        {athlete_code:athlete.code,key:sbCiKey,value:1,updated_at:new Date().toISOString()},
+        {onConflict:'athlete_code,key'}
+      ).catch(function(err){console.warn('Checkin sync failed:',err);});
+    }
     document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
   }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit — please try again');}
 }
