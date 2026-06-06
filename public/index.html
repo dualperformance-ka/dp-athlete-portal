@@ -2806,20 +2806,47 @@ function renderTodaySection(){
         var runMeta=(resolved&&resolved.meta)||{};
         var sessionTitle=(resolved&&resolved.title)||s.name||'Run';
         var sessionDetail=(resolved&&resolved.detail)||runMeta.description||'';
-        var targetValue=runMeta.target||runMeta.sessionGoal||runMeta.type||runMeta.intensity||sessionTitle;
-        html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(targetValue)+'</div>';
-        if(sessionDetail){ html+='<div class="desc">'+esc(sessionDetail)+'</div>'; }
-        var chips=[];
-        if(runMeta.rpe) chips.push('RPE '+runMeta.rpe);
-        if(runMeta.surface) chips.push(runMeta.surface);
-        if(runMeta.duration) chips.push(runMeta.duration);
-        if(runMeta.distance) chips.push(runMeta.distance);
-        if(chips.length){
-          html+='<div class="todaychips">';
-          chips.forEach(function(c){ html+='<div class="todaychip">'+esc(c)+'</div>'; });
+        var _todayOv=_sessionOverrides[s.id]||null;
+        if(_todayOv&&(_todayOv.warm_up||_todayOv.intervals||_todayOv.working_pace||_todayOv.cool_down)){
+          // Override: render structured breakdown
+          html+='<div class="todaytarget">';
+          if(_todayOv.notes){
+            html+='<div class="label">Coach note</div><div class="value">'+esc(_todayOv.notes)+'</div>';
+          }
+          // Structured rows
+          html+='<div style="display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,.1);border-radius:7px;overflow:hidden;margin-top:10px">';
+          var _tRows=[];
+          if(_todayOv.distance_km) _tRows.push({label:'Total',val:_todayOv.distance_km+'km',accent:false});
+          if(_todayOv.warm_up) _tRows.push({label:'Warm up',val:_todayOv.warm_up,accent:false});
+          var _tMain=(_todayOv.intervals||'')+(_todayOv.working_pace?' @ '+_todayOv.working_pace+'/km':'');
+          if(_tMain) _tRows.push({label:'Main set',val:_tMain,accent:true});
+          if(_todayOv.rest) _tRows.push({label:'Rest',val:_todayOv.rest,accent:false});
+          if(_todayOv.cool_down) _tRows.push({label:'Cool down',val:_todayOv.cool_down,accent:false});
+          _tRows.forEach(function(row,ri){
+            var bb=ri<_tRows.length-1?'border-bottom:1px solid rgba(255,255,255,.08);':'';
+            html+='<div style="display:grid;grid-template-columns:72px 1fr;gap:8px;padding:8px 10px;'+bb+'">';
+            html+='<span style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:'+(row.accent?'var(--run)':'rgba(255,255,255,.4)')+';font-weight:'+(row.accent?'700':'400')+'">'+row.label+'</span>';
+            html+='<span style="font-size:13px;font-weight:'+(row.accent?'700':'500')+';color:#fff;line-height:1.3">'+esc(row.val)+'</span>';
+            html+='</div>';
+          });
+          html+='</div>';
+          html+='</div>';
+        } else {
+          var targetValue=runMeta.target||runMeta.sessionGoal||runMeta.type||runMeta.intensity||sessionTitle;
+          html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(targetValue)+'</div>';
+          if(sessionDetail){ html+='<div class="desc">'+esc(sessionDetail)+'</div>'; }
+          var chips=[];
+          if(runMeta.rpe) chips.push('RPE '+runMeta.rpe);
+          if(runMeta.surface) chips.push(runMeta.surface);
+          if(runMeta.duration) chips.push(runMeta.duration);
+          if(runMeta.distance) chips.push(runMeta.distance);
+          if(chips.length){
+            html+='<div class="todaychips">';
+            chips.forEach(function(c){ html+='<div class="todaychip">'+esc(c)+'</div>'; });
+            html+='</div>';
+          }
           html+='</div>';
         }
-        html+='</div>';
       }else if(type==='strength'){
       }else{
         html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
