@@ -1154,7 +1154,7 @@ const GYM_KEYS = ['Upper A','Upper B','Lower A','Lower B'];
 const DAYS     = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
-var sbClient=null,_skipSbSync=false;
+var sbClient=null,_skipSbSync=false,_sessionOverrides={};
 (function(){
   if(!SUPABASE_URL||SUPABASE_URL==='YOUR_SUPABASE_URL') return;
   try{sbClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);}catch(e){console.warn('Supabase init failed',e);}
@@ -1185,6 +1185,15 @@ var sbClient=null,_skipSbSync=false;
     }catch(e){}
   };
 })();
+
+async function loadSessionOverrides(){
+  _sessionOverrides={};
+  if(!sbClient) return;
+  try{
+    var res=await sbClient.from('session_overrides').select('*');
+    ((res&&res.data)||[]).forEach(function(r){ _sessionOverrides[r.notion_page_id]=r; });
+  }catch(e){ console.warn('Session overrides load failed',e); }
+}
 
 async function loadCloudData(code){
   if(!sbClient) return;
@@ -2391,12 +2400,13 @@ async function loadWeek(){
   document.getElementById('wbar').style.display='';
   document.getElementById('loadingEl').style.display='block';
   document.getElementById('calEl').style.display='none';document.getElementById('noplanEl').style.display='none';
-  // Run library and calendar fetch in parallel — saves ~1-2s per load
+  // Run library, overrides and calendar fetch in parallel — saves ~1-2s per load
   var results=await Promise.all([
     loadRunningLibrary(),
+    loadSessionOverrides(),
     api('databases/'+CALENDAR_DB+'/query',{filter:{property:'Athlete',relation:{contains:athlete.notionPageId}},sorts:[{property:'Planned Date',direction:'ascending'}],page_size:100})
   ]);
-  var data=results[1];
+  var data=results[2];
   document.getElementById('loadingEl').style.display='none';
   if(!data||!data.results){showNoplan();return;}
   allSessions=data.results.map(function(p){
@@ -2507,6 +2517,24 @@ function resolveRunDisplay(s){
   }
   if(!rs&&lookupKey){rs=RUN[rsTitle]||runLibraryByName[lookupKey]||null;}
   if(!rs&&lookupKey){for(var k in RUN){if(lookupKey.indexOf(k.toLowerCase())>=0||k.toLowerCase().indexOf(lookupKey)>=0){rs=RUN[k];break;}}}
+  // ── Coach override (Supabase session_overrides) ───────────────────────────
+  var ov=_sessionOverrides[s.id]||null;
+  if(ov){
+    if(ov.name) rsTitle=ov.name;
+    var ovParts=[];
+    if(ov.intervals) ovParts.push(ov.intervals);
+    if(ov.working_pace) ovParts.push('Working pace: '+ov.working_pace);
+    if(ov.distance_km) ovParts.push('Distance: '+ov.distance_km+'km');
+    if(ovParts.length) rsDetail=ovParts.join(' · ');
+    if(!rs) rs={};
+    if(ov.warm_up) rs.warmUp=ov.warm_up;
+    if(ov.cool_down) rs.coolDown=ov.cool_down;
+    if(ov.target_pace) rs.targetPace=ov.target_pace;
+    if(ov.rest) rs.rest=ov.rest;
+    if(ov.notes) rs.sessionGoal=ov.notes;
+    if(ov.distance_km) rs.distance=ov.distance_km+'km';
+    if(ovParts.length) rs.description=rsDetail;
+  }
   return{related:related,title:rsTitle,detail:rsDetail,meta:rs};
 }
 
