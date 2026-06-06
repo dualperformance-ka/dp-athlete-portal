@@ -2952,12 +2952,39 @@ function buildBody(s,i,type){
     h+='<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">';
 
     // ── Workout — main focus ─────────────────────────────────────────────────
-    h+='<div style="font-size:15px;font-weight:600;color:var(--text);line-height:1.55">'+esc(workoutText)+'</div>';
+    var _ov=_sessionOverrides[s.id]||null;
+    var _ovHasStructure=_ov&&(_ov.warm_up||_ov.intervals||_ov.working_pace||_ov.cool_down||_ov.notes||_ov.rest);
+    if(_ovHasStructure){
+      // Structured override block — clearly labelled rows
+      var _ovRows=[];
+      if(_ov.warm_up) _ovRows.push({label:'Warm up',val:_ov.warm_up,accent:false});
+      var _mainSet=(_ov.intervals||'')+(_ov.working_pace?' @ '+_ov.working_pace+'/km':'');
+      if(_mainSet) _ovRows.push({label:'Main set',val:_mainSet,accent:true});
+      if(_ov.rest) _ovRows.push({label:'Rest',val:_ov.rest,accent:false});
+      if(_ov.cool_down) _ovRows.push({label:'Cool down',val:_ov.cool_down,accent:false});
+      h+='<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">';
+      _ovRows.forEach(function(row,ri){
+        var borderB=ri<_ovRows.length-1?'border-bottom:1px solid var(--border);':'';
+        h+='<div style="display:grid;grid-template-columns:80px 1fr;align-items:baseline;gap:8px;padding:9px 12px;'+borderB+'">';
+        h+='<span style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:'+(row.accent?'var(--run)':'var(--muted)')+';font-weight:'+(row.accent?'700':'400')+';padding-top:1px">'+row.label+'</span>';
+        h+='<span style="font-size:14px;font-weight:'+(row.accent?'700':'500')+';color:var(--text);line-height:1.4">'+esc(row.val)+'</span>';
+        h+='</div>';
+      });
+      h+='</div>';
+      if(_ov.notes){
+        h+='<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.22);border-radius:7px;padding:10px 13px">';
+        h+='<div style="font-family:var(--mono);font-size:9px;color:var(--run);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:5px">Coach Note</div>';
+        h+='<div style="font-size:13px;color:var(--text);line-height:1.55">'+esc(_ov.notes)+'</div>';
+        h+='</div>';
+      }
+    } else {
+      h+='<div style="font-size:15px;font-weight:600;color:var(--text);line-height:1.55">'+esc(workoutText)+'</div>';
+    }
 
     // Rest pill + optional chips — subtle, secondary
     var intervalRest=getIntervalRestInfo(meta,sessionTitle);
     var hasSecondary=intervalRest||chips.length;
-    if(hasSecondary){
+    if(hasSecondary&&!_ovHasStructure){
       h+='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:-4px">';
       if(intervalRest){
         h+='<div style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border-radius:6px;padding:4px 10px">';
@@ -2970,16 +2997,16 @@ function buildBody(s,i,type){
     }
 
     // Coaching note — own row, breathing room
-    if(intervalRest&&intervalRest.recoveryNote){
+    if(intervalRest&&intervalRest.recoveryNote&&!_ovHasStructure){
       h+='<div style="border-left:3px solid var(--run);padding:8px 12px;background:var(--surface2);border-radius:0 6px 6px 0">';
       h+='<div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px">Coach Note</div>';
       h+='<div style="font-size:12px;color:var(--text);line-height:1.6">'+esc(intervalRest.recoveryNote)+'</div>';
       h+='</div>';
     }
 
-    // Warm up + Cool down — skip for easy/recovery/long runs
+    // Warm up + Cool down — skip for easy/recovery/long runs (and overridden sessions which render their own)
     var isLowIntensity=/\beasy\b|\brecovery\b|\blong run\b|\blong\b/.test(zHaystack);
-    if(!isLowIntensity){
+    if(!isLowIntensity&&!_ovHasStructure){
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
       h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Warm up</div>';
       h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(warmUp)+'</div></div>';
