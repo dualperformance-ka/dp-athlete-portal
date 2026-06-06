@@ -2957,6 +2957,7 @@ function buildBody(s,i,type){
     if(_ovHasStructure){
       // Structured override block — clearly labelled rows
       var _ovRows=[];
+      if(_ov.distance_km) _ovRows.push({label:'Total',val:_ov.distance_km+'km',accent:false});
       if(_ov.warm_up) _ovRows.push({label:'Warm up',val:_ov.warm_up,accent:false});
       var _mainSet=(_ov.intervals||'')+(_ov.working_pace?' @ '+_ov.working_pace+'/km':'');
       if(_mainSet) _ovRows.push({label:'Main set',val:_mainSet,accent:true});
