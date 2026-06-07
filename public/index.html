@@ -1680,16 +1680,16 @@ async function submitCheckin(){
     testimonial:document.getElementById('ciTestimonial').value||''};
   try{
     await fetch(CHECKIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'weekly_checkin'},payload))});
-    hideCheckinNudge();
-    if(sbClient&&athlete&&athlete.code){
-      var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
-      sbClient.from('athlete_data').upsert(
-        {athlete_code:athlete.code,key:sbCiKey,value:1,updated_at:new Date().toISOString()},
-        {onConflict:'athlete_code,key'}
-      ).catch(function(err){console.warn('Checkin sync failed:',err);});
-    }
-    document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
-  }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit — please try again');}
+  }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit — check your connection and try again');return;}
+  hideCheckinNudge();
+  if(sbClient&&athlete&&athlete.code){
+    var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
+    sbClient.from('athlete_data').upsert(
+      {athlete_code:athlete.code,key:sbCiKey,value:1,updated_at:new Date().toISOString()},
+      {onConflict:'athlete_code,key'}
+    ).catch(function(err){console.warn('Checkin sync failed:',err);});
+  }
+  document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
 }
 function resetCheckin(){document.getElementById('ciFormContent').style.display='block';document.getElementById('ciSuccess').style.display='none';var btn=document.getElementById('ciSubmitBtn');btn.textContent='Submit Check-in';btn.disabled=false;ciGoStep(1);}
 function todayISO2(){return localISO(new Date());}
