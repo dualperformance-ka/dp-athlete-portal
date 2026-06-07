@@ -1679,18 +1679,17 @@ async function submitCheckin(){
     motivation:document.getElementById('ciMot').value,upcomingImpact:document.getElementById('ciNotes').value||'',
     testimonial:document.getElementById('ciTestimonial').value||''};
   try{
-    var _ciResp=await fetch(CHECKIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'weekly_checkin'},payload))});
-    console.log('Checkin webhook response:',_ciResp.status,_ciResp.ok);
-  }catch(e){console.error('Checkin submit error:',e);btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit — check your connection and try again');return;}
-  hideCheckinNudge();
-  if(sbClient&&athlete&&athlete.code){
-    var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
-    sbClient.from('athlete_data').upsert(
-      {athlete_code:athlete.code,key:sbCiKey,value:1,updated_at:new Date().toISOString()},
-      {onConflict:'athlete_code,key'}
-    ).then(function(){},function(err){console.warn('Checkin sync failed:',err);});
-  }
-  document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
+    await fetch(CHECKIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'weekly_checkin'},payload))});
+    hideCheckinNudge();
+    if(sbClient&&athlete&&athlete.code){
+      var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
+      sbClient.from('athlete_data').upsert(
+        {athlete_code:athlete.code,key:sbCiKey,value:1,updated_at:new Date().toISOString()},
+        {onConflict:'athlete_code,key'}
+      ).then(function(){},function(err){console.warn('Checkin sync failed:',err);});
+    }
+    document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
+  }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit — please try again');}
 }
 function resetCheckin(){document.getElementById('ciFormContent').style.display='block';document.getElementById('ciSuccess').style.display='none';var btn=document.getElementById('ciSubmitBtn');btn.textContent='Submit Check-in';btn.disabled=false;ciGoStep(1);}
 function todayISO2(){return localISO(new Date());}
@@ -1984,7 +1983,7 @@ async function getWeeklyCompletedKmFromTracker(offset){
     sorts:[{property:'Date',direction:'descending'}]
   });
   if(!allRows||!allRows.results) return null;
-  var athleteIdClean=athlete.notionPageId.replace(/-/g,'');
+  var athleteIdClean=(athlete.notionPageId||'').replace(/-/g,'');
   var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
   var athleteCodeUpper=(athlete.code||'').toUpperCase().trim();
   var total=0;
@@ -2037,7 +2036,7 @@ async function loadWeeklyKmData(offset){
   var displayWeek=getDisplayWeekNumber(offset);
   var allKm=await apiAll('databases/'+WEEKLY_KM_DB+'/query',{sorts:[{property:'Week Start',direction:'ascending'}]});
   if(!allKm||!allKm.results) return null;
-  var athleteIdClean=athlete.notionPageId.replace(/-/g,'');
+  var athleteIdClean=(athlete.notionPageId||'').replace(/-/g,'');
   var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
   var athleteCodeUpper=(athlete.code||'').toUpperCase().trim();
   var matched=allKm.results.filter(function(r){
@@ -2114,7 +2113,7 @@ async function loadNutrition(){
     return;
   }
 
-  var athleteIdClean=athlete.notionPageId.replace(/-/g,'');
+  var athleteIdClean=(athlete.notionPageId||'').replace(/-/g,'');
   var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
   var athleteCodeUpper=(athlete.code||'').toUpperCase().trim();
 
