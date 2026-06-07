@@ -1607,7 +1607,7 @@ window.addEventListener('message',function(e){
       sbClient.from('athlete_data').upsert(
         {athlete_code:athlete.code,key:sbKey,value:1,updated_at:new Date().toISOString()},
         {onConflict:'athlete_code,key'}
-      ).catch(function(err){console.warn('Call booked sync failed:',err);});
+      ).then(function(){},function(err){console.warn('Call booked sync failed:',err);});
     }
   }
 });
@@ -1688,7 +1688,7 @@ async function submitCheckin(){
     sbClient.from('athlete_data').upsert(
       {athlete_code:athlete.code,key:sbCiKey,value:1,updated_at:new Date().toISOString()},
       {onConflict:'athlete_code,key'}
-    ).catch(function(err){console.warn('Checkin sync failed:',err);});
+    ).then(function(){},function(err){console.warn('Checkin sync failed:',err);});
   }
   document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
 }
