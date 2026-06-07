@@ -1679,8 +1679,9 @@ async function submitCheckin(){
     motivation:document.getElementById('ciMot').value,upcomingImpact:document.getElementById('ciNotes').value||'',
     testimonial:document.getElementById('ciTestimonial').value||''};
   try{
-    await fetch(CHECKIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'weekly_checkin'},payload))});
-  }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit — check your connection and try again');return;}
+    var _ciResp=await fetch(CHECKIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'weekly_checkin'},payload))});
+    console.log('Checkin webhook response:',_ciResp.status,_ciResp.ok);
+  }catch(e){console.error('Checkin submit error:',e);btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit — check your connection and try again');return;}
   hideCheckinNudge();
   if(sbClient&&athlete&&athlete.code){
     var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
