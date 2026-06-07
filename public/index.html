@@ -1682,7 +1682,7 @@ async function submitCheckin(){
     await fetch(CHECKIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'weekly_checkin'},payload))});
     hideCheckinNudge();
     if(sbClient&&athlete&&athlete.code){
-      var sbCiKey='checkin_'+ciWkey.slice('dp_checkin_'.length);
+      var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
       sbClient.from('athlete_data').upsert(
         {athlete_code:athlete.code,key:sbCiKey,value:1,updated_at:new Date().toISOString()},
         {onConflict:'athlete_code,key'}
