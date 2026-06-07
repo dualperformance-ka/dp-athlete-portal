@@ -242,6 +242,10 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .photo-cell .photo-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;position:relative;z-index:1}
 .photo-cell .photo-add{font-size:20px;color:var(--dim);position:relative;z-index:1}
 .photo-cell.uploading{opacity:.6;pointer-events:none}
+.photo-cell.current-week{border-color:var(--run);border-style:solid;border-width:2px}
+.photo-cell.current-week .photo-label{color:var(--run)}
+.photo-cell.current-week .photo-add{color:var(--run)}
+.photo-cell.current-week-badge{font-family:var(--mono);font-size:8px;color:var(--run);text-transform:uppercase;letter-spacing:.06em;position:absolute;top:5px;left:6px;z-index:2;font-weight:700;line-height:1}
 .photo-cell .photo-overlay{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.5);padding:3px;text-align:center;font-family:var(--mono);font-size:8px;color:#fff;letter-spacing:.04em;text-transform:uppercase}
 .photo-cell .photo-count{font-family:var(--mono);font-size:9px;color:#fff;background:rgba(0,0,0,.6);border-radius:20px;padding:2px 7px;position:absolute;top:6px;right:6px;z-index:2}
 .hb-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
@@ -1651,7 +1655,6 @@ function initCheckin(){
   var nameEl=document.getElementById('ciName');if(nameEl&&!nameEl.value) nameEl.value=athlete.name;
   var weEl=document.getElementById('ciWeekEnding');
   if(weEl&&!weEl.value){var d=new Date(),day=d.getDay(),diff=day===0?0:7-day,sun=new Date(d);sun.setDate(d.getDate()+diff);weEl.value=sun.toISOString().split('T')[0];}
-  initDailyDates();
 }
 
 async function submitCheckin(){
@@ -1693,34 +1696,6 @@ async function submitCheckin(){
 }
 function resetCheckin(){document.getElementById('ciFormContent').style.display='block';document.getElementById('ciSuccess').style.display='none';var btn=document.getElementById('ciSubmitBtn');btn.textContent='Submit Check-in';btn.disabled=false;ciGoStep(1);}
 function todayISO2(){return localISO(new Date());}
-function initDailyDates(){var dbD=document.getElementById('dbDate');var dnD=document.getElementById('dnDate');if(dbD&&!dbD.value) dbD.value=todayISO2();if(dnD&&!dnD.value) dnD.value=todayISO2();}
-
-async function submitDailyBody(){
-  var btn=document.getElementById('dbSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
-  var payload={type:'daily_body',athleteName:athlete.name,athleteId:athlete.notionPageId,
-    date:document.getElementById('dbDate').value,weight:document.getElementById('dbWeight').value||'',
-    sleep:document.getElementById('dbSleep').value,energy:document.getElementById('dbEnergy').value,
-    stress:document.getElementById('dbStress').value,soreness:document.getElementById('dbSore').value,
-    notes:document.getElementById('dbNotes').value||''};
-  try{await fetch(DAILY_BODY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
-  localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
-  document.getElementById('dailyBodyForm').style.display='none';document.getElementById('dbSuccess').style.display='block';
-}
-function resetDailyBody(){document.getElementById('dailyBodyForm').style.display='block';document.getElementById('dbSuccess').style.display='none';var btn=document.getElementById('dbSubmitBtn');btn.textContent="Log Today's Body";btn.disabled=false;}
-
-async function submitDailyNut(){
-  var btn=document.getElementById('dnSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
-  var payload={type:'daily_nutrition',athleteName:athlete.name,athleteId:athlete.notionPageId,
-    date:document.getElementById('dnDate').value,calories:document.getElementById('dnCal').value||'',
-    protein:document.getElementById('dnPro').value||'',carbs:document.getElementById('dnCarbs').value||'',
-    fat:document.getElementById('dnFat').value||'',fibre:document.getElementById('dnFibre').value||'',
-    notes:document.getElementById('dnNotes').value||''};
-  try{await fetch(DAILY_NUT_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
-  localStorage.setItem('dp_daily_nut_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
-  document.getElementById('dailyNutForm').style.display='none';document.getElementById('dnSuccess').style.display='block';
-}
-function resetDailyNut(){document.getElementById('dailyNutForm').style.display='block';document.getElementById('dnSuccess').style.display='none';var btn=document.getElementById('dnSubmitBtn');btn.textContent="Log Today's Nutrition";btn.disabled=false;}
-
 // ── SESSION COUNTER ───────────────────────────────────────────────────────────
 function updateSessionCounter(){
   var total=sessions.length;
@@ -2215,9 +2190,12 @@ function savePhotos(photos){localStorage.setItem('dp_photos_'+athlete.code,JSON.
 function renderPhotoGrid(){
   var grid=document.getElementById('photoGrid');if(!grid) return;
   var photos=getPhotos(),html='';
+  var curWeek=getCurrentProgrammeWeek();
   for(var w=1;w<=12;w++){
     var weekPhotos=photos['week'+w]||{};var count=Object.keys(weekPhotos).length;var firstUrl=count?weekPhotos[Object.keys(weekPhotos)[0]]:'';
-    html+='<div class="photo-cell'+(count?' has-photo':'')+'" onclick="openPhotoModal('+w+')">';
+    var isCurrent=w===curWeek;
+    html+='<div class="photo-cell'+(count?' has-photo':'')+(isCurrent?' current-week':'')+'" onclick="openPhotoModal('+w+')">';
+    if(isCurrent&&!firstUrl) html+='<div class="photo-cell current-week-badge" style="font-family:var(--mono);font-size:8px;color:var(--run);text-transform:uppercase;letter-spacing:.06em;position:absolute;top:5px;left:6px;z-index:2;font-weight:700;line-height:1">NOW</div>';
     if(firstUrl){html+='<img src="'+firstUrl+'" alt="Week '+w+'" /><div class="photo-count">'+count+'/5</div><div class="photo-overlay">Week '+w+'</div>';}
     else{html+='<div class="photo-add">+</div><div class="photo-label">Week '+w+'</div>';}
     html+='</div>';
@@ -2426,12 +2404,11 @@ async function loadWeek(){
   var lifts=sessions.filter(function(s){return getType(s)==='strength';});
   document.getElementById('ciRuns').textContent=runs.length;document.getElementById('ciLifts').textContent=lifts.length;
   updateSessionCounter();
-  updateProgress();
   loadNutrition(); // also populates KM tracker
   if(!sessions.length){showNoplan();return;}
   renderCal(ws);
 }
-function showNoplan(){document.getElementById('noplanEl').style.display='block';var tEl=document.getElementById('todayEl');if(tEl) tEl.style.display='none';updateProgress();}
+function showNoplan(){document.getElementById('noplanEl').style.display='block';var tEl=document.getElementById('todayEl');if(tEl) tEl.style.display='none';}
 
 // ── RENDER CALENDAR ───────────────────────────────────────────────────────────
 function renderCal(ws){
@@ -3157,7 +3134,6 @@ async function tickS(i){
   if(card) card.classList.toggle('done',done);
   if(btn){btn.classList.toggle('on',done);btn.querySelector('svg').style.opacity=done?1:0;}
   updateSessionCounter();
-  updateProgress();
   api('pages/'+s.id,{properties:{Status:{select:{name:done?'Completed':'Planned'}}}});
 }
 function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),on=!btn.classList.contains('on');btn.classList.toggle('on',on);btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';}
@@ -3251,7 +3227,6 @@ async function saveGym(i,splitKey){
   lockSaveButton(i,'Save session');
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';btn.disabled=true;setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;btn.disabled=false;},2500);}}
-function updateProgress(){}
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},2500);}
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
