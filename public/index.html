@@ -1600,18 +1600,31 @@ function openCallBooking(){
 window.addEventListener('message',function(e){
   if(e.data&&e.data.event&&e.data.event==='calendly.event_scheduled'){
     var wkey=callNudgeWeekKey();
-    localStorage.setItem(wkey,'1');
+    // Extract and format the booked start time from Calendly payload
+    var displayTime='';
+    try{
+      var startTime=e.data.payload&&e.data.payload.event&&e.data.payload.event.start_time;
+      if(startTime){
+        var dt=new Date(startTime);
+        displayTime=dt.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+
+          ' · '+dt.toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit',hour12:true});
+      }
+    }catch(ex){}
+    var saveVal=displayTime||'1';
+    localStorage.setItem(wkey,JSON.stringify(saveVal));
     var nudge=document.getElementById('callNudge');
     if(nudge) nudge.style.display='none';
     var confirmed=document.getElementById('callConfirmedNudge');
     if(confirmed) confirmed.style.display='';
+    var titleEl=document.getElementById('callConfirmedTitle');
+    if(titleEl) titleEl.textContent=displayTime?'Call booked · '+displayTime:'Call booked this week';
     var dot=document.getElementById('tabDotCheckin');
     if(dot) dot.classList.remove('visible');
     if(sbClient&&athlete&&athlete.code){
       var _wkpfx='dp_call_booked_'+athlete.code.toUpperCase()+'_';
       var sbKey='call_booked_'+wkey.slice(_wkpfx.length);
       sbClient.from('athlete_data').upsert(
-        {athlete_code:athlete.code,key:sbKey,value:1,updated_at:new Date().toISOString()},
+        {athlete_code:athlete.code,key:sbKey,value:saveVal,updated_at:new Date().toISOString()},
         {onConflict:'athlete_code,key'}
       ).then(function(){},function(err){console.warn('Call booked sync failed:',err);});
     }
