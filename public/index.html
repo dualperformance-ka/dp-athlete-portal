@@ -2128,72 +2128,41 @@ async function loadNutrition(){
   document.getElementById('nutNoplan').style.display='none';
 
   var weekLabel='Week '+displayWeek;
-  var allNut=await apiAll('databases/'+NUTRITION_DB+'/query',{
-    sorts:[{property:'Week',direction:'ascending'}]
-  });
+
+  // Nutrition plans now live in Supabase (nutrition_plans) — single source of
+  // truth shared with the coaches dashboard. One row per athlete per week.
+  var row=null;
+  if(sbClient){
+    try{
+      var res=await sbClient.from('nutrition_plans').select('*')
+        .eq('athlete_code',(athlete.code||'').toUpperCase().trim())
+        .eq('week_label',weekLabel)
+        .maybeSingle();
+      if(!res.error) row=res.data;
+    }catch(e){console.warn('nutrition_plans load failed',e);}
+  }
 
   document.getElementById('nutLoadingEl').style.display='none';
 
-  if(!allNut||!allNut.results){
+  if(!row){
     document.getElementById('nutNoplan').style.display='block';
     document.getElementById('kmBar').style.display='none';
     return;
   }
 
-  var athleteIdClean=(athlete.notionPageId||'').replace(/-/g,'');
-  var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
-  var athleteCodeUpper=(athlete.code||'').toUpperCase().trim();
-
-  function getWeekValue(pr){
-    var wkProp=pr['Week'];
-    if(!wkProp) return '';
-    if(wkProp.type==='rich_text'&&wkProp.rich_text&&wkProp.rich_text[0]) return (wkProp.rich_text[0].plain_text||'').trim();
-    if(wkProp.type==='select'&&wkProp.select) return (wkProp.select.name||'').trim();
-    if(wkProp.type==='title'&&wkProp.title&&wkProp.title[0]) return (wkProp.title[0].plain_text||'').trim();
-    return getPropText(wkProp).trim();
-  }
-
-  function athleteMatches(pr){
-    var rowName=(getNotionTitle(pr)||'').toUpperCase().trim();
-    var athleteProp=pr['Athlete'];
-    var relationIds=getRelationIds(athleteProp).map(function(id){return id.replace(/-/g,'');});
-    var relationText=getPropText(athleteProp).toUpperCase().trim();
-    var idMatch=relationIds.indexOf(athleteIdClean)>=0;
-    var nameMatch=rowName===athleteNameUpper||rowName===athleteCodeUpper||relationText===athleteNameUpper||relationText===athleteCodeUpper;
-    return idMatch||nameMatch;
-  }
-
-  var matched=allNut.results.find(function(r){
-    var pr=r.properties||{};
-    return athleteMatches(pr)&&getWeekValue(pr).toLowerCase()===weekLabel.toLowerCase();
-  });
-
-  if(!matched){
-    document.getElementById('nutNoplan').style.display='block';
-    document.getElementById('kmBar').style.display='none';
-    return;
-  }
-
-  var pr=matched.properties||{};
   currentWeekKmData={week:weekLabel,target:null,completed:null,source:'nutrition_row'};
 
-  function getMacro(keys){
-    for(var i=0;i<keys.length;i++){
-      var p=pr[keys[i]];
-      if(!p) continue;
-      if(p.type==='number'&&p.number!=null) return p.number;
-      if(p.type==='rich_text'&&p.rich_text&&p.rich_text[0]) return p.rich_text[0].plain_text||'—';
-      if(p.type==='title'&&p.title&&p.title[0]) return p.title[0].plain_text||'—';
-      if(p.type==='select'&&p.select) return p.select.name||'—';
-    }
-    return '—';
+  function getMacro(v){
+    if(v==null) return '—';
+    var s=String(v).trim();
+    return s===''?'—':s;
   }
 
-  var mCal=getMacro(['Calories','Cal','kcal']);
-  var mPro=getMacro(['Protein','Protein (g)','Pro']);
-  var mCarb=getMacro(['Carbs','Carbs (g)','Carbohydrates']);
-  var mFat=getMacro(['Fats','Fat','Fats (g)','Fat (g)']);
-  var mFibre=getMacro(['Fibre','Fiber','Fibre (g)','Fiber (g)']);
+  var mCal=getMacro(row.calories);
+  var mPro=getMacro(row.protein);
+  var mCarb=getMacro(row.carbs);
+  var mFat=getMacro(row.fats);
+  var mFibre=getMacro(row.fibre);
   document.getElementById('nutCal').textContent=mCal;
   document.getElementById('nutPro').textContent=mPro;
   document.getElementById('nutCarb').textContent=mCarb;
@@ -2208,7 +2177,7 @@ async function loadNutrition(){
   }
   currentNutTargets={cal:toNutNum(mCal),pro:toNutNum(mPro),carb:toNutNum(mCarb),fat:toNutNum(mFat),fibre:toNutNum(mFibre)};
 
-  var note=getRichText(pr['Notes'])||getRichText(pr['Coach Note'])||'';
+  var note=(row.notes||'').trim();
   var noteEl=document.getElementById('nutCoachNote');
   if(note){
     noteEl.textContent='💬 '+note;
@@ -2217,8 +2186,31 @@ async function loadNutrition(){
     noteEl.style.display='none';
   }
 
-  var kmTarget=pr['Weekly KM Target']&&pr['Weekly KM Target'].number!=null?pr['Weekly KM Target'].number:null;
-  var nutritionCompleted=pr['Completed KM']&&pr['Completed KM'].number!=null?pr['Completed KM'].number:0;
+  // Weekly KM: manual target wins; otherwise auto-sum this week's planned
+  // session distances (with "Weekly KM Total: 65km" rows as a floor).
+  var kmTarget=row.weekly_km_target!=null?Number(row.weekly_km_target):null;
+  if(kmTarget==null&&sbClient){
+    try{
+      var ps=await sbClient.from('planned_sessions')
+        .select('distance_km,title,session_type')
+        .eq('athlete_code',(athlete.code||'').toUpperCase().trim())
+        .eq('week_label',weekLabel);
+      if(!ps.error&&ps.data&&ps.data.length){
+        var sum=0,declared=0;
+        ps.data.forEach(function(r2){
+          var d=parseFloat(r2.distance_km);
+          if(!isNaN(d)&&d>0) sum+=d;
+          if(r2.session_type==='Weekly KM Total'||/km total/i.test(r2.title||'')){
+            var m=(r2.title||'').match(/(\d+(?:\.\d+)?)\s*km/i);
+            if(m) declared=Math.max(declared,parseFloat(m[1]));
+          }
+        });
+        var auto=Math.round(Math.max(sum,declared)*10)/10;
+        if(auto>0) kmTarget=auto;
+      }
+    }catch(e){}
+  }
+  var nutritionCompleted=row.completed_km!=null?Number(row.completed_km):0;
   var trackerCompleted=await getWeeklyCompletedKmFromTracker(nutWeekOffset);
   var kmCompleted=trackerCompleted!=null ? trackerCompleted : nutritionCompleted;
 
