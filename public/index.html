@@ -2203,12 +2203,18 @@ async function loadNutrition(){
       if(!ps.error&&ps.data&&ps.data.length){
         var sum=0,declared=0;
         ps.data.forEach(function(r2){
-          var d=parseFloat(r2.distance_km);
-          if(!isNaN(d)&&d>0) sum+=d;
           if(r2.session_type==='Weekly KM Total'||/km total/i.test(r2.title||'')){
             var m=(r2.title||'').match(/(\d+(?:\.\d+)?)\s*km/i);
             if(m) declared=Math.max(declared,parseFloat(m[1]));
+            return;
           }
+          var d=parseFloat(r2.distance_km);
+          if(isNaN(d)||d<=0){
+            // Fall back to distance in the session title, e.g. "Easy Run — 12km"
+            var tm=(r2.title||'').match(/(\d+(?:\.\d+)?)\s*km\b(?!\s*pace)/i);
+            d=tm?parseFloat(tm[1]):0;
+          }
+          if(d>0) sum+=d;
         });
         var auto=Math.round(Math.max(sum,declared)*10)/10;
         if(auto>0) kmTarget=auto;
