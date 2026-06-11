@@ -1156,8 +1156,27 @@ const CLOUDINARY_CLOUD   = 'dtkpg96ci';
 const CLOUDINARY_PRESET  = 'dp_progress';
 const SUPABASE_URL       = 'https://rugdupplsswxmpoudhpv.supabase.co';
 const SUPABASE_ANON_KEY  = 'sb_publishable_KJU_GYqUOwthiLo5WQjfog_MLaVKw5R';
-const GYM_KEYS = ['Upper A','Upper B','Lower A','Lower B'];
+var GYM_KEYS = ['Upper A','Upper B','Lower A','Lower B']; // extended at runtime from Supabase workout_splits
 const DAYS     = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+// ── WORKOUT SPLITS (Supabase = source of truth, hardcoded STR = fallback) ────
+var SPLITS_BY_NAME={};
+function getSplit(key){return SPLITS_BY_NAME[key]||STR[key]||[];}
+async function loadWorkoutSplits(){
+  if(!sbClient) return;
+  try{
+    var res=await sbClient.from('workout_splits').select('name,athlete_code,exercises').eq('archived',false);
+    if(res.error||!res.data||!res.data.length) return;
+    var map={};
+    // global splits first, then athlete-specific variants override by name
+    res.data.forEach(function(r){ if(!r.athlete_code) map[r.name]=r.exercises||[]; });
+    res.data.forEach(function(r){ if(r.athlete_code&&athlete&&r.athlete_code===athlete.code) map[r.name]=r.exercises||[]; });
+    SPLITS_BY_NAME=map;
+    var names=Object.keys(map);
+    GYM_KEYS=names.concat(GYM_KEYS.filter(function(k){return names.indexOf(k)<0;}));
+    GYM_KEYS.sort(function(a,b){return b.length-a.length;}); // longest first so specific names match before generic
+  }catch(e){console.warn('Workout splits load failed',e);}
+}
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
 var sbClient=null,_skipSbSync=false,_sessionOverrides={};
@@ -2411,12 +2430,13 @@ async function loadWeek(){
   document.getElementById('wbar').style.display='';
   document.getElementById('loadingEl').style.display='block';
   document.getElementById('calEl').style.display='none';document.getElementById('noplanEl').style.display='none';
-  // Run library + plan fetch in parallel — both from Supabase (source of truth)
+  // Run library + workout splits + plan fetch in parallel — all from Supabase
   var results=await Promise.all([
     loadRunningLibrary(),
+    loadWorkoutSplits(),
     loadPlannedSessions()
   ]);
-  var mapped=results[1];
+  var mapped=results[2];
   document.getElementById('loadingEl').style.display='none';
   if(!mapped){showNoplan();return;}
   allSessions=mapped;
@@ -2905,7 +2925,7 @@ function getProgressionFeedback(ex,prevEffort,currentEffort){
 function getFeedbackStyle(tone){if(tone==='ok') return 'color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-border);';if(tone==='warn') return 'color:var(--run);background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.18);';return 'color:var(--dim);background:var(--surface);border:1px solid var(--border),';}
 function collectExerciseSets(i,ei){var c=document.getElementById('sets_'+i+'_'+ei),arr=[];if(!c) return arr;c.querySelectorAll('.setrow,.setrow-single').forEach(function(row){var wEl=row.querySelector('input[id^="w_"]');var rLEl=row.querySelector('input[id^="rL_"]');var rREl=row.querySelector('input[id^="rR_"]');var doneEl=row.querySelector('button[id^="st_"]');var w=wEl?wEl.value||'':'';var done=doneEl?doneEl.classList.contains('on'):false;if(rLEl&&rREl){var rL=rLEl.value||'';var rR=rREl.value||'';if(w||rL||rR||done) arr.push({weight:w,repsLeft:rL,repsRight:rR,done:done});}else{var rEl=row.querySelector('input[id^="r_"]');var r=rEl?rEl.value||'':'';if(w||r||done) arr.push({weight:w,reps:r,done:done});}});return arr;}
 function refreshStrengthFeedback(i,splitKey){
-  var exercises=STR[splitKey]||[];var s=sessions[i];
+  var exercises=getSplit(splitKey);var s=sessions[i];
   exercises.forEach(function(ex,ei){
     var resolvedEx=exPicks[ex.exercise]||ex.exercise;
     var currentEffort=collectExerciseSets(i,ei);
@@ -3085,7 +3105,7 @@ function buildBody(s,i,type){
   }else if(type==='strength'){
 
     var splitKey=GYM_KEYS.find(function(k){return(s.name||'').indexOf(k)>=0;})||'Upper A';
-    var exercises=STR[splitKey]||[],sl2=logs[s.id]||{};
+    var exercises=getSplit(splitKey),sl2=logs[s.id]||{};
     h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span>📅</span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     if(exercises.length){
       h+='<div class="ltitle">Log your sets</div><div class="exlist">';
@@ -3185,7 +3205,7 @@ function showRunSaved(i,d){
   // Keep the form visible so athletes can see their saved data for reassurance
   lockSaveButton(i,'Save session');
 }
-function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=STR[splitKey]||[];var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
+function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
 // ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
 var sessionLoggedCache={};
 async function markSessionLogged(sessionId){
@@ -3232,7 +3252,7 @@ async function saveRun(i){
 }
 async function saveGym(i,splitKey){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
-  var s=sessions[i],exercises=STR[splitKey]||[],log={};
+  var s=sessions[i],exercises=getSplit(splitKey),log={};
   exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;if(sets.length) log[useName]=sets;});
   logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
