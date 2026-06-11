@@ -1241,12 +1241,16 @@ async function loadPlannedSessions(){
 async function loadCloudData(code){
   if(!sbClient) return;
   _skipSbSync=true;
+  programmeWeeks=12;
   try{
     var res=await sbClient.from('athlete_data').select('key,value').eq('athlete_code',code);
     if(res.error||!res.data||!res.data.length){_skipSbSync=false;return;}
     // Build a set of keys that exist in Supabase
     var cloudKeys={};
     res.data.forEach(function(row){cloudKeys[row.key]=row.value;});
+    // Programme length (set by coaches in the dashboard Nutrition tab)
+    var pw=parseInt(cloudKeys['programme_weeks'],10);
+    if(!isNaN(pw)&&pw>0&&pw<=52) programmeWeeks=pw;
     // Write cloud data to localStorage (cloud is authoritative)
     res.data.forEach(function(row){
       var lsKey=null;
@@ -1349,6 +1353,7 @@ const RUN={"Threshold Work":{"description":"Warm up 15min easy. Run at sustained
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let athlete=null,weekOffset=0,nutWeekOffset=0,sessions=[],allSessions=[],ticked={},logs={},currentWeekKmData=null,exPicks={},currentNutTargets=null;
+var programmeWeeks=12; // per-athlete programme length — loaded from Supabase athlete_data key 'programme_weeks' (default 12)
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function localISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -2119,7 +2124,7 @@ async function loadNutrition(){
   var weekNum=getCurrentProgrammeWeek();
   var displayWeek=weekNum+nutWeekOffset;
   if(displayWeek<1) displayWeek=1;
-  if(displayWeek>12) displayWeek=12;
+  if(displayWeek>programmeWeeks) displayWeek=programmeWeeks;
 
   currentWeekKmData=null;
   document.getElementById('nutWLabel').textContent='Week '+displayWeek;
@@ -2235,7 +2240,7 @@ function renderPhotoGrid(){
   var grid=document.getElementById('photoGrid');if(!grid) return;
   var photos=getPhotos(),html='';
   var curWeek=getCurrentProgrammeWeek();
-  for(var w=1;w<=12;w++){
+  for(var w=1;w<=programmeWeeks;w++){
     var weekPhotos=photos['week'+w]||{};var count=Object.keys(weekPhotos).length;var firstUrl=count?weekPhotos[Object.keys(weekPhotos)[0]]:'';
     var isCurrent=w===curWeek;
     html+='<div class="photo-cell'+(count?' has-photo':'')+(isCurrent?' current-week':'')+'" onclick="openPhotoModal('+w+')">';
@@ -2409,7 +2414,7 @@ function toggleWeightLog(){
 function getCurrentProgrammeWeek(){
   var wkS=sessions.find(function(s){return s.week;});
   if(wkS){var m=wkS.week.match(/\d+/);if(m) return parseInt(m[0]);}
-  if(athlete.startDate&&athlete.startDate!=='—'){var start=new Date(athlete.startDate);var now=new Date();var diff=Math.floor((now-start)/(7*24*60*60*1000))+1;return Math.max(1,Math.min(12,diff));}
+  if(athlete.startDate&&athlete.startDate!=='—'){var start=new Date(athlete.startDate);var now=new Date();var diff=Math.floor((now-start)/(7*24*60*60*1000))+1;return Math.max(1,Math.min(programmeWeeks,diff));}
   return 1;
 }
 
