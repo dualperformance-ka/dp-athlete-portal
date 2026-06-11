@@ -1192,13 +1192,31 @@ var sbClient=null,_skipSbSync=false,_sessionOverrides={};
   };
 })();
 
-async function loadSessionOverrides(){
-  _sessionOverrides={};
-  if(!sbClient) return;
+// Coach prescription overrides now live directly on planned_sessions rows in
+// Supabase — loadPlannedSessions() populates _sessionOverrides from each row.
+async function loadPlannedSessions(){
+  if(!sbClient) return null;
   try{
-    var res=await sbClient.from('session_overrides').select('*');
-    ((res&&res.data)||[]).forEach(function(r){ _sessionOverrides[r.notion_page_id]=r; });
-  }catch(e){ console.warn('Session overrides load failed',e); }
+    var res=await sbClient.from('planned_sessions').select('*')
+      .eq('athlete_code',athlete.code)
+      .order('planned_date',{ascending:true});
+    if(res.error||!res.data) return null;
+    _sessionOverrides={};
+    return res.data.map(function(r){
+      var key=r.notion_page_id||r.id;
+      if(r.distance_km!=null||r.target_pace||r.warm_up||r.intervals||r.working_pace||r.rest||r.cool_down||r.notes){
+        _sessionOverrides[key]={notion_page_id:key,name:null,
+          distance_km:r.distance_km,target_pace:r.target_pace,warm_up:r.warm_up,
+          intervals:r.intervals,working_pace:r.working_pace,rest:r.rest,
+          cool_down:r.cool_down,notes:r.notes};
+      }
+      return{id:key,name:r.title||'Session',date:r.planned_date||'',
+        sessionType:r.session_type||'',status:r.status||'Planned',
+        runningSession:'',runningSessionIds:[],
+        runningLibraryIds:r.library_id?[r.library_id]:[],
+        runDetails:r.run_details||'',intensity:r.intensity||'',week:r.week_label||''};
+    });
+  }catch(e){ console.warn('Planned sessions load failed',e); return null; }
 }
 
 async function loadCloudData(code){
@@ -2393,24 +2411,15 @@ async function loadWeek(){
   document.getElementById('wbar').style.display='';
   document.getElementById('loadingEl').style.display='block';
   document.getElementById('calEl').style.display='none';document.getElementById('noplanEl').style.display='none';
-  // Run library, overrides and calendar fetch in parallel — saves ~1-2s per load
+  // Run library + plan fetch in parallel — both from Supabase (source of truth)
   var results=await Promise.all([
     loadRunningLibrary(),
-    loadSessionOverrides(),
-    api('databases/'+CALENDAR_DB+'/query',{filter:{property:'Athlete',relation:{contains:athlete.notionPageId}},sorts:[{property:'Planned Date',direction:'ascending'}],page_size:100})
+    loadPlannedSessions()
   ]);
-  var data=results[2];
+  var mapped=results[1];
   document.getElementById('loadingEl').style.display='none';
-  if(!data||!data.results){showNoplan();return;}
-  allSessions=data.results.map(function(p){
-    var pr=p.properties;
-    return{id:p.id,name:getNotionTitle(pr),date:pr['Planned Date']&&pr['Planned Date'].date&&pr['Planned Date'].date.start||'',
-      sessionType:getPropText(pr['Session Type']),status:getPropText(pr['Status']),
-      runningSession:getPropText(pr['Running Session'])||'',runningSessionIds:getRelationIds(pr['Running Session']),
-      runningLibraryIds:(getRelationIds(pr['Running Library']).concat(getRelationIds(pr['NEW Running Library']))).filter(Boolean),
-      runDetails:getPropText(pr['Run Details'])||getPropText(pr['run details'])||getPropText(pr['Description'])||getPropText(pr['Notes'])||getPropText(pr['Coach Notes'])||'',
-      intensity:getPropText(pr['Intensity']),week:getPropText(pr['Week'])};
-  });
+  if(!mapped){showNoplan();return;}
+  allSessions=mapped;
   sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
   if(weekOffset===0) initPhotoNudge();
   renderTodaySection();
@@ -3255,18 +3264,19 @@ else { var savedCode=localStorage.getItem('dp_auth_code'); if(savedCode) doLogin
 
 // ============================================================================
 // RUNNING LIBRARY INTEGRATION
-// Enhances calendar sessions with full workout details from Notion
+// Enhances calendar sessions with full workout details from the Supabase
+// session_library table (source of truth — replaces the Notion library)
 // ============================================================================
 
 const RUNNING_LIBRARY_BY_ID = {};
 
 // Fetch all Running Library workouts on page load
-var RUN_LIB_CACHE_KEY='dp_run_library_cache';
+var RUN_LIB_CACHE_KEY='dp_run_library_cache_v2'; // v2 = Supabase-backed
 var RUN_LIB_CACHE_TTL=10*60*1000; // 10 minutes
 
 async function loadRunningLibrary() {
   try {
-    // Try localStorage cache first (stores processed data, not raw Notion pages)
+    // Try localStorage cache first (stores processed data)
     try {
       var cached=JSON.parse(localStorage.getItem(RUN_LIB_CACHE_KEY)||'null');
       if(cached && cached.ts && (Date.now()-cached.ts)<RUN_LIB_CACHE_TTL && cached.byId){
@@ -3284,20 +3294,44 @@ async function loadRunningLibrary() {
       }
     } catch(e){}
 
-    console.log('Loading Running Library from Notion...');
-    const data = await apiAll('databases/' + RUN_DB + '/query', {});
-
-    if (data && data.results) {
-      processRunLibraryResults(data.results);
-      // Cache the processed data (much smaller than raw Notion pages)
-      try {
-        localStorage.setItem(RUN_LIB_CACHE_KEY, JSON.stringify({ts:Date.now(), byId:RUNNING_LIBRARY_BY_ID}));
-      } catch(e){}
-      console.log('Running Library loaded from Notion:', Object.keys(RUNNING_LIBRARY_BY_ID).length, 'workouts');
-    }
+    if(!sbClient) return;
+    console.log('Loading Running Library from Supabase...');
+    var res = await sbClient.from('session_library').select('*').eq('archived', false);
+    if (res.error || !res.data) { console.warn('Session library load failed', res.error); return; }
+    processLibraryRows(res.data);
+    // Cache the processed data
+    try {
+      localStorage.setItem(RUN_LIB_CACHE_KEY, JSON.stringify({ts:Date.now(), byId:RUNNING_LIBRARY_BY_ID}));
+    } catch(e){}
+    console.log('Running Library loaded from Supabase:', res.data.length, 'workouts');
   } catch (error) {
     console.error('Failed to load Running Library:', error);
   }
+}
+
+// Map a Supabase session_library row to the shape the portal renderers expect.
+// Each template is keyed by BOTH its Supabase uuid and its migrated Notion page
+// id, so old planned sessions linked by Notion id still resolve.
+function processLibraryRows(rows) {
+  rows.forEach(function(r) {
+    var mapped = {
+      name: r.name || '', type: r.session_type || '', description: r.description || '',
+      difficulty: r.difficulty || '', distance: r.distance || '', duration: r.duration || '',
+      rpe: r.rpe || '', intensity: r.intensity || '', phase: r.phase || '',
+      surface: r.surface || '', fatigue: r.fatigue || '', recovery: r.recovery || '',
+      goal: r.goal || '', warmup: r.warm_up || '', cooldown: r.cool_down || '',
+      prereqs: r.prereqs || '', slot: r.slot || '', targetPace: r.target_pace || '',
+      tags: '', alternative: r.alternative || ''
+    };
+    [r.id, r.notion_page_id].filter(Boolean).forEach(function(id) {
+      RUNNING_LIBRARY_BY_ID[id] = mapped;
+      runLibraryById[id] = Object.assign({}, runLibraryById[id] || {}, mapped, {
+        warmUp: mapped.warmup, coolDown: mapped.cooldown,
+        sessionGoal: mapped.goal, recoveryType: mapped.recovery
+      });
+    });
+    if (mapped.name) runLibraryByName[mapped.name.toLowerCase()] = runLibraryById[r.id];
+  });
 }
 
 function processRunLibraryResults(results) {
