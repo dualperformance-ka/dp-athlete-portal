@@ -385,6 +385,99 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .ex-pill{font-family:var(--mono);font-size:10px;padding:5px 10px;border:1px solid var(--border-mid);border-radius:20px;background:var(--surface);color:var(--muted);cursor:pointer;letter-spacing:.02em;white-space:nowrap;line-height:1.4;transition:all .12s;-webkit-tap-highlight-color:transparent}
 .ex-pill.active{background:#0a0a0a;border-color:#0a0a0a;color:#fff}
 .ex-pill:active{opacity:.7}
+
+/* ── MOBILE POLISH ─────────────────────────────────────────────────────────── */
+/* Hero pills scroll horizontally instead of squeezing/clipping */
+.hpills{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.hpills::-webkit-scrollbar{display:none}
+/* Bigger tap targets */
+.warr,.wtoday{min-height:36px;min-width:38px}
+.hicon{min-height:28px}
+.hb-modal-close,.ql-modal-close{width:38px;height:38px}
+.photo-modal-close{padding:6px 10px}
+@media(max-width:400px){
+  .todaytitle{font-size:25px}
+  .mv{font-size:30px}
+  .hpills{gap:5px}
+  .tab{padding:12px 13px}
+}
+
+/* ── HOVER STATES (mouse/trackpad only) ────────────────────────────────────── */
+@media(hover:hover){
+  .sch:hover{background:var(--surface2)}
+  .hb-card:hover{border-color:var(--border-mid);transform:translateY(-2px)}
+  .tab:hover{color:rgba(255,255,255,.7)}
+  .warr:hover,.wtoday:hover,.nut-arr:hover{border-color:rgba(255,255,255,.35);color:rgba(255,255,255,.85)}
+  .savebtn:hover,.ci-btn-next:hover,.lbtn:hover,.save-run-btn:hover{background:#262626}
+  .savebtn.saved:hover,.save-run-btn.saved:hover{background:var(--ok)}
+  .tick:hover{border-color:var(--border-strong)}
+  .race-opt:hover{border-color:var(--border-strong)}
+  .ci-btn-back:hover{border-color:var(--border-strong)}
+  .photo-cell:hover,.angle-slot:hover{border-color:var(--border-strong)}
+  .quicklog-btn:hover{opacity:.85}
+  .accordion-header:hover{background:var(--surface2)}
+}
+
+/* ── DESKTOP LAYOUT (≥900px) ───────────────────────────────────────────────── */
+@media(min-width:900px){
+  :root{--shellpad:max(32px,calc((100vw - 1120px)/2))}
+  /* Align the dark shell (header, hero, bars) with the content column */
+  header{padding:0 var(--shellpad)}
+  .hero{padding:22px var(--shellpad) 16px}
+  .hn{font-size:54px}
+  .hero-week-num{font-size:32px}
+  .hpills{flex-wrap:wrap;overflow:visible}
+  .wbar{padding:10px var(--shellpad)}
+  .tabs{padding:0 calc(var(--shellpad) - 16px)}
+  .nudge-strip{padding:14px var(--shellpad)}
+  .nudge-strip-inner{max-width:none}
+  .tab-content{max-width:none;padding:28px var(--shellpad) 150px}
+
+  /* Training: today panel sticky on the left, week plan on the right */
+  #tab-training.active{display:grid;grid-template-columns:minmax(330px,400px) minmax(0,1fr);gap:28px;align-items:start}
+  #tab-training>.goals-prompt,#tab-training>.loading,#tab-training>.noplan{grid-column:1/-1}
+  #tab-training .todaywrap{position:sticky;top:164px;margin-bottom:0}
+  #tab-training>#calEl{min-width:0}
+  .dg:first-child .dgh{padding-top:0}
+
+  /* Nutrition: macros across one row, cards flow into two columns */
+  .nut-wbar{margin:0 0 18px;border-radius:12px}
+  .macro-grid{grid-template-columns:repeat(5,1fr)}
+  .macro-grid .mc.fibre{grid-column:auto !important}
+  #nutContent{column-count:2;column-gap:16px}
+  #nutContent>*{break-inside:avoid}
+  #nutContent>.macro-grid,#nutContent>.cnote{column-span:all}
+
+  /* Goals: cards flow into two columns */
+  #tab-goals.active{column-count:2;column-gap:16px}
+  #tab-goals>*{break-inside:avoid}
+  #tab-goals>.stitle,#tab-goals>.goals-hero,#tab-goals>.savebtn{column-span:all;display:block}
+
+  /* Progress: stats across one row, cards flow into two columns */
+  #tab-progress.active{column-count:2;column-gap:16px}
+  #tab-progress>*{break-inside:avoid}
+  #tab-progress>.stitle,#tab-progress>.progress-stats{column-span:all}
+  #tab-progress>.progress-stats{grid-template-columns:repeat(4,1fr) !important}
+
+  /* Check-in + comms: comfortable centered column */
+  #tab-checkin,#tab-comms{max-width:860px;margin-left:auto;margin-right:auto}
+
+  /* Handbook: three-up card grid */
+  .hb-grid{grid-template-columns:repeat(3,1fr)}
+
+  /* Modals: centered dialogs instead of bottom sheets */
+  .hb-modal,.ql-modal,.photo-modal{align-items:center;justify-content:center;padding:28px}
+  .hb-modal-inner,.ql-modal-inner,.photo-modal-inner{border-radius:18px;max-width:680px}
+  .hb-modal-inner{max-height:82vh}
+
+  /* Quick-log strip + floating button align with the shell */
+  .quicklog-strip{padding-left:var(--shellpad);padding-right:var(--shellpad);justify-content:center}
+  .quicklog-btn{flex:0 1 280px}
+  .wa-fab{right:var(--shellpad)}
+
+  /* Login centered vertically-ish on big screens */
+  .lw{padding-top:120px}
+}
 </style>
 </head>
 <body>
@@ -1354,6 +1447,7 @@ const RUN={"Threshold Work":{"description":"Warm up 15min easy. Run at sustained
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let athlete=null,weekOffset=0,nutWeekOffset=0,sessions=[],allSessions=[],ticked={},logs={},currentWeekKmData=null,exPicks={},currentNutTargets=null;
 var programmeWeeks=12; // per-athlete programme length — loaded from Supabase athlete_data key 'programme_weeks' (default 12)
+var _nutLastLoad=0; // timestamp of last nutrition load — gates refetch on rapid tab switching
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function localISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -1461,8 +1555,7 @@ async function doLogin(code){
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
   localStorage.setItem('dp_auth_code',code);
-  await loadCloudData(code);
-  await loadSessionLogs();
+  await Promise.all([loadCloudData(code),loadSessionLogs()]); // independent — run in parallel
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
   exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
@@ -1678,7 +1771,7 @@ function switchTab(tab){
   document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+tab);});
   var isTraining=tab==='training';
   document.getElementById('wbar').style.display=isTraining?'':'none';
-  if(tab==='nutrition') loadNutrition();
+  if(tab==='nutrition'&&Date.now()-_nutLastLoad>60000) loadNutrition(); // skip refetch if loaded <60s ago (week shifts & post-save always reload directly)
   if(tab==='checkin') initCheckin();
   if(tab==='progress') loadProgress();
 }
@@ -2134,6 +2227,10 @@ async function loadNutrition(){
 
   var weekLabel='Week '+displayWeek;
 
+  // Kick off the completed-KM tracker scan now — it's the slowest fetch and is
+  // independent of the nutrition row, so it runs in parallel.
+  var trackerPromise=getWeeklyCompletedKmFromTracker(nutWeekOffset).catch(function(){return null;});
+
   // Nutrition plans now live in Supabase (nutrition_plans) — single source of
   // truth shared with the coaches dashboard. One row per athlete per week.
   var row=null;
@@ -2147,6 +2244,7 @@ async function loadNutrition(){
     }catch(e){console.warn('nutrition_plans load failed',e);}
   }
 
+  _nutLastLoad=Date.now();
   document.getElementById('nutLoadingEl').style.display='none';
 
   if(!row){
@@ -2222,7 +2320,7 @@ async function loadNutrition(){
     }catch(e){}
   }
   var nutritionCompleted=row.completed_km!=null?Number(row.completed_km):0;
-  var trackerCompleted=await getWeeklyCompletedKmFromTracker(nutWeekOffset);
+  var trackerCompleted=await trackerPromise;
   var kmCompleted=trackerCompleted!=null ? trackerCompleted : nutritionCompleted;
 
   currentWeekKmData.target=kmTarget;
@@ -2354,21 +2452,19 @@ async function loadProgress(){
   document.getElementById('pgLoadingEl').style.display='block';
   document.getElementById('pgWeightLog').style.display='none';
   document.getElementById('pgNoData').style.display='none';
-  // Pull from Supabase (primary — portal logs)
+  // Pull Supabase (primary — portal logs) and Notion (direct entries) in parallel.
+  // Supabase is processed first so Notion only fills gaps.
   var sbEntries={};
-  if(sbClient){
-    try{
-      var sbRes=await sbClient.from('athlete_data').select('key,value').eq('athlete_code',athlete.code).like('key','daily_body_%');
-      if(sbRes.data){sbRes.data.forEach(function(row){var date=row.key.replace('daily_body_','');if(row.value&&row.value.weight) sbEntries[date]=row.value;});}
-    }catch(e){}
-  }
-  // Also pull from Notion — fills in entries logged directly (bypassing portal)
-  if(athlete.notionPageId){
-    try{
-      var nRes=await api('databases/'+DAILY_BODY_DB+'/query',{filter:{property:'AthleteID',rich_text:{equals:athlete.notionPageId}},sorts:[{property:'Date',direction:'descending'}],page_size:100});
-      if(nRes&&nRes.results){nRes.results.forEach(function(row){var props=row.properties||{};var date=props['Date']&&props['Date'].date&&props['Date'].date.start?props['Date'].date.start.slice(0,10):'';var wt=props['Weight']&&props['Weight'].number!=null?props['Weight'].number:null;if(date&&wt!=null&&!sbEntries[date]){sbEntries[date]={date:date,weight:String(wt)};}});}
-    }catch(e){}
-  }
+  var sbPromise=sbClient?sbClient.from('athlete_data').select('key,value').eq('athlete_code',athlete.code).like('key','daily_body_%').then(function(r){return r;},function(){return null;}):Promise.resolve(null);
+  var nPromise=athlete.notionPageId?api('databases/'+DAILY_BODY_DB+'/query',{filter:{property:'AthleteID',rich_text:{equals:athlete.notionPageId}},sorts:[{property:'Date',direction:'descending'}],page_size:100}).catch(function(){return null;}):Promise.resolve(null);
+  var both=await Promise.all([sbPromise,nPromise]);
+  var sbRes=both[0],nRes=both[1];
+  try{
+    if(sbRes&&sbRes.data){sbRes.data.forEach(function(row){var date=row.key.replace('daily_body_','');if(row.value&&row.value.weight) sbEntries[date]=row.value;});}
+  }catch(e){}
+  try{
+    if(nRes&&nRes.results){nRes.results.forEach(function(row){var props=row.properties||{};var date=props['Date']&&props['Date'].date&&props['Date'].date.start?props['Date'].date.start.slice(0,10):'';var wt=props['Weight']&&props['Weight'].number!=null?props['Weight'].number:null;if(date&&wt!=null&&!sbEntries[date]){sbEntries[date]={date:date,weight:String(wt)};}});}
+  }catch(e){}
   document.getElementById('pgLoadingEl').style.display='none';
   var entries=Object.values(sbEntries).filter(function(e){return e.weight&&!isNaN(parseFloat(e.weight));}).map(function(e){return{date:e.date,weight:parseFloat(e.weight)};}).sort(function(a,b){return b.date.localeCompare(a.date);});
   if(!entries.length){document.getElementById('pgNoData').style.display='block';renderWeightChart([],null);return;}
