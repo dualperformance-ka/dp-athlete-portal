@@ -1278,7 +1278,32 @@ var sbClient=null,_skipSbSync=false,_sessionOverrides={};
   try{sbClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);}catch(e){console.warn('Supabase init failed',e);}
 })();
 
-// Intercept all localStorage writes — auto-sync dp_ keys to Supabase
+// Intercept all localStorage writes — auto-sync dp_ keys to Supabase.
+// Drafts can fire on every keystroke, so the cloud write is DEBOUNCED (batched
+// ~1.5s after the last change) instead of firing per keystroke. Pending writes
+// are force-flushed the moment the athlete backgrounds or closes the tab, so the
+// latest edits reach Supabase before a mobile browser evicts/reloads the page.
+var _sbSyncTimers={},_sbSyncPending={};
+function _flushSbKey(sbKey){
+  if(_sbSyncTimers[sbKey]){clearTimeout(_sbSyncTimers[sbKey]);delete _sbSyncTimers[sbKey];}
+  var p=_sbSyncPending[sbKey];
+  if(!p||!sbClient) return;
+  delete _sbSyncPending[sbKey];
+  try{
+    sbClient.from('athlete_data').upsert(
+      {athlete_code:p.code,key:sbKey,value:p.value,updated_at:new Date().toISOString()},
+      {onConflict:'athlete_code,key'}
+    ).then(function(){},function(){});
+  }catch(e){}
+}
+function _flushAllSb(){Object.keys(_sbSyncPending).forEach(_flushSbKey);}
+function _scheduleSbSync(code,sbKey,parsed){
+  _sbSyncPending[sbKey]={code:code,value:parsed};
+  if(_sbSyncTimers[sbKey]) clearTimeout(_sbSyncTimers[sbKey]);
+  _sbSyncTimers[sbKey]=setTimeout(function(){_flushSbKey(sbKey);},1500);
+}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')_flushAllSb();});
+window.addEventListener('pagehide',_flushAllSb);
 (function(){
   var _orig=localStorage.setItem.bind(localStorage);
   localStorage.setItem=function(key,value){
@@ -1294,13 +1319,7 @@ var sbClient=null,_skipSbSync=false,_sessionOverrides={};
     else if(key.startsWith('dp_daily_body_'+code+'_')) sbKey='daily_body_'+key.slice(('dp_daily_body_'+code+'_').length);
     else if(key.startsWith('dp_daily_nut_'+code+'_')) sbKey='daily_nut_'+key.slice(('dp_daily_nut_'+code+'_').length);
     if(!sbKey) return;
-    try{
-      var parsed=JSON.parse(value);
-      sbClient.from('athlete_data').upsert(
-        {athlete_code:code,key:sbKey,value:parsed,updated_at:new Date().toISOString()},
-        {onConflict:'athlete_code,key'}
-      ).then(function(){}).catch(function(){});
-    }catch(e){}
+    try{_scheduleSbSync(code,sbKey,JSON.parse(value));}catch(e){}
   };
 })();
 
@@ -1347,6 +1366,24 @@ async function loadCloudData(code){
     // Write cloud data to localStorage (cloud is authoritative)
     res.data.forEach(function(row){
       var lsKey=null;
+      // LOGS: never let an older cloud copy clobber a newer local draft.
+      // (Athletes were losing in-progress gym/run data on reload because the
+      //  cloud copy was treated as authoritative even when a fresher local
+      //  draft existed — e.g. the last keystrokes hadn't synced before the
+      //  mobile browser reloaded the tab.)
+      if(row.key==='logs'){
+        var _cloudLogs=row.value||null;
+        var _localLogs=null;try{_localLogs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'null');}catch(e){}
+        var _cloudT=(_cloudLogs&&_cloudLogs.__savedAt)||0;
+        var _localT=(_localLogs&&_localLogs.__savedAt)||0;
+        if(_localLogs&&_localT>_cloudT){
+          // Local draft is newer — keep it, and push it up so other devices catch up.
+          try{sbClient.from('athlete_data').upsert({athlete_code:code,key:'logs',value:_localLogs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'}).then(function(){},function(){});}catch(e){}
+        }else if(_cloudLogs){
+          localStorage.setItem('dp_logs_'+code,JSON.stringify(_cloudLogs));
+        }
+        return;
+      }
       if(row.key==='goals') lsKey='dp_goals_'+code;
       else if(row.key==='logs') lsKey='dp_logs_'+code;
       else if(row.key==='ticked') lsKey='dp_ticked_'+code;
@@ -3283,7 +3320,7 @@ function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),
 function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+ei);var isSL=!!document.getElementById('rL_'+i+'_'+ei+'_0');var si=c.querySelectorAll('.setrow,.setrow-single').length;var row=document.createElement('div');var delBtn='<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+splitKey+'\')" title="Remove set">×</button>';if(isSL){row.className='setrow-single extra';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div>'+'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="L" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="R" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">'+'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;}else{row.className='setrow extra';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div>'+'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">'+'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;}c.appendChild(row);}
 function deleteSet(btn,i,ei,splitKey){var row=btn.closest('.setrow,.setrow-single');var c=row.parentElement;row.remove();c.querySelectorAll('.setrow,.setrow-single').forEach(function(r,idx){var sn=r.querySelector('.snum');if(sn) sn.textContent=idx+1;});draftGym(i,splitKey);}
 function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;if(s>=60){var m=Math.floor(s/60),rem=s%60;return rem?m+'min '+rem+'s rest':m+' min rest';}return s+'s rest';}
-function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}
+function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));}
 function editRun(i){var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);if(form) form.style.display='block';if(saved) saved.style.display='none';}
 function showRunSaved(i,d){
   var s=sessions[i];if(!d){d=logs[s?s.id:null]||{};}
@@ -3304,7 +3341,7 @@ function showRunSaved(i,d){
   // Keep the form visible so athletes can see their saved data for reassurance
   lockSaveButton(i,'Save session');
 }
-function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));refreshStrengthFeedback(i,splitKey);}
+function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);}
 // ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
 var sessionLoggedCache={};
 async function markSessionLogged(sessionId){
@@ -3339,7 +3376,7 @@ function lockSaveButton(i,label){
 async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
-  logs[s.id]=d;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+  logs[s.id]=d;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
   var runDateEl=document.getElementById('run_date_'+i);var runDate=runDateEl&&runDateEl.value?runDateEl.value:(s.date||new Date().toISOString().slice(0,10));
   await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+runDate,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:runDate,submittedAt:new Date().toISOString()})}).catch(function(){});
@@ -3353,7 +3390,7 @@ async function saveGym(i,splitKey){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i],exercises=getSplit(splitKey),log={};
   exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;if(sets.length) log[useName]=sets;});
-  logs[s.id]=log;localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+  logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
   var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:(s.date||new Date().toISOString().slice(0,10));
   var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
