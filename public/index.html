@@ -132,6 +132,10 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .tick.on{background:var(--ok);border-color:var(--ok)}
 .tick svg{opacity:0.2;transition:opacity .12s}
 .tick.on svg{opacity:1}
+.sc.marked{border-color:#fcd34d;background:#fffbeb}
+.tick.marked{background:#fff;border-color:#fcd34d}
+.tick.marked svg{opacity:1;stroke:#b45309}
+.sc-nudge{font-family:var(--mono);font-size:10px;color:#b45309;background:#fffbeb;border-top:1px solid #fcd34d;padding:6px 16px;letter-spacing:.02em}
 .scb{display:none;padding:0 16px 16px;border-top:1px solid var(--border)}
 .scb.open{display:block}
 .cnote{background:var(--surface2);border-left:3px solid var(--border-mid);border-radius:0 6px 6px 0;padding:10px 12px;margin:12px 0;font-size:13px;color:var(--muted);font-style:italic;line-height:1.5}
@@ -1894,11 +1898,12 @@ function todayISO2(){return localISO(new Date());}
 // ── SESSION COUNTER ───────────────────────────────────────────────────────────
 function updateSessionCounter(){
   var total=sessions.length;
-  var done=sessions.filter(function(s){return ticked[s.id];}).length;
+  var done=sessions.filter(function(s){return logHasRealData(logs[s.id])||s.status==='Completed';}).length;
+  var marked=sessions.filter(function(s){return !(logHasRealData(logs[s.id])||s.status==='Completed')&&ticked[s.id];}).length;
   var el=document.getElementById('heroSessionsDone');
   var val=document.getElementById('heroSessionsDoneVal');
   if(!el||!val) return;
-  if(total>0){val.textContent=done+' / '+total+' done';el.style.display='';}
+  if(total>0){val.textContent=done+' / '+total+' done'+(marked>0?' · '+marked+' marked':'');el.style.display='';}
   else{el.style.display='none';}
 }
 
@@ -2614,8 +2619,21 @@ function renderCal(ws){
   var el=document.getElementById('calEl');el.innerHTML=html;el.style.display='block';
 }
 
+function logHasRealData(v){
+  if(!v||typeof v!=='object') return false;
+  return Object.entries(v).some(function(e){
+    var k=e[0],val=e[1];
+    if(k==='__savedAt') return false;
+    if(Array.isArray(val)) return val.length>0; // gym: exercise -> sets[]
+    if(val&&typeof val==='object') return Object.keys(val).length>0;
+    return val!==''&&val!=null; // run: distance/pace/rpe/...
+  });
+}
 function buildCard(s,i){
-  var type=getType(s),done=!!(ticked[s.id]||s.status==='Completed');
+  var type=getType(s);
+  var logged=logHasRealData(logs[s.id]);
+  var done=logged||s.status==='Completed';
+  var marked=!done&&!!ticked[s.id];
   var displayName=s.name||'Session';
   var metaLine='';
   if(type==='run'){
@@ -2626,15 +2644,16 @@ function buildCard(s,i){
     var meta=[];if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);
     metaLine=meta.join(' · ');
   }
-  var h='<div class="sc'+(done?' done':'')+'" id="sc_'+i+'">';
+  var h='<div class="sc'+(done?' done':'')+(marked?' marked':'')+'" id="sc_'+i+'">';
   h+='<div class="sch" onclick="togS('+i+')">';
   h+='<div class="sdot dot-'+type+'"></div>';
   h+='<div class="sinfo"><div class="sname '+type+'">'+esc(displayName)+'</div>';
   if(metaLine) h+='<div class="smeta">'+esc(metaLine)+'</div>';
   h+='</div>';
-  h+='<button class="tick'+(done?' on':'')+'" id="tick_'+i+'" onclick="event.stopPropagation();tickS('+i+')">';
+  h+='<button class="tick'+(done?' on':'')+(marked?' marked':'')+'" id="tick_'+i+'" onclick="event.stopPropagation();tickS('+i+')">';
   h+='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
   h+='</button></div>';
+  if(marked) h+='<div class="sc-nudge" id="nudge_'+i+'">Marked — tap to open &amp; log your data</div>';
   h+='<div class="scb" id="scb_'+i+'">'+buildBody(s,i,type)+'</div></div>';
   return h;
 }
@@ -3315,14 +3334,33 @@ function buildBody(s,i,type){
 
 function togS(i){var el=document.getElementById('scb_'+i);if(el) el.classList.toggle('open');}
 async function tickS(i){
-  var s=sessions[i],done=!ticked[s.id];
-  ticked[s.id]=done;localStorage.setItem('dp_ticked_'+athlete.code,JSON.stringify(ticked));
+  var s=sessions[i],on=!ticked[s.id];
+  ticked[s.id]=on;localStorage.setItem('dp_ticked_'+athlete.code,JSON.stringify(ticked));
   if(sbClient){try{sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'ticked',value:ticked,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'}).then(function(){}).catch(function(){});}catch(e){}}
+  var hasData=logHasRealData(logs[s.id]);
   var card=document.getElementById('sc_'+i),btn=document.getElementById('tick_'+i);
-  if(card) card.classList.toggle('done',done);
-  if(btn){btn.classList.toggle('on',done);btn.querySelector('svg').style.opacity=done?1:0;}
+  if(card){card.classList.toggle('done',on&&hasData);card.classList.toggle('marked',on&&!hasData);}
+  if(btn){btn.classList.toggle('on',on&&hasData);btn.classList.toggle('marked',on&&!hasData);btn.querySelector('svg').style.opacity=on?1:0;}
+  // Toggle the inline "tap to log" nudge for the marked (ticked-but-unlogged) state
+  var nudge=document.getElementById('nudge_'+i);
+  if(on&&!hasData){
+    if(!nudge&&card){nudge=document.createElement('div');nudge.id='nudge_'+i;nudge.className='sc-nudge';nudge.innerHTML='Marked — tap to open &amp; log your data';var scb=document.getElementById('scb_'+i);card.insertBefore(nudge,scb);}
+  }else if(nudge){nudge.remove();}
   updateSessionCounter();
-  api('pages/'+s.id,{properties:{Status:{select:{name:done?'Completed':'Planned'}}}});
+  // NOTE: a bare tick must NOT set Notion Status='Completed' — the coaches dashboard
+  // treats Completed as Done. Only saveRun/saveGym mark a session Completed in Notion.
+}
+async function markSessionDone(i){
+  var s=sessions[i];if(!s) return;
+  ticked[s.id]=true;localStorage.setItem('dp_ticked_'+athlete.code,JSON.stringify(ticked));
+  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'ticked',value:ticked,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
+  var card=document.getElementById('sc_'+i),btn=document.getElementById('tick_'+i);
+  if(card){card.classList.remove('marked');card.classList.add('done');}
+  if(btn){btn.classList.remove('marked');btn.classList.add('on');var sv=btn.querySelector('svg');if(sv) sv.style.opacity=1;}
+  var nudge=document.getElementById('nudge_'+i);if(nudge) nudge.remove();
+  updateSessionCounter();
+  // A saved log with real data = Done → mirror to Notion so the coaches dashboard agrees
+  api('pages/'+s.id,{properties:{Status:{select:{name:'Completed'}}}});
 }
 function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),on=!btn.classList.contains('on');btn.classList.toggle('on',on);btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';}
 function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+ei);var isSL=!!document.getElementById('rL_'+i+'_'+ei+'_0');var si=c.querySelectorAll('.setrow,.setrow-single').length;var row=document.createElement('div');var delBtn='<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+splitKey+'\')" title="Remove set">×</button>';if(isSL){row.className='setrow-single extra';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div>'+'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="L" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="R" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">'+'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;}else{row.className='setrow extra';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum">'+(si+1)+'</div>'+'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">'+'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;}c.appendChild(row);}
@@ -3389,7 +3427,7 @@ async function saveRun(i){
   var runDateEl=document.getElementById('run_date_'+i);var runDate=runDateEl&&runDateEl.value?runDateEl.value:(s.date||new Date().toISOString().slice(0,10));
   await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+runDate,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:runDate,submittedAt:new Date().toISOString()})}).catch(function(){});
   await markSessionLogged(s.id);
-    if(!ticked[s.id]) await tickS(i);
+    await markSessionDone(i);
   showToast('Run saved ✓');
   showRunSaved(i,d);
   await loadNutrition();
@@ -3405,7 +3443,7 @@ async function saveGym(i,splitKey){
   var fetches=Object.keys(log).filter(function(k){return k!=='__notes';}).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()})}).catch(function(){});});
   await Promise.all(fetches);
   await markSessionLogged(s.id);
-    if(!ticked[s.id]) await tickS(i);
+    await markSessionDone(i);
   refreshStrengthFeedback(i,splitKey);
   showToast('Session saved ✓');
   var gymSavedBanner=document.getElementById('gym_saved_'+i);
