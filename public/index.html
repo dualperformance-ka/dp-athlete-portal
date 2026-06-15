@@ -459,8 +459,14 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   #tab-progress>.stitle,#tab-progress>.progress-stats{column-span:all}
   #tab-progress>.progress-stats{grid-template-columns:repeat(4,1fr) !important}
 
-  /* Check-in + comms: comfortable centered column */
-  #tab-checkin,#tab-comms{max-width:860px;margin-left:auto;margin-right:auto}
+  /* Comms: comfortable centered column */
+  #tab-comms{max-width:860px;margin-left:auto;margin-right:auto}
+
+  /* Check-in: stats + book-call in a sticky left rail, wizard fills the main column */
+  #tab-checkin.active{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);gap:28px;align-items:start}
+  #tab-checkin>.stitle{grid-column:1/-1;margin-bottom:0}
+  #tab-checkin>.ci-rail{position:sticky;top:164px;min-width:0}
+  #tab-checkin>.ci-main{min-width:0}
 
   /* Handbook: three-up card grid */
   .hb-grid{grid-template-columns:repeat(3,1fr)}
@@ -782,11 +788,11 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
   <!-- CHECK-IN -->
   <div class="tab-content" id="tab-checkin">
     <div class="stitle">Weekly Check-in</div>
+    <div class="ci-rail">
     <div class="ci-grid" style="margin-bottom:14px">
       <div class="ci-card run"><div class="ci-val" id="ciRuns">—</div><div class="ci-lbl">Runs this week</div></div>
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
     </div>
-    <div id="accWeeklyContent">
         <!-- STEP 1: BOOK -->
         <div style="background:#0a0a0a;border-radius:10px;margin-bottom:16px;overflow:hidden">
           <!-- Accordion header -->
@@ -817,6 +823,8 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
             else{body.style.maxHeight='700px';chevron.style.transform='rotate(90deg)';}
           }
         </script>
+    </div><!-- /ci-rail -->
+    <div class="ci-main" id="accWeeklyContent">
         <!-- STEP 2: CHECK-IN FORM -->
         <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.14em;margin-bottom:12px">Step 2 — Complete your check-in</div>
         <div id="ciFormContent">
