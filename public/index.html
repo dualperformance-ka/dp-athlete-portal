@@ -1252,11 +1252,12 @@ const WEEKLY_KM_DB       = 'PASTE_YOUR_WEEKLY_KM_DATABASE_ID_HERE';
 const NUTRITION_DB       = '3405a96cc70b80de9221c2a40653277c';
 const DAILY_BODY_DB      = '3405a96cc70b80a4b1b9cf5b9c236f18';
 const ATHLETE_SESSION_TRACKER_DB = 'PASTE_YOUR_ATHLETE_SESSION_TRACKER_DB_ID_HERE';
-const WEBHOOK            = 'https://hook.eu1.make.com/yjrg278x8bwehy6y19yiphluynmq3v8x';
-const CHECKIN_WEBHOOK    = 'https://hook.eu1.make.com/52u1745oht7hlg48nfewr7ltwhddp6pz';
-const DAILY_BODY_WEBHOOK = 'https://hook.eu1.make.com/kq6ezqonfvyhx7cy7rwqgg7p4fuzk4na';
-const DAILY_NUT_WEBHOOK  = 'https://hook.eu1.make.com/ub1fq7r25teunvb6zu54azmpgxpnbshy';
-const GOALS_WEBHOOK      = 'https://hook.eu1.make.com/jaarg8xo3kepd8mnyytr6akrrgn15hw1';
+// Writes migrated off Make → single Vercel serverless function /api/write (routed by payload.type)
+const WEBHOOK            = '/api/write';
+const CHECKIN_WEBHOOK    = '/api/write';
+const DAILY_BODY_WEBHOOK = '/api/write';
+const DAILY_NUT_WEBHOOK  = '/api/write';
+const GOALS_WEBHOOK      = '/api/write';
 const CLOUDINARY_CLOUD   = 'dtkpg96ci';
 const CLOUDINARY_PRESET  = 'dp_progress';
 const SUPABASE_URL       = 'https://rugdupplsswxmpoudhpv.supabase.co';
@@ -2061,12 +2062,17 @@ async function submitQuickBody(){
 }
 async function submitQuickNut(){
   var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
+  var nutDate=document.getElementById('qlnDate').value;
   var payload={type:'daily_nutrition',athleteName:athlete.name,athleteId:athlete.notionPageId,
-    date:document.getElementById('qlnDate').value,calories:document.getElementById('qlnCal').value||'',
-    protein:document.getElementById('qlnPro').value||'',carbs:document.getElementById('qlnCarbs').value||'',
-    fat:document.getElementById('qlnFat').value||'',fibre:document.getElementById('qlnFibre').value||'',notes:document.getElementById('qlnNotes').value||''};
+    notes:document.getElementById('qlnNotes').value||''};
+  if(nutDate) payload.date=nutDate;
+  // Only send numeric macros that actually have a value — empty strings break Notion number fields
+  [['calories','qlnCal'],['protein','qlnPro'],['carbs','qlnCarbs'],['fat','qlnFat'],['fibre','qlnFibre']].forEach(function(_f){
+    var _v=document.getElementById(_f[1]).value;
+    if(_v!==''&&_v!=null) payload[_f[0]]=_v;
+  });
   try{await fetch(DAILY_NUT_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
-  localStorage.setItem('dp_daily_nut_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
+  localStorage.setItem('dp_daily_nut_'+athlete.code+'_'+nutDate,JSON.stringify(payload));
   closeQuickLog('nut');
   showToast('Nutrition logged ✓');
   btn.textContent='Log Nutrition';btn.disabled=false;
