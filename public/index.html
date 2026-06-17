@@ -18,6 +18,7 @@
   --text:#0a0a0a;--muted:#5a5a5a;--dim:#999;
   --run:#b45309;--strength:#1a327a;--rest:#9ca3af;
   --ok:#15803d;--ok-bg:#f0fdf4;--ok-border:#86efac;
+  --pb:#7c3aed;--pb-bg:#f5f3ff;--pb-border:#c4b5fd;
   --mono:'DM Mono',monospace;--display:'Barlow Condensed',sans-serif;--body:'Barlow',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -168,8 +169,13 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .sin:focus{border-color:var(--border-strong)}
 .st{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--border-mid);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto;flex-shrink:0;transition:all .12s}
 .st.on{background:var(--ok);border-color:var(--ok)}
+.st.pb-on{background:var(--pb);border-color:var(--pb)}
 .st svg{opacity:0;transition:opacity .1s}
-.st.on svg{opacity:1}
+.st.on svg,.st.pb-on svg{opacity:1}
+.setrow,.setrow-single{position:relative}
+.setrow.has-pb .sin,.setrow-single.has-pb .sin{border-color:var(--pb-border);background:var(--pb-bg)}
+.pb-badge{position:absolute;right:-2px;top:-8px;font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.03em;background:var(--pb);color:#fff;padding:2px 6px;border-radius:9px;white-space:nowrap;z-index:3;box-shadow:0 1px 4px rgba(124,58,237,.35);animation:pbpop .3s ease}
+@keyframes pbpop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
 .setrow.extra{grid-template-columns:22px 1fr 1fr 36px 26px}
 .setrow-single.extra{grid-template-columns:22px 1fr 1fr 1fr 36px 26px}
 .del-set{width:22px;height:22px;border-radius:50%;border:1px solid var(--border-mid);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:14px;line-height:1;padding:0;transition:all .12s;flex-shrink:0;margin:0 auto}
@@ -3393,7 +3399,7 @@ function showRunSaved(i,d){
   // Keep the form visible so athletes can see their saved data for reassurance
   lockSaveButton(i,'Save session');
 }
-function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);try{renderPbCelebration(i,detectSessionPBs(s.id,log));}catch(e){}}
+function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);try{markInlinePbs(i,splitKey);}catch(e){}}
 // ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
 var sessionLoggedCache={};
 async function markSessionLogged(sessionId){
@@ -3521,27 +3527,52 @@ function detectSessionPBs(sessionId,log){
   });
   return all;
 }
-// Render a celebratory PB strip above the save button
-function renderPbCelebration(i,hits){
-  var old=document.getElementById('pb_celebrate_'+i);if(old) old.remove();
-  if(!hits||!hits.length) return;
-  var rows=hits.map(function(h){
-    var detail=h.previous!=null?('was '+h.previous+(h.type==='reps'?' reps':(h.type==='e1rm'?'kg':'kg'))):'';
-    var head=h.exercise+' · '+h.value+(h.unit?(h.unit.indexOf('kg')===0?h.unit:' '+h.unit):'');
-    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(180,130,20,.18)">'
-      +'<span style="font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.06em;color:#7a5800;background:rgba(212,160,23,.16);border:1px solid rgba(212,160,23,.4);border-radius:5px;padding:3px 6px;white-space:nowrap">'+esc(h.badge)+'</span>'
-      +'<span style="font-size:13px;font-weight:700;color:#3a2c00;flex:1">'+esc(head)+'</span>'
-      +'<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:#a06a00">'+esc(h.delta)+'</span>'
-      +'</div>';
-  }).join('');
-  var box=document.createElement('div');
-  box.id='pb_celebrate_'+i;
-  box.style.cssText='margin:10px 0;padding:12px 14px;border-radius:12px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid rgba(212,160,23,.5);box-shadow:0 2px 10px rgba(180,130,20,.12)';
-  box.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px"><span style="font-size:18px">🏆</span>'
-    +'<span style="font-family:var(--display);font-size:14px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#7a5800">New personal best'+(hits.length>1?'s':'')+'!</span></div>'
-    +rows;
-  var sbBtn=document.getElementById('sb_'+i);
-  if(sbBtn&&sbBtn.parentNode) sbBtn.parentNode.insertBefore(box,sbBtn);
+// Mark PB sets inline — purple highlight + "NEW PB" badge on the exact set row that
+// achieved it (live, no button press). Evaluates each DOM row in place so the badge
+// always lands on the right set regardless of empty/edited rows.
+function markInlinePbs(i,splitKey){
+  var s=sessions[i];if(!s) return 0;
+  var exercises=getSplit(splitKey),total=0;
+  exercises.forEach(function(ex,ei){
+    var container=document.getElementById('sets_'+i+'_'+ei);
+    if(!container) return;
+    // Clear any previous marks (so PBs disappear live when a value drops below)
+    container.querySelectorAll('.setrow,.setrow-single').forEach(function(row){
+      row.classList.remove('has-pb');
+      var b=row.querySelector('.pb-badge');if(b) b.remove();
+      var t=row.querySelector('button[id^="st_"]');
+      if(t){t.classList.remove('pb-on');
+        if(t.classList.contains('on')){t.style.background='var(--ok)';t.style.borderColor='var(--ok)';}
+        else{t.style.background='transparent';t.style.borderColor='var(--border-mid)';}
+      }
+    });
+    var resolvedEx=exPicks[ex.exercise]||ex.exercise;
+    var stored=pbComputeStored(resolvedEx,s.id);
+    if(stored.load==null&&stored.reps==null&&stored.e1rm==null&&stored.volume==null) return; // first-ever seeds silently
+    var loadW=stored.load?pbNum(stored.load.weight):null;
+    var minLoad=loadW!=null?loadW*0.6:0;
+    var rW=stored.reps?pbNum(stored.reps.weight):null,rR=stored.reps?stored.reps.reps:null;
+    var bestLoad=null,bestRep=null,bestE=null;
+    container.querySelectorAll('.setrow').forEach(function(row){ // single-leg rows have no r_ input → skipped, matching detection
+      var wEl=row.querySelector('input[id^="w_"]'),rEl=row.querySelector('input[id^="r_"]');
+      if(!wEl||!rEl) return;
+      var w=pbNum(wEl.value),r=parseInt(rEl.value,10);
+      if(w==null||w<=0||isNaN(r)||r<=0||w<minLoad) return;
+      if(loadW!=null&&r<=PB_REP_CAP&&w>loadW){if(!bestLoad||w>bestLoad.w) bestLoad={row:row,w:w};}
+      if(rW!=null&&r<=PB_REP_CAP&&w>=rW&&r>rR){if(!bestRep||r>bestRep.r) bestRep={row:row,r:r};}
+      if(stored.e1rm&&r<=10){var e=pbE1rm(w,r);if(e!=null&&e>stored.e1rm.value){if(!bestE||e>bestE.e) bestE={row:row,e:e};}}
+    });
+    var rowsToMark=[];
+    [bestLoad,bestRep,bestE].forEach(function(b){if(b){total++;if(rowsToMark.indexOf(b.row)<0) rowsToMark.push(b.row);}});
+    rowsToMark.forEach(function(row){
+      row.classList.add('has-pb');
+      var t=row.querySelector('button[id^="st_"]');
+      if(t){t.classList.add('pb-on');t.style.background='var(--pb)';t.style.borderColor='var(--pb)';}
+      var badge=document.createElement('div');badge.className='pb-badge';badge.textContent='🏆 NEW PB';
+      row.appendChild(badge);
+    });
+  });
+  return total;
 }
 
 async function saveGym(i,splitKey){
@@ -3558,7 +3589,7 @@ async function saveGym(i,splitKey){
   await markSessionLogged(s.id);
     await markSessionDone(i);
   refreshStrengthFeedback(i,splitKey);
-  renderPbCelebration(i,pbHits);
+  try{markInlinePbs(i,splitKey);}catch(e){}
   showToast(pbHits.length?('🏆 '+pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session saved ✓');
   var gymSavedBanner=document.getElementById('gym_saved_'+i);
   if(!gymSavedBanner){
