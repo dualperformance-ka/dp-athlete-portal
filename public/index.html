@@ -3438,6 +3438,110 @@ async function saveRun(i){
   showRunSaved(i,d);
   await loadNutrition();
 }
+// ── PERSONAL BEST DETECTION ───────────────────────────────────────────────────
+// Stored PBs are derived on the fly from `logs` history (the Supabase-synced source
+// of truth) — no separate table. Rules per Dual Performance spec:
+//  1 Load PB   — any single set weight > stored load weight
+//  2 Rep PB    — more reps at the same or greater weight than the stored rep record
+//  3 Strength  — Brzycki e1RM (w*36/(37-r)) beats stored e1RM; valid for reps 1–10 only
+//  4 Volume PB — session total (Σ w*r) beats stored volume
+// Guards: never flag if reps>10; never flag a set below 60% of stored load PB
+// (the portal captures no RPE, so the "no RPE" branch of the guard always applies).
+function pbNum(v){var n=parseFloat(v);return isNaN(n)?null:n;}
+function pbRound1(n){return Math.round(n*10)/10;}
+function pbE1rm(w,r){if(r<1||r>10) return null;return w*36/(37-r);}
+function pbCleanSets(sets){
+  return (sets||[]).map(function(s,idx){
+    return {set:idx+1,weight:pbNum(s.weight),reps:parseInt(s.reps,10),rpe:pbNum(s.rpe)};
+  }).filter(function(s){return s.weight!=null&&s.weight>0&&!isNaN(s.reps)&&s.reps>0;});
+}
+// Fold one session's sets into a stored-pbs object (history seeding, no flagging)
+function pbFold(stored,sets){
+  var clean=pbCleanSets(sets);if(!clean.length) return;
+  clean.forEach(function(s){
+    if(stored.load==null||s.weight>pbNum(stored.load.weight)) stored.load={weight:s.weight,reps:s.reps};
+    if(stored.reps==null||s.reps>stored.reps.reps) stored.reps={weight:s.weight,reps:s.reps};
+    var e=pbE1rm(s.weight,s.reps);
+    if(e!=null&&(stored.e1rm==null||e>stored.e1rm.value)) stored.e1rm={value:pbRound1(e)};
+  });
+  var vol=clean.reduce(function(a,s){return a+(s.reps<=10?s.weight*s.reps:0);},0);
+  if(stored.volume==null||vol>stored.volume.value) stored.volume={value:pbRound1(vol)};
+}
+function pbSessionDate(sid){try{for(var k=0;k<sessions.length;k++){if(sessions[k].id===sid) return sessions[k].date||'';}}catch(e){}return '';}
+// Build stored PBs for an exercise from all history EXCLUDING the current session
+function pbComputeStored(exName,excludeId){
+  var stored={load:null,reps:null,e1rm:null,volume:null};
+  Object.keys(logs).forEach(function(sid){
+    if(sid===excludeId||sid.indexOf('__')===0) return;
+    var sess=logs[sid];if(!sess||typeof sess!=='object'||Array.isArray(sess)) return;
+    var sets=sess[exName];if(!Array.isArray(sets)||!sets.length) return;
+    pbFold(stored,sets);
+  });
+  return stored;
+}
+// Detect new PBs for one exercise's sets against stored pbs
+function detectExercisePBs(exName,sets,stored){
+  stored=stored||{load:null,reps:null,e1rm:null,volume:null};
+  var clean=pbCleanSets(sets),hits=[];
+  if(!clean.length) return hits;
+  var firstEver=stored.load==null&&stored.reps==null&&stored.e1rm==null&&stored.volume==null;
+  if(firstEver) return hits; // first-ever log seeds history silently
+  var loadW=stored.load?pbNum(stored.load.weight):null;
+  var minLoad=loadW!=null?loadW*0.6:0;
+  // LOAD
+  if(loadW!=null){var best=null;
+    clean.forEach(function(s){if(s.reps>10) return;if(s.weight<minLoad&&s.rpe==null) return;if(s.weight>loadW){if(!best||s.weight>best.weight) best=s;}});
+    if(best) hits.push({type:'load',badge:'LOAD PB',exercise:exName,set:best.set,value:best.weight,unit:'kg',previous:loadW,delta:'+'+pbRound1(best.weight-loadW)+'kg'});
+  }
+  // REP
+  if(stored.reps){var rW=pbNum(stored.reps.weight),rR=stored.reps.reps,bestR=null;
+    clean.forEach(function(s){if(s.reps>10) return;if(loadW!=null&&s.weight<minLoad&&s.rpe==null) return;if(s.weight>=rW&&s.reps>rR){if(!bestR||s.reps>bestR.reps) bestR=s;}});
+    if(bestR) hits.push({type:'reps',badge:'REP PB',exercise:exName,set:bestR.set,value:bestR.reps,unit:'reps',previous:rR,delta:'+'+(bestR.reps-rR)+' reps'});
+  }
+  // STRENGTH (e1RM)
+  if(stored.e1rm){var bestE=null,bestEval=null;
+    clean.forEach(function(s){if(s.reps>10) return;if(loadW!=null&&s.weight<minLoad&&s.rpe==null) return;var e=pbE1rm(s.weight,s.reps);if(e!=null&&e>stored.e1rm.value){if(bestEval==null||e>bestEval){bestEval=e;bestE=s;}}});
+    if(bestE) hits.push({type:'e1rm',badge:'STRENGTH PB',exercise:exName,set:bestE.set,value:pbRound1(bestEval),unit:'kg e1RM',previous:stored.e1rm.value,delta:'+'+pbRound1(bestEval-stored.e1rm.value)+'kg'});
+  }
+  // VOLUME (reps>10 sets excluded per the global rule)
+  if(stored.volume){var vol=clean.reduce(function(a,s){return a+(s.reps<=10?s.weight*s.reps:0);},0);
+    if(vol>stored.volume.value) hits.push({type:'volume',badge:'VOLUME PB',exercise:exName,value:pbRound1(vol),unit:'kg',previous:stored.volume.value,delta:'+'+pbRound1(vol-stored.volume.value)+'kg'});
+  }
+  return hits;
+}
+// Run detection across a whole saved session
+function detectSessionPBs(sessionId,log){
+  var all=[];
+  Object.keys(log).forEach(function(exName){
+    if(exName.indexOf('__')===0) return;
+    var sets=log[exName];if(!Array.isArray(sets)||!sets.length) return;
+    all=all.concat(detectExercisePBs(exName,sets,pbComputeStored(exName,sessionId)));
+  });
+  return all;
+}
+// Render a celebratory PB strip above the save button
+function renderPbCelebration(i,hits){
+  var old=document.getElementById('pb_celebrate_'+i);if(old) old.remove();
+  if(!hits||!hits.length) return;
+  var rows=hits.map(function(h){
+    var detail=h.previous!=null?('was '+h.previous+(h.type==='reps'?' reps':(h.type==='e1rm'?'kg':'kg'))):'';
+    var head=h.exercise+' · '+h.value+(h.unit?(h.unit.indexOf('kg')===0?h.unit:' '+h.unit):'');
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(180,130,20,.18)">'
+      +'<span style="font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.06em;color:#7a5800;background:rgba(212,160,23,.16);border:1px solid rgba(212,160,23,.4);border-radius:5px;padding:3px 6px;white-space:nowrap">'+esc(h.badge)+'</span>'
+      +'<span style="font-size:13px;font-weight:700;color:#3a2c00;flex:1">'+esc(head)+'</span>'
+      +'<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:#a06a00">'+esc(h.delta)+'</span>'
+      +'</div>';
+  }).join('');
+  var box=document.createElement('div');
+  box.id='pb_celebrate_'+i;
+  box.style.cssText='margin:10px 0;padding:12px 14px;border-radius:12px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid rgba(212,160,23,.5);box-shadow:0 2px 10px rgba(180,130,20,.12)';
+  box.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px"><span style="font-size:18px">🏆</span>'
+    +'<span style="font-family:var(--display);font-size:14px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#7a5800">New personal best'+(hits.length>1?'s':'')+'!</span></div>'
+    +rows;
+  var sbBtn=document.getElementById('sb_'+i);
+  if(sbBtn&&sbBtn.parentNode) sbBtn.parentNode.insertBefore(box,sbBtn);
+}
+
 async function saveGym(i,splitKey){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i],exercises=getSplit(splitKey),log={};
@@ -3446,12 +3550,14 @@ async function saveGym(i,splitKey){
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
   var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:(s.date||new Date().toISOString().slice(0,10));
   var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
+  var pbHits=[];try{pbHits=detectSessionPBs(s.id,log);}catch(e){console.warn('PB detection failed:',e);}
   var fetches=Object.keys(log).filter(function(k){return k!=='__notes';}).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps';}).join(' | '),notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()})}).catch(function(){});});
   await Promise.all(fetches);
   await markSessionLogged(s.id);
     await markSessionDone(i);
   refreshStrengthFeedback(i,splitKey);
-  showToast('Session saved ✓');
+  renderPbCelebration(i,pbHits);
+  showToast(pbHits.length?('🏆 '+pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session saved ✓');
   var gymSavedBanner=document.getElementById('gym_saved_'+i);
   if(!gymSavedBanner){
     var sbBtn=document.getElementById('sb_'+i);
