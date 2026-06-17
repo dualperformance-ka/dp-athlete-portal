@@ -3091,7 +3091,7 @@ function getProgressionFeedback(ex,prevEffort,currentEffort){
   }
   return{tone:'dim',text:'Progress reps to '+topRep};
 }
-function getFeedbackStyle(tone){if(tone==='ok') return 'color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-border);';if(tone==='warn') return 'color:var(--run);background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.18);';return 'color:var(--dim);background:var(--surface);border:1px solid var(--border),';}
+function getFeedbackStyle(tone){if(tone==='ok') return 'color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-border);';if(tone==='warn') return 'color:var(--run);background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.18);';return 'color:var(--dim);background:var(--surface);border:1px solid var(--border);';}
 function collectExerciseSets(i,ei){var c=document.getElementById('sets_'+i+'_'+ei),arr=[];if(!c) return arr;c.querySelectorAll('.setrow,.setrow-single').forEach(function(row){var wEl=row.querySelector('input[id^="w_"]');var rLEl=row.querySelector('input[id^="rL_"]');var rREl=row.querySelector('input[id^="rR_"]');var doneEl=row.querySelector('button[id^="st_"]');var w=wEl?wEl.value||'':'';var done=doneEl?doneEl.classList.contains('on'):false;if(rLEl&&rREl){var rL=rLEl.value||'';var rR=rREl.value||'';if(w||rL||rR||done) arr.push({weight:w,repsLeft:rL,repsRight:rR,done:done});}else{var rEl=row.querySelector('input[id^="r_"]');var r=rEl?rEl.value||'':'';if(w||r||done) arr.push({weight:w,reps:r,done:done});}});return arr;}
 function refreshStrengthFeedback(i,splitKey){
   var exercises=getSplit(splitKey);var s=sessions[i];
@@ -3393,7 +3393,7 @@ function showRunSaved(i,d){
   // Keep the form visible so athletes can see their saved data for reassurance
   lockSaveButton(i,'Save session');
 }
-function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);}
+function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);try{renderPbCelebration(i,detectSessionPBs(s.id,log));}catch(e){}}
 // ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
 var sessionLoggedCache={};
 async function markSessionLogged(sessionId){
@@ -3445,8 +3445,10 @@ async function saveRun(i){
 //  2 Rep PB    — more reps at the same or greater weight than the stored rep record
 //  3 Strength  — Brzycki e1RM (w*36/(37-r)) beats stored e1RM; valid for reps 1–10 only
 //  4 Volume PB — session total (Σ w*r) beats stored volume
-// Guards: never flag if reps>10; never flag a set below 60% of stored load PB
-// (the portal captures no RPE, so the "no RPE" branch of the guard always applies).
+// Guards: Load/Rep/Volume flag up to PB_REP_CAP reps (hypertrophy range); e1RM stays
+// capped at 10 (Brzycki invalid beyond that). Never flag a set below 60% of stored load
+// PB (the portal captures no RPE, so the "no RPE" branch of the guard always applies).
+var PB_REP_CAP=12;
 function pbNum(v){var n=parseFloat(v);return isNaN(n)?null:n;}
 function pbRound1(n){return Math.round(n*10)/10;}
 function pbE1rm(w,r){if(r<1||r>10) return null;return w*36/(37-r);}
@@ -3464,7 +3466,7 @@ function pbFold(stored,sets){
     var e=pbE1rm(s.weight,s.reps);
     if(e!=null&&(stored.e1rm==null||e>stored.e1rm.value)) stored.e1rm={value:pbRound1(e)};
   });
-  var vol=clean.reduce(function(a,s){return a+(s.reps<=10?s.weight*s.reps:0);},0);
+  var vol=clean.reduce(function(a,s){return a+(s.reps<=PB_REP_CAP?s.weight*s.reps:0);},0);
   if(stored.volume==null||vol>stored.volume.value) stored.volume={value:pbRound1(vol)};
 }
 function pbSessionDate(sid){try{for(var k=0;k<sessions.length;k++){if(sessions[k].id===sid) return sessions[k].date||'';}}catch(e){}return '';}
@@ -3490,12 +3492,12 @@ function detectExercisePBs(exName,sets,stored){
   var minLoad=loadW!=null?loadW*0.6:0;
   // LOAD
   if(loadW!=null){var best=null;
-    clean.forEach(function(s){if(s.reps>10) return;if(s.weight<minLoad&&s.rpe==null) return;if(s.weight>loadW){if(!best||s.weight>best.weight) best=s;}});
+    clean.forEach(function(s){if(s.reps>PB_REP_CAP) return;if(s.weight<minLoad&&s.rpe==null) return;if(s.weight>loadW){if(!best||s.weight>best.weight) best=s;}});
     if(best) hits.push({type:'load',badge:'LOAD PB',exercise:exName,set:best.set,value:best.weight,unit:'kg',previous:loadW,delta:'+'+pbRound1(best.weight-loadW)+'kg'});
   }
   // REP
   if(stored.reps){var rW=pbNum(stored.reps.weight),rR=stored.reps.reps,bestR=null;
-    clean.forEach(function(s){if(s.reps>10) return;if(loadW!=null&&s.weight<minLoad&&s.rpe==null) return;if(s.weight>=rW&&s.reps>rR){if(!bestR||s.reps>bestR.reps) bestR=s;}});
+    clean.forEach(function(s){if(s.reps>PB_REP_CAP) return;if(loadW!=null&&s.weight<minLoad&&s.rpe==null) return;if(s.weight>=rW&&s.reps>rR){if(!bestR||s.reps>bestR.reps) bestR=s;}});
     if(bestR) hits.push({type:'reps',badge:'REP PB',exercise:exName,set:bestR.set,value:bestR.reps,unit:'reps',previous:rR,delta:'+'+(bestR.reps-rR)+' reps'});
   }
   // STRENGTH (e1RM)
@@ -3503,8 +3505,8 @@ function detectExercisePBs(exName,sets,stored){
     clean.forEach(function(s){if(s.reps>10) return;if(loadW!=null&&s.weight<minLoad&&s.rpe==null) return;var e=pbE1rm(s.weight,s.reps);if(e!=null&&e>stored.e1rm.value){if(bestEval==null||e>bestEval){bestEval=e;bestE=s;}}});
     if(bestE) hits.push({type:'e1rm',badge:'STRENGTH PB',exercise:exName,set:bestE.set,value:pbRound1(bestEval),unit:'kg e1RM',previous:stored.e1rm.value,delta:'+'+pbRound1(bestEval-stored.e1rm.value)+'kg'});
   }
-  // VOLUME (reps>10 sets excluded per the global rule)
-  if(stored.volume){var vol=clean.reduce(function(a,s){return a+(s.reps<=10?s.weight*s.reps:0);},0);
+  // VOLUME (sets above PB_REP_CAP reps excluded per the global rule)
+  if(stored.volume){var vol=clean.reduce(function(a,s){return a+(s.reps<=PB_REP_CAP?s.weight*s.reps:0);},0);
     if(vol>stored.volume.value) hits.push({type:'volume',badge:'VOLUME PB',exercise:exName,value:pbRound1(vol),unit:'kg',previous:stored.volume.value,delta:'+'+pbRound1(vol-stored.volume.value)+'kg'});
   }
   return hits;
