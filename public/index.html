@@ -1689,15 +1689,44 @@ function setRaceFromValue(val){
 }
 
 // ── EXERCISE PICKS (persisted per-exercise memory) ───────────────────────────
+// Rebuild the header PB / e1RM / Vol stat block for one exercise slot from the
+// chosen exercise's OWN history. Called when an athlete switches a variant so the
+// stats never show a different exercise's records. (markInlinePbs refills Vol live.)
+function refreshExerciseStat(i,ei,resolvedEx){
+  var statEl=document.getElementById('exstat_'+i+'_'+ei);if(!statEl) return;
+  var s=sessions[i];if(!s) return;
+  var stored=pbComputeStored(resolvedEx,s.id);
+  var isSingleLeg=resolvedEx.toLowerCase().indexOf('single leg')>=0;
+  var sh='';
+  if(stored.load) sh+='<div class="ex-stat ex-stat-pb">🏆 PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
+  if(stored.e1rm) sh+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
+  if(!isSingleLeg) sh+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol">Vol 0kg</div>';
+  statEl.innerHTML=sh;
+}
 function pickEx(exName,chosen){
   exPicks[exName]=chosen;
   localStorage.setItem('dp_ex_picks_'+athlete.code,JSON.stringify(exPicks));
   if(sbClient){try{sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'ex_picks',value:exPicks,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'}).then(function(){}).catch(function(){});}catch(e){}}
-  document.querySelectorAll('[data-pg="'+exName.replace(/[^a-z0-9]/gi,'_')+'"]').forEach(function(p){
+  var safeKey=exName.replace(/[^a-z0-9]/gi,'_');
+  document.querySelectorAll('[data-pg="'+safeKey+'"]').forEach(function(p){
     p.classList.toggle('active',p.dataset.pv===chosen);
   });
-  var nameEl=document.getElementById('exn_'+exName.replace(/[^a-z0-9]/gi,'_'));
+  var nameEl=document.getElementById('exn_'+safeKey);
   if(nameEl) nameEl.textContent=chosen;
+  // Re-pull the chosen variant's own history: PB / e1RM / Vol header + LAST/TARGET
+  // pill + inline set badges all refresh to match, so stats stay per-exercise.
+  var card=nameEl?nameEl.closest('.exc'):null;
+  var setsEl=card?card.querySelector('[id^="sets_"]'):null;
+  var m=setsEl?setsEl.id.match(/^sets_(\d+)_(\d+)$/):null;
+  if(m){
+    var i=+m[1],ei=+m[2],s=sessions[i];
+    if(s){
+      var splitKey=GYM_KEYS.find(function(k){return((s.name||'').indexOf(k)>=0);})||'Upper A';
+      refreshExerciseStat(i,ei,chosen);
+      try{refreshStrengthFeedback(i,splitKey);}catch(e){}
+      try{markInlinePbs(i,splitKey);}catch(e){}
+    }
+  }
 }
 
 async function saveGoals(){
@@ -3318,11 +3347,11 @@ function buildBody(s,i,type){
         h+='<div class="exm">'+esc(ex.sets)+' sets'+(ex.rest?' · '+formatRest(ex.rest)+' rest':'')+'</div>';
         if(ex.notes) h+='<div class="exnotes">'+esc(ex.notes)+'</div>';
         h+='</div>';
-        if(stored.load||stored.e1rm||!isSingleLeg){h+='<div style="text-align:right;flex-shrink:0">';
+        h+='<div id="exstat_'+i+'_'+ei+'" style="text-align:right;flex-shrink:0">';
           if(stored.load) h+='<div class="ex-stat ex-stat-pb">🏆 PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
           if(stored.e1rm) h+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
           if(!isSingleLeg) h+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol'+(isVolPB?' pb':'')+'">'+(isVolPB?'🏆 ':'')+'Vol '+Math.round(initVol).toLocaleString()+'kg</div>';
-          h+='</div>';}
+          h+='</div>';
         h+='</div>';
         h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center">';
         if(prevEffort){var prevStr=prevEffort.map(function(ps){return(ps.weight?ps.weight+'kg':'—')+(ps.reps?' × '+ps.reps:'');}).join(' | ');h+='<div id="prev_'+i+'_'+ei+'" style="font-family:var(--mono);font-size:9px;color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:4px;padding:3px 8px;display:inline-block">LAST: '+esc(prevStr)+'</div>';}
@@ -3529,6 +3558,11 @@ function platesHtml(total){
   return label+'<div class="plate-pills">'+pills+'</div>';
 }
 function pbNum(v){var n=parseFloat(v);return isNaN(n)?null:n;}
+// Normalise an exercise name for history matching: lowercase, collapse internal
+// whitespace, trim. Keeps each exercise's PB history bound to the same exercise even
+// if the name is logged with different casing or stray spaces ("Bench Press" /
+// "bench  press " all fold together). Does NOT merge genuinely different exercises.
+function pbNormName(n){return String(n==null?'':n).toLowerCase().replace(/\s+/g,' ').trim();}
 function pbRound1(n){return Math.round(n*10)/10;}
 function pbE1rm(w,r){if(r<1||r>10) return null;return w*36/(37-r);}
 function pbCleanSets(sets){
@@ -3552,11 +3586,17 @@ function pbSessionDate(sid){try{for(var k=0;k<sessions.length;k++){if(sessions[k
 // Build stored PBs for an exercise from all history EXCLUDING the current session
 function pbComputeStored(exName,excludeId){
   var stored={load:null,reps:null,e1rm:null,volume:null};
+  var target=pbNormName(exName);
   Object.keys(logs).forEach(function(sid){
     if(sid===excludeId||sid.indexOf('__')===0) return;
     var sess=logs[sid];if(!sess||typeof sess!=='object'||Array.isArray(sess)) return;
-    var sets=sess[exName];if(!Array.isArray(sets)||!sets.length) return;
-    pbFold(stored,sets);
+    // Match on normalised name so casing/whitespace variants of the SAME exercise
+    // still share one PB history, while different exercises stay fully independent.
+    Object.keys(sess).forEach(function(k){
+      if(k.indexOf('__')===0||pbNormName(k)!==target) return;
+      var sets=sess[k];if(!Array.isArray(sets)||!sets.length) return;
+      pbFold(stored,sets);
+    });
   });
   return stored;
 }
