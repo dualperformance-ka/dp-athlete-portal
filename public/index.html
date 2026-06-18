@@ -77,6 +77,13 @@ header{background:#0a0a0a;height:54px;padding:0 16px;display:flex;align-items:ce
 .nudge-strip-title{font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.7)}
 .nudge-strip-sub{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.05em;margin-top:1px}
 .nudge-strip-arr{font-family:var(--mono);font-size:14px;color:rgba(255,255,255,.25);flex-shrink:0}
+#checkinNudge{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015));border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(146,210,237,.08);position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
+#checkinNudge::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,rgba(34,197,94,.75),rgba(34,197,94,.2))}
+#checkinNudge .nudge-strip-inner{position:relative}
+#checkinNudge .nudge-strip-icon{width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.22);box-shadow:0 0 0 1px rgba(255,255,255,.02) inset}
+#checkinNudge .nudge-strip-title{color:#fff}
+#checkinNudge .nudge-strip-sub{color:rgba(255,255,255,.48)}
+#checkinNudge .nudge-strip-arr{color:#92d2ed}
 @media(min-width:768px){
   .nudge-strip{padding:16px 24px;border-top:1px solid rgba(255,255,255,.05)}
   .nudge-strip-icon{font-size:22px}
@@ -652,14 +659,14 @@ renderCode();
   </div>
 
   <!-- CHECK-IN NUDGE — disappears once submitted -->
-  <div id="checkinNudge" class="nudge-strip" style="display:none;background:linear-gradient(135deg,#16a34a,#15803d);border-top:1px solid rgba(255,255,255,.08)" onclick="switchTab('checkin')">
+  <div id="checkinNudge" class="nudge-strip" style="display:none" onclick="switchTab('checkin')">
     <div class="nudge-strip-inner">
       <span class="nudge-strip-icon">📋</span>
       <div class="nudge-strip-text">
-        <div class="nudge-strip-title" style="color:#fff">Time for your weekly check-in</div>
-        <div class="nudge-strip-sub" style="color:rgba(255,255,255,.6)">2 min · helps us coach you better</div>
+        <div class="nudge-strip-title">Time for your weekly check-in</div>
+        <div class="nudge-strip-sub">2 min · helps us coach you better</div>
       </div>
-      <span class="nudge-strip-arr" style="color:rgba(255,255,255,.6)">›</span>
+      <span class="nudge-strip-arr">›</span>
     </div>
   </div>
 
@@ -3272,10 +3279,10 @@ function buildBody(s,i,type){
     h+='<div class="run-details">';
 
     // ── Unified session card ──────────────────────────────────────────────────
-    h+='<div style="background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+    h+='<div style="background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015)), var(--surface);border:1px solid var(--border-mid);border-radius:10px;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)">';
 
     // Header — session title + RPE + zone
-    h+='<div style="padding:14px 16px;border-bottom:1px solid var(--border)">';
+    h+='<div style="padding:14px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.015)">';
     h+='<div style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--text);line-height:1.1;margin-bottom:8px">'+esc(sessionTitle)+'</div>';
     h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
     h+='<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;background:var(--run);padding:3px 9px;border-radius:5px;letter-spacing:.04em;white-space:nowrap">'+esc(rpeInfo.value)+'</div>';
@@ -3284,7 +3291,7 @@ function buildBody(s,i,type){
     h+='</div></div>';
 
     // Body
-    h+='<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">';
+    h+='<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;background:rgba(255,255,255,.01)">';
 
     // ── Workout — main focus ─────────────────────────────────────────────────
     var _ov=_sessionOverrides[s.id]||null;
@@ -3298,7 +3305,7 @@ function buildBody(s,i,type){
       if(_mainSet) _ovRows.push({label:'Main set',val:_mainSet,accent:true});
       if(_ov.rest) _ovRows.push({label:'Rest',val:_ov.rest,accent:false});
       if(_ov.cool_down) _ovRows.push({label:'Cool down',val:_ov.cool_down,accent:false});
-      h+='<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">';
+      h+='<div style="border:1px solid var(--border-mid);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.02)">';
       _ovRows.forEach(function(row,ri){
         var borderB=ri<_ovRows.length-1?'border-bottom:1px solid var(--border);':'';
         h+='<div style="display:grid;grid-template-columns:80px 1fr;align-items:baseline;gap:8px;padding:9px 12px;'+borderB+'">';
@@ -3308,7 +3315,7 @@ function buildBody(s,i,type){
       });
       h+='</div>';
       if(_ov.notes){
-        h+='<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.22);border-radius:7px;padding:10px 13px">';
+        h+='<div style="background:rgba(146,210,237,.07);border:1px solid rgba(146,210,237,.18);border-radius:7px;padding:10px 13px">';
         h+='<div style="font-family:var(--mono);font-size:9px;color:var(--run);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:5px">Coach Note</div>';
         h+='<div style="font-size:13px;color:var(--text);line-height:1.55">'+esc(_ov.notes)+'</div>';
         h+='</div>';
