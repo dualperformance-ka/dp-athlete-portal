@@ -775,7 +775,7 @@ renderCode();
     </div>
     <!-- Row 1: KM target + Strava -->
     <div class="hpills">
-      <div id="kmBar" style="display:none;background:#f59e0b;border-color:#f59e0b;color:#0a0a0a;font-weight:700" class="hp">🎯 <span id="kmTargetVal">—</span> km target</div>
+      <div id="kmBar" style="display:none;background:#2a3342;border-color:#2a3342;color:#0a0a0a;font-weight:700" class="hp">🎯 <span id="kmTargetVal">—</span> km target</div>
       <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" style="display:none" class="hp"></a>
     </div>
   </div>
@@ -1046,7 +1046,7 @@ renderCode();
               <div style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.1;margin-bottom:4px">Book your coaching call</div>
               <div style="font-size:13px;color:rgba(255,255,255,.45);line-height:1.5">45 min with Karl &amp; Alex · Tap to open booking</div>
             </div>
-            <div id="calendlyChevron" style="color:#f59e0b;font-size:20px;flex-shrink:0;transition:transform .25s;transform:rotate(0deg)">›</div>
+            <div id="calendlyChevron" style="color:#2a3342;font-size:20px;flex-shrink:0;transition:transform .25s;transform:rotate(0deg)">›</div>
           </div>
           <!-- Accordion body -->
           <div id="calendlyAccordion" style="max-height:0;overflow:hidden;transition:max-height .35s ease">
@@ -1181,7 +1181,7 @@ renderCode();
           <div class="ci-step-panel" data-step="5">
             <div class="ci-step-title">⭐ Your Week in Words</div>
             <div style="background:#0a0a0a;border-radius:12px;padding:18px;margin-bottom:14px">
-              <div style="font-family:var(--mono);font-size:9px;color:#f59e0b;text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
+              <div style="font-family:var(--mono);font-size:9px;color:#2a3342;text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
               <div style="font-family:var(--display);font-size:20px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.15;margin-bottom:8px">What did this week mean to you?</div>
               <div style="font-size:13px;color:rgba(255,255,255,.55);line-height:1.6">Your progress is worth sharing. Other people are sitting on the couch wondering if they could do what you're doing — your words might be exactly what they need to hear.</div>
             </div>
@@ -1372,7 +1372,7 @@ renderCode();
               <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">protein</div>
             </div>
             <div style="text-align:center">
-              <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#f59e0b;line-height:1" id="qlnPrevCarb">—</div>
+              <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#2a3342;line-height:1" id="qlnPrevCarb">—</div>
               <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">carbs</div>
             </div>
           </div>
@@ -2287,8 +2287,8 @@ function updateNutFeedback(){
     var color,status,barColor;
     if(val===0){color='var(--dim)';status='not entered';barColor='var(--border-mid)';}
     else if(pct>=100){color='#15803d';status='✓ on target';barColor='#22c55e';}
-    else if(pct>=90){color='#b45309';status='close — '+pct+'%';barColor='#f59e0b';}
-    else if(pct>=75){color='#b45309';status='almost — '+pct+'%';barColor='#fbbf24';}
+    else if(pct>=90){color='#b45309';status='close — '+pct+'%';barColor='#2a3342';}
+    else if(pct>=75){color='#b45309';status='almost — '+pct+'%';barColor='#2a3342';}
     else{color='#dc2626';status='under — '+pct+'%';barColor='#f87171';}
     var fillW=Math.min(pct,100);
     return '<div class="qln-fb-item">'
