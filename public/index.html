@@ -621,6 +621,92 @@ header,.hero,.goals-prompt,.todaypanel,.comms-card,#loginScreen,.toast{backgroun
 }
 
 
+
+/* v7 direct chart visibility fix */
+.progress-card canvas,
+.progress-panel canvas,
+.weight-trend canvas,
+.weight-trend-card canvas,
+.progress-card svg,
+.progress-panel svg,
+.weight-trend svg,
+.weight-trend-card svg{
+  filter: brightness(1.22) contrast(1.18) saturate(1.05) !important;
+}
+
+.progress-card .chart-wrap,
+.progress-panel .chart-wrap,
+.weight-trend .chart-wrap,
+.weight-trend-card .chart-wrap,
+.progress-card .chart-container,
+.progress-panel .chart-container,
+.weight-trend .chart-container,
+.weight-trend-card .chart-container,
+.progress-card .graph-wrap,
+.progress-panel .graph-wrap,
+.weight-trend .graph-wrap,
+.weight-trend-card .graph-wrap{
+  background:
+    linear-gradient(180deg, rgba(146,210,237,0.04) 0%, rgba(146,210,237,0.015) 45%, rgba(0,0,0,0) 100%),
+    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00)) !important;
+  border-radius: 16px;
+}
+
+.progress-card .recharts-surface,
+.progress-panel .recharts-surface,
+.weight-trend .recharts-surface,
+.weight-trend-card .recharts-surface{
+  overflow: visible !important;
+}
+
+.progress-card .recharts-cartesian-grid-horizontal line,
+.progress-card .recharts-cartesian-grid-vertical line,
+.progress-panel .recharts-cartesian-grid-horizontal line,
+.progress-panel .recharts-cartesian-grid-vertical line,
+.weight-trend .recharts-cartesian-grid-horizontal line,
+.weight-trend .recharts-cartesian-grid-vertical line,
+.weight-trend-card .recharts-cartesian-grid-horizontal line,
+.weight-trend-card .recharts-cartesian-grid-vertical line{
+  stroke: rgba(255,255,255,0.07) !important;
+}
+
+.progress-card .recharts-line path.recharts-curve,
+.progress-panel .recharts-line path.recharts-curve,
+.weight-trend .recharts-line path.recharts-curve,
+.weight-trend-card .recharts-line path.recharts-curve{
+  stroke: #a8ddf2 !important;
+  stroke-width: 2.8 !important;
+  filter: drop-shadow(0 0 8px rgba(146,210,237,0.20));
+}
+
+.progress-card .recharts-dot,
+.progress-panel .recharts-dot,
+.weight-trend .recharts-dot,
+.weight-trend-card .recharts-dot,
+.progress-card .recharts-line-dots circle,
+.progress-panel .recharts-line-dots circle,
+.weight-trend .recharts-line-dots circle,
+.weight-trend-card .recharts-line-dots circle{
+  fill: #f3f8fb !important;
+  stroke: rgba(146,210,237,0.32) !important;
+  stroke-width: 1.5 !important;
+  r: 3.2 !important;
+}
+
+.progress-card .recharts-area-area,
+.progress-panel .recharts-area-area,
+.weight-trend .recharts-area-area,
+.weight-trend-card .recharts-area-area{
+  fill: rgba(146,210,237,0.10) !important;
+}
+
+.progress-card,
+.progress-panel,
+.weight-trend,
+.weight-trend-card{
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03) !important;
+}
+
 </style>
 </head>
 <body>
