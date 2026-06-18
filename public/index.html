@@ -563,6 +563,64 @@ header,.hero,.goals-prompt,.todaypanel,.comms-card,#loginScreen,.toast{backgroun
 .lbtn:hover{background:var(--run);color:#051017}
 .login-glow{background:radial-gradient(circle,rgba(146,210,237,0.10),transparent 70%)}
 
+
+/* v6 graph visibility tuning */
+.progress-spotlight,
+.graph-spotlight,
+.progress-chart-card,
+.weight-trend-card{
+  border:1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03) !important;
+}
+
+.progress-spotlight canvas,
+.graph-spotlight canvas,
+.progress-chart-card canvas,
+.weight-trend-card canvas,
+.progress-spotlight svg,
+.graph-spotlight svg,
+.progress-chart-card svg,
+.weight-trend-card svg{
+  filter: brightness(1.12) contrast(1.08);
+}
+
+.progress-spotlight .recharts-cartesian-grid line,
+.graph-spotlight .recharts-cartesian-grid line,
+.progress-chart-card .recharts-cartesian-grid line,
+.weight-trend-card .recharts-cartesian-grid line{
+  stroke: rgba(255,255,255,0.08) !important;
+}
+
+.progress-spotlight .recharts-line-curve,
+.graph-spotlight .recharts-line-curve,
+.progress-chart-card .recharts-line-curve,
+.weight-trend-card .recharts-line-curve{
+  stroke: #92d2ed !important;
+  stroke-width: 2.5 !important;
+  filter: drop-shadow(0 0 6px rgba(146,210,237,0.18));
+}
+
+.progress-spotlight .recharts-line-dots circle,
+.graph-spotlight .recharts-line-dots circle,
+.progress-chart-card .recharts-line-dots circle,
+.weight-trend-card .recharts-line-dots circle,
+.progress-spotlight .recharts-dot,
+.graph-spotlight .recharts-dot,
+.progress-chart-card .recharts-dot,
+.weight-trend-card .recharts-dot{
+  fill: #d8ecf7 !important;
+  stroke: #0b1220 !important;
+  stroke-width: 1.2 !important;
+}
+
+.progress-spotlight .recharts-area-area,
+.graph-spotlight .recharts-area-area,
+.progress-chart-card .recharts-area-area,
+.weight-trend-card .recharts-area-area{
+  fill-opacity: 0.12 !important;
+}
+
+
 </style>
 </head>
 <body>
