@@ -10,7 +10,11 @@
 //   "goals"                              -> updates the athlete's profile row in the Athlete DB
 //   "test_ping"                          -> ignored (returns ok), matches the old Make "skip test pings" filter
 //
-// Reads (/api/notion, notion.js) are untouched. Env required: NOTION_TOKEN.
+// Reads (/api/notion, notion.js) are untouched.
+// Env required: NOTION_TOKEN.
+// Env required for GHL check-in tagging: SUPABASE_URL, SUPABASE_SERVICE_KEY, GHL_API_KEY.
+
+import { createClient } from '@supabase/supabase-js';
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VERSION = '2022-06-28';
@@ -195,6 +199,49 @@ async function handleGoals(p) {
   return notion(`pages/${pageId}`, 'PATCH', { properties });
 }
 
+// ── GHL check-in tagging ────────────────────────────────────────────────────
+// On a weekly check-in submit, find the athlete's GHL contact via the
+// Supabase ghl_map table (athlete_code -> ghl_contact_id) and add the
+// "checkin_done" tag, so the GHL reminder workflow skips them this week.
+// Best-effort: any failure here must NOT block the check-in write.
+async function tagGhlCheckinDone(athleteCode) {
+  if (!has(athleteCode)) return;
+  const { SUPABASE_URL, SUPABASE_SERVICE_KEY, GHL_API_KEY } = process.env;
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !GHL_API_KEY) {
+    console.warn('[write] GHL tagging skipped — missing env vars');
+    return;
+  }
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  const { data, error } = await sb
+    .from('ghl_map')
+    .select('ghl_contact_id')
+    .eq('athlete_code', String(athleteCode))
+    .single();
+
+  if (error || !data || !data.ghl_contact_id) {
+    console.warn('[write] no ghl_map row for code', athleteCode);
+    return;
+  }
+
+  const resp = await fetch(
+    `https://services.leadconnectorhq.com/contacts/${data.ghl_contact_id}/tags`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GHL_API_KEY}`,
+        Version: '2021-07-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ tags: ['checkin_done'] }),
+    }
+  );
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '');
+    throw new Error(`GHL tag ${resp.status}: ${t}`);
+  }
+}
+
 // ── Body parsing (robust to Vercel auto-parse or raw stream) ────────────────
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -231,7 +278,11 @@ export default async function handler(req, res) {
       case 'training_log':
         result = await handleTraining(p); break;
       case 'weekly_checkin':
-        result = await handleCheckin(p); break;
+        result = await handleCheckin(p);
+        // Best-effort GHL tag — never let this fail the check-in write.
+        try { await tagGhlCheckinDone(p.athleteCode); }
+        catch (e) { console.warn('[write] GHL tag failed:', e && e.message); }
+        break;
       case 'daily_body':
         result = await handleBody(p); break;
       case 'daily_nutrition':
