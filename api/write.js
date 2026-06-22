@@ -13,8 +13,14 @@
 // Reads (/api/notion, notion.js) are untouched.
 // Env required: NOTION_TOKEN.
 // Env required for GHL check-in tagging: SUPABASE_URL, SUPABASE_SERVICE_KEY, GHL_API_KEY.
-
-import { createClient } from '@supabase/supabase-js';
+//
+// FIX (2026-06): the Supabase client is now loaded lazily inside the GHL helper
+// via a guarded dynamic import. Previously a top-level
+//   import { createClient } from '@supabase/supabase-js'
+// crashed the ENTIRE function with "Cannot find module '@supabase/supabase-js'"
+// because the portal has no package.json declaring that dependency — so every
+// weekly check-in (and all other writes) failed with 500 before reaching Notion.
+// Now a missing module only disables the best-effort GHL tag; Notion writes work.
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VERSION = '2022-06-28';
@@ -205,11 +211,22 @@ async function handleGoals(p) {
 // Supabase ghl_map table (athlete_code -> ghl_contact_id) and add the
 // "checkin_done" tag, so the GHL reminder workflow skips them this week.
 // Best-effort: any failure here must NOT block the check-in write.
+//
+// The Supabase client is imported LAZILY here (not at the top of the file) so a
+// missing '@supabase/supabase-js' dependency cannot crash the whole function.
 async function tagGhlCheckinDone(athleteCode) {
   if (!has(athleteCode)) return;
   const { SUPABASE_URL, SUPABASE_SERVICE_KEY, GHL_API_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !GHL_API_KEY) {
     console.warn('[write] GHL tagging skipped — missing env vars');
+    return;
+  }
+
+  let createClient;
+  try {
+    ({ createClient } = await import('@supabase/supabase-js'));
+  } catch (e) {
+    console.warn('[write] GHL tagging skipped — @supabase/supabase-js not installed');
     return;
   }
 
