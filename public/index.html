@@ -1124,7 +1124,7 @@ renderCode();
           <!-- Always-visible details -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
             <div class="lf"><label>Your name</label><input type="text" class="li" id="ciName" placeholder="Your name" /></div>
-            <div class="lf"><label>Week ending</label><input type="date" class="li" id="ciWeekEnding" /></div>
+            <div class="lf"><label style="display:flex;align-items:center;gap:6px">Week ending <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.85);font-family:var(--mono)">— confirm before submitting</span></label><input type="date" class="li" id="ciWeekEnding" style="border-color:rgba(255,170,0,.4)" /></div>
           </div>
           <!-- Step indicator -->
           <div class="ci-wizard-bar">
@@ -2172,7 +2172,18 @@ function ciStep(dir){ciGoStep(CI_STEP+dir);}
 function initCheckin(){
   var nameEl=document.getElementById('ciName');if(nameEl&&!nameEl.value) nameEl.value=athlete.name;
   var weEl=document.getElementById('ciWeekEnding');
-  if(weEl&&!weEl.value){var d=new Date(),day=d.getDay(),diff=day===0?0:7-day,sun=new Date(d);sun.setDate(d.getDate()+diff);weEl.value=sun.toISOString().split('T')[0];}
+  if(weEl&&!weEl.value){
+    // Default the Week Ending to the Sunday of the week being reported on.
+    // Sun -> today. Mon/Tue -> previous Sunday (grace window for day-after
+    // submissions, so a late check-in still counts toward the week just
+    // finished). Wed-Sat -> the upcoming Sunday. Uses local date (not UTC)
+    // to avoid the default drifting a day near midnight.
+    var d=new Date(),day=d.getDay(),sun=new Date(d);
+    if(day===0){/* today is Sunday — week ends today */}
+    else if(day<=2){sun.setDate(d.getDate()-day);}   // Mon/Tue -> last Sunday
+    else{sun.setDate(d.getDate()+(7-day));}            // Wed-Sat -> next Sunday
+    weEl.value=localISO(sun);
+  }
 }
 
 async function submitCheckin(){
