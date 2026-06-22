@@ -101,6 +101,7 @@ async function handleCheckin(p) {
   const properties = build([
     ['Name', title(fullName)],
     ['Week Ending', rt(p.weekEnding)],
+    ['Week Ending Date', dat(p.weekEnding)],
     ['Run Completed', rt(p.runCompleted)],
     ['Run Planned', rt(p.runPlanned)],
     ['Weekly Run KM', rt(p.runKm)],
