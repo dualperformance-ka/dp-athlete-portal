@@ -1625,6 +1625,82 @@ window.addEventListener('pagehide',_flushAllSb);
   };
 })();
 
+function pendingCoachWritesKey(code){return 'dp_pending_writes_'+code;}
+function readPendingCoachWrites(){
+  if(!athlete||!athlete.code) return [];
+  try{
+    var list=JSON.parse(localStorage.getItem(pendingCoachWritesKey(athlete.code))||'[]');
+    return Array.isArray(list)?list:[];
+  }catch(e){return [];}
+}
+async function persistPendingCoachWrites(list){
+  if(!athlete||!athlete.code) return;
+  localStorage.setItem(pendingCoachWritesKey(athlete.code),JSON.stringify(list));
+  if(sbClient){
+    try{
+      await sbClient.from('athlete_data').upsert(
+        {athlete_code:athlete.code,key:'pending_writes',value:list,updated_at:new Date().toISOString()},
+        {onConflict:'athlete_code,key'}
+      );
+    }catch(e){console.warn('Pending coach-write sync failed:',e);}
+  }
+}
+async function queueCoachWrite(url,payload,error){
+  if(!athlete||!athlete.code) return;
+  var list=readPendingCoachWrites();
+  var writeId=payload&&payload.clientWriteId?payload.clientWriteId:('cw_'+Date.now()+'_'+Math.random().toString(36).slice(2));
+  if(payload) payload.clientWriteId=writeId;
+  var existing=list.find(function(item){return item.id===writeId;});
+  if(existing){
+    existing.payload=payload;existing.lastError=String(error&&error.message||error||'Write failed');existing.updatedAt=new Date().toISOString();
+  }else{
+    list.push({id:writeId,url:url,payload:payload,createdAt:new Date().toISOString(),attempts:0,lastError:String(error&&error.message||error||'Write failed')});
+  }
+  await persistPendingCoachWrites(list);
+}
+async function postJsonChecked(url,payload){
+  if(payload&&!payload.clientWriteId) payload.clientWriteId='cw_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  var response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  var text=await response.text();
+  var data={};
+  try{data=text?JSON.parse(text):{};}catch(e){data={raw:text};}
+  if(!response.ok||data.ok===false){
+    throw new Error((data&&(data.error||data.message))||('Write failed '+response.status));
+  }
+  return data;
+}
+async function coachWrite(url,payload,opts){
+  opts=opts||{};
+  try{return await postJsonChecked(url,payload);}
+  catch(e){
+    await queueCoachWrite(url,payload,e);
+    if(opts.required) throw e;
+    console.warn('Coach write queued:',e&&e.message);
+    return {ok:false,queued:true,error:e&&e.message};
+  }
+}
+async function retryPendingCoachWrites(silent){
+  if(!athlete||!athlete.code) return;
+  var list=readPendingCoachWrites();
+  if(!list.length) return;
+  var keep=[],synced=0;
+  for(var i=0;i<list.length;i++){
+    var item=list[i];
+    try{
+      await postJsonChecked(item.url,item.payload);
+      synced++;
+    }catch(e){
+      item.attempts=(item.attempts||0)+1;
+      item.lastError=String(e&&e.message||e||'Write failed');
+      item.updatedAt=new Date().toISOString();
+      keep.push(item);
+    }
+  }
+  await persistPendingCoachWrites(keep);
+  if(synced&&!silent) showToast(synced+' pending coach update'+(synced>1?'s':'')+' synced');
+}
+window.addEventListener('online',function(){retryPendingCoachWrites(false);});
+
 // Coach prescription overrides now live directly on planned_sessions rows in
 // Supabase — loadPlannedSessions() populates _sessionOverrides from each row.
 async function loadPlannedSessions(){
@@ -1695,6 +1771,7 @@ async function loadCloudData(code){
       else if(row.key==='ex_picks') lsKey='dp_ex_picks_'+code;
       else if(row.key.startsWith('call_booked_')) lsKey='dp_call_booked_'+(code?code.toUpperCase()+'_':'')+row.key.slice('call_booked_'.length);
       else if(row.key.startsWith('checkin_')) lsKey='dp_checkin_'+row.key.slice('checkin_'.length);
+      else if(row.key==='pending_writes') lsKey=pendingCoachWritesKey(code);
       if(!lsKey||!row.value) return;
       localStorage.setItem(lsKey,JSON.stringify(row.value));
     });
@@ -1903,6 +1980,7 @@ async function doLogin(code){
   document.getElementById('quicklogStrip').style.display='flex';
   document.getElementById('heroName').textContent=athlete.name;
   populateStatic();
+  retryPendingCoachWrites(true);
   loadWeek();
   initCallNudge();
   initCheckinNudge();
@@ -2009,7 +2087,7 @@ async function saveGoals(){
   // Explicit Supabase upsert — don't rely solely on the monkey-patch
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'goals',value:goals,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){console.warn('Goals Supabase sync failed:',e);}}
   athlete.startWeight=goals.startWeight||athlete.startWeight;
-  try{await fetch(GOALS_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'goals',athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,submittedAt:goals.savedAt},goals))});}catch(e){}
+  var coachResult=await coachWrite(GOALS_WEBHOOK,Object.assign({type:'goals',athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,submittedAt:goals.savedAt},goals));
   btn.textContent='Saved ✓';btn.classList.add('saved');
   var d=new Date(goals.savedAt);
   document.getElementById('goalsSavedTime').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -2017,6 +2095,7 @@ async function saveGoals(){
   var gBanner=document.getElementById('goalsBanner'),gDot=document.getElementById('goalsDot');
   if(gBanner) gBanner.style.display='none';
   if(gDot) gDot.style.display='none';
+  showToast(coachResult.queued?'Goals saved - coach dashboard sync pending':'Goals saved ✓');
   setTimeout(function(){btn.textContent='Save Goals';btn.classList.remove('saved');btn.disabled=false;},2500);
 }
 
@@ -2217,20 +2296,21 @@ async function submitCheckin(){
     socialEating:document.getElementById('ciSocial').value||'None',stress:document.getElementById('ciStress').value,
     motivation:document.getElementById('ciMot').value,upcomingImpact:document.getElementById('ciNotes').value||'',
     testimonial:document.getElementById('ciTestimonial').value||''};
-  try{
-    await fetch(CHECKIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'weekly_checkin'},payload))});
-    hideCheckinNudge();
-    if(sbClient&&athlete&&athlete.code){
-      var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
-      // Store the FULL check-in payload (not just a "done" flag) so the coaches
-      // dashboard can read every field straight from Supabase. The dashboard
-      // merges this with any legacy Notion check-ins, so nothing is lost.
+  var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
+  localStorage.setItem('dp_'+sbCiKey,JSON.stringify(payload));
+  if(sbClient&&athlete&&athlete.code){
+    try{
       sbClient.from('athlete_data').upsert(
         {athlete_code:athlete.code,key:sbCiKey,value:payload,updated_at:new Date().toISOString()},
         {onConflict:'athlete_code,key'}
       ).then(function(){},function(err){console.warn('Checkin sync failed:',err);});
-    }
+    }catch(e){console.warn('Checkin sync failed:',e);}
+  }
+  try{
+    var checkinResult=await coachWrite(CHECKIN_WEBHOOK,Object.assign({type:'weekly_checkin'},payload));
+    hideCheckinNudge();
     document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
+    showToast(checkinResult.queued?'Check-in saved - coach dashboard sync pending':'Check-in submitted ✓');
   }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit — please try again');}
 }
 function resetCheckin(){document.getElementById('ciFormContent').style.display='block';document.getElementById('ciSuccess').style.display='none';var btn=document.getElementById('ciSubmitBtn');btn.textContent='Submit Check-in';btn.disabled=false;ciGoStep(1);}
@@ -2385,10 +2465,10 @@ async function submitQuickBody(){
     date:document.getElementById('qlbDate').value,weight:document.getElementById('qlbWeight').value||'',
     sleep:document.getElementById('qlbSleep').value,energy:document.getElementById('qlbEnergy').value,
     stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,notes:document.getElementById('qlbNotes').value||''};
-  try{await fetch(DAILY_BODY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
+  var bodyResult=await coachWrite(DAILY_BODY_WEBHOOK,payload);
   closeQuickLog('body');
-  showToast('Body logged ✓');
+  showToast(bodyResult.queued?'Body logged - coach dashboard sync pending':'Body logged ✓');
   btn.textContent='Log Body';btn.disabled=false;
   // Reset for next use
   document.getElementById('qlbDate').value='';document.getElementById('qlbWeight').value='';
@@ -2410,10 +2490,10 @@ async function submitQuickNut(){
     var _v=document.getElementById(_f[1]).value;
     if(_v!==''&&_v!=null) payload[_f[0]]=_v;
   });
-  try{await fetch(DAILY_NUT_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){}
   localStorage.setItem('dp_daily_nut_'+athlete.code+'_'+nutDate,JSON.stringify(payload));
+  var nutResult=await coachWrite(DAILY_NUT_WEBHOOK,payload);
   closeQuickLog('nut');
-  showToast('Nutrition logged ✓');
+  showToast(nutResult.queued?'Nutrition logged - coach dashboard sync pending':'Nutrition logged ✓');
   btn.textContent='Log Nutrition';btn.disabled=false;
   // Reset for next use
   document.getElementById('qlnDate').value='';document.getElementById('qlnCal').value='';
@@ -3725,7 +3805,7 @@ async function markSessionDone(i){
   var nudge=document.getElementById('nudge_'+i);if(nudge) nudge.remove();
   updateSessionCounter();
   // A saved log with real data = Done → mirror to Notion so the coaches dashboard agrees
-  api('pages/'+s.id,{properties:{Status:{select:{name:'Completed'}}}});
+  return coachWrite('/api/notion',{endpoint:'pages/'+s.id,body:{properties:{Status:{select:{name:'Completed'}}}}});
 }
 function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),on=!btn.classList.contains('on');btn.classList.toggle('on',on);btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';if(on) startRest(i,ei);}
 // ── REST TIMER ────────────────────────────────────────────────────────────────
@@ -3812,10 +3892,10 @@ async function saveRun(i){
   logs[s.id]=d;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
   var runDateEl=document.getElementById('run_date_'+i);var runDate=runDateEl&&runDateEl.value?runDateEl.value:(s.date||new Date().toISOString().slice(0,10));
-  await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+s.name+' — '+runDate,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:runDate,submittedAt:new Date().toISOString()})}).catch(function(){});
+  var runCoachResult=await coachWrite(WEBHOOK,{name:athlete.name+' — '+s.name+' — '+runDate,session:s.name,type:'Run',exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:runDate,submittedAt:new Date().toISOString()});
   await markSessionLogged(s.id);
-    await markSessionDone(i);
-  showToast('Run saved ✓');
+  var runStatusResult=await markSessionDone(i);
+  showToast((runCoachResult&&runCoachResult.queued)||(runStatusResult&&runStatusResult.queued)?'Run saved - coach dashboard sync pending':'Run saved ✓');
   showRunSaved(i,d);
   await loadNutrition();
 }
@@ -3992,13 +4072,14 @@ async function saveGym(i,splitKey){
   var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:(s.date||new Date().toISOString().slice(0,10));
   var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
   var pbHits=[];try{pbHits=detectSessionPBs(s.id,log);}catch(e){console.warn('PB detection failed:',e);}
-  var fetches=Object.keys(log).filter(function(k){return k!=='__notes';}).map(function(exName){var sets=log[exName];return fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps'+(st.rpe?' @ RPE '+st.rpe:'');}).join(' | '),notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()})}).catch(function(){});});
-  await Promise.all(fetches);
+  var fetches=Object.keys(log).filter(function(k){return k!=='__notes';}).map(function(exName){var sets=log[exName];return coachWrite(WEBHOOK,{name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps'+(st.rpe?' @ RPE '+st.rpe:'');}).join(' | '),notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()});});
+  var gymCoachResults=await Promise.all(fetches);
   await markSessionLogged(s.id);
-    await markSessionDone(i);
+  var gymStatusResult=await markSessionDone(i);
   refreshStrengthFeedback(i,splitKey);
   try{markInlinePbs(i,splitKey);}catch(e){}
-  showToast(pbHits.length?('🏆 '+pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session saved ✓');
+  var gymQueued=gymCoachResults.some(function(r){return r&&r.queued;})||(gymStatusResult&&gymStatusResult.queued);
+  showToast(gymQueued?'Session saved - coach dashboard sync pending':(pbHits.length?('🏆 '+pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session saved ✓'));
   var gymSavedBanner=document.getElementById('gym_saved_'+i);
   if(!gymSavedBanner){
     var sbBtn=document.getElementById('sb_'+i);
