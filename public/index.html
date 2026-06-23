@@ -2055,6 +2055,13 @@ function initCallNudge(){
 function checkinWeekKey(){
   var now=new Date();
   var d=new Date(now);d.setHours(0,0,0,0);
+  // Grace window: a Mon/Tue submission reports on the week that just finished,
+  // so anchor the key to that week too (matches the Week Ending default in
+  // initCheckin). Shift the reference date back into the previous week before
+  // the ISO-week calc, so a late check-in can't land under the new week's key
+  // and overwrite / suppress the current week's submission.
+  var day=d.getDay(); // 0=Sun .. 6=Sat
+  if(day===1||day===2){d.setDate(d.getDate()-3);} // Mon/Tue -> previous week
   d.setDate(d.getDate()+3-(d.getDay()+6)%7);
   var w1=new Date(d.getFullYear(),0,4);
   var isoWeek=1+Math.round(((d-w1)/86400000-3+(w1.getDay()+6)%7)/7);
@@ -2215,8 +2222,11 @@ async function submitCheckin(){
     hideCheckinNudge();
     if(sbClient&&athlete&&athlete.code){
       var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
+      // Store the FULL check-in payload (not just a "done" flag) so the coaches
+      // dashboard can read every field straight from Supabase. The dashboard
+      // merges this with any legacy Notion check-ins, so nothing is lost.
       sbClient.from('athlete_data').upsert(
-        {athlete_code:athlete.code,key:sbCiKey,value:1,updated_at:new Date().toISOString()},
+        {athlete_code:athlete.code,key:sbCiKey,value:payload,updated_at:new Date().toISOString()},
         {onConflict:'athlete_code,key'}
       ).then(function(){},function(err){console.warn('Checkin sync failed:',err);});
     }
