@@ -43,9 +43,17 @@
     </div>
     <div class="login-note">Coach-issued code required</div>
   </div>
+  <div class="login-success" id="loginSuccess" aria-live="polite">
+    <div class="login-success-mark" role="img" aria-label="Dual Performance"></div>
+    <div class="login-success-kicker">Access Confirmed</div>
+    <div class="login-success-title" id="loginSuccessName">Welcome</div>
+    <div class="login-success-sub">Preparing your week</div>
+    <div class="login-success-rail"><span></span></div>
+  </div>
   <div class="login-footer">Dual Performance Coaching System</div>
 </div>
 <script>
+var manualLoginIntent=false;
 function sanitizeCode(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);}
 function renderCode(){
   var inp=document.getElementById('codeInput');if(!inp)return;
@@ -93,6 +101,16 @@ function syncLoginViewport(){
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize',syncLoginViewport);
   window.visualViewport.addEventListener('scroll',syncLoginViewport);
+}
+function showLoginSuccess(name){
+  var screen=document.getElementById('loginScreen');
+  var nameEl=document.getElementById('loginSuccessName');
+  if(nameEl) nameEl.textContent='Welcome, '+(name||'Athlete');
+  if(screen){screen.classList.remove('keyboard-open');screen.classList.add('login-authed');}
+}
+function hideLoginSuccess(){
+  var screen=document.getElementById('loginScreen');
+  if(screen) screen.classList.remove('login-authed');
 }
 renderCode();
 </script>
@@ -1236,6 +1254,7 @@ function logout(){
 function login(){
   var c=sanitizeCode((document.getElementById('codeInput').value||'').trim());
   if(!c){showLoginError('Enter your access code');return;}
+  manualLoginIntent=true;
   doLogin(c);
 }
 async function doLogin(code){
@@ -1247,6 +1266,9 @@ async function doLogin(code){
   if(!data||!data.results||!data.results.length){showLoginError('Access code not recognised');renderCode();return;}
   var p=data.results[0],props=p.properties;
   var name=getNotionTitle(props)||'Athlete';
+  var showWelcome=manualLoginIntent;
+  manualLoginIntent=false;
+  if(showWelcome) showLoginSuccess(name);
   athlete={id:p.id,notionPageId:p.id,name:name,code:code,
     goalRace:getSelect(props['Goal Race'])||getRichText(props['Goal Race'])||'',
     peakWeek:(props['Weekly KM Target']&&props['Weekly KM Target'].number!=null?String(props['Weekly KM Target'].number):'')||getRichText(props['Weekly KM Target'])||'',
@@ -1265,6 +1287,8 @@ async function doLogin(code){
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
   exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
+  if(showWelcome) await new Promise(function(resolve){setTimeout(resolve,720);});
+  hideLoginSuccess();
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('portalScreen').style.display='block';
   document.getElementById('quicklogStrip').style.display='flex';
