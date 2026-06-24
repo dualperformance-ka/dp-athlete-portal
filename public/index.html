@@ -1671,7 +1671,8 @@ async function postJsonChecked(url,payload){
 }
 async function coachWrite(url,payload,opts){
   opts=opts||{};
-  try{return await postJsonChecked(url,payload);}
+  if(payload&&!payload.clientWriteId) payload.clientWriteId='cw_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  try{return await postJsonChecked('/api/ingest',{targetUrl:url,payload:payload});}
   catch(e){
     await queueCoachWrite(url,payload,e);
     if(opts.required) throw e;
@@ -1687,7 +1688,7 @@ async function retryPendingCoachWrites(silent){
   for(var i=0;i<list.length;i++){
     var item=list[i];
     try{
-      await postJsonChecked(item.url,item.payload);
+      await postJsonChecked('/api/ingest',{targetUrl:item.url,payload:item.payload});
       synced++;
     }catch(e){
       item.attempts=(item.attempts||0)+1;
