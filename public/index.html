@@ -2462,8 +2462,9 @@ function updateNutFeedback(){
 }
 async function submitQuickBody(){
   var btn=document.getElementById('qlbSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
-  var payload={type:'daily_body',athleteName:athlete.name,athleteId:athlete.notionPageId,
-    date:document.getElementById('qlbDate').value,weight:document.getElementById('qlbWeight').value||'',
+  var bodyDate=document.getElementById('qlbDate').value||todayISO2();
+  var payload={type:'daily_body',athleteName:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,
+    date:bodyDate,weight:document.getElementById('qlbWeight').value||'',
     sleep:document.getElementById('qlbSleep').value,energy:document.getElementById('qlbEnergy').value,
     stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,notes:document.getElementById('qlbNotes').value||''};
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
@@ -2482,10 +2483,9 @@ async function submitQuickBody(){
 }
 async function submitQuickNut(){
   var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
-  var nutDate=document.getElementById('qlnDate').value;
-  var payload={type:'daily_nutrition',athleteName:athlete.name,athleteId:athlete.notionPageId,
-    notes:document.getElementById('qlnNotes').value||''};
-  if(nutDate) payload.date=nutDate;
+  var nutDate=document.getElementById('qlnDate').value||todayISO2();
+  var payload={type:'daily_nutrition',athleteName:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,
+    date:nutDate,notes:document.getElementById('qlnNotes').value||''};
   // Only send numeric macros that actually have a value — empty strings break Notion number fields
   [['calories','qlnCal'],['protein','qlnPro'],['carbs','qlnCarbs'],['fat','qlnFat'],['fibre','qlnFibre']].forEach(function(_f){
     var _v=document.getElementById(_f[1]).value;
@@ -4073,7 +4073,13 @@ async function saveGym(i,splitKey){
   var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:(s.date||new Date().toISOString().slice(0,10));
   var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
   var pbHits=[];try{pbHits=detectSessionPBs(s.id,log);}catch(e){console.warn('PB detection failed:',e);}
-  var fetches=Object.keys(log).filter(function(k){return k!=='__notes';}).map(function(exName){var sets=log[exName];return coachWrite(WEBHOOK,{name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(function(st,si){return 'Set '+(si+1)+': '+st.weight+'kg × '+st.reps+'reps'+(st.rpe?' @ RPE '+st.rpe:'');}).join(' | '),notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()});});
+  function setSummary(st,si){
+    var reps=(st.reps!==undefined&&st.reps!==null&&st.reps!=='')?(st.reps+'reps'):'';
+    if(!reps&&(st.repsLeft||st.repsRight)) reps='L '+(st.repsLeft||'—')+' / R '+(st.repsRight||'—')+' reps';
+    if(!reps) reps='— reps';
+    return 'Set '+(si+1)+': '+(st.weight||'—')+'kg × '+reps+(st.rpe?' @ RPE '+st.rpe:'');
+  }
+  var fetches=Object.keys(log).filter(function(k){return k!=='__notes';}).map(function(exName){var sets=log[exName];return coachWrite(WEBHOOK,{name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(setSummary).join(' | '),rawSets:sets,notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()});});
   var gymCoachResults=await Promise.all(fetches);
   await markSessionLogged(s.id);
   var gymStatusResult=await markSessionDone(i);
