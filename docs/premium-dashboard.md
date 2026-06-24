@@ -1,10 +1,10 @@
 # Premium Dashboard Rollout
 
-This rollout adds the product layer that makes the athlete portal feel like a coached service rather than a data viewer.
+This rollout added the product layer that makes the athlete portal feel like a coached service rather than a data viewer.
 
 ## New Experience
 
-The premium dashboard adds:
+The athlete portal now includes:
 
 - Today's training card
 - Weekly coach-focus area
@@ -18,10 +18,9 @@ The premium dashboard adds:
 
 ## Files
 
-- `public/premium.html`: premium shell used by the root route
-- `public/premium-dashboard.js`: optional in-app command center module for a future direct `index.html` integration
+- `public/index.html`: athlete portal with the premium command-center flows integrated
 - `api/checkin.js`: writes athlete check-ins into the BODY check-in database
-- `vercel.json`: routes `/` to `premium.html`, while preserving `/index.html` as the original portal
+- `vercel.json`: routes `/` to `index.html`
 
 ## Vercel Environment Variables
 
@@ -71,29 +70,13 @@ I extended the database with these premium fields:
 
 ## Activation
 
-The root athlete URL now opens the premium shell automatically:
+The root athlete URL opens the portal:
 
 ```text
 https://your-portal.vercel.app?code=ATHLETE_CODE
 ```
 
-The original portal remains available at:
-
-```text
-https://your-portal.vercel.app/index.html?code=ATHLETE_CODE
-```
-
-The premium shell wraps the current portal, reads the visible session when available, and stores check-ins locally if `CHECKIN_DATABASE_ID` is not configured yet.
-
-## Optional Direct Integration
-
-For a future cleanup pass, add this script before the closing `</body>` tag in `public/index.html`:
-
-```html
-<script src="/premium-dashboard.js"></script>
-```
-
-That embeds the command center directly into the existing portal instead of using the shell. The root shell was used first because `public/index.html` is a very large single file with embedded image data, so a small routing wrapper is safer than replacing the whole file remotely.
+The portal stores check-ins locally if `CHECKIN_DATABASE_ID` is not configured yet.
 
 ## Coach Alert Logic
 
