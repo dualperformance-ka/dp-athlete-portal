@@ -76,7 +76,9 @@ api/
 supabase/
   migrations/    Structured source-of-truth tables
 public/
-  index.html     Athlete portal app
+  index.html     Athlete portal app shell and main client logic
+  styles.css     Portal styling and responsive layout
+  config.js      Public browser config only, no write-capable secrets
   progress-photo-cloud.js  Progress photo cloud upload helper
 vercel.json      Routes / to the portal
 ```
@@ -133,7 +135,7 @@ The portal already covers training delivery, completion logging, goals, nutritio
 
 ### Phase 4: Product Polish
 
-- Split the single HTML app into components and data modules.
+- Continue splitting the single-file app into focused client modules.
 - Add typed data mapping for Notion properties.
 - Add empty, loading, and error states for every major view.
 - Add basic integration tests for the API proxy.
