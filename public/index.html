@@ -1287,7 +1287,7 @@ async function doLogin(code){
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
   exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
-  if(showWelcome) await new Promise(function(resolve){setTimeout(resolve,720);});
+  if(showWelcome) await new Promise(function(resolve){setTimeout(resolve,1350);});
   hideLoginSuccess();
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('portalScreen').style.display='block';
