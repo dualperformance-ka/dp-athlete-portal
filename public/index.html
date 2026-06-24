@@ -17,12 +17,18 @@
 
 <!-- LOGIN -->
 <div id="loginScreen" style="display:none" onclick="var i=document.getElementById('codeInput');if(i){i.focus();renderCode();}">
-  <div class="login-glow"></div>
-  <div class="login-col">
-    <div class="login-logo-img" role="img" aria-label="Dual Performance"></div>
+  <div class="login-depth"></div>
+  <div class="login-grid"></div>
+  <div class="login-wordmark" role="img" aria-label="Dual Performance"></div>
+  <div class="login-col" id="loginCard">
+    <div class="login-mark-wrap">
+      <div class="login-logo-img" role="img" aria-label="Dual Performance"></div>
+    </div>
     <div class="login-eyebrow">Athlete Portal</div>
-    <div class="login-brand">Dual Performance</div>
-    <div class="code-boxes" id="codeBoxes">
+    <div class="login-brand">Athlete Portal</div>
+    <div class="login-subcopy">Your training, nutrition and check-ins in one place.</div>
+    <div class="code-label">Access Code</div>
+    <div class="code-boxes" id="codeBoxes" aria-hidden="true">
       <div class="code-box"></div>
       <div class="code-box"></div>
       <div class="code-box"></div>
@@ -30,24 +36,50 @@
       <div class="code-box"></div>
       <div class="code-box"></div>
     </div>
-    <input class="code-hidden" id="codeInput" maxlength="6" autocomplete="one-time-code" autocapitalize="characters" inputmode="text" oninput="this.value=this.value.toUpperCase();renderCode()" onfocus="renderCode()" onkeydown="if(event.key==='Enter')login()"/>
-    <div class="code-hint">Code from Karl or Alex</div>
+    <input class="code-hidden" id="codeInput" maxlength="6" autocomplete="one-time-code" autocapitalize="characters" inputmode="text" aria-label="Athlete access code" oninput="this.value=sanitizeCode(this.value);renderCode()" onfocus="clearLoginError();renderCode()" onpaste="handleCodePaste(event)" onkeydown="handleCodeKey(event)"/>
     <div class="login-actions">
-      <button class="lbtn" onclick="login()">Enter Portal</button>
+      <button class="lbtn" id="loginBtn" onclick="login()" disabled>Enter Portal</button>
       <div class="lerr" id="lerr">Invalid code — check with your coach</div>
     </div>
+    <div class="login-note">Coach-issued code required</div>
   </div>
+  <div class="login-footer">Dual Performance Coaching System</div>
 </div>
 <script>
+function sanitizeCode(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);}
 function renderCode(){
   var inp=document.getElementById('codeInput');if(!inp)return;
-  var v=(inp.value||'').toUpperCase();
+  var v=sanitizeCode(inp.value||'');if(inp.value!==v) inp.value=v;
   var boxes=document.querySelectorAll('#codeBoxes .code-box');
   var active=v.length<boxes.length?v.length:-1;
   for(var i=0;i<boxes.length;i++){
     boxes[i].textContent=v.charAt(i)||'';
     boxes[i].classList.toggle('active',i===active);
+    boxes[i].classList.toggle('filled',!!v.charAt(i));
   }
+  var btn=document.getElementById('loginBtn');
+  if(btn){btn.disabled=v.length!==6;btn.classList.toggle('ready',v.length===6);}
+  if(v.length===6) clearLoginError();
+}
+function handleCodePaste(event){
+  event.preventDefault();
+  var text=(event.clipboardData||window.clipboardData).getData('text');
+  var inp=document.getElementById('codeInput');if(!inp)return;
+  inp.value=sanitizeCode(text);renderCode();
+  if(inp.value.length===6) setTimeout(login,80);
+}
+function handleCodeKey(event){
+  if(event.key==='Enter') login();
+  if(event.key==='Backspace') clearLoginError();
+}
+function clearLoginError(){
+  var card=document.getElementById('loginCard');if(card) card.classList.remove('login-error-shake');
+  var err=document.getElementById('lerr');if(err) err.style.display='none';
+}
+function showLoginError(msg){
+  var err=document.getElementById('lerr');if(err){err.textContent=msg||'Invalid code — check with your coach';err.style.display='block';}
+  var card=document.getElementById('loginCard');if(card){card.classList.remove('login-error-shake');void card.offsetWidth;card.classList.add('login-error-shake');}
+  var inp=document.getElementById('codeInput');if(inp) inp.focus();
 }
 renderCode();
 </script>
@@ -1184,15 +1216,22 @@ function logout(){
   document.getElementById('quicklogStrip').style.display='none';
   document.getElementById('loginScreen').style.display='block';
   document.getElementById('codeInput').value='';
+  clearLoginError();
+  renderCode();
 }
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
-function login(){var c=(document.getElementById('codeInput').value||'').toUpperCase().trim();if(c)doLogin(c);}
+function login(){
+  var c=sanitizeCode((document.getElementById('codeInput').value||'').trim());
+  if(c.length<6){showLoginError('Enter your 6-character access code');return;}
+  doLogin(c);
+}
 async function doLogin(code){
-  var btn=document.querySelector('.lbtn');btn.textContent='Loading...';btn.disabled=true;
-  document.getElementById('lerr').style.display='none';
+  var btn=document.getElementById('loginBtn')||document.querySelector('.lbtn');
+  btn.textContent='Authenticating...';btn.disabled=true;btn.classList.add('loading');
+  clearLoginError();
   var data=await api('databases/'+ATHLETE_DB+'/query',{filter:{property:'Code',rich_text:{equals:code}},page_size:5});
-  btn.textContent='Enter Portal';btn.disabled=false;
-  if(!data||!data.results||!data.results.length){document.getElementById('lerr').style.display='block';return;}
+  btn.textContent='Enter Portal';btn.disabled=false;btn.classList.remove('loading');
+  if(!data||!data.results||!data.results.length){showLoginError('Access code not recognised');renderCode();return;}
   var p=data.results[0],props=p.properties;
   var name=getNotionTitle(props)||'Athlete';
   athlete={id:p.id,notionPageId:p.id,name:name,code:code,
