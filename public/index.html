@@ -569,6 +569,50 @@ header,.hero,.goals-prompt,.todaypanel,.comms-card,#loginScreen,.toast{backgroun
 .lbtn:hover{background:var(--run);color:#051017}
 .login-glow{background:radial-gradient(circle,rgba(146,210,237,0.10),transparent 70%)}
 
+/* Phase 1: today-first command centre + calmer logged-in chrome */
+header{background:rgba(6,8,10,.92);backdrop-filter:blur(12px)}
+.hero{padding-top:18px;padding-bottom:12px;background:#070a0d}
+.hi{color:rgba(247,250,252,.34)}
+.wbar{border-top:1px solid rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.04)}
+.tabs{border-top:0;border-bottom:1px solid rgba(255,255,255,.05)}
+.nudge-strip{background:rgba(10,13,16,.86);border-color:rgba(255,255,255,.06);padding-top:11px;padding-bottom:11px}
+.nudge-strip-icon{opacity:.72}
+.nudge-strip-title{color:rgba(247,250,252,.74)}
+#checkinNudge{background:rgba(146,210,237,.045);border-top:1px solid rgba(146,210,237,.10);border-bottom:1px solid rgba(146,210,237,.10);box-shadow:none}
+#checkinNudge::before{background:rgba(146,210,237,.62)}
+#checkinNudge .nudge-strip-icon{background:rgba(146,210,237,.07);border-color:rgba(146,210,237,.18)}
+#checkinNudge .nudge-strip-arr{color:rgba(146,210,237,.72)}
+.goals-prompt{background:rgba(146,210,237,.045);border-color:rgba(146,210,237,.16);box-shadow:none}
+.todaypanel{border-color:rgba(146,210,237,.30);box-shadow:0 18px 56px rgba(0,0,0,.30),0 0 0 1px rgba(146,210,237,.05) inset}
+.todayeyebrow{color:rgba(146,210,237,.72)}
+.todaytitle{font-size:32px;color:#d8f2fc}
+.todayitem{border-color:rgba(255,255,255,.10);background:rgba(255,255,255,.035)}
+.todaytarget{background:rgba(146,210,237,.055);border-color:rgba(146,210,237,.14)}
+.today-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+.today-action{border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(255,255,255,.045);color:rgba(247,250,252,.76);font-family:var(--display);font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:10px 12px;cursor:pointer}
+.today-action.primary{background:var(--run);border-color:var(--run);color:#041015;box-shadow:0 8px 22px rgba(146,210,237,.18)}
+.today-action.secondary-blue{border-color:rgba(146,210,237,.22);color:rgba(183,230,247,.88);background:rgba(146,210,237,.065)}
+.week-plan-title{font-family:var(--mono);font-size:10px;color:rgba(247,250,252,.42);text-transform:uppercase;letter-spacing:.12em;margin:0 0 12px}
+.dg{opacity:.88}
+.dgh{border-bottom-width:1px;border-bottom-color:rgba(255,255,255,.12)}
+.dgh.today{border-bottom-color:rgba(146,210,237,.46)}
+.sc{box-shadow:none}
+.quicklog-strip{background:rgba(6,8,10,.88);backdrop-filter:blur(12px);border-top-color:rgba(255,255,255,.08);padding-top:8px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+.quicklog-btn{padding:10px;border-radius:7px;font-size:13px}
+.quicklog-btn.ql-body,.quicklog-btn.ql-nut{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.11);color:rgba(247,250,252,.72);box-shadow:none}
+.quicklog-btn.ql-nut{border-color:rgba(146,210,237,.24);color:rgba(183,230,247,.88)}
+.wa-fab{width:46px;height:46px;background:rgba(146,210,237,.82);box-shadow:0 8px 24px rgba(0,0,0,.34);opacity:.82}
+.wa-fab:hover{opacity:1}
+@media(min-width:900px){
+  #tab-training.active{grid-template-columns:minmax(360px,430px) minmax(0,1fr);gap:30px}
+  #tab-training .todaywrap{top:152px}
+  #tab-training>#calEl{padding-top:4px}
+}
+@media(max-width:640px){
+  .today-actions{grid-template-columns:1fr}
+  .todaytitle{font-size:28px}
+}
+
 
 /* v6 graph visibility tuning */
 .progress-spotlight,
@@ -1541,6 +1585,12 @@ renderCode();
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
+// Public client configuration. These values are visible in the browser by design:
+// - Notion database IDs are identifiers, not write credentials.
+// - Supabase anon/publishable keys rely on RLS policies for access control.
+// - Cloudinary unsigned upload presets must be locked down in Cloudinary.
+// Keep write-capable secrets in Vercel env vars only (NOTION_TOKEN,
+// SUPABASE_SERVICE_KEY, CLOUDINARY_API_SECRET, CRON_SECRET).
 const CALENDAR_DB        = '0b85a96cc70b836898fd013e0e15c4f2';
 const ATHLETE_DB         = '4a25a96cc70b82ffa6790139eaa8b458';
 const RUN_DB             = '3465a96cc70b80e1aa77d484b9dc197c';
@@ -3039,7 +3089,7 @@ function showNoplan(){document.getElementById('noplanEl').style.display='block';
 
 // ── RENDER CALENDAR ───────────────────────────────────────────────────────────
 function renderCal(ws){
-  var todayISO=localISO(new Date()),html='';
+  var todayISO=localISO(new Date()),html='<div class="week-plan-title">This week</div>';
   for(var di=0;di<7;di++){
     var d=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+di);
     var iso=localISO(d),isToday=iso===todayISO;
@@ -3466,16 +3516,23 @@ function renderTodaySection(){
           html+='</div>';
         }
       }else if(type==='strength'){
+        html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(displayName)+'</div><div class="desc">Open the session, use the faint previous efforts as a guide, then log what you actually complete today.</div></div>';
       }else{
         html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
       }
       if(type!=='rest'&&sessionIdx>=0){
-        html+='<button onclick="scrollToSession('+sessionIdx+')" style="margin-top:12px;width:100%;padding:11px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;">Log this session ↓</button>';
+        html+='<button class="today-action primary" onclick="scrollToSession('+sessionIdx+')" style="width:100%;margin-top:12px">Log this session ↓</button>';
       }
       html+='</div></div></div>';
     });
     html+='</div>';
   }
+  html+='<div class="today-actions">';
+  html+='<button class="today-action secondary-blue" onclick="openQuickLog(\'body\')">Body log</button>';
+  html+='<button class="today-action secondary-blue" onclick="openQuickLog(\'nut\')">Nutrition log</button>';
+  html+='<button class="today-action" onclick="switchTab(\'checkin\')">Weekly check-in</button>';
+  html+='<button class="today-action" onclick="switchTab(\'progress\')">Progress</button>';
+  html+='</div>';
   html+='</div>';
   el.innerHTML=html;
   el.style.display='block';
