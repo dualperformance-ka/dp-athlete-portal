@@ -4,6 +4,28 @@
 
 create extension if not exists pgcrypto;
 
+-- Legacy/client sync tables used directly by the browser with the publishable
+-- Supabase key. Structured coach/reporting tables below remain server-only.
+create table if not exists public.athlete_data (
+  id uuid primary key default gen_random_uuid(),
+  athlete_code text not null,
+  key text not null,
+  value jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (athlete_code, key)
+);
+
+create table if not exists public.session_logs (
+  id uuid primary key default gen_random_uuid(),
+  athlete_code text not null,
+  session_key text not null,
+  logged_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (athlete_code, session_key)
+);
+
 create table if not exists public.athlete_goals (
   athlete_code text primary key,
   athlete_name text,
@@ -138,13 +160,36 @@ create index if not exists daily_body_logs_athlete_date_idx on public.daily_body
 create index if not exists daily_nutrition_logs_athlete_date_idx on public.daily_nutrition_logs (athlete_code, log_date desc);
 create index if not exists training_session_logs_athlete_date_idx on public.training_session_logs (athlete_code, session_date desc);
 create index if not exists coach_write_outbox_pending_idx on public.coach_write_outbox (status, next_attempt_at);
+create index if not exists athlete_data_athlete_key_idx on public.athlete_data (athlete_code, key);
+create index if not exists session_logs_athlete_key_idx on public.session_logs (athlete_code, session_key);
 
+alter table public.athlete_data enable row level security;
+alter table public.session_logs enable row level security;
 alter table public.athlete_goals enable row level security;
 alter table public.weekly_checkins enable row level security;
 alter table public.daily_body_logs enable row level security;
 alter table public.daily_nutrition_logs enable row level security;
 alter table public.training_session_logs enable row level security;
 alter table public.coach_write_outbox enable row level security;
+
+grant select, insert, update on table public.athlete_data to anon, authenticated;
+grant select, insert, update on table public.session_logs to anon, authenticated;
+
+drop policy if exists "client can sync athlete data" on public.athlete_data;
+create policy "client can sync athlete data"
+on public.athlete_data
+for all
+to anon, authenticated
+using (true)
+with check (athlete_code is not null and key is not null);
+
+drop policy if exists "client can sync session logs" on public.session_logs;
+create policy "client can sync session logs"
+on public.session_logs
+for all
+to anon, authenticated
+using (true)
+with check (athlete_code is not null and session_key is not null);
 
 revoke all on table public.athlete_goals from anon, authenticated;
 revoke all on table public.weekly_checkins from anon, authenticated;
@@ -159,3 +204,5 @@ grant all on table public.daily_body_logs to service_role;
 grant all on table public.daily_nutrition_logs to service_role;
 grant all on table public.training_session_logs to service_role;
 grant all on table public.coach_write_outbox to service_role;
+grant all on table public.athlete_data to service_role;
+grant all on table public.session_logs to service_role;
