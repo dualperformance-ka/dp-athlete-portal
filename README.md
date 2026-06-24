@@ -32,6 +32,19 @@ The portal currently expects these Notion databases:
 
 Keep database IDs in code only when they are not sensitive. Keep write-capable credentials in environment variables.
 
+### Public Client Configuration
+
+The browser bundle intentionally includes public identifiers such as Notion database IDs, the Supabase anon/publishable key, and the Cloudinary cloud/preset names. These are not write-capable secrets by themselves.
+
+Keep these private and server-side only:
+
+- `NOTION_TOKEN`
+- `SUPABASE_SERVICE_KEY`
+- `CLOUDINARY_API_SECRET`
+- `CRON_SECRET`
+
+Supabase access must be protected by RLS policies. Cloudinary unsigned upload presets should be restricted to the expected folder, file types, and size limits.
+
 ### 3. Deploy
 
 Push to GitHub, import the repository in Vercel, add the environment variables, then deploy.
@@ -106,7 +119,7 @@ The portal already covers training delivery, completion logging, goals, nutritio
 
 ### Phase 2: Premium Athlete Experience
 
-- Add a today-first dashboard with the athlete's next session, weekly focus, and coach note.
+- Keep improving the today-first dashboard around the athlete's next action, weekly focus, and coach note.
 - Add readiness, sleep, soreness, stress, and motivation check-ins.
 - Add post-session RPE, pain flags, and athlete notes.
 - Show the athlete why each session matters inside the current training phase.
