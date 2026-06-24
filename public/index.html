@@ -36,7 +36,7 @@
       <div class="code-box"></div>
       <div class="code-box"></div>
     </div>
-    <input class="code-hidden" id="codeInput" maxlength="6" autocomplete="one-time-code" autocapitalize="characters" inputmode="text" aria-label="Athlete access code" oninput="this.value=sanitizeCode(this.value);renderCode()" onfocus="clearLoginError();renderCode()" onpaste="handleCodePaste(event)" onkeydown="handleCodeKey(event)"/>
+    <input class="code-hidden" id="codeInput" maxlength="6" autocomplete="one-time-code" autocapitalize="characters" inputmode="text" aria-label="Athlete access code" oninput="this.value=sanitizeCode(this.value);renderCode()" onfocus="setLoginKeyboardState(true);clearLoginError();renderCode()" onblur="setTimeout(function(){setLoginKeyboardState(false)},120)" onpaste="handleCodePaste(event)" onkeydown="handleCodeKey(event)"/>
     <div class="login-actions">
       <button class="lbtn" id="loginBtn" onclick="login()" disabled>Enter Portal</button>
       <div class="lerr" id="lerr">Invalid code — check with your coach</div>
@@ -80,6 +80,19 @@ function showLoginError(msg){
   var err=document.getElementById('lerr');if(err){err.textContent=msg||'Invalid code — check with your coach';err.style.display='block';}
   var card=document.getElementById('loginCard');if(card){card.classList.remove('login-error-shake');void card.offsetWidth;card.classList.add('login-error-shake');}
   var inp=document.getElementById('codeInput');if(inp) inp.focus();
+}
+function setLoginKeyboardState(active){
+  var screen=document.getElementById('loginScreen');if(!screen)return;
+  screen.classList.toggle('keyboard-open',!!active);
+}
+function syncLoginViewport(){
+  var screen=document.getElementById('loginScreen');if(!screen||!window.visualViewport)return;
+  var keyboardOpen=window.visualViewport.height < window.innerHeight*0.78;
+  screen.classList.toggle('keyboard-open',keyboardOpen||document.activeElement===document.getElementById('codeInput'));
+}
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',syncLoginViewport);
+  window.visualViewport.addEventListener('scroll',syncLoginViewport);
 }
 renderCode();
 </script>
