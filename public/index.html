@@ -186,6 +186,7 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .ex-stat{font-family:var(--mono);font-size:9px;font-weight:700;border-radius:5px;padding:3px 7px;white-space:nowrap;line-height:1.3}
 .ex-stat-pb{color:var(--pb);background:var(--pb-bg);border:1px solid var(--pb-border)}
 .ex-stat-e1rm{color:var(--dim);margin-top:3px}
+.ex-stat-vol-pb{color:var(--pb);background:var(--pb-bg);border:1px solid var(--pb-border);margin-top:3px}
 .ex-stat-vol{color:#92d2ed;background:rgba(146,210,237,.12);border:1px solid rgba(146,210,237,.25);margin-top:4px;text-align:right}
 .ex-stat-vol.pb{color:#fff;background:var(--pb);border-color:var(--pb);box-shadow:0 1px 4px rgba(124,58,237,.3)}
 .plate-calc{padding:2px 14px 10px}
@@ -2043,6 +2044,7 @@ function refreshExerciseStat(i,ei,resolvedEx){
   var isSingleLeg=resolvedEx.toLowerCase().indexOf('single leg')>=0;
   var sh='';
   if(stored.load) sh+='<div class="ex-stat ex-stat-pb">🏆 PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
+  if(!isSingleLeg&&stored.volume) sh+='<div class="ex-stat ex-stat-vol-pb">🏆 Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
   if(stored.e1rm) sh+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
   if(!isSingleLeg) sh+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol">Vol 0kg</div>';
   statEl.innerHTML=sh;
@@ -3716,6 +3718,7 @@ function buildBody(s,i,type){
         h+='</div>';
         h+='<div id="exstat_'+i+'_'+ei+'" style="text-align:right;flex-shrink:0">';
           if(stored.load) h+='<div class="ex-stat ex-stat-pb">🏆 PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
+          if(!isSingleLeg&&stored.volume) h+='<div class="ex-stat ex-stat-vol-pb">🏆 Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
           if(stored.e1rm) h+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
           if(!isSingleLeg) h+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol'+(isVolPB?' pb':'')+'">'+(isVolPB?'🏆 ':'')+'Vol '+Math.round(initVol).toLocaleString()+'kg</div>';
           h+='</div>';
