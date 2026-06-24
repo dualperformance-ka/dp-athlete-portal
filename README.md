@@ -13,6 +13,9 @@ If a real Notion integration token has ever been committed to this repository, r
 In your Vercel project, go to Settings > Environment Variables and add:
 
 - `NOTION_TOKEN`: your private Notion integration token
+- `SUPABASE_URL`: Supabase project URL
+- `SUPABASE_SERVICE_KEY`: Supabase service role key, server-side only
+- `CRON_SECRET`: secret used by Vercel Cron when retrying queued coach writes
 - `ALLOWED_ORIGINS`: comma-separated production origins, for example `https://your-portal.vercel.app`
 - `CHECKIN_DATABASE_ID`: `3405a96cc70b80a4b1b9cf5b9c236f18`
 
@@ -54,13 +57,25 @@ For a premium production service, replace code-only access with invite links, ex
 ```text
 api/
   notion.js      Hardened Notion API proxy
+  ingest.js      Structured Supabase ingest + Notion mirror
+  sync-outbox.js Retries queued coach-readable writes
   checkin.js     Premium athlete check-in API
+supabase/
+  migrations/    Structured source-of-truth tables
 public/
   premium.html   Premium command center shell
   index.html     Original athlete portal app
   premium-dashboard.js  Optional in-app premium dashboard module
 vercel.json      Routes / to the premium shell
 ```
+
+## Data Safety
+
+Athlete submissions are stored in Supabase first, then mirrored to Notion for coach-readable workflows. If Notion is unavailable, the failed mirror write is queued in `coach_write_outbox` and retried by `/api/sync-outbox`.
+
+Apply the migration in `supabase/migrations/202606240001_structured_athlete_ingest.sql` before enabling the structured ingest path in production.
+
+See `docs/backend-data-safety.md` for the full backend flow and deployment notes.
 
 ## Premium Command Center
 
