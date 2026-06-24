@@ -58,8 +58,8 @@ function renderCode(){
     boxes[i].classList.toggle('filled',!!v.charAt(i));
   }
   var btn=document.getElementById('loginBtn');
-  if(btn){btn.disabled=v.length!==6;btn.classList.toggle('ready',v.length===6);}
-  if(v.length===6) clearLoginError();
+  if(btn){btn.disabled=v.length<1;btn.classList.toggle('ready',v.length>0);}
+  if(v.length>0) clearLoginError();
 }
 function handleCodePaste(event){
   event.preventDefault();
@@ -1222,7 +1222,7 @@ function logout(){
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
 function login(){
   var c=sanitizeCode((document.getElementById('codeInput').value||'').trim());
-  if(c.length<6){showLoginError('Enter your 6-character access code');return;}
+  if(!c){showLoginError('Enter your access code');return;}
   doLogin(c);
 }
 async function doLogin(code){
