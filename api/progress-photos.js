@@ -34,7 +34,6 @@ function parseCloudinaryUrl() {
     apiSecret: decodeURIComponent(parsed.password),
   };
 }
-}
 
 function cleanSlug(value, fallback = '') {
   return String(value || fallback)
