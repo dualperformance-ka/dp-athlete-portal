@@ -44,10 +44,10 @@ Current MVP access uses athlete codes:
 https://your-portal.vercel.app?code=ATHLETE_CODE
 ```
 
-The root route now loads the premium shell. The original portal remains available at:
+The root route loads the athlete portal:
 
 ```text
-https://your-portal.vercel.app/index.html?code=ATHLETE_CODE
+https://your-portal.vercel.app?code=ATHLETE_CODE
 ```
 
 For a premium production service, replace code-only access with invite links, expiring sessions, or magic-link authentication.
@@ -63,10 +63,9 @@ api/
 supabase/
   migrations/    Structured source-of-truth tables
 public/
-  premium.html   Premium command center shell
-  index.html     Original athlete portal app
-  premium-dashboard.js  Optional in-app premium dashboard module
-vercel.json      Routes / to the premium shell
+  index.html     Athlete portal app
+  progress-photo-cloud.js  Progress photo cloud upload helper
+vercel.json      Routes / to the portal
 ```
 
 ## Data Safety
@@ -79,7 +78,7 @@ See `docs/backend-data-safety.md` for the full backend flow and deployment notes
 
 ## Premium Command Center
 
-The premium shell adds:
+The athlete portal includes:
 
 - Today's training card
 - Weekly coach-focus area
