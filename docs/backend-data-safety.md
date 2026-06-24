@@ -32,6 +32,8 @@ supabase/migrations/202606240001_structured_athlete_ingest.sql
 
 The migration creates:
 
+- `athlete_data`
+- `session_logs`
 - `athlete_goals`
 - `weekly_checkins`
 - `daily_body_logs`
@@ -39,7 +41,7 @@ The migration creates:
 - `training_session_logs`
 - `coach_write_outbox`
 
-RLS is enabled on every table, and `anon` / `authenticated` table access is revoked. Serverless functions write with the service role key.
+RLS is enabled on every table. The structured source-of-truth tables revoke `anon` / `authenticated` access and are written by serverless functions with the service role key. The compatibility tables `athlete_data` and `session_logs` keep limited `select`, `insert`, and `update` access for the browser because the current portal syncs drafts, photos, completion markers, Strava tokens, and exercise picks directly from the client.
 
 ## Retry Worker
 
