@@ -136,10 +136,11 @@ async function handleCheckin(p) {
 }
 
 async function handleBody(p) {
-  // Matches the old Make scenario: AthleteID (text) holds the athlete NAME.
+  // Dashboard filters identify athletes by code. The title still carries the
+  // readable name, but AthleteID must stay stable across spelling changes.
   const properties = build([
     ['Name', title(`${p.athleteName || ''} — ${p.date || ''}`.trim())],
-    ['AthleteID', rt(p.athleteName)],
+    ['AthleteID', rt(p.athleteCode || p.athleteName)],
     ['Weight', num(p.weight)],
     ['Date', dat(p.date)],
     ['Sleep Score', num(p.sleep)],
@@ -147,17 +148,15 @@ async function handleBody(p) {
     ['Soreness', num(p.soreness)],
     ['Stress', num(p.stress)],
     ['Notes', rt(p.notes)],
-    // Athlete relation intentionally left empty to match existing Make rows
-    // (dashboard groups on the AthleteID text field = athlete name).
   ]);
   return createPage(DB.body, properties);
 }
 
 async function handleNutrition(p) {
-  // Matches the old Make scenario: AthleteID (text) holds the athlete NAME.
+  // Keep the same athlete identifier convention as BODY logs.
   const properties = build([
     ['Name', title(`${p.athleteName || ''} — ${p.date || ''}`.trim())],
-    ['AthleteID', rt(p.athleteName)],
+    ['AthleteID', rt(p.athleteCode || p.athleteName)],
     ['Date', dat(p.date)],
     ['Calories', num(p.calories)],
     ['Protein', num(p.protein)],
@@ -165,8 +164,6 @@ async function handleNutrition(p) {
     ['Fats', num(p.fat)],
     ['Fibre', num(p.fibre)],
     ['Notes', rt(p.notes)],
-    // Athlete relation intentionally left empty to match existing rows
-    // (dashboard groups on the AthleteID text field = athlete name).
   ]);
   return createPage(DB.nutrition, properties);
 }
