@@ -969,10 +969,24 @@ async function postJsonChecked(url,payload){
   }
   return data;
 }
+async function postCoachWriteWithFallback(url,payload){
+  try{return await postJsonChecked('/api/ingest',{targetUrl:url,payload:payload});}
+  catch(ingestError){
+    try{
+      var direct=await postJsonChecked(url,payload);
+      direct.directFallback=true;
+      direct.ingestError=ingestError&&ingestError.message;
+      return direct;
+    }catch(directError){
+      directError.message='ingest: '+String(ingestError&&ingestError.message||ingestError||'failed')+'; direct: '+String(directError&&directError.message||directError||'failed');
+      throw directError;
+    }
+  }
+}
 async function coachWrite(url,payload,opts){
   opts=opts||{};
   if(payload&&!payload.clientWriteId) payload.clientWriteId='cw_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-  try{return await postJsonChecked('/api/ingest',{targetUrl:url,payload:payload});}
+  try{return await postCoachWriteWithFallback(url,payload);}
   catch(e){
     await queueCoachWrite(url,payload,e);
     if(opts.required) throw e;
@@ -988,7 +1002,7 @@ async function retryPendingCoachWrites(silent){
   for(var i=0;i<list.length;i++){
     var item=list[i];
     try{
-      await postJsonChecked('/api/ingest',{targetUrl:item.url,payload:item.payload});
+      await postCoachWriteWithFallback(item.url,item.payload);
       synced++;
     }catch(e){
       item.attempts=(item.attempts||0)+1;
