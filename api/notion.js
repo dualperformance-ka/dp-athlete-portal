@@ -45,6 +45,19 @@ function sendError(res, status, message) {
   return res.status(status).json({ error: message });
 }
 
+// Notion REST verbs depend on the endpoint:
+//   databases/{id}/query   -> POST   (query)
+//   pages                  -> POST   (create page)
+//   pages/{id}             -> PATCH  (update page properties)  ← e.g. mark Status=Completed
+//   blocks/{id}/children   -> PATCH  (append children)
+// Previously every call used POST, so page-property updates (markSessionDone)
+// always failed against Notion and piled up in coach_write_outbox.
+function methodFor(endpoint) {
+  if (/^pages\/[a-f0-9-]+$/i.test(endpoint)) return 'PATCH';
+  if (/^blocks\/[a-f0-9-]+\/children$/i.test(endpoint)) return 'PATCH';
+  return 'POST';
+}
+
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
 
@@ -69,7 +82,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(`${NOTION_API_BASE}/${endpoint}`, {
-      method: 'POST',
+      method: methodFor(endpoint),
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
