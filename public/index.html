@@ -926,28 +926,39 @@ window.addEventListener('pagehide',_flushAllSb);
 })();
 
 function pendingCoachWritesKey(code){return 'dp_pending_writes_'+code;}
-function readPendingCoachWrites(){
-  if(!athlete||!athlete.code) return [];
+// Resolve the best athlete code available, even if the athlete object isn't
+// ready yet — so a failed write is NEVER silently dropped for lack of a code.
+function currentWriteCode(payload){
+  if(athlete&&athlete.code) return athlete.code;
+  if(payload&&payload.athleteCode) return String(payload.athleteCode);
+  try{var c=localStorage.getItem('dp_last_athlete_code');if(c) return c;}catch(e){}
+  return '_unknown';
+}
+function readPendingCoachWrites(code){
+  code=code||currentWriteCode();
   try{
-    var list=JSON.parse(localStorage.getItem(pendingCoachWritesKey(athlete.code))||'[]');
+    var list=JSON.parse(localStorage.getItem(pendingCoachWritesKey(code))||'[]');
     return Array.isArray(list)?list:[];
   }catch(e){return [];}
 }
-async function persistPendingCoachWrites(list){
-  if(!athlete||!athlete.code) return;
-  localStorage.setItem(pendingCoachWritesKey(athlete.code),JSON.stringify(list));
-  if(sbClient){
+async function persistPendingCoachWrites(list,code){
+  code=code||currentWriteCode();
+  try{localStorage.setItem(pendingCoachWritesKey(code),JSON.stringify(list));}catch(e){}
+  // Mirror the queue to Supabase only when we have a real code (athlete_data needs one).
+  if(sbClient&&code&&code!=='_unknown'){
     try{
       await sbClient.from('athlete_data').upsert(
-        {athlete_code:athlete.code,key:'pending_writes',value:list,updated_at:new Date().toISOString()},
+        {athlete_code:code,key:'pending_writes',value:list,updated_at:new Date().toISOString()},
         {onConflict:'athlete_code,key'}
       );
     }catch(e){console.warn('Pending coach-write sync failed:',e);}
   }
 }
 async function queueCoachWrite(url,payload,error){
-  if(!athlete||!athlete.code) return;
-  var list=readPendingCoachWrites();
+  // Robust: queue under the best code we can resolve; never bail for a missing code.
+  var code=currentWriteCode(payload);
+  if(code&&code!=='_unknown'){try{localStorage.setItem('dp_last_athlete_code',code);}catch(e){}}
+  var list=readPendingCoachWrites(code);
   var writeId=payload&&payload.clientWriteId?payload.clientWriteId:('cw_'+Date.now()+'_'+Math.random().toString(36).slice(2));
   if(payload) payload.clientWriteId=writeId;
   var existing=list.find(function(item){return item.id===writeId;});
@@ -956,7 +967,7 @@ async function queueCoachWrite(url,payload,error){
   }else{
     list.push({id:writeId,url:url,payload:payload,createdAt:new Date().toISOString(),attempts:0,lastError:String(error&&error.message||error||'Write failed')});
   }
-  await persistPendingCoachWrites(list);
+  await persistPendingCoachWrites(list,code);
 }
 async function postJsonChecked(url,payload){
   if(payload&&!payload.clientWriteId) payload.clientWriteId='cw_'+Date.now()+'_'+Math.random().toString(36).slice(2);
@@ -969,50 +980,61 @@ async function postJsonChecked(url,payload){
   }
   return data;
 }
-async function postCoachWriteWithFallback(url,payload){
-  try{return await postJsonChecked('/api/ingest',{targetUrl:url,payload:payload});}
-  catch(ingestError){
-    try{
-      var direct=await postJsonChecked(url,payload);
-      direct.directFallback=true;
-      direct.ingestError=ingestError&&ingestError.message;
-      return direct;
-    }catch(directError){
-      directError.message='ingest: '+String(ingestError&&ingestError.message||ingestError||'failed')+'; direct: '+String(directError&&directError.message||directError||'failed');
-      throw directError;
-    }
-  }
+// Authoritative write: /api/ingest persists to the structured Supabase tables
+// (the dashboard's source of truth) AND mirrors to the coach target. ONLY an
+// ingest success means the submission is safely in Supabase.
+async function ingestWrite(url,payload){
+  return postJsonChecked('/api/ingest',{targetUrl:url,payload:payload});
 }
 async function coachWrite(url,payload,opts){
   opts=opts||{};
   if(payload&&!payload.clientWriteId) payload.clientWriteId='cw_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-  try{return await postCoachWriteWithFallback(url,payload);}
-  catch(e){
-    await queueCoachWrite(url,payload,e);
-    if(opts.required) throw e;
-    console.warn('Coach write queued:',e&&e.message);
-    return {ok:false,queued:true,error:e&&e.message};
+  if(athlete&&athlete.code){try{localStorage.setItem('dp_last_athlete_code',athlete.code);}catch(e){}}
+  try{
+    return await ingestWrite(url,payload); // safely persisted to Supabase + mirrored
+  }catch(ingestError){
+    // Supabase persistence did NOT happen. Best-effort direct write so the coach
+    // still sees it immediately, but ALWAYS queue so Supabase gets it on retry.
+    try{await postJsonChecked(url,payload);}catch(directErr){}
+    await queueCoachWrite(url,payload,ingestError);
+    if(opts.required) throw ingestError;
+    console.warn('Coach write queued for Supabase retry:',ingestError&&ingestError.message);
+    return {ok:true,queued:true,error:ingestError&&ingestError.message};
   }
 }
 async function retryPendingCoachWrites(silent){
-  if(!athlete||!athlete.code) return;
-  var list=readPendingCoachWrites();
-  if(!list.length) return;
-  var keep=[],synced=0;
-  for(var i=0;i<list.length;i++){
-    var item=list[i];
-    try{
-      await postCoachWriteWithFallback(item.url,item.payload);
-      synced++;
-    }catch(e){
-      item.attempts=(item.attempts||0)+1;
-      item.lastError=String(e&&e.message||e||'Write failed');
-      item.updatedAt=new Date().toISOString();
-      keep.push(item);
+  var code=currentWriteCode();
+  // Process the active code AND any writes parked under '_unknown' before a code was known.
+  var buckets=[code];if(code!=='_unknown') buckets.push('_unknown');
+  var totalSynced=0;
+  for(var b=0;b<buckets.length;b++){
+    var bucket=buckets[b];
+    var list=readPendingCoachWrites(bucket);
+    if(!list.length) continue;
+    var keep=[],synced=0;
+    for(var i=0;i<list.length;i++){
+      var item=list[i];
+      try{
+        await ingestWrite(item.url,item.payload); // must reach Supabase to clear the queue
+        synced++;
+      }catch(e){
+        item.attempts=(item.attempts||0)+1;
+        item.lastError=String(e&&e.message||e||'Write failed');
+        item.updatedAt=new Date().toISOString();
+        keep.push(item);
+      }
+    }
+    totalSynced+=synced;
+    if(bucket==='_unknown'&&code!=='_unknown'){
+      // Re-home any still-failing 'unknown' writes under the now-known code.
+      var primary=readPendingCoachWrites(code).concat(keep);
+      await persistPendingCoachWrites(primary,code);
+      await persistPendingCoachWrites([],'_unknown');
+    }else{
+      await persistPendingCoachWrites(keep,bucket);
     }
   }
-  await persistPendingCoachWrites(keep);
-  if(synced&&!silent) showToast(synced+' pending coach update'+(synced>1?'s':'')+' synced');
+  if(totalSynced&&!silent) showToast(totalSynced+' pending coach update'+(totalSynced>1?'s':'')+' synced');
 }
 window.addEventListener('online',function(){retryPendingCoachWrites(false);});
 
