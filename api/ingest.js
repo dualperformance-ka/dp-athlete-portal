@@ -33,6 +33,12 @@ function athleteCode(payload) {
   return text(payload.athleteCode, 120);
 }
 
+// Name must never be null: prefer the resolved/submitted name, fall back to the
+// athlete code so every row stays human-identifiable.
+function athleteName(payload) {
+  return text(payload.athleteName, 180) || athleteCode(payload);
+}
+
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VERSION = '2022-06-28';
@@ -175,7 +181,7 @@ async function persistStructured(payload) {
   if (type === 'goals') {
     return upsert('athlete_goals', {
       athlete_code: code,
-      athlete_name: text(payload.athleteName, 180),
+      athlete_name: athleteName(payload),
       athlete_notion_id: text(payload.athleteId, 120),
       submitted_at: submittedAt(payload),
       goal_race: text(payload.goalRace, 240),
@@ -201,7 +207,7 @@ async function persistStructured(payload) {
   if (type === 'weekly_checkin') {
     return upsert('weekly_checkins', {
       athlete_code: code,
-      athlete_name: text(payload.athleteName, 180),
+      athlete_name: athleteName(payload),
       athlete_notion_id: text(payload.athleteId, 120),
       week_key: weekKey(payload),
       week_ending: date(payload.weekEnding),
@@ -235,7 +241,7 @@ async function persistStructured(payload) {
   if (type === 'daily_body') {
     return upsert('daily_body_logs', {
       athlete_code: code,
-      athlete_name: text(payload.athleteName, 180),
+      athlete_name: athleteName(payload),
       athlete_notion_id: text(payload.athleteId, 120),
       log_date: date(payload.date) || new Date().toISOString().slice(0, 10),
       submitted_at: submittedAt(payload),
@@ -253,7 +259,7 @@ async function persistStructured(payload) {
   if (type === 'daily_nutrition') {
     return upsert('daily_nutrition_logs', {
       athlete_code: code,
-      athlete_name: text(payload.athleteName, 180),
+      athlete_name: athleteName(payload),
       athlete_notion_id: text(payload.athleteId, 120),
       log_date: date(payload.date) || new Date().toISOString().slice(0, 10),
       submitted_at: submittedAt(payload),
@@ -272,12 +278,20 @@ async function persistStructured(payload) {
     return upsert('training_session_logs', {
       client_write_id: text(payload.clientWriteId, 120),
       athlete_code: code,
-      athlete_name: text(payload.athleteName, 180),
+      athlete_name: athleteName(payload),
       athlete_notion_id: text(payload.athleteId, 120),
       session_name: text(payload.session, 240),
       session_category: text(payload.type, 80),
       session_date: date(payload.date),
       exercise_log: text(payload.exerciseLog, 2000),
+      // Structured run detail (was only ever flattened into exercise_log before)
+      distance_km: number(payload.distanceKm ?? payload.distance),
+      duration_min: number(payload.durationMin ?? payload.duration),
+      pace: text(payload.pace, 80),
+      rpe: number(payload.rpe),
+      feel: number(payload.feel),
+      // Structured strength sets (was only ever inside raw_payload before)
+      raw_sets: payload.rawSets ?? null,
       notes: text(payload.notes, 2000),
       raw_payload: payload,
       submitted_at: submittedAt(payload),
@@ -342,22 +356,34 @@ export default async function handler(req, res) {
     return send(res, 400, { ok: false, error: 'athleteCode is required' });
   }
 
-  try {
-    if (targetUrl === '/api/write') {
+  let identityError = null;
+  if (targetUrl === '/api/write') {
+    try {
       payload = await resolveAthleteIdentity(payload);
+    } catch (error) {
+      // A genuine identity MISMATCH is a safety stop: never persist a row under
+      // a code that doesn't match the submitted name.
+      if (/mismatch/i.test(error.message || '')) {
+        return send(res, 409, { ok: false, stage: 'identity', error: error.message });
+      }
+      // Any other lookup failure (Notion unreachable, code not yet in the DB,
+      // transient error) must NOT drop the submission. Persist to Supabase with
+      // the identity we already have and queue the Notion mirror for retry.
+      identityError = error;
     }
-  } catch (error) {
-    return send(res, 409, {
-      ok: false,
-      stage: 'identity',
-      error: error.message,
-    });
   }
 
   try {
     await persistStructured(payload);
   } catch (error) {
     return send(res, 502, { ok: false, stage: 'supabase', error: error.message });
+  }
+
+  // Row is safely in Supabase; the Notion mirror still needs the verified
+  // profile, so queue it for retry and report softly rather than 4xx-ing.
+  if (identityError) {
+    try { await queueOutbox(targetUrl, payload, identityError); } catch (e) {}
+    return send(res, 202, { ok: true, queued: true, stage: 'identity', error: identityError.message });
   }
 
   try {
