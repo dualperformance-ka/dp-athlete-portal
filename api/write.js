@@ -85,10 +85,113 @@ async function createPage(databaseId, properties) {
   });
 }
 
+
+const ATHLETE_DB_ID = DB.athlete;
+
+function safeText(value, max = 2000) {
+  return has(value) ? String(value).trim().slice(0, max) : null;
+}
+
+function normaliseId(value) {
+  return String(value || '').replace(/-/g, '').trim().toLowerCase();
+}
+
+function notionPlainText(property) {
+  if (!property) return '';
+
+  if (property.type === 'title') {
+    return (property.title || [])
+      .map(item => item.plain_text || item.text?.content || '')
+      .join('')
+      .trim();
+  }
+
+  if (property.type === 'rich_text') {
+    return (property.rich_text || [])
+      .map(item => item.plain_text || item.text?.content || '')
+      .join('')
+      .trim();
+  }
+
+  return '';
+}
+
+async function findAthleteProfile(payload) {
+  const suppliedPageId = safeText(payload.athleteId, 120);
+  const suppliedCode = safeText(payload.athleteCode, 120)?.toUpperCase();
+
+  if (suppliedPageId) {
+    const page = await notion(`pages/${suppliedPageId}`, 'GET');
+
+    if (
+      page.parent?.type !== 'database_id' ||
+      normaliseId(page.parent.database_id) !== normaliseId(ATHLETE_DB_ID)
+    ) {
+      throw new Error('The supplied athlete profile does not belong to the Athlete DB');
+    }
+
+    return page;
+  }
+
+  if (!suppliedCode) {
+    throw new Error('athleteId or athleteCode is required');
+  }
+
+  const result = await notion(
+    `databases/${ATHLETE_DB_ID}/query`,
+    'POST',
+    {
+      filter: {
+        property: 'Code',
+        rich_text: { equals: suppliedCode },
+      },
+      page_size: 2,
+    }
+  );
+
+  if (!Array.isArray(result.results) || result.results.length !== 1) {
+    throw new Error(`Unable to uniquely resolve athlete code ${suppliedCode}`);
+  }
+
+  return result.results[0];
+}
+
+async function resolveAthleteIdentity(payload) {
+  const page = await findAthleteProfile(payload);
+  const properties = page.properties || {};
+
+  const resolvedCode = notionPlainText(properties.Code).toUpperCase().trim();
+  const resolvedName = (
+    notionPlainText(properties.Name) ||
+    notionPlainText(properties.Athlete) ||
+    resolvedCode
+  ).trim();
+
+  if (!resolvedCode) {
+    throw new Error('The athlete profile has no Code value');
+  }
+
+  const suppliedCode = safeText(payload.athleteCode, 120)?.toUpperCase();
+
+  if (suppliedCode && suppliedCode !== resolvedCode) {
+    throw new Error(
+      `Athlete identity mismatch: submitted ${suppliedCode}, profile resolves to ${resolvedCode}`
+    );
+  }
+
+  return {
+    ...payload,
+    athleteId: page.id,
+    athleteCode: resolvedCode,
+    athleteName: resolvedName,
+  };
+}
+
+
 // ── Per-type handlers ──────────────────────────────────────────────────────
 async function handleTraining(p) {
   // type is "Run" or "Strength" (Session Category select). athleteId -> Athlete relation.
-  const name = p.name || [p.athleteName, p.session, p.date].filter(Boolean).join(' — ');
+  const name = [p.athleteName, p.session, p.date].filter(Boolean).join(' — ');
   const properties = build([
     ['Name', title(name)],
     ['Session', rt(p.session)],
@@ -102,7 +205,7 @@ async function handleTraining(p) {
 }
 
 async function handleCheckin(p) {
-  const name = p.name || (p.athleteName || '');
+  const name = p.athleteName || p.athleteCode || '';
   const fullName = has(p.weekEnding) ? `${name} - ${ddmmyyyy(p.weekEnding)}` : name;
   const properties = build([
     ['Name', title(fullName)],
@@ -286,6 +389,7 @@ export default async function handler(req, res) {
   if (type === 'test_ping') return res.status(200).json({ ok: true, skipped: 'test_ping' });
 
   try {
+    p = await resolveAthleteIdentity(p);
     let result;
     switch (type) {
       case 'Run':
@@ -310,6 +414,19 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, type, id: result && result.id });
   } catch (err) {
     console.error('[write] type=' + type + ' error:', err && err.message);
-    return res.status(502).json({ ok: false, type, error: (err && err.message) || 'Write failed' });
+
+    const message = (err && err.message) || 'Write failed';
+    const identityFailure =
+      message.includes('identity') ||
+      message.includes('athlete profile') ||
+      message.includes('athlete code') ||
+      message.includes('Athlete DB');
+
+    return res.status(identityFailure ? 409 : 502).json({
+      ok: false,
+      type,
+      stage: identityFailure ? 'identity' : 'notion',
+      error: message,
+    });
   }
 }
