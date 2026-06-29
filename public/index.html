@@ -2835,6 +2835,9 @@ function renderTodaySection(){
         }
       }else if(type==='strength'){
         html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(displayName)+'</div><div class="desc">Open the session, use the faint previous efforts as a guide, then log what you actually complete today.</div></div>';
+      }else if(type==='note'){
+        var _noteInstr=s.runDetails||(_sessionOverrides[s.id]&&_sessionOverrides[s.id].notes)||'Train as you normally would and log what you did.';
+        html+='<div class="todaytarget"><div class="label">Discovery week</div><div class="value">'+esc(displayName)+'</div><div class="desc">'+esc(_noteInstr)+'</div></div>';
       }else{
         html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
       }
