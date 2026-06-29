@@ -122,10 +122,10 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .sch{padding:15px 16px;display:flex;align-items:center;gap:12px;cursor:pointer}
 .sch:active{background:var(--surface2)}
 .sdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:1px}
-.dot-run{background:var(--run)}.dot-strength{background:var(--strength)}.dot-rest{background:var(--rest)}
+.dot-run{background:var(--run)}.dot-strength{background:var(--strength)}.dot-rest{background:var(--rest)}.dot-note{background:#92d2ed}
 .sinfo{flex:1;min-width:0}
 .sname{font-family:var(--display);font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;line-height:1.1}
-.sname.run{color:var(--run)}.sname.strength{color:var(--strength)}.sname.rest{color:var(--rest)}
+.sname.run{color:var(--run)}.sname.strength{color:var(--strength)}.sname.rest{color:var(--rest)}.sname.note{color:#92d2ed}
 .smeta{font-size:12px;color:var(--muted);margin-top:2px}
 .tick{width:44px;height:44px;border-radius:50%;border:2px solid var(--border-mid);background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
 .tick:active{transform:scale(.92)}
