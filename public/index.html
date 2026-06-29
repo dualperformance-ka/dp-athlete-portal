@@ -1905,6 +1905,15 @@ function textFromAny(pr,keys){
   for(var i=0;i<keys.length;i++){var v=getPropText(pr[keys[i]]);if(v) return v;}
   return '';
 }
+// Week 0 is the discovery week — render it as "Discovery Week" everywhere the
+// athlete sees a week label. (Data-matching keys like week_label queries keep
+// using the raw "Week N" form so lookups don't break.)
+function isDiscoveryWeek(v){
+  if(v===0) return true;
+  if(v==null) return false;
+  var s=String(v).trim().toLowerCase();
+  return s==='0'||s==='week 0'||s==='discovery'||s==='discovery week';
+}
 function getDisplayWeekNumber(offset){
   var weekNum=getCurrentProgrammeWeek();
   var displayWeek=weekNum+offset;
@@ -2064,7 +2073,7 @@ async function loadNutrition(){
   if(displayWeek>programmeWeeks) displayWeek=programmeWeeks;
 
   currentWeekKmData=null;
-  document.getElementById('nutWLabel').textContent='Week '+displayWeek;
+  document.getElementById('nutWLabel').textContent=isDiscoveryWeek(displayWeek)?'Discovery Week':'Week '+displayWeek;
   document.getElementById('nutLoadingEl').style.display='block';
   document.getElementById('nutContent').style.display='none';
   document.getElementById('nutNoplan').style.display='none';
@@ -2394,7 +2403,20 @@ async function loadWeek(){
   sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
   if(weekOffset===0) initPhotoNudge();
   renderTodaySection();
-  var wkS=sessions.find(function(s){return s.week;});if(wkS) document.getElementById('heroWeek').textContent=wkS.week;
+  var wkS=sessions.find(function(s){return s.week;});
+  if(wkS){
+    var _hl=document.querySelector('.hero-week-label');
+    var _hn=document.getElementById('heroWeek');
+    if(isDiscoveryWeek(wkS.week)){
+      if(_hl) _hl.style.display='none';
+      _hn.classList.add('discovery');
+      _hn.textContent='Discovery Week';
+    }else{
+      if(_hl) _hl.style.display='';
+      _hn.classList.remove('discovery');
+      _hn.textContent=wkS.week;
+    }
+  }
   var runs=sessions.filter(function(s){return getType(s)==='run';});
   var lifts=sessions.filter(function(s){return getType(s)==='strength';});
   document.getElementById('ciRuns').textContent=runs.length;document.getElementById('ciLifts').textContent=lifts.length;
