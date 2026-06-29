@@ -195,7 +195,7 @@ async function handleTraining(p) {
   const properties = build([
     ['Name', title(name)],
     ['Session', rt(p.session)],
-    ['Session Category', sel(p.type)],
+    ['Session Category', sel(p.sessionCategory || p.type)],
     ['Exercise Log', rt(p.exerciseLog)],
     ['Athlete Code', rt(p.athleteCode)],
     ['Date', dat(p.date)],
