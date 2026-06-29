@@ -1255,6 +1255,7 @@ async function fetchRunLibrary(){
 // ── SESSION TYPE ──────────────────────────────────────────────────────────────
 function getType(s){
   var t=(s.sessionType||'').toLowerCase(),n=(s.name||'').toLowerCase();
+  if(t==='note'||t==='notes'||t==='general'||t==='discovery'||t==='custom')return 'note';
   if(t==='strength'||GYM_KEYS.some(function(k){return n.indexOf(k.toLowerCase())>=0;}))return 'strength';
   if(t==='rest'||n==='rest')return 'rest';
   return 'run';
@@ -3177,6 +3178,17 @@ function buildBody(s,i,type){
     h+='<div id="gym_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label">✓ Session Logged — your data above has been saved</div></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveGym('+i+',\''+esc(splitKey)+'\')">Save session</button>';
     if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save session');}(i),0);}
+  }else if(type==='note'){
+    var sl3=logs[s.id]||{};
+    var noteVal=(typeof sl3.__notes==='string')?sl3.__notes:(sl3.notes||'');
+    var instruction=s.runDetails||(_sessionOverrides[s.id]&&_sessionOverrides[s.id].notes)||'';
+    h+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border-mid);border-radius:8px;padding:12px 14px">';
+    if(instruction) h+='<div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:12px">'+esc(instruction)+'</div>';
+    h+='<div class="run-field run-input-full" style="margin-bottom:10px"><label>What did you do? <span style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--dim)">(training + how it felt, anything worth logging)</span></label><textarea id="nt_'+i+'" class="li" placeholder="e.g. 45min easy run + mobility, legs felt good. Hit chest at the gym, normal week..." oninput="draftNote('+i+')" style="min-height:90px;resize:vertical;font-size:13px">'+esc(noteVal)+'</textarea></div>';
+    h+='<div id="note_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label">✓ Logged — saved to your coach</div></div>';
+    h+='<button class="savebtn" id="sb_'+i+'" onclick="saveNote('+i+')">Save</button>';
+    if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save');}(i),0);}
+    h+='</div>';
   }else{h+='<div style="font-family:var(--mono);font-size:12px;color:var(--dim);padding:8px 0">Rest up. Recovery is training too.</div>';}
   return h;
 }
@@ -3259,6 +3271,39 @@ function showRunSaved(i,d){
   lockSaveButton(i,'Save session');
 }
 function draftGym(i,splitKey){var s=sessions[i];if(!s) return;var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);try{markInlinePbs(i,splitKey);}catch(e){}}
+
+// ── NOTE-ONLY SESSION (discovery week "train as normal" + log notes) ──────────
+function draftNote(i){
+  var s=sessions[i];if(!s) return;
+  var el=document.getElementById('nt_'+i);
+  logs[s.id]={__notes:el?el.value:''};logs.__savedAt=Date.now();
+  localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+}
+async function saveNote(i){
+  var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
+  var s=sessions[i];
+  var el=document.getElementById('nt_'+i);var noteText=el?el.value.trim():'';
+  logs[s.id]={__notes:noteText};logs.__savedAt=Date.now();
+  localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
+  var noteDate=s.date||new Date().toISOString().slice(0,10);
+  var noteResult=await coachWrite(WEBHOOK,{
+    name:athlete.name+' — '+(s.name||'Notes')+' — '+noteDate,
+    session:s.name||'Notes',
+    type:'training_log',          // routes to training_session_logs + Notion, same path as run/gym
+    sessionCategory:'Discovery',  // friendly Session Category label (see write.js / ingest.js)
+    exerciseLog:noteText,         // lands in exercise_log — coaches dashboard already reads this
+    notes:noteText,
+    athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,
+    date:noteDate,submittedAt:new Date().toISOString()
+  });
+  await markSessionLogged(s.id);
+  var statusResult=await markSessionDone(i);
+  var queued=(noteResult&&noteResult.queued)||(statusResult&&statusResult.queued);
+  showToast(queued?'Saved - coach dashboard sync pending':'Saved ✓');
+  var banner=document.getElementById('note_saved_'+i);if(banner) banner.style.display='block';
+  lockSaveButton(i,'Save');
+}
 // ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
 var sessionLoggedCache={};
 async function markSessionLogged(sessionId){
