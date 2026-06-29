@@ -39,6 +39,7 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .hero-week{text-align:right;padding-bottom:3px}
 .hero-week-label{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em}
 .hero-week-num{font-family:var(--display);font-size:28px;font-weight:800;color:#92d2ed;line-height:1}
+.hero-week-num.discovery{font-size:15px;line-height:1.05;text-transform:uppercase;letter-spacing:.03em}
 .hpills{display:flex;gap:6px;flex-wrap:nowrap;align-items:center;margin-bottom:7px}
 .hp{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.1);padding:5px 13px;border-radius:20px;flex-shrink:0;white-space:nowrap}
 .hp span{color:#92d2ed}
