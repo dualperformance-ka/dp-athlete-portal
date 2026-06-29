@@ -281,7 +281,7 @@ async function persistStructured(payload) {
       athlete_name: athleteName(payload),
       athlete_notion_id: text(payload.athleteId, 120),
       session_name: text(payload.session, 240),
-      session_category: text(payload.type, 80),
+      session_category: text(payload.sessionCategory || payload.type, 80),
       session_date: date(payload.date),
       exercise_log: text(payload.exerciseLog, 2000),
       // Structured run detail (was only ever flattened into exercise_log before)
