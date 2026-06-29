@@ -406,35 +406,16 @@ renderCode();
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
     </div>
         <!-- STEP 1: BOOK -->
-        <div style="background:#0a0a0a;border:1px solid rgba(245,158,11,.22);box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.22);border-radius:10px;margin-bottom:16px;overflow:hidden">
-          <!-- Accordion header -->
-          <div onclick="toggleCalendly()" style="padding:18px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative">
+        <div onclick="openCallModal()" role="button" tabindex="0" style="background:#0a0a0a;border:1px solid rgba(245,158,11,.22);box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.22);border-radius:10px;margin-bottom:16px;overflow:hidden;cursor:pointer">
+          <div style="padding:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative">
             <div style="flex:1;min-width:0">
               <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">Step 1 — Do this first</div>
               <div style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.1;margin-bottom:4px">Book your coaching call</div>
               <div style="font-size:13px;color:rgba(255,255,255,.45);line-height:1.5">30 min with Karl &amp; Alex · Tap to open booking</div>
             </div>
-            <div id="calendlyChevron" style="color:#2a3342;font-size:20px;flex-shrink:0;transition:transform .25s;transform:rotate(0deg)">›</div>
-          </div>
-          <!-- Accordion body -->
-          <div id="calendlyAccordion" style="max-height:0;overflow:hidden;transition:max-height .35s ease">
-            <div style="padding:0 18px 18px">
-              <!-- GHL (LeadConnector) booking widget begin -->
-              <iframe src="https://api.leadconnectorhq.com/widget/booking/WRivrNxfNTVER2xMit1z" style="width:100%;min-height:660px;border:none;overflow:hidden;border-radius:8px;background:#0a0a0a;display:block;" scrolling="no" id="WRivrNxfNTVER2xMit1z_1782710919820"></iframe>
-              <script src="https://link.msgsndr.com/js/form_embed.js" type="text/javascript"></script>
-              <!-- GHL (LeadConnector) booking widget end -->
-            </div>
+            <div style="color:#f59e0b;font-size:22px;flex-shrink:0;line-height:1">›</div>
           </div>
         </div>
-        <script>
-          function toggleCalendly(){
-            var body=document.getElementById('calendlyAccordion');
-            var chevron=document.getElementById('calendlyChevron');
-            var isOpen=body.style.maxHeight!=='0px'&&body.style.maxHeight!=='';
-            if(isOpen){body.style.maxHeight='0';chevron.style.transform='rotate(0deg)';}
-            else{body.style.maxHeight='700px';chevron.style.transform='rotate(90deg)';}
-          }
-        </script>
     </div><!-- /ci-rail -->
     <div class="ci-main" id="accWeeklyContent">
         <!-- STEP 2: CHECK-IN FORM -->
@@ -805,6 +786,20 @@ renderCode();
         <div id="qlnFeedback" class="qln-feedback"></div>
         <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
         <button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Log Nutrition</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOKING MODAL (GHL / LeadConnector) -->
+  <div class="ql-modal" id="callModal" onclick="if(event.target===this)closeCallModal()">
+    <div class="ql-modal-inner">
+      <div class="ql-modal-header">
+        <div class="ql-modal-title">Book Your Call</div>
+        <button class="ql-modal-close" onclick="closeCallModal()" aria-label="Close booking">×</button>
+      </div>
+      <div class="ql-modal-body" style="padding:0;background:#0a0a0a">
+        <iframe data-src="https://api.leadconnectorhq.com/widget/booking/WRivrNxfNTVER2xMit1z" src="about:blank" style="width:100%;min-height:80vh;border:none;overflow:hidden;display:block;background:#0a0a0a" scrolling="no" id="WRivrNxfNTVER2xMit1z_1782710919820"></iframe>
+        <script src="https://link.msgsndr.com/js/form_embed.js" type="text/javascript"></script>
       </div>
     </div>
   </div>
@@ -1527,14 +1522,19 @@ function hidePhotoNudge(){
 }
 function openCallBooking(){
   switchTab('checkin');
-  setTimeout(function(){
-    var body=document.getElementById('calendlyAccordion');
-    var chevron=document.getElementById('calendlyChevron');
-    if(body&&(body.style.maxHeight==='0px'||body.style.maxHeight==='')){
-      body.style.maxHeight='700px';
-      if(chevron) chevron.style.transform='rotate(90deg)';
-    }
-  },120);
+  setTimeout(function(){ openCallModal(); },180);
+}
+function openCallModal(){
+  var m=document.getElementById('callModal');
+  var f=document.getElementById('WRivrNxfNTVER2xMit1z_1782710919820');
+  if(f){var ds=f.getAttribute('data-src'); if(ds&&f.src.indexOf('leadconnectorhq')===-1) f.src=ds;}
+  if(m) m.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeCallModal(){
+  var m=document.getElementById('callModal');
+  if(m) m.classList.remove('open');
+  document.body.style.overflow='';
 }
 // ---- Booking confirmation (GHL / LeadConnector, with legacy Calendly fallback) ----
 function dpFormatBookedTime(iso){
@@ -1558,6 +1558,7 @@ function dpMarkCallBooked(displayTime){
   if(titleEl) titleEl.textContent=displayTime?'Call booked · '+displayTime:'Call booked this week';
   var dot=document.getElementById('tabDotCheckin');
   if(dot) dot.classList.remove('visible');
+  setTimeout(function(){try{closeCallModal();}catch(ex){}},1500);
   if(sbClient&&athlete&&athlete.code){
     var _wkpfx='dp_call_booked_'+athlete.code.toUpperCase()+'_';
     var sbKey='call_booked_'+wkey.slice(_wkpfx.length);
