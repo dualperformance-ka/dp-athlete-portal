@@ -419,10 +419,10 @@ renderCode();
           <!-- Accordion body -->
           <div id="calendlyAccordion" style="max-height:0;overflow:hidden;transition:max-height .35s ease">
             <div style="padding:0 18px 18px">
-              <!-- Calendly inline widget begin -->
-              <div class="calendly-inline-widget" data-url="https://calendly.com/dualperformance/weekly-checkin?hide_event_type_details=1&hide_gdpr_banner=1&background_color=0a0a0a&text_color=ffffff&primary_color=f59e0b&timezone=Australia/Adelaide" style="min-width:280px;height:660px;border-radius:8px;overflow:hidden;"></div>
-              <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
-              <!-- Calendly inline widget end -->
+              <!-- GHL (LeadConnector) booking widget begin -->
+              <iframe src="https://api.leadconnectorhq.com/widget/booking/WRivrNxfNTVER2xMit1z" style="width:100%;min-height:660px;border:none;overflow:hidden;border-radius:8px;background:#0a0a0a;display:block;" scrolling="no" id="WRivrNxfNTVER2xMit1z_1782710919820"></iframe>
+              <script src="https://link.msgsndr.com/js/form_embed.js" type="text/javascript"></script>
+              <!-- GHL (LeadConnector) booking widget end -->
             </div>
           </div>
         </div>
@@ -1536,38 +1536,55 @@ function openCallBooking(){
     }
   },120);
 }
-// Listen for Calendly booking confirmation
+// ---- Booking confirmation (GHL / LeadConnector, with legacy Calendly fallback) ----
+function dpFormatBookedTime(iso){
+  try{
+    if(!iso) return '';
+    var d=new Date(iso);
+    if(isNaN(d)) return '';
+    return d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+
+      ' · '+d.toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit',hour12:true});
+  }catch(ex){return '';}
+}
+function dpMarkCallBooked(displayTime){
+  var wkey=callNudgeWeekKey();
+  var saveVal=displayTime||'1';
+  localStorage.setItem(wkey,JSON.stringify(saveVal));
+  var nudge=document.getElementById('callNudge');
+  if(nudge) nudge.style.display='none';
+  var confirmed=document.getElementById('callConfirmedNudge');
+  if(confirmed) confirmed.style.display='';
+  var titleEl=document.getElementById('callConfirmedTitle');
+  if(titleEl) titleEl.textContent=displayTime?'Call booked · '+displayTime:'Call booked this week';
+  var dot=document.getElementById('tabDotCheckin');
+  if(dot) dot.classList.remove('visible');
+  if(sbClient&&athlete&&athlete.code){
+    var _wkpfx='dp_call_booked_'+athlete.code.toUpperCase()+'_';
+    var sbKey='call_booked_'+wkey.slice(_wkpfx.length);
+    sbClient.from('athlete_data').upsert(
+      {athlete_code:athlete.code,key:sbKey,value:saveVal,updated_at:new Date().toISOString()},
+      {onConflict:'athlete_code,key'}
+    ).then(function(){},function(err){console.warn('Call booked sync failed:',err);});
+  }
+}
 window.addEventListener('message',function(e){
-  if(e.data&&e.data.event&&e.data.event==='calendly.event_scheduled'){
-    var wkey=callNudgeWeekKey();
-    // Extract and format the booked start time from Calendly payload
-    var displayTime='';
-    try{
-      var startTime=e.data.payload&&e.data.payload.event&&e.data.payload.event.start_time;
-      if(startTime){
-        var dt=new Date(startTime);
-        displayTime=dt.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+
-          ' · '+dt.toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit',hour12:true});
-      }
-    }catch(ex){}
-    var saveVal=displayTime||'1';
-    localStorage.setItem(wkey,JSON.stringify(saveVal));
-    var nudge=document.getElementById('callNudge');
-    if(nudge) nudge.style.display='none';
-    var confirmed=document.getElementById('callConfirmedNudge');
-    if(confirmed) confirmed.style.display='';
-    var titleEl=document.getElementById('callConfirmedTitle');
-    if(titleEl) titleEl.textContent=displayTime?'Call booked · '+displayTime:'Call booked this week';
-    var dot=document.getElementById('tabDotCheckin');
-    if(dot) dot.classList.remove('visible');
-    if(sbClient&&athlete&&athlete.code){
-      var _wkpfx='dp_call_booked_'+athlete.code.toUpperCase()+'_';
-      var sbKey='call_booked_'+wkey.slice(_wkpfx.length);
-      sbClient.from('athlete_data').upsert(
-        {athlete_code:athlete.code,key:sbKey,value:saveVal,updated_at:new Date().toISOString()},
-        {onConflict:'athlete_code,key'}
-      ).then(function(){},function(err){console.warn('Call booked sync failed:',err);});
+  if(!e.data) return;
+  // GHL / LeadConnector booking confirmation
+  var fromGhl=(typeof e.origin==='string')&&/(leadconnectorhq|msgsndr)\.com/i.test(e.origin);
+  if(fromGhl){
+    var payloadStr='';
+    try{payloadStr=(typeof e.data==='string')?e.data:JSON.stringify(e.data);}catch(ex){}
+    if(/appointment|booking/i.test(payloadStr)&&/(book|confirm|success|created|scheduled|complete)/i.test(payloadStr)){
+      var d=(typeof e.data==='object')?e.data:{};
+      var st=d.startTime||(d.appointment&&d.appointment.startTime)||(d.payload&&(d.payload.startTime||d.payload.start_time));
+      dpMarkCallBooked(dpFormatBookedTime(st));
+      return;
     }
+  }
+  // Legacy Calendly fallback
+  if(e.data.event&&e.data.event==='calendly.event_scheduled'){
+    var startTime=e.data.payload&&e.data.payload.event&&e.data.payload.event.start_time;
+    dpMarkCallBooked(dpFormatBookedTime(startTime));
   }
 });
 
