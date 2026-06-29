@@ -2187,18 +2187,19 @@ function renderPhotoGrid(){
   var grid=document.getElementById('photoGrid');if(!grid) return;
   var photos=getPhotos(),html='';
   var curWeek=getCurrentProgrammeWeek();
-  for(var w=1;w<=programmeWeeks;w++){
+  for(var w=0;w<=programmeWeeks;w++){
+    var wLabel=w===0?'Discovery Week':'Week '+w;
     var weekPhotos=photos['week'+w]||{};var count=Object.keys(weekPhotos).length;var firstUrl=count?weekPhotos[Object.keys(weekPhotos)[0]]:'';
     var isCurrent=w===curWeek;
     html+='<div class="photo-cell'+(count?' has-photo':'')+(isCurrent?' current-week':'')+'" onclick="openPhotoModal('+w+')">';
     if(isCurrent&&!firstUrl) html+='<div class="photo-cell current-week-badge" style="font-family:var(--mono);font-size:8px;color:var(--run);text-transform:uppercase;letter-spacing:.06em;position:absolute;top:5px;left:6px;z-index:2;font-weight:700;line-height:1">NOW</div>';
-    if(firstUrl){html+='<img src="'+firstUrl+'" alt="Week '+w+'" /><div class="photo-count">'+count+'/5</div><div class="photo-overlay">Week '+w+'</div>';}
-    else{html+='<div class="photo-add">+</div><div class="photo-label">Week '+w+'</div>';}
+    if(firstUrl){html+='<img src="'+firstUrl+'" alt="'+wLabel+'" /><div class="photo-count">'+count+'/5</div><div class="photo-overlay">'+wLabel+'</div>';}
+    else{html+='<div class="photo-add">+</div><div class="photo-label">'+wLabel+'</div>';}
     html+='</div>';
   }
   grid.innerHTML=html;
 }
-function openPhotoModal(week){currentPhotoWeek=week;document.getElementById('photoModalTitle').textContent='Week '+week+' Photos';renderAngleGrid(week);document.getElementById('photoModal').classList.add('open');document.body.style.overflow='hidden';}
+function openPhotoModal(week){currentPhotoWeek=week;document.getElementById('photoModalTitle').textContent=(week===0?'Discovery Week':'Week '+week)+' Photos';renderAngleGrid(week);document.getElementById('photoModal').classList.add('open');document.body.style.overflow='hidden';}
 function closePhotoModal(e){if(e&&e.target!==document.getElementById('photoModal')&&!e.target.classList.contains('photo-modal-close')) return;document.getElementById('photoModal').classList.remove('open');document.body.style.overflow='';renderPhotoGrid();}
 function renderAngleGrid(week){
   var photos=getPhotos(),weekPhotos=photos['week'+week]||{},html='';
