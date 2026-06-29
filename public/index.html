@@ -1907,7 +1907,7 @@ function textFromAny(pr,keys){
 function getDisplayWeekNumber(offset){
   var weekNum=getCurrentProgrammeWeek();
   var displayWeek=weekNum+offset;
-  if(displayWeek<1) displayWeek=1;
+  if(displayWeek<0) displayWeek=0;
   if(displayWeek>52) displayWeek=52;
   return displayWeek;
 }
@@ -2059,7 +2059,7 @@ function renderKmTracker(kmData){
 async function loadNutrition(){
   var weekNum=getCurrentProgrammeWeek();
   var displayWeek=weekNum+nutWeekOffset;
-  if(displayWeek<1) displayWeek=1;
+  if(displayWeek<0) displayWeek=0;
   if(displayWeek>programmeWeeks) displayWeek=programmeWeeks;
 
   currentWeekKmData=null;
