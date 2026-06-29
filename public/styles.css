@@ -98,10 +98,10 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .todayitem{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:14px}
 .todaytop{display:flex;align-items:flex-start;gap:10px}
 .todaydot{width:10px;height:10px;border-radius:50%;margin-top:7px;flex-shrink:0}
-.todaydot.run{background:#92d2ed}.todaydot.strength{background:rgba(255,255,255,.75)}.todaydot.rest{background:#9ca3af}
+.todaydot.run{background:#92d2ed}.todaydot.strength{background:rgba(255,255,255,.75)}.todaydot.rest{background:#9ca3af}.todaydot.note{background:#92d2ed}
 .todaymain{flex:1;min-width:0}
 .todayname{font-family:var(--display);font-size:22px;line-height:1;text-transform:uppercase;letter-spacing:.02em}
-.todayname.run{color:#92d2ed}.todayname.strength{color:rgba(255,255,255,.8)}.todayname.rest{color:#d1d5db}
+.todayname.run{color:#92d2ed}.todayname.strength{color:rgba(255,255,255,.8)}.todayname.rest{color:#d1d5db}.todayname.note{color:#92d2ed}
 .todaymeta{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.56);text-transform:uppercase;letter-spacing:.06em;margin-top:5px}
 .todaytarget{margin-top:10px;padding:11px 12px;border-radius:10px;background:rgba(146,210,237,.08);border:1px solid rgba(146,210,237,.18)}
 .todaytarget .label{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
