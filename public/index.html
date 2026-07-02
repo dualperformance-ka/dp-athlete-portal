@@ -1257,6 +1257,34 @@ async function loadCloudData(code){
   finally{_skipSbSync=false;}
 }
 
+// Hydrate daily body logs from the structured Supabase source of truth. The
+// readiness card can then use the same local-first path offline while every
+// device receives the latest server copy at login.
+async function loadStructuredBodyData(code){
+  if(!code) return;
+  var wasSkipping=_skipSbSync;
+  try{
+    var response=await fetch('/api/my-logs?code='+encodeURIComponent(code),{cache:'no-store'});
+    if(!response.ok) return;
+    var result=await response.json();
+    if(!result||!Array.isArray(result.body)) return;
+    _skipSbSync=true;
+    result.body.forEach(function(row){
+      var logDate=String(row.log_date||'').slice(0,10);if(!logDate)return;
+      var raw=row.raw_payload&&typeof row.raw_payload==='object'?row.raw_payload:{};
+      var value=Object.assign({},raw,{
+        type:'daily_body',athleteCode:code,date:logDate,
+        weight:row.weight==null?'':String(row.weight),
+        sleep:row.sleep==null?'':String(row.sleep),energy:row.energy==null?'':String(row.energy),
+        stress:row.stress==null?'':String(row.stress),soreness:row.soreness==null?'':String(row.soreness),
+        notes:row.notes||raw.notes||''
+      });
+      localStorage.setItem('dp_daily_body_'+code+'_'+logDate,JSON.stringify(value));
+    });
+  }catch(e){console.warn('Body log cloud hydration failed',e);}
+  finally{_skipSbSync=wasSkipping;}
+}
+
 // ── STRENGTH LIBRARY ──────────────────────────────────────────────────────────
 const STR = {
   "Lower A":[
@@ -1437,7 +1465,7 @@ async function doLogin(code){
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
   localStorage.setItem('dp_auth_code',code);
-  await Promise.all([loadCloudData(code),loadSessionLogs()]); // independent — run in parallel
+  await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);})(),loadSessionLogs()]);
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
   exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
@@ -2056,6 +2084,7 @@ async function submitQuickBody(){
   document.getElementById('qlbPain').value='0';document.getElementById('qlbPainVal').textContent='0';document.getElementById('qlbPainLocation').value='';document.getElementById('qlbPainLocationWrap').style.display='none';
   document.getElementById('qlbNotes').value='';
   var prevPanel=document.getElementById('qlbPrevDay');if(prevPanel) prevPanel.style.display='none';
+  if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();
 }
 async function submitQuickNut(){
   var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
