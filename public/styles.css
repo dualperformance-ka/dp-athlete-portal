@@ -1503,10 +1503,11 @@ body{font-size:15px;line-height:1.55}
   .todaypanel{padding:19px 16px;border-radius:16px}
   .todaytitle{font-size:28px}.todaydate{padding-top:4px}
   .coach-moment{align-items:start}.coach-moment p{font-size:14px}
-  .insight-rail{display:flex;overflow-x:auto;margin-left:-16px;margin-right:-16px;padding:0 16px 6px;scroll-snap-type:x proximity;scrollbar-width:none}
-  .insight-rail::-webkit-scrollbar{display:none}
-  .insight-card{flex:0 0 174px;scroll-snap-align:start;padding:13px}
-  .insight-card.bodyweight{flex-basis:210px}
+  .insight-rail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;overflow:visible;margin:0 0 18px;padding:0}
+  .insight-card{min-width:0;padding:11px 10px;gap:8px}
+  .insight-card.bodyweight{min-width:0}
+  .insight-viz{width:54px;flex-basis:54px}
+  .mini-spark{width:54px}
   .today-actions{grid-template-columns:1fr 1fr}
   .quicklog-strip{display:none!important}
   .wa-fab{bottom:92px!important}
