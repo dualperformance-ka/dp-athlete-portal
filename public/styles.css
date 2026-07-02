@@ -1462,10 +1462,10 @@ body{font-size:15px;line-height:1.55}
 .insight-pb{width:42px;height:42px;flex:0 0 42px;border-radius:50%;display:grid;grid-template-columns:auto auto;place-content:center;gap:3px;background:rgba(255,255,255,.05)}
 .insight-pb .icon{width:12px;height:12px;color:var(--dim)}
 .insight-pb strong{font-size:12px}
-.insight-viz{width:80px;flex:0 0 80px;position:relative}
+.insight-viz{width:80px;flex:0 0 80px;display:flex;flex-direction:column;justify-content:center;position:relative}
 .mini-spark{width:80px;height:28px;display:block}
 .mini-spark polyline{fill:none;stroke:var(--text);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.insight-delta{position:absolute;right:0;top:0;font-size:9px!important;color:var(--dim)!important}
+.insight-delta{position:static;text-align:center;line-height:1;margin-top:-2px;font-size:9px!important;color:var(--dim)!important}
 .insight-empty{font-size:9px!important;color:var(--dim)!important;white-space:normal!important}
 .milestone-celebration{display:flex;gap:11px;align-items:center;margin:-4px 0 18px;padding:13px 14px;border-radius:12px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.18)}
 .milestone-celebration>.icon{width:20px;height:20px;color:#74d99a}
@@ -1560,7 +1560,7 @@ body{font-size:15px;line-height:1.55}
   .insight-card{min-width:0;padding:11px 10px;gap:8px}
   .insight-card.bodyweight{min-width:0}
   .insight-viz{width:54px;flex-basis:54px}
-  .mini-spark{width:54px}
+  .mini-spark{width:54px;height:22px}
   .today-actions{grid-template-columns:1fr 1fr}
   .quicklog-strip{display:none!important}
   .wa-fab{bottom:92px!important}
