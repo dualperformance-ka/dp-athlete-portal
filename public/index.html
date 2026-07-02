@@ -12,6 +12,23 @@
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
 <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
 <link rel="stylesheet" href="styles.css">
+<style>
+/* DP icon system */
+.icon{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-0.14em;flex-shrink:0}
+.icon-sm{width:14px;height:14px}.icon-md{width:18px;height:18px}.icon-lg{width:24px;height:24px}
+.icon-run{color:var(--run)}.icon-muted{color:var(--muted)}.icon-dim{color:var(--dim)}.icon-ok{color:var(--ok)}.icon-pb{color:var(--pb)}
+.nudge-strip-icon .icon{width:20px;height:20px;color:var(--run)}
+.nudge-strip-arr .icon{width:15px;height:15px;color:var(--dim)}
+.hb-icon .icon{width:24px;height:24px;color:var(--run)}
+.ci-step-title .icon{width:17px;height:17px;color:var(--run);margin-right:6px;vertical-align:-0.16em}
+.quicklog-btn .icon{width:16px;height:16px;color:var(--run);margin-right:7px}
+.warr .icon{width:15px;height:15px;color:var(--muted)}
+.hicon .icon{width:14px;height:14px}
+.hp .icon{width:13px;height:13px;vertical-align:-0.18em}
+.ex-stat .icon,.pb-badge .icon{width:12px;height:12px}
+.saved-label .icon{width:13px;height:13px;color:var(--ok)}
+</style>
+
 </head>
 <body>
 <!-- DP ICON SPRITE — paste this block once, directly after <body> in index/premium.html -->
@@ -209,14 +226,14 @@ renderCode();
         <div class="nudge-strip-title">Time for your weekly check-in</div>
         <div class="nudge-strip-sub">2 min · helps us coach you better</div>
       </div>
-      <span class="nudge-strip-arr">›</span>
+      <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
     </div>
   </div>
 
   <!-- CALL CONFIRMED NUDGE — appears once call is booked, shows day/time -->
   <div id="callConfirmedNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)">
     <div class="nudge-strip-inner">
-      <span class="nudge-strip-icon">📅</span>
+      <span class="nudge-strip-icon"><svg class="icon"><use href="#i-calendar"/></svg></span>
       <div class="nudge-strip-text">
         <div class="nudge-strip-title" id="callConfirmedTitle" style="color:rgba(255,255,255,.5)">Call booked this week</div>
         <div class="nudge-strip-sub" style="color:rgba(255,255,255,.25)">Karl &amp; Alex · confirmed</div>
@@ -232,7 +249,7 @@ renderCode();
         <div class="nudge-strip-title">Upload your progress photos</div>
         <div class="nudge-strip-sub">Same time, same lighting, same angles</div>
       </div>
-      <span class="nudge-strip-arr">›</span>
+      <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
     </div>
   </div>
 
@@ -377,8 +394,8 @@ renderCode();
   <div class="tab-content" id="tab-nutrition">
     <div class="nut-wbar">
       <div class="wnav">
-        <button class="warr nut-arr" onclick="shiftNutWeek(-1)">←</button>
-        <button class="warr nut-arr" onclick="shiftNutWeek(1)">→</button>
+        <button class="warr nut-arr" onclick="shiftNutWeek(-1)"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+        <button class="warr nut-arr" onclick="shiftNutWeek(1)"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
         <button class="wtoday nut-arr" onclick="goNutToday()">Current</button>
       </div>
       <div class="nut-wlabel" id="nutWLabel">—</div>
@@ -444,7 +461,7 @@ renderCode();
               <div style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.1;margin-bottom:4px">Book your coaching call</div>
               <div style="font-size:13px;color:rgba(255,255,255,.45);line-height:1.5">30 min with Karl &amp; Alex · Tap to open booking</div>
             </div>
-            <div style="color:#f59e0b;font-size:22px;flex-shrink:0;line-height:1">›</div>
+            <div style="color:#f59e0b;flex-shrink:0;line-height:1"><svg class="icon" style="width:18px;height:18px"><use href="#i-chevron-right"/></svg></div>
           </div>
         </div>
     </div><!-- /ci-rail -->
@@ -482,13 +499,13 @@ renderCode();
                 <input type="range" min="1" max="10" value="5" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>Best ever</span></div>
               </div>
-              <div class="lf" style="margin-top:10px"><label>Wins or PBs this week? <svg class="icon icon-pb"><use href="#i-trophy"/></svg></label><textarea class="li" id="ciRunWins" placeholder="Tell us what you crushed — a new PB, a strong session, anything you're proud of. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+              <div class="lf" style="margin-top:10px"><label>Wins or PBs this week? <svg class="icon icon-sm icon-pb"><use href="#i-trophy"/></svg></label><textarea class="li" id="ciRunWins" placeholder="Tell us what you crushed — a new PB, a strong session, anything you're proud of. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
               <div class="lf" style="margin-top:10px"><label>Pain, niggles or injuries?</label><textarea class="li" id="ciRunNiggles" placeholder="Be honest — even small things. The earlier we know, the better we can manage it." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
             </div>
           </div>
           <!-- Step 2: Lifting -->
           <div class="ci-step-panel" data-step="2">
-            <div class="ci-step-title">#i-barbell</div>
+            <div class="ci-step-title"><svg class="icon"><use href="#i-barbell"/></svg> Lifting</div>
             <div class="card" style="margin-bottom:12px">
               <div class="rlog" style="margin-bottom:12px">
                 <div class="lf"><label>Sessions completed</label><input type="number" class="li" id="ciLiftComp" min="0" max="20" placeholder="2" /></div>
@@ -499,13 +516,13 @@ renderCode();
                 <input type="range" min="1" max="10" value="5" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>PR session</span></div>
               </div>
-              <div class="lf" style="margin-top:10px"><label> Lifting wins or notable sessions? <svg class="icon icon-run"><use href="#i-barbell"/></svg></label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+              <div class="lf" style="margin-top:10px"><label> Lifting wins or notable sessions? <svg class="icon icon-sm icon-run"><use href="#i-barbell"/></svg></label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
               <div class="lf" style="margin-top:10px"><label>Pain, niggles or discomfort in the gym?</label><textarea class="li" id="ciLiftNiggles" placeholder="Anything sharp, achy or off — don't push through without telling us first." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
             </div>
           </div>
           <!-- Step 3: Recovery -->
           <div class="ci-step-panel" data-step="3">
-            <div class="ci-step-title">#i-moon</div>
+            <div class="ci-step-title"><svg class="icon"><use href="#i-moon"/></svg> Recovery</div>
             <div class="card" style="margin-bottom:12px">
               <div class="lf" style="margin-bottom:14px">
                 <label>Average sleep per night <span id="ciSleepVal" style="font-family:var(--mono)">5</span>/10</label>
@@ -526,7 +543,7 @@ renderCode();
           </div>
           <!-- Step 4: Fuelling & Life -->
           <div class="ci-step-panel" data-step="4">
-            <div class="ci-step-title">#i-leaf</div>
+            <div class="ci-step-title"><svg class="icon"><use href="#i-leaf"/></svg> Fuelling &amp; Life</div>
             <div class="card" style="margin-bottom:12px">
               <div class="lf" style="margin-bottom:14px">
                 <label>Adherence to nutrition plan <span id="ciNutVal" style="font-family:var(--mono)">5</span>/10</label>
@@ -559,17 +576,17 @@ renderCode();
           </div>
           <!-- Step 5: This week -->
           <div class="ci-step-panel" data-step="5">
-            <div class="ci-step-title">⭐ Your Week in Words</div>
+            <div class="ci-step-title"><svg class="icon"><use href="#i-sparkle"/></svg> Your Week in Words</div>
             <div style="background:#0a0a0a;border-radius:12px;padding:18px;margin-bottom:14px">
               <div style="font-family:var(--mono);font-size:9px;color:#2a3342;text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
               <div style="font-family:var(--display);font-size:20px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.15;margin-bottom:8px">What did this week mean to you?</div>
               <div style="font-size:13px;color:rgba(255,255,255,.82);line-height:1.6">Your progress is worth sharing. Other people are sitting on the couch wondering if they could do what you're doing — your words might be exactly what they need to hear.</div>
             </div>
             <div class="card" style="margin-bottom:10px;border:2px solid #0a0a0a">
-              <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Write freely — we may share this (with your permission) <svg class="icon icon-run"><use href="#i-sparkle"/></svg></div>
+              <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Write freely — we may share this (with your permission) <svg class="icon icon-sm icon-run"><use href="#i-sparkle"/></svg></div>
               <textarea class="li" id="ciTestimonial" placeholder="e.g. Three weeks ago I could barely run 2km without stopping. This week I nailed every session and hit a new PB. I didn't think I had it in me — but here I am. The coaching from Karl and Alex has completely changed how I train..." style="min-height:180px;resize:vertical;font-size:13px;line-height:1.6"></textarea>
               <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
-                <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Prompts to get you started <svg class="icon icon-run"><use href="#i-bulb"/></svg></div>
+                <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Prompts to get you started <svg class="icon icon-sm icon-run"><use href="#i-bulb"/></svg></div>
                 <div style="font-size:12px;color:var(--muted);line-height:1.5">• What's something you did this week you couldn't have done a month ago?</div>
                 <div style="font-size:12px;color:var(--muted);line-height:1.5">• How has training been affecting the rest of your life?</div>
                 <div style="font-size:12px;color:var(--muted);line-height:1.5">• What moment this week made you feel proud?</div>
@@ -636,12 +653,12 @@ renderCode();
     <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:16px">Tap a topic to read</div>
     <div class="hb-grid">
       <div class="hb-card" onclick="openHB(0)"><div class="hb-icon"><svg class="icon"><use href="#i-gear"/></svg></div><div class="hb-title">How This Works</div><div class="hb-sub">The DP system</div></div>
-      <div class="hb-card" onclick="openHB(1)"><div class="hb-icon">📅</div><div class="hb-title">Weekly Rhythm</div><div class="hb-sub">What to do & when</div></div>
-      <div class="hb-card" onclick="openHB(2)"><div class="hb-icon">📋</div><div class="hb-title">Training Rules</div><div class="hb-sub">5 non-negotiables</div></div>
-      <div class="hb-card" onclick="openHB(3)"><div class="hb-icon">🥗</div><div class="hb-title">Nutrition</div><div class="hb-sub">4 rules that matter</div></div>
-      <div class="hb-card" onclick="openHB(4)"><div class="hb-icon">📈</div><div class="hb-title">Progressive Overload</div><div class="hb-sub">8 → 10 → 12 → heavier</div></div>
-      <div class="hb-card" onclick="openHB(5)"><div class="hb-icon">🎯</div><div class="hb-title">Getting the Most</div><div class="hb-sub">Out of coaching</div></div>
-      <div class="hb-card" onclick="openHB(6)"><div class="hb-icon">📖</div><div class="hb-title">Glossary</div><div class="hb-sub">Terms explained</div></div>
+      <div class="hb-card" onclick="openHB(1)"><div class="hb-icon"><svg class="icon"><use href="#i-calendar"/></svg></div><div class="hb-title">Weekly Rhythm</div><div class="hb-sub">What to do & when</div></div>
+      <div class="hb-card" onclick="openHB(2)"><div class="hb-icon"><svg class="icon"><use href="#i-clipboard"/></svg></div><div class="hb-title">Training Rules</div><div class="hb-sub">5 non-negotiables</div></div>
+      <div class="hb-card" onclick="openHB(3)"><div class="hb-icon"><svg class="icon"><use href="#i-leaf"/></svg></div><div class="hb-title">Nutrition</div><div class="hb-sub">4 rules that matter</div></div>
+      <div class="hb-card" onclick="openHB(4)"><div class="hb-icon"><svg class="icon"><use href="#i-trend-up"/></svg></div><div class="hb-title">Progressive Overload</div><div class="hb-sub">8 → 10 → 12 → heavier</div></div>
+      <div class="hb-card" onclick="openHB(5)"><div class="hb-icon"><svg class="icon"><use href="#i-target"/></svg></div><div class="hb-title">Getting the Most</div><div class="hb-sub">Out of coaching</div></div>
+      <div class="hb-card" onclick="openHB(6)"><div class="hb-icon"><svg class="icon"><use href="#i-book"/></svg></div><div class="hb-title">Glossary</div><div class="hb-sub">Terms explained</div></div>
     </div>
   </div>
 
@@ -657,8 +674,8 @@ renderCode();
 
   <!-- QUICK LOG STRIP -->
   <div class="quicklog-strip" id="quicklogStrip">
-    <button class="quicklog-btn ql-body" onclick="openQuickLog('body')">📊 Daily Body Log</button>
-    <button class="quicklog-btn ql-nut" onclick="openQuickLog('nut')">🍽 Daily Nutrition Log</button>
+    <button class="quicklog-btn ql-body" onclick="openQuickLog('body')"><svg class="icon"><use href="#i-bars"/></svg> Daily Body Log</button>
+    <button class="quicklog-btn ql-nut" onclick="openQuickLog('nut')"><svg class="icon"><use href="#i-utensils"/></svg> Daily Nutrition Log</button>
   </div>
 
   <!-- QUICK LOG BODY MODAL -->
@@ -700,7 +717,7 @@ renderCode();
         </div>
         <div class="rlog" style="margin-bottom:14px">
           <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px">
-            <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span>📅</span> Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
+            <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
             <input type="date" class="li" id="qlbDate" style="margin-top:6px;border-color:rgba(255,170,0,.4)" />
           </div>
           <div class="lf"><label>Weight (kg)</label><input type="number" class="li" id="qlbWeight" step="0.1" placeholder="72.0" /></div>
@@ -770,7 +787,7 @@ renderCode();
         </div>
         <div class="rlog" style="margin-bottom:14px">
           <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px">
-            <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span>📅</span> Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
+            <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
             <input type="date" class="li" id="qlnDate" style="margin-top:6px;border-color:rgba(255,170,0,.4)" />
           </div>
           <div class="lf">
@@ -845,7 +862,7 @@ renderCode();
     <div class="comms-card">
       <div class="comms-title">Need to reach us?</div>
       <div class="comms-body">Join the Dual Performance Discord — message us, ask questions, and connect with the group. We typically respond within 24 hours.</div>
-      <a class="comms-btn" href="https://discord.gg/4AnT6nRNAB" target="_blank">Join the Discord →</a>
+      <a class="comms-btn" href="https://discord.gg/4AnT6nRNAB" target="_blank">Join the Discord <svg class="icon"><use href="#i-arrow-right"/></svg></a>
       <div class="comms-note">Karl & Alex · Dual Performance</div>
     </div>
     <div class="card">
@@ -1417,8 +1434,8 @@ function refreshExerciseStat(i,ei,resolvedEx){
   var stored=pbComputeStored(resolvedEx,s.id);
   var isSingleLeg=resolvedEx.toLowerCase().indexOf('single leg')>=0;
   var sh='';
-  if(stored.load) sh+='<div class="ex-stat ex-stat-pb">🏆 PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
-  if(!isSingleLeg&&stored.volume) sh+='<div class="ex-stat ex-stat-vol-pb">🏆 Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
+  if(stored.load) sh+='<div class="ex-stat ex-stat-pb"><svg class="icon"><use href="#i-trophy"/></svg> PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
+  if(!isSingleLeg&&stored.volume) sh+='<div class="ex-stat ex-stat-vol-pb"><svg class="icon"><use href="#i-trophy"/></svg> Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
   if(stored.e1rm) sh+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
   if(!isSingleLeg) sh+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol">Vol 0kg</div>';
   statEl.innerHTML=sh;
@@ -2167,7 +2184,7 @@ async function loadNutrition(){
   var note=(row.notes||'').trim();
   var noteEl=document.getElementById('nutCoachNote');
   if(note){
-    noteEl.textContent='💬 '+note;
+    noteEl.innerHTML='<svg class="icon icon-run"><use href="#i-chat"/></svg> '+esc(note);
     noteEl.style.display='block';
   }else{
     noteEl.style.display='none';
@@ -3133,7 +3150,7 @@ function buildBody(s,i,type){
     h+='<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>';
     h+='</div>';
     h+='<div id="run_form_'+i+'" style="display:'+(hasSaved?'none':'block')+';">';
-    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span>📅</span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="run_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
+    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="run_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     h+='<div class="run-log-title">Log your session</div><div class="run-inputs">';
     h+='<div class="run-field"><label>Distance (km)</label><input type="number" step="0.1" id="rd_'+i+'" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
     h+='<div class="run-field"><label>Duration (min)</label><input type="number" step="1" id="rdur_'+i+'" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
@@ -3153,7 +3170,7 @@ function buildBody(s,i,type){
 
     var splitKey=GYM_KEYS.find(function(k){return(s.name||'').indexOf(k)>=0;})||'Upper A';
     var exercises=getSplit(splitKey),sl2=logs[s.id]||{};
-    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span>📅</span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
+    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     if(exercises.length){
       h+='<div class="ltitle">Log your sets</div><div class="exlist">';
       exercises.forEach(function(ex,ei){
@@ -3174,10 +3191,10 @@ function buildBody(s,i,type){
         if(ex.notes) h+='<div class="exnotes">'+esc(ex.notes)+'</div>';
         h+='</div>';
         h+='<div id="exstat_'+i+'_'+ei+'" style="text-align:right;flex-shrink:0">';
-          if(stored.load) h+='<div class="ex-stat ex-stat-pb">🏆 PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
-          if(!isSingleLeg&&stored.volume) h+='<div class="ex-stat ex-stat-vol-pb">🏆 Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
+          if(stored.load) h+='<div class="ex-stat ex-stat-pb"><svg class="icon"><use href="#i-trophy"/></svg> PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
+          if(!isSingleLeg&&stored.volume) h+='<div class="ex-stat ex-stat-vol-pb"><svg class="icon"><use href="#i-trophy"/></svg> Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
           if(stored.e1rm) h+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
-          if(!isSingleLeg) h+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol'+(isVolPB?' pb':'')+'">'+(isVolPB?'🏆 ':'')+'Vol '+Math.round(initVol).toLocaleString()+'kg</div>';
+          if(!isSingleLeg) h+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol'+(isVolPB?' pb':'')+'">'+(isVolPB?'<svg class="icon"><use href="#i-trophy"/></svg> ':'')+'Vol '+Math.round(initVol).toLocaleString()+'kg</div>';
           h+='</div>';
         h+='</div>';
         h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center">';
@@ -3552,7 +3569,7 @@ function markInlinePbs(i,splitKey){
       if(stored.e1rm&&r<=10){var e=pbE1rm(w,r);if(e!=null&&e>stored.e1rm.value){if(!bestE||e>bestE.e) bestE={row:row,e:e};}}
     });
     var volEl=document.getElementById('vol_'+i+'_'+ei);
-    if(volEl){var isVolPB=hasHistory&&stored.volume&&vol>stored.volume.value;volEl.className='ex-stat ex-stat-vol'+(isVolPB?' pb':'');volEl.textContent=(isVolPB?'🏆 ':'')+'Vol '+Math.round(vol).toLocaleString()+'kg';if(isVolPB) total++;}
+    if(volEl){var isVolPB=hasHistory&&stored.volume&&vol>stored.volume.value;volEl.className='ex-stat ex-stat-vol'+(isVolPB?' pb':'');volEl.innerHTML=(isVolPB?'<svg class="icon"><use href="#i-trophy"/></svg> ':'')+'Vol '+Math.round(vol).toLocaleString()+'kg';if(isVolPB) total++;}
     var plateEl=document.getElementById('plate_'+i+'_'+ei);
     if(plateEl&&maxW>0) plateEl.innerHTML=platesHtml(maxW);
     var rowsToMark=[];
@@ -3561,7 +3578,7 @@ function markInlinePbs(i,splitKey){
       row.classList.add('has-pb');
       var t=row.querySelector('button[id^="st_"]');
       if(t){t.classList.add('pb-on');t.style.background='var(--pb)';t.style.borderColor='var(--pb)';}
-      var badge=document.createElement('div');badge.className='pb-badge';badge.textContent='🏆 NEW PB';
+      var badge=document.createElement('div');badge.className='pb-badge';badge.innerHTML='<svg class="icon"><use href="#i-trophy"/></svg> NEW PB';
       row.appendChild(badge);
     });
   });
@@ -3590,7 +3607,7 @@ async function saveGym(i,splitKey){
   refreshStrengthFeedback(i,splitKey);
   try{markInlinePbs(i,splitKey);}catch(e){}
   var gymQueued=gymCoachResults.some(function(r){return r&&r.queued;})||(gymStatusResult&&gymStatusResult.queued);
-  showToast(gymQueued?'Session saved - coach dashboard sync pending':(pbHits.length?('🏆 '+pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session saved ✓'));
+  showToast(gymQueued?'Session saved - coach dashboard sync pending':(pbHits.length?(pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session saved ✓'));
   var gymSavedBanner=document.getElementById('gym_saved_'+i);
   if(!gymSavedBanner){
     var sbBtn=document.getElementById('sb_'+i);
