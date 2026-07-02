@@ -3143,9 +3143,9 @@ function renderInsightRail(data){
   var readiness=data.readiness==null?'—':data.readiness;
   var readinessPct=data.readiness==null?0:data.readiness;
   return '<div class="insight-rail" aria-label="This week at a glance">'+
-    '<div class="insight-card"><div class="insight-ring" style="--value:'+data.compliance+'"><strong>'+data.compliance+'%</strong></div><div><span>Compliance</span><small>'+data.completed+' of '+data.planned+' sessions</small></div></div>'+
-    '<div class="insight-card"><div class="insight-ring readiness" style="--value:'+readinessPct+'"><strong>'+readiness+'</strong></div><div><span>Readiness</span><small>'+(data.readiness==null?'Log today':'Today’s score')+'</small></div></div>'+
-    '<div class="insight-card bodyweight"><div class="insight-viz">'+miniSparkline(data.weights)+'</div><div><span>Bodyweight</span><small>Recent trend</small></div></div>'+
+    '<button type="button" class="insight-card insight-card-button" onclick="openWeeklySummary()" aria-label="View weekly compliance summary"><div class="insight-ring" style="--value:'+data.compliance+'"><strong>'+data.compliance+'%</strong></div><div><span>Compliance</span><small>View weekly summary</small></div></button>'+
+    '<button type="button" class="insight-card insight-card-button" onclick="openQuickLog(\'body\')" aria-label="'+(data.readiness==null?'Log today’s readiness':'Review today’s readiness')+'"><div class="insight-ring readiness" style="--value:'+readinessPct+'"><strong>'+readiness+'</strong></div><div><span>Readiness</span><small>'+(data.readiness==null?'Log today':'Review body log')+'</small></div></button>'+
+    '<button type="button" class="insight-card insight-card-button bodyweight" onclick="switchTab(\'progress\')" aria-label="View bodyweight progress"><div class="insight-viz">'+miniSparkline(data.weights)+'</div><div><span>Bodyweight</span><small>View progress</small></div></button>'+
     '<button type="button" class="insight-card insight-card-button" onclick="openPbHistory()" aria-label="View personal best history"><div class="insight-pb"><svg class="icon"><use href="#i-trophy"/></svg><strong>'+data.pbs+'</strong></div><div><span>PB tracking</span><small>View exercise history</small></div></button>'+
   '</div>';
 }
@@ -3155,7 +3155,7 @@ function renderCommandStatus(data){
   if(data.next){var nd=localDateFromISO(data.next.date);nextText=nd.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' · '+(data.next.name||'Session');}
   var html='<div class="command-status-grid">';
   html+='<button class="command-status" onclick="switchTab(\'checkin\')"><span class="command-status-icon '+(data.checkinDone?'done':'')+'"><svg class="icon"><use href="#i-clipboard"/></svg></span><span><small>Weekly check-in</small><strong>'+(data.checkinDone?'Complete':'Still to do')+'</strong></span></button>';
-  html+='<div class="command-status"><span class="command-status-icon"><svg class="icon"><use href="#i-run"/></svg></span><span><small>Weekly kilometres</small><strong>'+(data.kmTarget?(data.kmDone.toFixed(1).replace(/\.0$/,'')+' / '+data.kmTarget.toFixed(1).replace(/\.0$/,'')+' km'):'Target loading')+'</strong><i><b style="width:'+kmPct+'%"></b></i></span></div>';
+  html+='<button class="command-status" onclick="switchTab(\'nutrition\')" aria-label="View weekly kilometre details"><span class="command-status-icon"><svg class="icon"><use href="#i-run"/></svg></span><span><small>Weekly kilometres</small><strong>'+(data.kmTarget?(data.kmDone.toFixed(1).replace(/\.0$/,'')+' / '+data.kmTarget.toFixed(1).replace(/\.0$/,'')+' km'):'Target loading')+'</strong><i><b style="width:'+kmPct+'%"></b></i></span></button>';
   html+='<button class="command-status next-session" onclick="goTrainingPlan()"><span class="command-status-icon"><svg class="icon"><use href="#i-calendar"/></svg></span><span><small>Up next</small><strong>'+esc(nextText)+'</strong></span></button>';
   html+='</div>';
   if(data.warning)html+='<div class="recovery-warning"><svg class="icon"><use href="#i-pulse"/></svg><div><strong>Recovery flag</strong><span>'+esc(data.warning)+'</span></div><button onclick="openQuickLog(\'body\')">Review</button></div>';
