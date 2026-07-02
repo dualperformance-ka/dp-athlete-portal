@@ -14,6 +14,37 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<!-- DP ICON SPRITE — paste this block once, directly after <body> in index/premium.html -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <defs>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/><line x1="3" y1="9.5" x2="21" y2="9.5"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="5.5" y="4" width="13" height="17.5" rx="2"/><rect x="9" y="2.2" width="6" height="3.6" rx="1.2"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3 8.5A2 2 0 0 1 5 6.5h2.4l1.4-2.3h6.4l1.4 2.3H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5z"/><circle cx="12" cy="13" r="3.4"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><polyline points="9 5 16 12 9 19"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><polyline points="15 5 8 12 15 19"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><line x1="4.5" y1="12" x2="19.5" y2="12"/><polyline points="13.5 6 19.5 12 13.5 18"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><line x1="19.5" y1="12" x2="4.5" y2="12"/><polyline points="10.5 6 4.5 12 10.5 18"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24"><line x1="12" y1="4.5" x2="12" y2="19.5"/><polyline points="6 13.5 12 19.5 18 13.5"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.75"/><circle cx="12" cy="12" r="1.25"/></symbol>
+    <symbol id="i-run" viewBox="0 0 24 24"><circle cx="14.7" cy="4.4" r="1.9"/><path d="M13.6 8.2 10 11l2.6 3-2.1 6.2"/><path d="M10 11l-4.4 1.2"/><path d="M12.6 14l4.6 1.4 1.4 4.2"/><path d="M4.5 20.8l4.4-2.6"/></symbol>
+    <symbol id="i-pulse" viewBox="0 0 24 24"><polyline points="3 12.5 7 12.5 10 5.5 14 19 17 12.5 21 12.5"/></symbol>
+    <symbol id="i-barbell" viewBox="0 0 24 24"><line x1="2.5" y1="12" x2="21.5" y2="12"/><rect x="4.6" y="8.4" width="2.4" height="7.2" rx="1"/><rect x="8.2" y="6.4" width="2.4" height="11.2" rx="1"/><rect x="13.4" y="6.4" width="2.4" height="11.2" rx="1"/><rect x="17" y="8.4" width="2.4" height="7.2" rx="1"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.2 14.2A8.6 8.6 0 1 1 9.8 3.8a7 7 0 0 0 10.4 10.4z"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19.5C5 9.5 12 4 20.5 4 20.5 12.5 15 19.5 5 19.5z"/><path d="M5 19.5c2.2-5.2 6-9.2 10.5-11.5"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7.5 3.5h9v5.2a4.5 4.5 0 0 1-9 0V3.5z"/><path d="M7.5 5.2H4.6c0 2.7 1.2 4.2 3 4.6"/><path d="M16.5 5.2h2.9c0 2.7-1.2 4.2-3 4.6"/><path d="M12 13.2v3.4"/><path d="M9 20.5l.9-3.9h4.2l.9 3.9H9z"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M12 2.8a6.1 6.1 0 0 1 3.6 11c-.65.5-1.1 1.25-1.1 2.2h-5c0-.95-.45-1.7-1.1-2.2a6.1 6.1 0 0 1 3.6-11z"/><line x1="9.8" y1="19" x2="14.2" y2="19"/><line x1="10.6" y1="21.5" x2="13.4" y2="21.5"/></symbol>
+    <symbol id="i-trend-up" viewBox="0 0 24 24"><polyline points="3 17 9.2 10.8 13.2 14.8 21 7"/><polyline points="15 7 21 7 21 13"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4.5 5A2.5 2.5 0 0 1 7 2.5h12.5v16.8H7A2.5 2.5 0 0 0 4.5 21.8V5z"/><path d="M19.5 19.3H7a2.5 2.5 0 0 0-2.5 2.5"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01A1.7 1.7 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01c.26.63.87 1.04 1.56 1.04H21a2 2 0 1 1 0 4h-.09c-.69 0-1.3.41-1.51 1.04z"/></symbol>
+    <symbol id="i-bars" viewBox="0 0 24 24"><line x1="5" y1="20" x2="5" y2="12.5"/><line x1="12" y1="20" x2="12" y2="4.5"/><line x1="19" y1="20" x2="19" y2="9"/></symbol>
+    <symbol id="i-utensils" viewBox="0 0 24 24"><path d="M7 2.5v5.5a2 2 0 0 0 2 2v11.5"/><path d="M5 2.5v4.5"/><path d="M9 2.5v4.5"/><path d="M17.5 2.5c-1.6 2.1-2.2 4.6-2.2 6.6 0 1.6 1 2.7 2.2 2.7v9.7"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.6a8.5 8.5 0 0 1-9.1 8.5c-1.2-.07-2.3-.35-3.3-.8L3 21l1.7-5.4A8.5 8.5 0 1 1 21 11.6z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="4.5 12.5 9.8 17.8 19.5 6.5"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H6a1.8 1.8 0 0 0-1.8 1.8v12.4A1.8 1.8 0 0 0 6 20h4"/><polyline points="15.5 8 19.5 12 15.5 16"/><line x1="19.5" y1="12" x2="9.5" y2="12"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3.5l1.9 5.3 5.3 1.9-5.3 1.9L12 17.9l-1.9-5.3-5.3-1.9 5.3-1.9L12 3.5z"/><path d="M19 16.5v4M17 18.5h4"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3s5.2 4.6 5.2 9.2a5.2 5.2 0 0 1-10.4 0c0-2 .9-3.6 2-4.7 0 1.5.75 2.6 2.05 3.1C10.85 7.6 11.3 5.2 12 3z"/></symbol>
+  </defs>
+</svg>
 
 <!-- LOGIN -->
 <div id="loginScreen" style="display:none" onclick="var i=document.getElementById('codeInput');if(i){i.focus();renderCode();}">
