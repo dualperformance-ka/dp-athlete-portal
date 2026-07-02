@@ -6,6 +6,8 @@
 <title>Athlete Portal | Dual Performance</title>
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#070a0d">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
@@ -173,6 +175,7 @@ renderCode();
       <div class="logo-text"><span class="d">DUAL</span><span class="p">PERFORMANCE</span></div>
     </div>
     <div class="header-actions">
+      <div class="save-state-pill" id="saveStatePill" aria-live="polite"><span></span><b>Saved</b></div>
       <button class="hicon theme-toggle" id="themeToggle" onclick="toggleOutdoorMode()" title="Toggle outdoor mode" aria-label="Toggle high-contrast outdoor mode"><svg class="icon"><use href="#i-sparkle"/></svg><span class="theme-toggle-label">Outdoor</span></button>
       <button class="hicon hicon-goals" id="goalsBtn" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
       <button class="hicon" onclick="switchTab('handbook')">Guide</button>
@@ -743,6 +746,11 @@ renderCode();
           <input type="range" min="1" max="10" value="5" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Fresh</span><span>Destroyed</span></div>
         </div>
+        <div class="pain-log-block">
+          <div class="lf"><label>Pain or niggle <span id="qlbPainVal" style="font-family:var(--mono)">0</span>/10</label><input type="range" min="0" max="10" value="0" id="qlbPain" oninput="document.getElementById('qlbPainVal').textContent=this.value;document.getElementById('qlbPainLocationWrap').style.display=Number(this.value)>0?'':'none'" /></div>
+          <div class="lf" id="qlbPainLocationWrap" style="display:none"><label>Where is it?</label><input type="text" class="li" id="qlbPainLocation" placeholder="e.g. left knee, outside ankle" /></div>
+          <div class="pain-help">Sharp, sudden or worsening pain is automatically flagged for coach review.</div>
+        </div>
         <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
         <button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Log Body</button>
       </div>
@@ -895,8 +903,31 @@ renderCode();
         <button onclick="switchTab('goals')"><svg class="icon"><use href="#i-target"/></svg><span><strong>Goals</strong><small>Your programme direction</small></span></button>
         <button onclick="switchTab('handbook')"><svg class="icon"><use href="#i-book"/></svg><span><strong>Guide</strong><small>Training and nutrition help</small></span></button>
         <button onclick="switchTab('comms')"><svg class="icon"><use href="#i-chat"/></svg><span><strong>Contact</strong><small>Reach Karl and Alex</small></span></button>
+        <button onclick="openPreferences()"><svg class="icon"><use href="#i-gear"/></svg><span><strong>Preferences</strong><small>Reminders and data controls</small></span></button>
+        <button onclick="openWeeklySummary()"><svg class="icon"><use href="#i-bars"/></svg><span><strong>Weekly summary</strong><small>Adherence, readiness and wins</small></span></button>
       </div>
       <button class="more-outdoor" onclick="toggleOutdoorMode()"><svg class="icon"><use href="#i-sparkle"/></svg><span><strong>Outdoor mode</strong><small>Higher contrast for bright conditions</small></span><span class="theme-switch" aria-hidden="true"></span></button>
+    </div>
+  </div>
+
+  <div class="ql-modal" id="preferencesModal" onclick="if(event.target===this)closePreferences()">
+    <div class="ql-modal-inner preferences-modal-inner">
+      <div class="ql-modal-header"><div><div class="ql-modal-title">Preferences</div><div class="modal-subtitle">Choose the reminders that help—not noise.</div></div><button class="ql-modal-close" onclick="closePreferences()" aria-label="Close preferences">×</button></div>
+      <div class="ql-modal-body">
+        <div class="preference-list" id="notificationPreferences"></div>
+        <div class="data-controls">
+          <div><strong>Your data</strong><span>Download a copy of locally stored portal data or request account deletion.</span></div>
+          <button onclick="exportAthleteData()">Export my data</button>
+          <a href="https://discord.gg/4AnT6nRNAB" target="_blank" rel="noopener">Request account deletion</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ql-modal" id="weeklySummaryModal" onclick="if(event.target===this)closeWeeklySummary()">
+    <div class="ql-modal-inner summary-modal-inner">
+      <div class="ql-modal-header"><div><div class="ql-modal-title">This week</div><div class="modal-subtitle">A quick coaching snapshot.</div></div><button class="ql-modal-close" onclick="closeWeeklySummary()" aria-label="Close weekly summary">×</button></div>
+      <div class="ql-modal-body" id="weeklySummaryBody"></div>
     </div>
   </div>
 
@@ -952,6 +983,14 @@ var sbClient=null,_skipSbSync=false,_sessionOverrides={};
 // are force-flushed the moment the athlete backgrounds or closes the tab, so the
 // latest edits reach Supabase before a mobile browser evicts/reloads the page.
 var _sbSyncTimers={},_sbSyncPending={};
+var _saveStateTimer=null;
+function setSaveState(state,label){
+  var pill=document.getElementById('saveStatePill');if(!pill)return;
+  pill.className='save-state-pill '+state;
+  var text=pill.querySelector('b');if(text)text.textContent=label||(state==='saving'?'Saving':state==='offline'?'Offline · will sync':'Saved');
+  if(_saveStateTimer)clearTimeout(_saveStateTimer);
+  if(state==='saved')_saveStateTimer=setTimeout(function(){pill.classList.add('quiet');},2200);else pill.classList.remove('quiet');
+}
 function _flushSbKey(sbKey){
   if(_sbSyncTimers[sbKey]){clearTimeout(_sbSyncTimers[sbKey]);delete _sbSyncTimers[sbKey];}
   var p=_sbSyncPending[sbKey];
@@ -961,17 +1000,20 @@ function _flushSbKey(sbKey){
     sbClient.from('athlete_data').upsert(
       {athlete_code:p.code,key:sbKey,value:p.value,updated_at:new Date().toISOString()},
       {onConflict:'athlete_code,key'}
-    ).then(function(){},function(){});
-  }catch(e){}
+    ).then(function(r){if(r&&r.error)setSaveState('offline','Will sync');else setSaveState('saved');},function(){setSaveState('offline','Will sync');});
+  }catch(e){setSaveState('offline','Will sync');}
 }
 function _flushAllSb(){Object.keys(_sbSyncPending).forEach(_flushSbKey);}
 function _scheduleSbSync(code,sbKey,parsed){
+  setSaveState(navigator.onLine?'saving':'offline');
   _sbSyncPending[sbKey]={code:code,value:parsed};
   if(_sbSyncTimers[sbKey]) clearTimeout(_sbSyncTimers[sbKey]);
   _sbSyncTimers[sbKey]=setTimeout(function(){_flushSbKey(sbKey);},1500);
 }
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')_flushAllSb();});
 window.addEventListener('pagehide',_flushAllSb);
+window.addEventListener('online',function(){setSaveState('saving','Syncing');_flushAllSb();retryPendingCoachWrites(true).then(function(){setSaveState('saved');});});
+window.addEventListener('offline',function(){setSaveState('offline');});
 (function(){
   var _orig=localStorage.setItem.bind(localStorage);
   localStorage.setItem=function(key,value){
@@ -982,6 +1024,7 @@ window.addEventListener('pagehide',_flushAllSb);
     if(key==='dp_goals_'+code) sbKey='goals';
     else if(key==='dp_logs_'+code) sbKey='logs';
     else if(key==='dp_ticked_'+code) sbKey='ticked';
+    else if(key==='dp_reschedules_'+code) sbKey='reschedules';
     else if(key==='dp_photos_'+code) sbKey='photos';
     else if(key.startsWith('dp_call_booked_')&&athlete&&athlete.code){var _cpfx='dp_call_booked_'+athlete.code.toUpperCase()+'_';if(key.startsWith(_cpfx))sbKey='call_booked_'+key.slice(_cpfx.length);}
     else if(key.startsWith('dp_daily_body_'+code+'_')) sbKey='daily_body_'+key.slice(('dp_daily_body_'+code+'_').length);
@@ -1701,6 +1744,48 @@ function goTrainingPlan(){
   var plan=document.getElementById('calEl');
   if(plan) setTimeout(function(){plan.scrollIntoView({behavior:'smooth',block:'start'});},40);
 }
+function openReschedule(i){
+  var input=document.getElementById('reschedule_'+i);if(!input)return;
+  if(input.showPicker)input.showPicker();else input.click();
+}
+function rescheduleSession(i,date){
+  if(!date||!sessions[i])return;var map={};try{map=JSON.parse(localStorage.getItem('dp_reschedules_'+athlete.code)||'{}');}catch(e){}
+  map[sessions[i].id]=date;localStorage.setItem('dp_reschedules_'+athlete.code,JSON.stringify(map));
+  sessions[i].date=date;var match=allSessions.find(function(s){return s.id===sessions[i].id;});if(match)match.date=date;
+  renderTodaySection();renderCal(getWS());showToast('Session moved · coach sync pending');
+}
+var REMINDER_OPTIONS=[
+  {key:'sessions',label:'Training sessions',sub:'A reminder before planned training'},
+  {key:'checkins',label:'Weekly check-ins',sub:'A nudge when your review is due'},
+  {key:'photos',label:'Progress photos',sub:'A reminder on your photo week'},
+  {key:'coach',label:'Coach replies',sub:'Updates when coaching feedback arrives'}
+];
+function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp_reminders_'+((athlete&&athlete.code)||'default'))||'{}');}catch(e){return{};}}
+function openPreferences(){
+  toggleMoreMenu(false);var prefs=getReminderPreferences(),list=document.getElementById('notificationPreferences');
+  list.innerHTML=REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('');
+  document.getElementById('preferencesModal').classList.add('open');document.body.style.overflow='hidden';
+}
+function closePreferences(){document.getElementById('preferencesModal').classList.remove('open');document.body.style.overflow='';}
+async function setReminderPreference(key,enabled){
+  if(enabled&&'Notification'in window&&Notification.permission==='default'){try{var permission=await Notification.requestPermission();if(permission!=='granted')enabled=false;}catch(e){enabled=false;}}
+  var prefs=getReminderPreferences();prefs[key]=enabled;localStorage.setItem('dp_reminders_'+athlete.code,JSON.stringify(prefs));showToast(enabled?'Reminder enabled':'Reminder disabled');
+}
+function getWeeklySummary(){
+  var insight=getHomeInsights(),volume=0,wins=[];
+  sessions.forEach(function(s){var entry=logs[s.id];if(!entry||typeof entry!=='object')return;Object.keys(entry).forEach(function(k){if(!Array.isArray(entry[k]))return;entry[k].forEach(function(set){var w=parseFloat(set.weight),r=parseInt(set.reps,10);if(!isNaN(w)&&!isNaN(r))volume+=w*r;});});if(isSessionLogged(s.id))wins.push(s.name);});
+  return {insight:insight,volume:Math.round(volume),wins:wins};
+}
+function openWeeklySummary(){
+  toggleMoreMenu(false);var s=getWeeklySummary(),i=s.insight,body=document.getElementById('weeklySummaryBody');
+  body.innerHTML='<div class="summary-hero"><span>'+i.compliance+'%</span><div><strong>Weekly adherence</strong><small>'+i.completed+' of '+i.planned+' planned sessions logged</small></div></div><div class="summary-grid"><div><small>Training volume</small><strong>'+s.volume.toLocaleString()+'kg</strong></div><div><small>Readiness</small><strong>'+(i.readiness==null?'Not logged':i.readiness+'/100')+'</strong></div><div><small>Running</small><strong>'+(i.kmTarget?i.kmDone.toFixed(1)+' / '+i.kmTarget.toFixed(1)+'km':'No target')+'</strong></div><div><small>PB history</small><strong>'+i.pbs+' exercises</strong></div></div><div class="summary-wins"><strong>Wins this week</strong><p>'+(s.wins.length?s.wins.map(esc).join(' · '):'Log your first completed session to start building the week.')+'</p></div>'+renderCoachMoment([]);
+  document.getElementById('weeklySummaryModal').classList.add('open');document.body.style.overflow='hidden';
+}
+function closeWeeklySummary(){document.getElementById('weeklySummaryModal').classList.remove('open');document.body.style.overflow='';}
+function exportAthleteData(){
+  var data={exportedAt:new Date().toISOString(),athlete:{name:athlete.name,code:athlete.code},logs:logs,goals:JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}'),photos:getPhotos(),reminders:getReminderPreferences()};
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='dual-performance-'+athlete.code+'-data.json';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+}
 function toggleMoreMenu(open){
   var menu=document.getElementById('moreMenu');if(!menu)return;
   var shouldOpen=typeof open==='boolean'?open:!menu.classList.contains('open');
@@ -1949,10 +2034,12 @@ function updateNutFeedback(){
 async function submitQuickBody(){
   var btn=document.getElementById('qlbSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
   var bodyDate=document.getElementById('qlbDate').value||todayISO2();
+  var pain=document.getElementById('qlbPain').value||'0',painLocation=document.getElementById('qlbPainLocation').value||'',notes=document.getElementById('qlbNotes').value||'';
+  if(Number(pain)>0)notes=('Pain '+pain+'/10'+(painLocation?' · '+painLocation:'')+(notes?' · '+notes:''));
   var payload={type:'daily_body',athleteName:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,
     date:bodyDate,weight:document.getElementById('qlbWeight').value||'',
     sleep:document.getElementById('qlbSleep').value,energy:document.getElementById('qlbEnergy').value,
-    stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,notes:document.getElementById('qlbNotes').value||''};
+    stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,pain:pain,painLocation:painLocation,coachAlert:Number(pain)>=5,notes:notes};
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
   var bodyResult=await coachWrite(DAILY_BODY_WEBHOOK,payload);
   closeQuickLog('body');
@@ -1964,6 +2051,7 @@ async function submitQuickBody(){
   document.getElementById('qlbEnergy').value='5';document.getElementById('qlbEnergyVal').textContent='5';
   document.getElementById('qlbStress').value='5';document.getElementById('qlbStressVal').textContent='5';
   document.getElementById('qlbSore').value='5';document.getElementById('qlbSoreVal').textContent='5';
+  document.getElementById('qlbPain').value='0';document.getElementById('qlbPainVal').textContent='0';document.getElementById('qlbPainLocation').value='';document.getElementById('qlbPainLocationWrap').style.display='none';
   document.getElementById('qlbNotes').value='';
   var prevPanel=document.getElementById('qlbPrevDay');if(prevPanel) prevPanel.style.display='none';
 }
@@ -2304,6 +2392,7 @@ async function loadNutrition(){
   }
 
   document.getElementById('nutContent').style.display='block';
+  if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();
 }
 
 // ── PHOTO UPLOAD ──────────────────────────────────────────────────────────────
@@ -2517,6 +2606,8 @@ async function loadWeek(){
   var mapped=results[2];
   document.getElementById('loadingEl').style.display='none';
   if(!mapped){showNoplan();return;}
+  var reschedules={};try{reschedules=JSON.parse(localStorage.getItem('dp_reschedules_'+athlete.code)||'{}');}catch(e){}
+  mapped.forEach(function(s){if(reschedules[s.id])s.date=reschedules[s.id];});
   allSessions=mapped;
   sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
   if(weekOffset===0) initPhotoNudge();
@@ -2592,6 +2683,7 @@ function buildCard(s,i){
   h+='<div class="sinfo"><div class="sname '+type+'">'+esc(displayName)+'</div>';
   if(metaLine) h+='<div class="smeta">'+esc(metaLine)+'</div>';
   h+='</div>';
+  h+='<button class="reschedule-btn" title="Reschedule" aria-label="Reschedule '+esc(displayName)+'" onclick="event.stopPropagation();openReschedule('+i+')"><svg class="icon"><use href="#i-calendar"/></svg></button><input class="reschedule-input" id="reschedule_'+i+'" type="date" value="'+esc(s.date||'')+'" onchange="rescheduleSession('+i+',this.value)" />';
   h+='<button class="tick'+(done?' on':'')+(marked?' marked':'')+'" id="tick_'+i+'" onclick="event.stopPropagation();tickS('+i+')">';
   h+='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
   h+='</button></div>';
@@ -2914,8 +3006,9 @@ function getHomeInsights(){
   var compliance=planned?Math.min(100,Math.round(completed/planned*100)):0;
   var readiness=null,body=null;
   try{body=JSON.parse(localStorage.getItem('dp_daily_body_'+athlete.code+'_'+localISO(new Date()))||'null');}catch(e){}
+  var sleep=null,energy=null,soreness=null,stress=null;
   if(body){
-    var sleep=parseFloat(body.sleep),energy=parseFloat(body.energy),soreness=parseFloat(body.soreness),stress=parseFloat(body.stress);
+    sleep=parseFloat(body.sleep);energy=parseFloat(body.energy);soreness=parseFloat(body.soreness);stress=parseFloat(body.stress);
     var vals=[];
     if(!isNaN(sleep))vals.push(sleep*10);if(!isNaN(energy))vals.push(energy*10);
     if(!isNaN(soreness))vals.push((11-soreness)*10);if(!isNaN(stress))vals.push((11-stress)*10);
@@ -2926,7 +3019,19 @@ function getHomeInsights(){
   var weights=[];
   try{for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(key&&key.indexOf('dp_daily_body_'+athlete.code+'_')===0){var v=JSON.parse(localStorage.getItem(key)||'null');var w=v&&parseFloat(v.weight);if(!isNaN(w))weights.push({date:key.slice(-10),weight:w});}}}catch(e){}
   weights.sort(function(a,b){return a.date.localeCompare(b.date);});
-  return {planned:planned,completed:completed,compliance:compliance,readiness:readiness,pbs:Object.keys(exerciseNames).length,weights:weights.slice(-7)};
+  var now=localISO(new Date());
+  var next=sortSessionsForDisplay(allSessions.filter(function(s){return s.date&&s.date>now&&getType(s)!=='rest';})).sort(function(a,b){return a.date.localeCompare(b.date);})[0]||null;
+  var checkinDone=false;try{checkinDone=!!localStorage.getItem(checkinWeekKey());}catch(e){}
+  var warning='';
+  if(body){
+    var pain=parseFloat(body.pain);
+    if(!isNaN(pain)&&pain>=5)warning='Pain is '+pain+'/10'+(body.painLocation?' at '+body.painLocation:'')+'. Avoid pushing through it—your coaches have been flagged.';
+    else if(!isNaN(soreness)&&soreness>=8)warning='High soreness today—consider reducing load and message your coaches if pain is localised.';
+    else if(!isNaN(energy)&&energy<=3)warning='Energy is low today. Keep the session controlled and prioritise recovery.';
+    else if(!isNaN(stress)&&stress>=8)warning='Stress is elevated. Use RPE rather than chasing numbers today.';
+  }
+  var kmTarget=currentWeekKmData&&Number(currentWeekKmData.target),kmDone=currentWeekKmData&&Number(currentWeekKmData.completed||0);
+  return {planned:planned,completed:completed,compliance:compliance,readiness:readiness,pbs:Object.keys(exerciseNames).length,weights:weights.slice(-7),body:body,warning:warning,next:next,checkinDone:checkinDone,kmTarget:kmTarget||0,kmDone:kmDone||0};
 }
 function miniSparkline(points){
   if(!points||points.length<2)return '<span class="insight-empty">Log 2+ weigh-ins</span>';
@@ -2944,6 +3049,18 @@ function renderInsightRail(data){
     '<div class="insight-card bodyweight"><div class="insight-viz">'+miniSparkline(data.weights)+'</div><div><span>Bodyweight</span><small>Recent trend</small></div></div>'+
     '<div class="insight-card"><div class="insight-pb"><svg class="icon"><use href="#i-trophy"/></svg><strong>'+data.pbs+'</strong></div><div><span>PB tracking</span><small>Exercises with history</small></div></div>'+
   '</div>';
+}
+function renderCommandStatus(data){
+  var kmPct=data.kmTarget?Math.min(100,Math.round(data.kmDone/data.kmTarget*100)):0;
+  var nextText='No upcoming session';
+  if(data.next){var nd=localDateFromISO(data.next.date);nextText=nd.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' · '+(data.next.name||'Session');}
+  var html='<div class="command-status-grid">';
+  html+='<button class="command-status" onclick="switchTab(\'checkin\')"><span class="command-status-icon '+(data.checkinDone?'done':'')+'"><svg class="icon"><use href="#i-clipboard"/></svg></span><span><small>Weekly check-in</small><strong>'+(data.checkinDone?'Complete':'Still to do')+'</strong></span></button>';
+  html+='<div class="command-status"><span class="command-status-icon"><svg class="icon"><use href="#i-run"/></svg></span><span><small>Weekly kilometres</small><strong>'+(data.kmTarget?(data.kmDone.toFixed(1).replace(/\.0$/,'')+' / '+data.kmTarget.toFixed(1).replace(/\.0$/,'')+' km'):'Target loading')+'</strong><i><b style="width:'+kmPct+'%"></b></i></span></div>';
+  html+='<button class="command-status next-session" onclick="goTrainingPlan()"><span class="command-status-icon"><svg class="icon"><use href="#i-calendar"/></svg></span><span><small>Up next</small><strong>'+esc(nextText)+'</strong></span></button>';
+  html+='</div>';
+  if(data.warning)html+='<div class="recovery-warning"><svg class="icon"><use href="#i-pulse"/></svg><div><strong>Recovery flag</strong><span>'+esc(data.warning)+'</span></div><button onclick="openQuickLog(\'body\')">Review</button></div>';
+  return html;
 }
 function sessionWhy(type,meta,title){
   var text=((meta&&((meta.intensity||'')+' '+(meta.type||'')+' '+(meta.description||'')))+' '+(title||'')).toLowerCase();
@@ -2968,6 +3085,7 @@ function renderTodaySection(){
   var html='<div class="todaypanel"><div class="todayeyebrow">Today</div><div class="todayhead"><div><div class="todaytitle">Your session'+(todaySessions.length>1?'s':'')+'</div><div class="today-subtitle">One clear focus. Log what you complete.</div></div><div class="todaydate">'+esc(label)+'</div></div>';
   html+=renderCoachMoment(todaySessions);
   html+=renderInsightRail(insights);
+  html+=renderCommandStatus(insights);
   if(insights.planned>0&&insights.completed>=insights.planned){html+='<div class="milestone-celebration"><svg class="icon"><use href="#i-trophy"/></svg><div><strong>Week complete</strong><span>You showed up for every planned session. That consistency compounds.</span></div></div>';}
   if(!todaySessions.length){
     html+='<div class="todayempty">No session scheduled today. Recover well and check ahead.</div>';
@@ -3038,7 +3156,7 @@ function renderTodaySection(){
         html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
       }
       if(type!=='rest'&&sessionIdx>=0){
-        html+='<button class="today-action primary" onclick="scrollToSession('+sessionIdx+')" style="width:100%;margin-top:12px">Log this session <svg class="icon"><use href="#i-arrow-down"/></svg></button>';
+        html+='<button class="today-action primary" onclick="startFocusedSession('+sessionIdx+')" style="width:100%;margin-top:12px">Start session <svg class="icon"><use href="#i-arrow-right"/></svg></button>';
       }
       html+='</div></div></div>';
     });
@@ -3326,6 +3444,7 @@ function buildBody(s,i,type){
         h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center">';
         if(prevEffort){var prevStr=formatSetSummary(prevEffort);h+='<div id="prev_'+i+'_'+ei+'" class="prev-effort has-last">LAST: '+esc(prevStr)+'</div>';}
         else{h+='<div id="prev_'+i+'_'+ei+'" class="prev-effort">TARGET: '+esc(ex.repRange||ex.reps)+'</div>';}
+        if(prevEffort){var prevLoads=prevEffort.map(function(p){return parseFloat(p.weight);}).filter(function(n){return !isNaN(n)&&n>0;});if(prevLoads.length){var suggested=Math.round((Math.max.apply(null,prevLoads)*1.025)*2)/2;h+='<div class="suggested-load">SUGGESTED: '+suggested+'kg</div>';}}
         h+='<div id="curr_'+i+'_'+ei+'" class="today-effort"></div>';
         h+='<div id="prog_'+i+'_'+ei+'" style="font-family:var(--mono);font-size:9px;color:var(--dim);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 8px;display:inline-block">'+esc(ex.repRange?'Target '+ex.repRange:'Build this session')+'</div>';
         h+='</div></div>';
@@ -3392,6 +3511,36 @@ function buildBody(s,i,type){
   return h;
 }
 
+var focusedSessionIndex=null,focusedExerciseIndex=0;
+function startFocusedSession(i){
+  var card=document.getElementById('sc_'+i),body=document.getElementById('scb_'+i);if(!card||!body)return;
+  if(body&&!body.classList.contains('open'))body.classList.add('open');
+  focusedSessionIndex=i;focusedExerciseIndex=0;
+  document.body.classList.add('focus-session-open');card.classList.add('focus-session-card');
+  var toolbar=document.createElement('div');toolbar.className='focus-toolbar';toolbar.id='focusToolbar';
+  toolbar.innerHTML='<button onclick="closeFocusedSession()" aria-label="Close focused session">×</button><div><small>Focused session</small><strong>'+esc((sessions[i]&&sessions[i].name)||'Workout')+'</strong></div><span id="focusExerciseCount"></span>';
+  card.insertBefore(toolbar,card.firstChild);
+  updateFocusedExercise();card.scrollTop=0;
+}
+function updateFocusedExercise(){
+  if(focusedSessionIndex==null)return;var card=document.getElementById('sc_'+focusedSessionIndex);if(!card)return;
+  var exercises=card.querySelectorAll('.exc'),count=document.getElementById('focusExerciseCount');
+  if(!exercises.length){if(count)count.textContent='Session';return;}
+  focusedExerciseIndex=Math.max(0,Math.min(exercises.length-1,focusedExerciseIndex));
+  exercises.forEach(function(ex,idx){ex.classList.toggle('focus-active',idx===focusedExerciseIndex);});
+  if(count)count.textContent=(focusedExerciseIndex+1)+' / '+exercises.length;
+  var nav=card.querySelector('.focus-exercise-nav');if(!nav){nav=document.createElement('div');nav.className='focus-exercise-nav';nav.innerHTML='<button onclick="focusExerciseStep(-1)">Previous</button><button onclick="focusExerciseStep(1)">Next exercise</button>';card.appendChild(nav);}
+  var buttons=nav.querySelectorAll('button');buttons[0].disabled=focusedExerciseIndex===0;buttons[1].textContent=focusedExerciseIndex===exercises.length-1?'Review session':'Next exercise';
+}
+function focusExerciseStep(delta){
+  if(focusedSessionIndex==null)return;var card=document.getElementById('sc_'+focusedSessionIndex),total=card?card.querySelectorAll('.exc').length:0;
+  if(delta>0&&focusedExerciseIndex>=total-1){card.scrollTo({top:card.scrollHeight,behavior:'smooth'});return;}
+  focusedExerciseIndex+=delta;updateFocusedExercise();card.scrollTo({top:0,behavior:'smooth'});
+}
+function closeFocusedSession(){
+  if(focusedSessionIndex!=null){var card=document.getElementById('sc_'+focusedSessionIndex);if(card){card.classList.remove('focus-session-card');card.querySelectorAll('.exc').forEach(function(ex){ex.classList.remove('focus-active');});var nav=card.querySelector('.focus-exercise-nav');if(nav)nav.remove();}}
+  var toolbar=document.getElementById('focusToolbar');if(toolbar)toolbar.remove();document.body.classList.remove('focus-session-open');focusedSessionIndex=null;
+}
 function togS(i){var el=document.getElementById('scb_'+i);if(el) el.classList.toggle('open');}
 async function tickS(i){
   var s=sessions[i],on=!ticked[s.id];
@@ -4114,6 +4263,9 @@ window.acknowledgeStrava = async function() {
 // ============================================================================
 // END STRAVA CONNECT BUTTON
 // ============================================================================
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}
 </script>
 </body>
 </html>
