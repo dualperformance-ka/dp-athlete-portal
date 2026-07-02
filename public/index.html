@@ -13,7 +13,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
 <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="/styles.css?v=13">
 <style>
 /* DP icon system */
 .icon{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-0.14em;flex-shrink:0}
@@ -1449,10 +1449,12 @@ async function doLogin(code){
   document.getElementById('heroName').textContent=athlete.name;
   populateStatic();
   retryPendingCoachWrites(true);
+  // Start Strava before loading the week so kilometre totals can use it as the
+  // primary completed-distance source without briefly showing a manual total.
+  window._stravaLoadPromise=window.initStrava ? window.initStrava(athlete.code) : Promise.resolve({connected:false,activities:[]});
   loadWeek();
   initCallNudge();
   initCheckinNudge();
-  if(window.initStrava) window.initStrava(athlete.code);
 }
 
 function populateStatic(){
@@ -2139,6 +2141,17 @@ function deriveCompletedKmFromSessions(sessionList){
     return sum + (isNaN(d)?0:d);
   },0);
 }
+function deriveCompletedKmFromStrava(activities,offset){
+  var range=getWeekDateRangeFromOffset(offset||0);
+  return Math.round((activities||[]).reduce(function(total,activity){
+    var type=String(activity&&((activity.sport_type||activity.type))||'');
+    if(type.toLowerCase().indexOf('run')<0) return total;
+    var date=String(activity.start_date_local||activity.start_date||'').slice(0,10);
+    if(!date||date<range.startISO||date>range.endISO) return total;
+    var metres=Number(activity.distance);
+    return total+(isNaN(metres)||metres<0?0:metres/1000);
+  },0)*10)/10;
+}
 
 function formatDateTimeDMY(dateStr){
   if(!dateStr) return '';
@@ -2380,10 +2393,20 @@ async function loadNutrition(){
   }
   var nutritionCompleted=row.completed_km!=null?Number(row.completed_km):0;
   var trackerCompleted=await trackerPromise;
-  var kmCompleted=trackerCompleted!=null ? trackerCompleted : nutritionCompleted;
+  var localCompleted=deriveCompletedKmFromSessions(sessions);
+  var stravaResult=null;
+  try{stravaResult=window._stravaLoadPromise ? await window._stravaLoadPromise : null;}catch(e){}
+  var hasStrava=!!(stravaResult&&stravaResult.connected);
+  var stravaCompleted=hasStrava?deriveCompletedKmFromStrava(stravaResult.activities,nutWeekOffset):null;
+  // One source only: Strava wins when connected, then submitted portal logs,
+  // then this device's draft logs, and finally the legacy nutrition total.
+  var kmCompleted=hasStrava ? stravaCompleted :
+    (trackerCompleted!=null&&trackerCompleted>0 ? trackerCompleted :
+      (localCompleted>0 ? localCompleted : nutritionCompleted));
 
   currentWeekKmData.target=kmTarget;
   currentWeekKmData.completed=kmCompleted;
+  currentWeekKmData.source=hasStrava?'strava':(trackerCompleted>0?'portal':(localCompleted>0?'local':'nutrition_row'));
 
   if(kmTarget!=null){
     renderKmTracker({target:kmTarget,completed:kmCompleted});
@@ -4234,8 +4257,10 @@ window.closeEnhancedModal = closeEnhancedModal;
       } else {
         btn.href = data.connectUrl || connectUrl;
       }
+      return data;
     } catch(e) {
       btn.href = connectUrl; // keep orange connect state on error
+      return { connected:false, activities:[] };
     }
   };
 })();
