@@ -159,7 +159,7 @@ renderCode();
       <button class="hicon hicon-goals" id="goalsBtn" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
       <button class="hicon" onclick="switchTab('handbook')">Guide</button>
       <button class="hicon" onclick="switchTab('comms')">Contact</button>
-      <button class="hicon" onclick="logout()" title="Sign out" aria-label="Sign out" style="font-size:10px;padding:4px 9px;opacity:.55">↩</button>
+      <button class="hicon" onclick="logout()" title="Sign out" aria-label="Sign out" style="font-size:10px;padding:4px 9px;opacity:.55"><svg class="icon"><use href="#i-logout"/></svg></button>
     </div>
   </header>
 
@@ -238,8 +238,8 @@ renderCode();
 
   <div class="wbar" id="wbar" style="display:none">
     <div class="wnav">
-      <button class="warr" onclick="shiftWeek(-1)">←</button>
-      <button class="warr" onclick="shiftWeek(1)">→</button>
+      <button class="warr" onclick="shiftWeek(-1)"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+      <button class="warr" #i-chevron-right
       <button class="wtoday" onclick="goToday()">Today</button>
     </div>
     <div class="wlabel" id="wlabel"></div>
@@ -258,7 +258,7 @@ renderCode();
       <div class="goals-prompt-label">Start here</div>
       <div class="goals-prompt-title">Set your goals first</div>
       <div class="goals-prompt-sub">Karl & Alex build everything around your targets. Takes 2 minutes — do this before anything else. This banner disappears once you save.</div>
-      <button class="goals-prompt-btn" onclick="switchTab('goals')">Set my goals →</button>
+      <button class="goals-prompt-btn" onclick="switchTab('goals')">Set my goals <svg class="icon"><use href="#i-arrow-right"/></svg></button>
     </div>
     <div class="loading" id="loadingEl">
       <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
@@ -470,7 +470,7 @@ renderCode();
           </div>
           <!-- Step 1: Running -->
           <div class="ci-step-panel active" data-step="1">
-            <div class="ci-step-title">🏃 Running</div>
+            <div class="ci-step-title"><svg class="icon"><use href="#i-run"/></svg> Running</div>
             <div class="card" style="margin-bottom:12px">
               <div class="rlog" style="margin-bottom:10px">
                 <div class="lf"><label>Sessions completed</label><input type="number" class="li" id="ciRunComp" min="0" max="20" placeholder="3" /></div>
@@ -580,8 +580,8 @@ renderCode();
           </div>
           <!-- Nav buttons -->
           <div class="ci-nav-row solo" id="ciNavRow">
-            <button class="ci-btn-back" id="ciBtnBack" onclick="ciStep(-1)" style="display:none">← Back</button>
-            <button class="ci-btn-next" id="ciBtnNext" onclick="ciStep(1)">Next →</button>
+            <button class="ci-btn-back" id="ciBtnBack" onclick="ciStep(-1)" style="display:none"><svg class="icon"><use href="#i-arrow-left"/></svg> Back</button>
+            <button class="ci-btn-next" id="ciBtnNext" onclick="ciStep(1)">Next <svg class="icon"><use href="#i-arrow-right"/></svg></button>
           </div>
         </div>
         <div id="ciSuccess" style="display:none;text-align:center;padding:40px 10px">
@@ -2895,7 +2895,7 @@ function renderTodaySection(){
         html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
       }
       if(type!=='rest'&&sessionIdx>=0){
-        html+='<button class="today-action primary" onclick="scrollToSession('+sessionIdx+')" style="width:100%;margin-top:12px">Log this session ↓</button>';
+        html+='<button class="today-action primary" onclick="scrollToSession('+sessionIdx+')" style="width:100%;margin-top:12px">Log this session <svg class="icon"><use href="#i-arrow-down"/></svg></button>';
       }
       html+='</div></div></div>';
     });
