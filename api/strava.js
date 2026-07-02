@@ -100,7 +100,7 @@ async function refreshStravaToken(refreshToken) {
   return res.json();
 }
 
-async function fetchActivities(accessToken, perPage = 10) {
+async function fetchActivities(accessToken, perPage = 100) {
   const res = await fetch(
     `${STRAVA_API}/athlete/activities?per_page=${perPage}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
