@@ -173,6 +173,7 @@ renderCode();
       <div class="logo-text"><span class="d">DUAL</span><span class="p">PERFORMANCE</span></div>
     </div>
     <div class="header-actions">
+      <button class="hicon theme-toggle" id="themeToggle" onclick="toggleOutdoorMode()" title="Toggle outdoor mode" aria-label="Toggle high-contrast outdoor mode"><svg class="icon"><use href="#i-sparkle"/></svg><span class="theme-toggle-label">Outdoor</span></button>
       <button class="hicon hicon-goals" id="goalsBtn" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
       <button class="hicon" onclick="switchTab('handbook')">Guide</button>
       <button class="hicon" onclick="switchTab('comms')">Contact</button>
@@ -256,7 +257,7 @@ renderCode();
   <div class="wbar" id="wbar" style="display:none">
     <div class="wnav">
       <button class="warr" onclick="shiftWeek(-1)"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
-      <button class="warr" #i-chevron-right
+      <button class="warr" onclick="shiftWeek(1)"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
       <button class="wtoday" onclick="goToday()">Today</button>
     </div>
     <div class="wlabel" id="wlabel"></div>
@@ -873,6 +874,29 @@ renderCode();
         <div><div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Sessions/Week</div><div style="font-family:var(--display);font-size:18px;font-weight:700">8–9</div></div>
         <div><div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Coaches</div><div style="font-family:var(--display);font-size:18px;font-weight:700">Karl & Alex</div></div>
       </div>
+    </div>
+  </div>
+
+  <!-- MOBILE PRIMARY NAVIGATION -->
+  <nav class="mobile-nav" aria-label="Primary navigation">
+    <button class="mobile-nav-item active" type="button" data-mobile-tab="home" onclick="goPortalHome()"><svg class="icon"><use href="#i-target"/></svg><span>Home</span></button>
+    <button class="mobile-nav-item" type="button" data-mobile-tab="training" onclick="goTrainingPlan()"><svg class="icon"><use href="#i-calendar"/></svg><span>Training</span></button>
+    <button class="mobile-nav-item" type="button" data-mobile-tab="checkin" onclick="switchTab('checkin')"><svg class="icon"><use href="#i-clipboard"/></svg><span>Check-in</span><span class="mobile-nav-dot" id="mobileCheckinDot"></span></button>
+    <button class="mobile-nav-item" type="button" data-mobile-tab="progress" onclick="switchTab('progress')"><svg class="icon"><use href="#i-trend-up"/></svg><span>Progress</span><span class="mobile-nav-dot" id="mobileProgressDot"></span></button>
+    <button class="mobile-nav-item" type="button" data-mobile-tab="more" onclick="toggleMoreMenu(true)" aria-controls="moreMenu" aria-expanded="false"><svg class="icon"><use href="#i-bars"/></svg><span>More</span></button>
+  </nav>
+
+  <div class="more-menu" id="moreMenu" aria-hidden="true" onclick="if(event.target===this)toggleMoreMenu(false)">
+    <div class="more-menu-sheet" role="dialog" aria-modal="true" aria-labelledby="moreMenuTitle">
+      <div class="more-menu-handle"></div>
+      <div class="more-menu-head"><div><div class="more-menu-kicker">Dual Performance</div><div class="more-menu-title" id="moreMenuTitle">More</div></div><button class="more-menu-close" onclick="toggleMoreMenu(false)" aria-label="Close menu">×</button></div>
+      <div class="more-menu-grid">
+        <button onclick="switchTab('nutrition')"><svg class="icon"><use href="#i-utensils"/></svg><span><strong>Nutrition</strong><small>Targets and daily guidance</small></span></button>
+        <button onclick="switchTab('goals')"><svg class="icon"><use href="#i-target"/></svg><span><strong>Goals</strong><small>Your programme direction</small></span></button>
+        <button onclick="switchTab('handbook')"><svg class="icon"><use href="#i-book"/></svg><span><strong>Guide</strong><small>Training and nutrition help</small></span></button>
+        <button onclick="switchTab('comms')"><svg class="icon"><use href="#i-chat"/></svg><span><strong>Contact</strong><small>Reach Karl and Alex</small></span></button>
+      </div>
+      <button class="more-outdoor" onclick="toggleOutdoorMode()"><svg class="icon"><use href="#i-sparkle"/></svg><span><strong>Outdoor mode</strong><small>Higher contrast for bright conditions</small></span><span class="theme-switch" aria-hidden="true"></span></button>
     </div>
   </div>
 
@@ -1554,11 +1578,13 @@ function initCheckinNudge(){
   if(!nudge) return;
   var done=!!localStorage.getItem(checkinWeekKey());
   nudge.style.display=done?'none':'';
+  var mobileDot=document.getElementById('mobileCheckinDot');if(mobileDot)mobileDot.classList.toggle('visible',!done);
 }
 function hideCheckinNudge(){
   localStorage.setItem(checkinWeekKey(),'1');
   var nudge=document.getElementById('checkinNudge');
   if(nudge) nudge.style.display='none';
+  var mobileDot=document.getElementById('mobileCheckinDot');if(mobileDot)mobileDot.classList.remove('visible');
 }
 function initPhotoNudge(){
   var nudge=document.getElementById('photoNudge');
@@ -1569,12 +1595,14 @@ function initPhotoNudge(){
   nudge.style.display=hasPhotos?'none':'';
   var dot=document.getElementById('tabDotProgress');
   if(dot) dot.classList.toggle('visible',!hasPhotos);
+  var mobileDot=document.getElementById('mobileProgressDot');if(mobileDot)mobileDot.classList.toggle('visible',!hasPhotos);
 }
 function hidePhotoNudge(){
   var nudge=document.getElementById('photoNudge');
   if(nudge) nudge.style.display='none';
   var dot=document.getElementById('tabDotProgress');
   if(dot) dot.classList.remove('visible');
+  var mobileDot=document.getElementById('mobileProgressDot');if(mobileDot)mobileDot.classList.remove('visible');
 }
 function openCallBooking(){
   switchTab('checkin');
@@ -1648,12 +1676,46 @@ window.addEventListener('message',function(e){
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(function(t){var active=t.dataset.tab===tab;t.classList.toggle('active',active);t.setAttribute('aria-selected',active?'true':'false');});
   document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+tab);});
+  toggleMoreMenu(false);
+  setMobileNav(tab==='training'?'home':tab);
   var isTraining=tab==='training';
   document.getElementById('wbar').style.display=isTraining?'':'none';
   if(tab==='nutrition'&&Date.now()-_nutLastLoad>60000) loadNutrition(); // skip refetch if loaded <60s ago (week shifts & post-save always reload directly)
   if(tab==='checkin') initCheckin();
   if(tab==='progress') loadProgress();
 }
+
+function setMobileNav(tab){
+  document.querySelectorAll('.mobile-nav-item').forEach(function(item){
+    var active=item.dataset.mobileTab===tab;
+    item.classList.toggle('active',active);
+    if(active) item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');
+  });
+}
+function goPortalHome(){
+  switchTab('training');setMobileNav('home');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function goTrainingPlan(){
+  switchTab('training');setMobileNav('training');
+  var plan=document.getElementById('calEl');
+  if(plan) setTimeout(function(){plan.scrollIntoView({behavior:'smooth',block:'start'});},40);
+}
+function toggleMoreMenu(open){
+  var menu=document.getElementById('moreMenu');if(!menu)return;
+  var shouldOpen=typeof open==='boolean'?open:!menu.classList.contains('open');
+  menu.classList.toggle('open',shouldOpen);menu.setAttribute('aria-hidden',shouldOpen?'false':'true');
+  var button=document.querySelector('[data-mobile-tab="more"]');if(button)button.setAttribute('aria-expanded',shouldOpen?'true':'false');
+  document.body.classList.toggle('menu-open',shouldOpen);
+  if(shouldOpen)setMobileNav('more');
+}
+function applyOutdoorMode(enabled){
+  document.documentElement.classList.toggle('outdoor-mode',!!enabled);
+  var button=document.getElementById('themeToggle');if(button)button.setAttribute('aria-pressed',enabled?'true':'false');
+  try{localStorage.setItem('dp_outdoor_mode',enabled?'1':'0');}catch(e){}
+}
+function toggleOutdoorMode(){applyOutdoorMode(!document.documentElement.classList.contains('outdoor-mode'));}
+try{if(localStorage.getItem('dp_outdoor_mode')==='1')applyOutdoorMode(true);}catch(e){}
 
 // ── CHECK-IN WIZARD ───────────────────────────────────────────────────────────
 var CI_STEP=1,CI_TOTAL=5;
@@ -2846,12 +2908,67 @@ function buildRunSubtitle(s,meta,resolvedTitle){
   return out.join(' · ');
 }
 
+function getHomeInsights(){
+  var planned=sessions.filter(function(s){return getType(s)!=='rest';}).length;
+  var completed=sessions.filter(function(s){return getType(s)!=='rest'&&isSessionLogged(s.id);}).length;
+  var compliance=planned?Math.min(100,Math.round(completed/planned*100)):0;
+  var readiness=null,body=null;
+  try{body=JSON.parse(localStorage.getItem('dp_daily_body_'+athlete.code+'_'+localISO(new Date()))||'null');}catch(e){}
+  if(body){
+    var sleep=parseFloat(body.sleep),energy=parseFloat(body.energy),soreness=parseFloat(body.soreness),stress=parseFloat(body.stress);
+    var vals=[];
+    if(!isNaN(sleep))vals.push(sleep*10);if(!isNaN(energy))vals.push(energy*10);
+    if(!isNaN(soreness))vals.push((11-soreness)*10);if(!isNaN(stress))vals.push((11-stress)*10);
+    if(vals.length)readiness=Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length);
+  }
+  var exerciseNames={};
+  Object.keys(logs||{}).forEach(function(id){var entry=logs[id];if(!entry||typeof entry!=='object'||Array.isArray(entry))return;Object.keys(entry).forEach(function(name){if(name.indexOf('__')!==0&&Array.isArray(entry[name]))exerciseNames[pbNormName(name)]=1;});});
+  var weights=[];
+  try{for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(key&&key.indexOf('dp_daily_body_'+athlete.code+'_')===0){var v=JSON.parse(localStorage.getItem(key)||'null');var w=v&&parseFloat(v.weight);if(!isNaN(w))weights.push({date:key.slice(-10),weight:w});}}}catch(e){}
+  weights.sort(function(a,b){return a.date.localeCompare(b.date);});
+  return {planned:planned,completed:completed,compliance:compliance,readiness:readiness,pbs:Object.keys(exerciseNames).length,weights:weights.slice(-7)};
+}
+function miniSparkline(points){
+  if(!points||points.length<2)return '<span class="insight-empty">Log 2+ weigh-ins</span>';
+  var vals=points.map(function(p){return p.weight;}),min=Math.min.apply(null,vals),max=Math.max.apply(null,vals),range=max-min||1;
+  var coords=vals.map(function(v,i){return (i*(78/(vals.length-1))).toFixed(1)+','+(24-((v-min)/range)*18).toFixed(1);}).join(' ');
+  var delta=vals[vals.length-1]-vals[0];
+  return '<svg class="mini-spark" viewBox="0 0 80 28" role="img" aria-label="Recent bodyweight trend"><polyline points="'+coords+'"/></svg><span class="insight-delta">'+(delta>0?'+':'')+delta.toFixed(1)+'kg</span>';
+}
+function renderInsightRail(data){
+  var readiness=data.readiness==null?'—':data.readiness;
+  var readinessPct=data.readiness==null?0:data.readiness;
+  return '<div class="insight-rail" aria-label="This week at a glance">'+
+    '<div class="insight-card"><div class="insight-ring" style="--value:'+data.compliance+'"><strong>'+data.compliance+'%</strong></div><div><span>Compliance</span><small>'+data.completed+' of '+data.planned+' sessions</small></div></div>'+
+    '<div class="insight-card"><div class="insight-ring readiness" style="--value:'+readinessPct+'"><strong>'+readiness+'</strong></div><div><span>Readiness</span><small>'+(data.readiness==null?'Log today':'Today’s score')+'</small></div></div>'+
+    '<div class="insight-card bodyweight"><div class="insight-viz">'+miniSparkline(data.weights)+'</div><div><span>Bodyweight</span><small>Recent trend</small></div></div>'+
+    '<div class="insight-card"><div class="insight-pb"><svg class="icon"><use href="#i-trophy"/></svg><strong>'+data.pbs+'</strong></div><div><span>PB tracking</span><small>Exercises with history</small></div></div>'+
+  '</div>';
+}
+function sessionWhy(type,meta,title){
+  var text=((meta&&((meta.intensity||'')+' '+(meta.type||'')+' '+(meta.description||'')))+' '+(title||'')).toLowerCase();
+  if(/recovery|easy/.test(text))return 'Absorb the harder work, build aerobic volume and arrive fresher for the next key session.';
+  if(/threshold|tempo/.test(text))return 'Raise the pace you can sustain comfortably so race effort feels more controlled.';
+  if(/interval|vo2|hill|speed|fartlek/.test(text))return 'Develop speed, running economy and confidence when the pace starts to bite.';
+  if(/long/.test(text))return 'Build endurance, fuelling confidence and the durability you need late in your goal event.';
+  return 'Build the specific fitness your current programme phase needs while keeping the week balanced.';
+}
+function renderCoachMoment(todaySessions){
+  var note='Keep today simple: hit the intended effort and leave enough in the tank to train well again.';
+  for(var i=0;i<todaySessions.length;i++){var ov=_sessionOverrides[todaySessions[i].id];if(ov&&ov.notes){note=ov.notes;break;}}
+  return '<div class="coach-moment"><div class="coach-avatars"><span>K</span><span>A</span></div><div><div class="coach-moment-label">From your coaches</div><p>'+esc(note)+'</p></div><button onclick="switchTab(\'comms\')" aria-label="Contact your coaches"><svg class="icon"><use href="#i-chat"/></svg></button></div>';
+}
+
 function renderTodaySection(){
   var el=document.getElementById('todayEl');if(!el) return;
   var todayISO=localISO(new Date());
   var todaySessions=sortSessionsForDisplay(allSessions.filter(function(s){return s.date===todayISO;}));
   var label=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
-  var html='<div class="todaypanel"><div class="todayeyebrow">Today</div><div class="todayhead"><div class="todaytitle">Your session'+(todaySessions.length>1?'s':'')+'</div><div class="todaydate">'+esc(label)+'</div></div>';
+  var insights=getHomeInsights();
+  var html='<div class="todaypanel"><div class="todayeyebrow">Today</div><div class="todayhead"><div><div class="todaytitle">Your session'+(todaySessions.length>1?'s':'')+'</div><div class="today-subtitle">One clear focus. Log what you complete.</div></div><div class="todaydate">'+esc(label)+'</div></div>';
+  html+=renderCoachMoment(todaySessions);
+  html+=renderInsightRail(insights);
+  if(insights.planned>0&&insights.completed>=insights.planned){html+='<div class="milestone-celebration"><svg class="icon"><use href="#i-trophy"/></svg><div><strong>Week complete</strong><span>You showed up for every planned session. That consistency compounds.</span></div></div>';}
   if(!todaySessions.length){
     html+='<div class="todayempty">No session scheduled today. Recover well and check ahead.</div>';
   }else{
@@ -2899,6 +3016,7 @@ function renderTodaySection(){
           var targetValue=runMeta.target||runMeta.sessionGoal||runMeta.type||runMeta.intensity||sessionTitle;
           html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(targetValue)+'</div>';
           if(sessionDetail){ html+='<div class="desc">'+esc(sessionDetail)+'</div>'; }
+          html+='<div class="session-why"><svg class="icon"><use href="#i-bulb"/></svg><div><span>Why it matters</span>'+esc(sessionWhy(type,runMeta,sessionTitle))+'</div></div>';
           var chips=[];
           if(runMeta.rpe) chips.push('RPE '+runMeta.rpe);
           if(runMeta.surface) chips.push(runMeta.surface);
@@ -2912,7 +3030,7 @@ function renderTodaySection(){
           html+='</div>';
         }
       }else if(type==='strength'){
-        html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(displayName)+'</div><div class="desc">Open the session, use the faint previous efforts as a guide, then log what you actually complete today.</div></div>';
+        html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(displayName)+'</div><div class="desc">Use your previous efforts as a guide, then log what you actually complete today.</div><div class="session-why"><svg class="icon"><use href="#i-bulb"/></svg><div><span>Why it matters</span>Build durable strength that supports running economy, resilience and confident progression.</div></div></div>';
       }else if(type==='note'){
         var _noteInstr=s.runDetails||(_sessionOverrides[s.id]&&_sessionOverrides[s.id].notes)||'Train as you normally would and log what you did.';
         html+='<div class="todaytarget"><div class="label">Discovery week</div><div class="value">'+esc(displayName)+'</div><div class="desc">'+esc(_noteInstr)+'</div></div>';
