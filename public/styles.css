@@ -1492,6 +1492,59 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode .insight-ring.readiness{background:radial-gradient(circle closest-side,var(--surface) 73%,transparent 75%),conic-gradient(#23804b calc(var(--value)*1%),rgba(7,17,22,.1) 0)}
 .outdoor-mode .theme-switch{background:var(--run)}
 
+/* Complete daylight theme: override legacy dark-only component colours. */
+.outdoor-mode body{background:var(--bg)}
+.outdoor-mode header{box-shadow:0 1px 0 var(--border)}
+.outdoor-mode .logo-text .d,.outdoor-mode .logo-text .p{color:var(--text)}
+.outdoor-mode .logo-text .p{opacity:.55}
+.outdoor-mode .hero{background:#fff!important;border-bottom:1px solid var(--border)}
+.outdoor-mode .hi,.outdoor-mode .hero-week-label,.outdoor-mode .hp{color:var(--dim)!important}
+.outdoor-mode .hn,.outdoor-mode .wlabel,.outdoor-mode .nut-wlabel{color:var(--text)!important}
+.outdoor-mode .hero-week-num,.outdoor-mode .hp span{color:var(--run-strong)!important}
+.outdoor-mode .hp,#kmBar.outdoor-mode,.outdoor-mode #kmBar,.outdoor-mode #dp-strava-btn{background:var(--surface2)!important;border-color:var(--border)!important;color:var(--text)!important;box-shadow:none!important}
+
+.outdoor-mode .nudge-strip,.outdoor-mode #checkinNudge,.outdoor-mode #callNudge,.outdoor-mode #callConfirmedNudge,.outdoor-mode #photoNudge{background:var(--surface)!important;border-color:var(--border)!important;box-shadow:none!important}
+.outdoor-mode .nudge-strip-title,.outdoor-mode #checkinNudge .nudge-strip-title,.outdoor-mode #callConfirmedTitle{color:var(--text)!important}
+.outdoor-mode .nudge-strip-sub,.outdoor-mode #checkinNudge .nudge-strip-sub{color:var(--muted)!important}
+.outdoor-mode .nudge-strip-icon{opacity:1}
+.outdoor-mode #checkinNudge::before{background:var(--run)}
+.outdoor-mode #checkinNudge .nudge-strip-icon{background:var(--run-bg);border-color:var(--run-border)}
+
+.outdoor-mode .todaypanel{box-shadow:0 10px 30px rgba(7,17,22,.08)}
+.outdoor-mode .todayeyebrow,.outdoor-mode .todaydate{color:var(--dim)}
+.outdoor-mode .todaytitle,.outdoor-mode .todayname,.outdoor-mode .todayname.run,.outdoor-mode .todayname.strength,.outdoor-mode .todayname.note,.outdoor-mode .sname,.outdoor-mode .sname.run,.outdoor-mode .sname.strength,.outdoor-mode .sname.note{color:var(--text)!important}
+.outdoor-mode .todaymeta,.outdoor-mode .smeta,.outdoor-mode .todaytarget .label,.outdoor-mode .week-plan-title,.outdoor-mode .dgdate,.outdoor-mode .restday{color:var(--dim)!important}
+.outdoor-mode .todaytarget .value,.outdoor-mode .session-why span{color:var(--text)}
+.outdoor-mode .todaytarget .desc,.outdoor-mode .session-why,.outdoor-mode .coach-moment p{color:var(--muted)}
+.outdoor-mode .coach-avatars span{background:#e1e8eb;border-color:#fff;color:var(--text)}
+.outdoor-mode .coach-avatars span:last-child{background:#d8edf5;color:var(--run-strong)}
+.outdoor-mode .coach-moment button{background:#fff;border-color:var(--border);color:var(--text)}
+.outdoor-mode .insight-pb,.outdoor-mode .todaychip{background:rgba(7,17,22,.055);color:var(--text)}
+.outdoor-mode .today-actions{border-top-color:var(--border)}
+.outdoor-mode .today-action{background:#fff;border-color:var(--border-mid);color:var(--text)}
+.outdoor-mode .today-action.secondary-blue{background:#fff;border-color:var(--border-mid);color:var(--text)}
+.outdoor-mode .today-action.primary,.outdoor-mode .savebtn,.outdoor-mode .ci-btn-next,.outdoor-mode .save-run-btn,.outdoor-mode .comms-btn,.outdoor-mode .goals-prompt-btn{background:var(--run);border-color:var(--run);color:#fff}
+.outdoor-mode .todaydot.run,.outdoor-mode .todaydot.note,.outdoor-mode .dot-run,.outdoor-mode .dot-note{background:var(--run)}
+.outdoor-mode .todaydot.strength,.outdoor-mode .dot-strength{background:#40515a}
+.outdoor-mode .dgh{border-bottom-color:var(--border)}
+.outdoor-mode .dgh.today{border-bottom-color:var(--run)}
+.outdoor-mode .todaybadge{background:var(--run);color:#fff}
+
+.outdoor-mode .goals-prompt,.outdoor-mode .goals-hero,.outdoor-mode .comms-card,.outdoor-mode .nut-wbar{background:var(--surface)!important;border-color:var(--border)!important;color:var(--text)}
+.outdoor-mode .goals-prompt-title,.outdoor-mode .goals-name,.outdoor-mode .comms-title{color:var(--text)!important}
+.outdoor-mode .goals-prompt-sub,.outdoor-mode .goals-sub,.outdoor-mode .comms-body,.outdoor-mode .comms-note{color:var(--muted)!important}
+.outdoor-mode .stat-input,.outdoor-mode .why-textarea,.outdoor-mode .milestone-input,.outdoor-mode .li,.outdoor-mode .sin,.outdoor-mode .rpe-in,.outdoor-mode select{background:#fff!important;border-color:var(--border-mid)!important;color:var(--text)!important}
+.outdoor-mode .race-opt,.outdoor-mode .tick,.outdoor-mode .quicklog-btn.ql-body,.outdoor-mode .quicklog-btn.ql-nut{background:#fff;border-color:var(--border-mid);color:var(--text)}
+.outdoor-mode .race-opt.selected,.outdoor-mode .tick.on{background:var(--run);border-color:var(--run);color:#fff}
+
+.outdoor-mode .mobile-nav{background:rgba(255,255,255,.97);box-shadow:0 12px 36px rgba(7,17,22,.16)}
+.outdoor-mode .mobile-nav-item{color:var(--dim)}
+.outdoor-mode .mobile-nav-item.active{color:var(--run)}
+.outdoor-mode .more-menu-sheet{background:var(--surface);color:var(--text)}
+.outdoor-mode .more-menu-grid button,.outdoor-mode .more-outdoor{background:var(--surface2);border-color:var(--border);color:var(--text)}
+.outdoor-mode .wa-fab{background:var(--run);opacity:1}.outdoor-mode .wa-fab svg{fill:#fff}
+.outdoor-mode .toast{background:#101b20;color:#fff}
+
 @media(max-width:760px){
   body{font-size:16px}
   header{padding-left:14px;padding-right:14px}
