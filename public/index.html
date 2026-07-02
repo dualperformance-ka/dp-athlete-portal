@@ -1120,6 +1120,10 @@ async function loadCloudData(code){
     // Programme length (set by coaches in the dashboard Nutrition tab)
     var pw=parseInt(cloudKeys['programme_weeks'],10);
     if(!isNaN(pw)&&pw>0&&pw<=52) programmeWeeks=pw;
+    // Coach-set start date is shared by both apps and takes priority over the
+    // legacy Notion profile value for week calculations and portal display.
+    var startOverride=String(cloudKeys['start_date_override']||'').trim();
+    if(/^\d{4}-\d{2}-\d{2}$/.test(startOverride)) athlete.startDate=startOverride;
     // Write cloud data to localStorage (cloud is authoritative)
     res.data.forEach(function(row){
       var lsKey=null;
@@ -1246,6 +1250,10 @@ var _nutLastLoad=0; // timestamp of last nutrition load — gates refetch on rap
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function localISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function localDateFromISO(value){
+  var m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3])):new Date(value);
+}
 function getMon(d){var day=d.getDay(),diff=day===0?-6:1-day;return new Date(d.getFullYear(),d.getMonth(),d.getDate()+diff);}
 function getWS(){var m=getMon(new Date());m.setDate(m.getDate()+weekOffset*7);return m;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -1697,7 +1705,7 @@ async function submitCheckin(){
   var weekEndVal=document.getElementById('ciWeekEnding').value;
   var wkNum=1;
   if(athlete&&athlete.startDate&&athlete.startDate!=='—'&&weekEndVal){
-    var _s=new Date(athlete.startDate);var _w=new Date(weekEndVal+'T00:00:00');
+    var _s=localDateFromISO(athlete.startDate);var _w=localDateFromISO(weekEndVal);
     wkNum=Math.max(1,Math.min(12,Math.floor((_w-_s)/(7*24*60*60*1000))+1));
   }else{wkNum=getCurrentProgrammeWeek();}
   var notionTitle=name.toUpperCase().trim()+' — Week '+wkNum;
@@ -2423,20 +2431,10 @@ function toggleWeightLog(){
 }
 
 function getCurrentProgrammeWeek(){
-  var wkS=sessions.find(function(s){return s.week!=null&&s.week!=='';});
-  if(wkS){
-    if(isDiscoveryWeek(wkS.week)) return 0;
-    var m=String(wkS.week).match(/\d+/);if(m) return parseInt(m[0]);
-  }
-  if(athlete.startDate&&athlete.startDate!=='—'){
-    // The first seven days from the athlete's start date are Discovery Week
-    // (week 0). Parse date-only values locally to avoid timezone date shifts.
-    var startValue=String(athlete.startDate);
-    var start=new Date(/^\d{4}-\d{2}-\d{2}$/.test(startValue)?startValue+'T00:00:00':startValue);var now=new Date();
-    var diff=Math.floor((now-start)/(7*24*60*60*1000));
-    return Math.max(0,Math.min(programmeWeeks,diff));
-  }
-  return 0;
+  var wkS=sessions.find(function(s){return s.week;});
+  if(wkS){var m=wkS.week.match(/\d+/);if(m) return parseInt(m[0]);}
+  if(athlete.startDate&&athlete.startDate!=='—'){var start=localDateFromISO(athlete.startDate);var now=new Date();var diff=Math.floor((now-start)/(7*24*60*60*1000))+1;return Math.max(1,Math.min(programmeWeeks,diff));}
+  return 1;
 }
 
 // ── LOAD WEEK ─────────────────────────────────────────────────────────────────
@@ -2459,9 +2457,6 @@ async function loadWeek(){
   if(!mapped){showNoplan();return;}
   allSessions=mapped;
   sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
-  // Progress may have rendered while sessions were still loading. Refresh it
-  // now so the NOW badge follows Discovery Week / the loaded programme week.
-  renderPhotoGrid();
   if(weekOffset===0) initPhotoNudge();
   renderTodaySection();
   var wkS=sessions.find(function(s){return s.week;});
