@@ -482,13 +482,13 @@ renderCode();
                 <input type="range" min="1" max="10" value="5" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>Best ever</span></div>
               </div>
-              <div class="lf" style="margin-top:10px"><label>Wins or PBs this week? 🏆</label><textarea class="li" id="ciRunWins" placeholder="Tell us what you crushed — a new PB, a strong session, anything you're proud of. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+              <div class="lf" style="margin-top:10px"><label>Wins or PBs this week? <svg class="icon icon-pb"><use href="#i-trophy"/></svg></label><textarea class="li" id="ciRunWins" placeholder="Tell us what you crushed — a new PB, a strong session, anything you're proud of. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
               <div class="lf" style="margin-top:10px"><label>Pain, niggles or injuries?</label><textarea class="li" id="ciRunNiggles" placeholder="Be honest — even small things. The earlier we know, the better we can manage it." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
             </div>
           </div>
           <!-- Step 2: Lifting -->
           <div class="ci-step-panel" data-step="2">
-            <div class="ci-step-title">🏋️ Lifting</div>
+            <div class="ci-step-title">#i-barbell</div>
             <div class="card" style="margin-bottom:12px">
               <div class="rlog" style="margin-bottom:12px">
                 <div class="lf"><label>Sessions completed</label><input type="number" class="li" id="ciLiftComp" min="0" max="20" placeholder="2" /></div>
@@ -499,13 +499,13 @@ renderCode();
                 <input type="range" min="1" max="10" value="5" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>PR session</span></div>
               </div>
-              <div class="lf" style="margin-top:10px"><label>Lifting wins or notable sessions? 💪</label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+              <div class="lf" style="margin-top:10px"><label> Lifting wins or notable sessions? <svg class="icon icon-run"><use href="#i-barbell"/></svg></label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
               <div class="lf" style="margin-top:10px"><label>Pain, niggles or discomfort in the gym?</label><textarea class="li" id="ciLiftNiggles" placeholder="Anything sharp, achy or off — don't push through without telling us first." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
             </div>
           </div>
           <!-- Step 3: Recovery -->
           <div class="ci-step-panel" data-step="3">
-            <div class="ci-step-title">💤 Recovery</div>
+            <div class="ci-step-title">#i-moon</div>
             <div class="card" style="margin-bottom:12px">
               <div class="lf" style="margin-bottom:14px">
                 <label>Average sleep per night <span id="ciSleepVal" style="font-family:var(--mono)">5</span>/10</label>
@@ -526,7 +526,7 @@ renderCode();
           </div>
           <!-- Step 4: Fuelling & Life -->
           <div class="ci-step-panel" data-step="4">
-            <div class="ci-step-title">🥗 Fuelling & Life</div>
+            <div class="ci-step-title">#i-leaf</div>
             <div class="card" style="margin-bottom:12px">
               <div class="lf" style="margin-bottom:14px">
                 <label>Adherence to nutrition plan <span id="ciNutVal" style="font-family:var(--mono)">5</span>/10</label>
@@ -566,10 +566,10 @@ renderCode();
               <div style="font-size:13px;color:rgba(255,255,255,.82);line-height:1.6">Your progress is worth sharing. Other people are sitting on the couch wondering if they could do what you're doing — your words might be exactly what they need to hear.</div>
             </div>
             <div class="card" style="margin-bottom:10px;border:2px solid #0a0a0a">
-              <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Write freely — we may share this (with your permission) to inspire others 🙌</div>
+              <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Write freely — we may share this (with your permission) <svg class="icon icon-run"><use href="#i-sparkle"/></svg></div>
               <textarea class="li" id="ciTestimonial" placeholder="e.g. Three weeks ago I could barely run 2km without stopping. This week I nailed every session and hit a new PB. I didn't think I had it in me — but here I am. The coaching from Karl and Alex has completely changed how I train..." style="min-height:180px;resize:vertical;font-size:13px;line-height:1.6"></textarea>
               <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
-                <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Prompts to get you started 💡</div>
+                <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Prompts to get you started <svg class="icon icon-run"><use href="#i-bulb"/></svg></div>
                 <div style="font-size:12px;color:var(--muted);line-height:1.5">• What's something you did this week you couldn't have done a month ago?</div>
                 <div style="font-size:12px;color:var(--muted);line-height:1.5">• How has training been affecting the rest of your life?</div>
                 <div style="font-size:12px;color:var(--muted);line-height:1.5">• What moment this week made you feel proud?</div>
