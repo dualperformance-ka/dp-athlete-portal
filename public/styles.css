@@ -1534,6 +1534,23 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode .goals-prompt-title,.outdoor-mode .goals-name,.outdoor-mode .comms-title{color:var(--text)!important}
 .outdoor-mode .goals-prompt-sub,.outdoor-mode .goals-sub,.outdoor-mode .comms-body,.outdoor-mode .comms-note{color:var(--muted)!important}
 .outdoor-mode .stat-input,.outdoor-mode .why-textarea,.outdoor-mode .milestone-input,.outdoor-mode .li,.outdoor-mode .sin,.outdoor-mode .rpe-in,.outdoor-mode select{background:#fff!important;border-color:var(--border-mid)!important;color:var(--text)!important}
+.outdoor-mode .exc{background:#eef2f4;border-color:rgba(7,17,22,.24);box-shadow:0 2px 8px rgba(7,17,22,.05)}
+.outdoor-mode .exn{color:#071116}
+.outdoor-mode .exm,.outdoor-mode .slbl,.outdoor-mode .snum,.outdoor-mode .plate-calc-label,.outdoor-mode .ex-picker-label{color:rgba(7,17,22,.72)}
+.outdoor-mode .exnotes{color:#075f82;font-weight:700}
+.outdoor-mode .sin,.outdoor-mode .rpe-in{-webkit-text-fill-color:#071116!important;font-weight:700;box-shadow:0 1px 2px rgba(7,17,22,.04)}
+.outdoor-mode .sin::placeholder,.outdoor-mode .rpe-in::placeholder{color:rgba(7,17,22,.48);-webkit-text-fill-color:rgba(7,17,22,.48)}
+.outdoor-mode .prev-effort{color:#334750;background:#fff;border-color:rgba(7,17,22,.2)}
+.outdoor-mode .prev-effort.has-last{color:#075f82;background:#e2f2f8;border-color:rgba(8,127,174,.34);font-weight:700}
+.outdoor-mode .suggested-load{color:#176c3c;background:#e4f5eb;border-color:rgba(23,108,60,.34);font-weight:700}
+.outdoor-mode .ex-stat-pb,.outdoor-mode .ex-stat-vol-pb{color:#5a35a5;background:#eee8ff;border-color:rgba(90,53,165,.35)}
+.outdoor-mode .ex-stat-e1rm{color:#334750}
+.outdoor-mode .ex-stat-vol{color:#075f82;background:#dff1f8;border-color:rgba(8,127,174,.32)}
+.outdoor-mode .ex-pill{background:#fff;border-color:rgba(7,17,22,.25);color:#334750}
+.outdoor-mode .ex-pill.active{background:#087fae;border-color:#087fae;color:#fff}
+.outdoor-mode .plate-pill{background:#fff;border-color:rgba(7,17,22,.22);color:#334750}
+.outdoor-mode .st{background:#fff;border-color:rgba(7,17,22,.3)}
+.outdoor-mode .st.on{background:#23804b;border-color:#23804b}
 .outdoor-mode .race-opt,.outdoor-mode .tick,.outdoor-mode .quicklog-btn.ql-body,.outdoor-mode .quicklog-btn.ql-nut{background:#fff;border-color:var(--border-mid);color:var(--text)}
 .outdoor-mode .race-opt.selected,.outdoor-mode .tick.on{background:var(--run);border-color:var(--run);color:#fff}
 
