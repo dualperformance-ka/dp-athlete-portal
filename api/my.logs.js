@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   try {
     const body = await select('daily_body_logs', {
       athlete_code: `eq.${code}`,
-      select: 'log_date,weight,sleep,energy,stress,soreness,notes,submitted_at',
+      select: 'log_date,weight,sleep,energy,stress,soreness,notes,raw_payload,submitted_at',
       order: 'log_date.desc',
       limit: '400',
     });
