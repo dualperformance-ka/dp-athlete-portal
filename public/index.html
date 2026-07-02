@@ -2423,10 +2423,20 @@ function toggleWeightLog(){
 }
 
 function getCurrentProgrammeWeek(){
-  var wkS=sessions.find(function(s){return s.week;});
-  if(wkS){var m=wkS.week.match(/\d+/);if(m) return parseInt(m[0]);}
-  if(athlete.startDate&&athlete.startDate!=='—'){var start=new Date(athlete.startDate);var now=new Date();var diff=Math.floor((now-start)/(7*24*60*60*1000))+1;return Math.max(1,Math.min(programmeWeeks,diff));}
-  return 1;
+  var wkS=sessions.find(function(s){return s.week!=null&&s.week!=='';});
+  if(wkS){
+    if(isDiscoveryWeek(wkS.week)) return 0;
+    var m=String(wkS.week).match(/\d+/);if(m) return parseInt(m[0]);
+  }
+  if(athlete.startDate&&athlete.startDate!=='—'){
+    // The first seven days from the athlete's start date are Discovery Week
+    // (week 0). Parse date-only values locally to avoid timezone date shifts.
+    var startValue=String(athlete.startDate);
+    var start=new Date(/^\d{4}-\d{2}-\d{2}$/.test(startValue)?startValue+'T00:00:00':startValue);var now=new Date();
+    var diff=Math.floor((now-start)/(7*24*60*60*1000));
+    return Math.max(0,Math.min(programmeWeeks,diff));
+  }
+  return 0;
 }
 
 // ── LOAD WEEK ─────────────────────────────────────────────────────────────────
@@ -2449,6 +2459,9 @@ async function loadWeek(){
   if(!mapped){showNoplan();return;}
   allSessions=mapped;
   sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
+  // Progress may have rendered while sessions were still loading. Refresh it
+  // now so the NOW badge follows Discovery Week / the loaded programme week.
+  renderPhotoGrid();
   if(weekOffset===0) initPhotoNudge();
   renderTodaySection();
   var wkS=sessions.find(function(s){return s.week;});
