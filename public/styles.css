@@ -459,7 +459,7 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 
 /* ── DESKTOP LAYOUT (≥900px) ───────────────────────────────────────────────── */
 @media(min-width:900px){
-  :root{--shellpad:max(32px,calc((100vw - 1120px)/2))}
+  :root{--shellpad:max(32px,calc((100vw - 1360px)/2))}
   /* Align the dark shell (header, hero, bars) with the content column */
   header{padding:0 var(--shellpad)}
   .hero{padding:22px var(--shellpad) 16px}
@@ -473,10 +473,10 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
   .tab-content{max-width:none;padding:28px var(--shellpad) 150px}
 
   /* Training: today panel sticky on the left, week plan on the right */
-  #tab-training.active{display:grid;grid-template-columns:minmax(330px,400px) minmax(0,1fr);gap:28px;align-items:start}
+  #tab-training.active{display:grid;grid-template-columns:minmax(410px,480px) minmax(0,1fr);gap:38px;align-items:start}
   #tab-training>.goals-prompt,#tab-training>.loading,#tab-training>.noplan{grid-column:1/-1}
-  #tab-training .todaywrap{position:sticky;top:164px;margin-bottom:0}
-  #tab-training>#calEl{min-width:0}
+  #tab-training .todaywrap{position:sticky;top:148px;margin-bottom:0}
+  #tab-training>#calEl{min-width:0;padding-top:4px}
   .dg:first-child .dgh{padding-top:0}
 
   /* Nutrition: macros across one row, cards flow into two columns */
@@ -590,11 +590,6 @@ header{background:rgba(6,8,10,.92);backdrop-filter:blur(12px)}
 .quicklog-btn.ql-nut{border-color:rgba(146,210,237,.24);color:rgba(183,230,247,.88)}
 .wa-fab{width:46px;height:46px;background:rgba(146,210,237,.82);box-shadow:0 8px 24px rgba(0,0,0,.34);opacity:.82}
 .wa-fab:hover{opacity:1}
-@media(min-width:900px){
-  #tab-training.active{grid-template-columns:minmax(360px,430px) minmax(0,1fr);gap:30px}
-  #tab-training .todaywrap{top:152px}
-  #tab-training>#calEl{padding-top:4px}
-}
 @media(max-width:640px){
   .today-actions{grid-template-columns:1fr}
   .todaytitle{font-size:28px}
@@ -1615,9 +1610,6 @@ body{font-size:15px;line-height:1.55}
 /* Desktop command centre: give the daily card enough room to remain useful,
    while preserving a wider week-plan column. */
 @media(min-width:900px){
-  :root{--shellpad:max(32px,calc((100vw - 1360px)/2))}
-  #tab-training.active{grid-template-columns:minmax(410px,480px) minmax(0,1fr);gap:38px}
-  #tab-training .todaywrap{top:148px}
   .insight-rail{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .insight-card{min-height:68px}
   .command-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -1675,11 +1667,6 @@ body.focus-session-open{overflow:hidden}
   .command-status-grid{grid-template-columns:1fr 1fr}.command-status.next-session{grid-column:1/-1}
   .focus-session-card .quicklog-strip,.focus-session-open>.quicklog-strip,.focus-session-open .mobile-nav,.focus-session-open .wa-fab{display:none!important}
 }
-@media(min-width:900px){
-  .command-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .command-status.next-session{grid-column:1/-1}
-}
-
 /* Premium desktop presentation. Mobile deliberately keeps its direct,
    low-friction layout. */
 @media(min-width:900px){
@@ -1713,6 +1700,38 @@ body.focus-session-open{overflow:hidden}
   .quicklog-btn{min-height:44px;border-radius:10px!important;text-transform:none;letter-spacing:0;font-family:var(--body);font-size:13px}
   .wa-fab{right:max(28px,calc((100vw - 1360px)/2));bottom:28px}
 
+  /* ── Premium pass: remaining tabs (Goals, Progress, Nutrition, Check-in,
+     Comms, Handbook). Same language as the Training command centre. ── */
+  .stitle{font-size:28px;letter-spacing:-.015em;margin-bottom:18px}
+  html:not(.outdoor-mode) .card,
+  html:not(.outdoor-mode) .accordion-card,
+  html:not(.outdoor-mode) .ci-card,
+  html:not(.outdoor-mode) .mc,
+  html:not(.outdoor-mode) .pstat,
+  html:not(.outdoor-mode) .hb-card{border-color:rgba(255,255,255,.085);border-radius:14px;background:linear-gradient(180deg,rgba(19,25,29,.62),rgba(10,14,17,.5));box-shadow:inset 0 1px 0 rgba(255,255,255,.03),0 14px 34px rgba(0,0,0,.16)}
+  .card,.ci-card{padding:22px}
+  .pstat{padding:18px 14px}
+  .mc{padding:18px 14px}
+  .hb-card{padding:22px 18px}
+  html:not(.outdoor-mode) .hb-card:hover{transform:translateY(-2px);border-color:rgba(146,210,237,.2);background:linear-gradient(180deg,rgba(23,30,35,.7),rgba(12,16,19,.55));box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 12px 26px rgba(0,0,0,.2)}
+  html:not(.outdoor-mode) .accordion-header:hover{background:rgba(255,255,255,.035)}
+  #tab-goals.active,#tab-progress.active{column-gap:24px}
+  #tab-goals>*,#tab-progress>*{margin-bottom:20px}
+  .progress-stats{gap:14px}
+  #tab-checkin.active{gap:34px}
+  #nutContent{column-gap:24px}
+  .macro-grid{gap:12px}
+  html:not(.outdoor-mode) .nut-wbar{background:rgba(8,11,14,.74);border:1px solid rgba(255,255,255,.075);backdrop-filter:blur(16px)}
+  /* Hero cards get the todaypanel treatment: gradient surface + accent line */
+  html:not(.outdoor-mode) .goals-hero,
+  html:not(.outdoor-mode) .comms-card{position:relative;overflow:hidden;border:1px solid rgba(146,210,237,.14);border-radius:18px;background:linear-gradient(155deg,rgba(19,25,29,.98),rgba(11,15,18,.98));box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 24px 60px rgba(0,0,0,.3)}
+  html:not(.outdoor-mode) .goals-hero::after,
+  html:not(.outdoor-mode) .comms-card::after{content:"";position:absolute;left:26px;right:26px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(146,210,237,.7),transparent);opacity:.62;pointer-events:none}
+  .goals-hero{padding:28px 26px}
+  .comms-card{padding:28px 26px}
+  html:not(.outdoor-mode) .goals-prompt{border-color:rgba(146,210,237,.22);border-radius:16px;background:linear-gradient(155deg,rgba(17,26,31,.9),rgba(9,13,16,.85));box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 18px 44px rgba(0,0,0,.24)}
+  .hb-modal-inner,.ql-modal-inner,.photo-modal-inner,.preferences-modal-inner,.summary-modal-inner,.pb-history-modal-inner{border:1px solid rgba(255,255,255,.09);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 40px 90px rgba(0,0,0,.5)}
+
   .outdoor-mode body{background:linear-gradient(180deg,#eef3f5 0,#f7f9fa 380px)}
   .outdoor-mode header{background:rgba(255,255,255,.84);backdrop-filter:blur(22px);box-shadow:0 1px 0 rgba(7,17,22,.1)}
   .outdoor-mode #tab-training .todaypanel{background:#fff;border-color:rgba(7,17,22,.13);box-shadow:0 24px 55px rgba(30,55,67,.12)}
@@ -1721,4 +1740,10 @@ body.focus-session-open{overflow:hidden}
   .outdoor-mode #tab-training>#calEl .sc{background:#fff;border-color:rgba(7,17,22,.13)}
   .outdoor-mode #tab-training>#calEl .sc:hover{border-color:rgba(8,127,174,.35);box-shadow:0 12px 25px rgba(30,55,67,.1)}
   .outdoor-mode .quicklog-strip{background:rgba(255,255,255,.9);border-color:rgba(7,17,22,.15);box-shadow:0 18px 45px rgba(30,55,67,.15)}
+  .outdoor-mode .card,.outdoor-mode .accordion-card,.outdoor-mode .ci-card,.outdoor-mode .mc,.outdoor-mode .pstat,.outdoor-mode .hb-card{background:#fff;border-color:rgba(7,17,22,.13);box-shadow:0 14px 30px rgba(30,55,67,.08)}
+  .outdoor-mode .hb-card:hover{transform:translateY(-2px);border-color:rgba(8,127,174,.35);box-shadow:0 12px 25px rgba(30,55,67,.12)}
+  .outdoor-mode .goals-hero,.outdoor-mode .comms-card{background:#fff!important;border-color:rgba(7,17,22,.13)!important;box-shadow:0 24px 55px rgba(30,55,67,.12)}
+  .outdoor-mode .goals-hero::after,.outdoor-mode .comms-card::after{background:linear-gradient(90deg,transparent,var(--run),transparent)}
+  .outdoor-mode .goals-prompt{background:#fff!important;border-color:rgba(7,17,22,.13)!important;box-shadow:0 18px 40px rgba(30,55,67,.1)}
+  .outdoor-mode .nut-wbar{box-shadow:0 10px 26px rgba(30,55,67,.08)}
 }
