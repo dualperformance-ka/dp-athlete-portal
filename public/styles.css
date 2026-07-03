@@ -1612,7 +1612,25 @@ body{font-size:15px;line-height:1.55}
   body.menu-open{overflow:hidden}
 }
 
-@media(min-width:1400px){.insight-rail{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* Desktop command centre: give the daily card enough room to remain useful,
+   while preserving a wider week-plan column. */
+@media(min-width:900px){
+  :root{--shellpad:max(32px,calc((100vw - 1360px)/2))}
+  #tab-training.active{grid-template-columns:minmax(410px,480px) minmax(0,1fr);gap:38px}
+  #tab-training .todaywrap{top:148px}
+  .insight-rail{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .insight-card{min-height:68px}
+  .command-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .command-status.next-session{grid-column:1/-1}
+  .quicklog-strip{left:50%;right:auto;width:min(720px,calc(100vw - 48px));transform:translateX(-50%);border:1px solid var(--border-mid);border-bottom:0;border-radius:14px 14px 0 0;box-shadow:0 -10px 35px rgba(0,0,0,.24)}
+}
+@media(min-width:1200px){
+  #tab-training.active{grid-template-columns:minmax(480px,540px) minmax(0,1fr);gap:42px}
+}
+@media(min-width:1600px){
+  #tab-training.active{grid-template-columns:560px minmax(0,1fr);gap:48px}
+  .todaypanel{padding:26px}
+}
 
 @media(max-width:420px){
   .today-actions{grid-template-columns:1fr}.today-action{min-height:44px}
@@ -1656,4 +1674,51 @@ body.focus-session-open{overflow:hidden}
   .outdoor-mode .save-state-pill{background:rgba(255,255,255,.94)}
   .command-status-grid{grid-template-columns:1fr 1fr}.command-status.next-session{grid-column:1/-1}
   .focus-session-card .quicklog-strip,.focus-session-open>.quicklog-strip,.focus-session-open .mobile-nav,.focus-session-open .wa-fab{display:none!important}
+}
+@media(min-width:900px){
+  .command-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .command-status.next-session{grid-column:1/-1}
+}
+
+/* Premium desktop presentation. Mobile deliberately keeps its direct,
+   low-friction layout. */
+@media(min-width:900px){
+  html:not(.outdoor-mode) body{
+    background:
+      radial-gradient(900px 520px at 18% 4%,rgba(48,134,170,.09),transparent 62%),
+      radial-gradient(760px 480px at 86% 34%,rgba(63,103,128,.055),transparent 64%),
+      #040607;
+  }
+  html:not(.outdoor-mode) header{background:rgba(5,8,10,.78);backdrop-filter:blur(22px) saturate(130%);border-bottom-color:rgba(255,255,255,.07)}
+  html:not(.outdoor-mode) .hero{background:linear-gradient(180deg,rgba(14,20,24,.78),rgba(7,10,12,.58));border-bottom:1px solid rgba(255,255,255,.075)}
+  .hero{padding-top:30px;padding-bottom:26px}.hn{letter-spacing:-.035em}.hero-week-num{letter-spacing:-.03em}
+  .wbar{background:rgba(6,9,11,.74);backdrop-filter:blur(16px)}
+  .tabs{background:rgba(5,8,10,.82);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.065)}
+  .tab{min-height:48px;padding-left:18px;padding-right:18px;transition:color .16s,background .16s}.tab:hover{color:var(--text);background:rgba(255,255,255,.025)}
+  #tab-training.active{padding-top:34px}
+  #tab-training .todaywrap{filter:drop-shadow(0 28px 55px rgba(0,0,0,.26))}
+  #tab-training .todaypanel{position:relative;overflow:hidden;border-color:rgba(146,210,237,.14);background:linear-gradient(155deg,rgba(19,25,29,.98),rgba(11,15,18,.98));box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 24px 60px rgba(0,0,0,.34)}
+  #tab-training .todaypanel::before{content:"";position:absolute;left:26px;right:26px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(146,210,237,.7),transparent);opacity:.62}
+  #tab-training>#calEl{position:relative;padding:26px 28px 34px;border:1px solid rgba(255,255,255,.075);border-radius:20px;background:linear-gradient(180deg,rgba(13,18,21,.76),rgba(7,10,12,.58));box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 22px 60px rgba(0,0,0,.2)}
+  #tab-training>#calEl .week-plan-title{margin-bottom:22px;color:var(--muted);font-size:11px}
+  #tab-training>#calEl .dg{opacity:1;margin-bottom:20px}
+  #tab-training>#calEl .dgh{padding-bottom:10px;margin-bottom:9px}
+  #tab-training>#calEl .sc{border-color:rgba(255,255,255,.085);border-radius:13px;background:rgba(255,255,255,.027);transition:transform .16s,border-color .16s,background .16s,box-shadow .16s}
+  #tab-training>#calEl .sc:hover{transform:translateY(-2px);border-color:rgba(146,210,237,.2);background:rgba(255,255,255,.045);box-shadow:0 12px 26px rgba(0,0,0,.2)}
+  #tab-training>#calEl .sch{padding:17px 18px}
+  .insight-card,.command-status{box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
+  .insight-card-button:hover,.command-status:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 8px 18px rgba(0,0,0,.14)}
+  .coach-moment{margin-top:2px}
+  .quicklog-strip{bottom:14px;padding:7px;background:rgba(10,14,17,.82);border:1px solid rgba(255,255,255,.13);border-radius:15px;backdrop-filter:blur(22px) saturate(135%);box-shadow:0 18px 50px rgba(0,0,0,.42)}
+  .quicklog-btn{min-height:44px;border-radius:10px!important;text-transform:none;letter-spacing:0;font-family:var(--body);font-size:13px}
+  .wa-fab{right:max(28px,calc((100vw - 1360px)/2));bottom:28px}
+
+  .outdoor-mode body{background:linear-gradient(180deg,#eef3f5 0,#f7f9fa 380px)}
+  .outdoor-mode header{background:rgba(255,255,255,.84);backdrop-filter:blur(22px);box-shadow:0 1px 0 rgba(7,17,22,.1)}
+  .outdoor-mode #tab-training .todaypanel{background:#fff;border-color:rgba(7,17,22,.13);box-shadow:0 24px 55px rgba(30,55,67,.12)}
+  .outdoor-mode #tab-training .todaypanel::before{background:linear-gradient(90deg,transparent,var(--run),transparent)}
+  .outdoor-mode #tab-training>#calEl{background:rgba(255,255,255,.82);border-color:rgba(7,17,22,.12);box-shadow:0 22px 55px rgba(30,55,67,.09)}
+  .outdoor-mode #tab-training>#calEl .sc{background:#fff;border-color:rgba(7,17,22,.13)}
+  .outdoor-mode #tab-training>#calEl .sc:hover{border-color:rgba(8,127,174,.35);box-shadow:0 12px 25px rgba(30,55,67,.1)}
+  .outdoor-mode .quicklog-strip{background:rgba(255,255,255,.9);border-color:rgba(7,17,22,.15);box-shadow:0 18px 45px rgba(30,55,67,.15)}
 }
