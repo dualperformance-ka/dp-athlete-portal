@@ -1887,3 +1887,16 @@ body.focus-session-open{overflow:hidden}
   #tab-training .todaypanel{filter:drop-shadow(0 20px 45px rgba(0,0,0,.22))}
   .outdoor-mode #tab-training .todaypanel{filter:none}
 }
+
+/* ── Progress tab layout fix (≥900px) ──
+   The photo grid card is far taller than its neighbours; in an auto-row
+   grid it forces huge gaps before the next card. Stack Progress cards
+   full-width instead - photos get more room, no dead space. */
+@media(min-width:900px){
+  #tab-progress.active{display:block;max-width:1020px;margin-left:auto;margin-right:auto}
+  #tab-progress>*{margin-bottom:20px}
+  #tab-progress>.progress-stats{grid-template-columns:repeat(4,1fr)!important}
+}
+
+/* Chart/progress card wrappers missed the outdoor surface overrides */
+.outdoor-mode .progress-card,.outdoor-mode .progress-panel,.outdoor-mode .weight-trend,.outdoor-mode .weight-trend-card{background:#fff!important;border-color:rgba(7,17,22,.13)!important;box-shadow:0 14px 30px rgba(30,55,67,.08)!important;color:var(--text)}
