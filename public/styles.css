@@ -1845,3 +1845,45 @@ body.focus-session-open{overflow:hidden}
   .tab.active{background:linear-gradient(90deg,rgba(146,210,237,.15),rgba(146,210,237,.04));box-shadow:inset 2.5px 0 0 var(--run),inset 0 0 0 1px rgba(146,210,237,.13)}
   .outdoor-mode .tab.active{background:linear-gradient(90deg,rgba(8,127,174,.13),rgba(8,127,174,.04));box-shadow:inset 2.5px 0 0 var(--run),inset 0 0 0 1px rgba(8,127,174,.16)}
 }
+
+/* ── One-screen command centre (≥900px) ──
+   Compress the chrome so today's session is fully above the fold,
+   and scope scrolling to the panels: both training columns pin,
+   the week plan scrolls inside its own pane. */
+@media(min-width:900px){
+  /* Tighter hero */
+  .hero{padding-top:16px;padding-bottom:13px}
+  .hi{margin-bottom:2px}
+  .hn{font-size:38px}
+  .hero-week-num{font-size:26px}
+  .hero-name-row{margin-bottom:7px}
+  .hpills{margin-bottom:2px}
+
+  /* Compact nudge strips */
+  .nudge-strip{padding-top:9px;padding-bottom:9px}
+  .nudge-strip-icon{font-size:16px}
+  #checkinNudge .nudge-strip-icon{width:24px;height:24px}
+  .nudge-strip-title{font-size:14px}
+  .nudge-strip-sub{font-size:10px;margin-top:1px}
+  .nudge-strip-arr{font-size:15px}
+
+  /* Compact week bar + content top */
+  .wbar{padding-top:8px;padding-bottom:8px}
+  #tab-training.active{padding-top:22px}
+
+  /* Two-pane app scroll: columns cap at viewport, week plan scrolls internally */
+  #tab-training .todaywrap{top:104px;max-height:calc(100vh - 118px);overflow-y:auto;overscroll-behavior:contain}
+  #tab-training>#calEl{position:sticky;top:104px;max-height:calc(100vh - 118px);overflow-y:auto;overscroll-behavior:contain;padding-bottom:96px}
+  #tab-checkin>.ci-rail{top:104px;max-height:calc(100vh - 118px);overflow-y:auto;overscroll-behavior:contain}
+
+  /* Quiet scrollbars inside the panes */
+  #tab-training .todaywrap::-webkit-scrollbar,#tab-training>#calEl::-webkit-scrollbar,#tab-checkin>.ci-rail::-webkit-scrollbar{width:8px}
+  #tab-training .todaywrap::-webkit-scrollbar-thumb,#tab-training>#calEl::-webkit-scrollbar-thumb,#tab-checkin>.ci-rail::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+  #tab-training .todaywrap::-webkit-scrollbar-track,#tab-training>#calEl::-webkit-scrollbar-track,#tab-checkin>.ci-rail::-webkit-scrollbar-track{background:transparent}
+  .outdoor-mode #tab-training .todaywrap::-webkit-scrollbar-thumb,.outdoor-mode #tab-training>#calEl::-webkit-scrollbar-thumb,.outdoor-mode #tab-checkin>.ci-rail::-webkit-scrollbar-thumb{background:rgba(7,17,22,.2);background-clip:padding-box}
+
+  /* Sticky drop-shadow filter breaks position:sticky descendants - move it */
+  #tab-training .todaywrap{filter:none}
+  #tab-training .todaypanel{filter:drop-shadow(0 20px 45px rgba(0,0,0,.22))}
+  .outdoor-mode #tab-training .todaypanel{filter:none}
+}
