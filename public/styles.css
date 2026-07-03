@@ -258,7 +258,7 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .mc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center}
 .mv{font-family:var(--display);font-size:36px;font-weight:700;line-height:1;margin-bottom:4px}
 .ml{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
-.mc.cal .mv{color:var(--text)}.mc.pro .mv{color:#92d2ed}.mc.carb .mv{color:var(--run)}.mc.fat .mv{color:var(--rest)}
+.mc.cal .mv{color:var(--text)}.mc.pro .mv{color:var(--run)}.mc.carb .mv{color:var(--run)}.mc.fat .mv{color:var(--rest)}
 .nutrnote{background:var(--surface2);border-left:2px solid #92d2ed;border-radius:10px;padding:14px;font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px}
 .timing-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
 .timing-table th{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:8px;text-align:left;border-bottom:1px solid var(--border-mid)}
@@ -479,23 +479,22 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
   #tab-training>#calEl{min-width:0;padding-top:4px}
   .dg:first-child .dgh{padding-top:0}
 
-  /* Nutrition: macros across one row, cards flow into two columns */
+  /* Nutrition: macros across one row, cards in a two-column grid
+     (grid instead of column-count: multicol fragments tall cards and
+     lets tables spill past the card background) */
   .nut-wbar{margin:0 0 18px;border-radius:12px}
   .macro-grid{grid-template-columns:repeat(5,1fr)}
   .macro-grid .mc.fibre{grid-column:auto !important}
-  #nutContent{column-count:2;column-gap:16px}
-  #nutContent>*{break-inside:avoid}
-  #nutContent>.macro-grid,#nutContent>.cnote{column-span:all}
+  #nutContent{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;align-items:start}
+  #nutContent>.macro-grid,#nutContent>.cnote{grid-column:1/-1}
 
-  /* Goals: cards flow into two columns */
-  #tab-goals.active{column-count:2;column-gap:16px}
-  #tab-goals>*{break-inside:avoid}
-  #tab-goals>.stitle,#tab-goals>.goals-hero,#tab-goals>.savebtn{column-span:all;display:block}
+  /* Goals: two-column grid */
+  #tab-goals.active{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;align-items:start}
+  #tab-goals>.stitle,#tab-goals>.goals-hero,#tab-goals>.savebtn{grid-column:1/-1}
 
-  /* Progress: stats across one row, cards flow into two columns */
-  #tab-progress.active{column-count:2;column-gap:16px}
-  #tab-progress>*{break-inside:avoid}
-  #tab-progress>.stitle,#tab-progress>.progress-stats{column-span:all}
+  /* Progress: stats across one row, cards in a two-column grid */
+  #tab-progress.active{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;align-items:start}
+  #tab-progress>.stitle,#tab-progress>.progress-stats{grid-column:1/-1}
   #tab-progress>.progress-stats{grid-template-columns:repeat(4,1fr) !important}
 
   /* Comms: comfortable centered column */
@@ -1482,6 +1481,8 @@ body{font-size:15px;line-height:1.55}
   --text:#071116;--muted:rgba(7,17,22,.75);--dim:rgba(7,17,22,.58);
   --border:rgba(7,17,22,.12);--border-mid:rgba(7,17,22,.22);--border-strong:rgba(7,17,22,.38);
   --run:#087fae;--run-strong:#075f82;--run-bg:rgba(8,127,174,.08);--run-border:rgba(8,127,174,.25);
+  --rest:rgba(7,17,22,.5);
+  --strength:#40515a;--strength-bg:rgba(7,17,22,.05);--strength-border:rgba(7,17,22,.18);
 }
 .outdoor-mode body,.outdoor-mode #portalScreen{background:var(--bg);color:var(--text)}
 .outdoor-mode header,.outdoor-mode .hero,.outdoor-mode .wbar,.outdoor-mode .tabs,.outdoor-mode .quicklog-strip,.outdoor-mode .mobile-nav{background:rgba(255,255,255,.94);color:var(--text);border-color:var(--border)}
@@ -1553,6 +1554,39 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode .st.on{background:#23804b;border-color:#23804b}
 .outdoor-mode .race-opt,.outdoor-mode .tick,.outdoor-mode .quicklog-btn.ql-body,.outdoor-mode .quicklog-btn.ql-nut{background:#fff;border-color:var(--border-mid);color:var(--text)}
 .outdoor-mode .race-opt.selected,.outdoor-mode .tick.on{background:var(--run);border-color:var(--run);color:#fff}
+
+/* Contrast audit: accents, values and labels that kept dark-theme colours */
+.outdoor-mode .tab.active{color:var(--run-strong);border-bottom-color:var(--run)}
+.outdoor-mode .sname.rest,.outdoor-mode .todayname.rest{color:var(--dim)!important}
+.outdoor-mode .dot-rest{background:rgba(7,17,22,.35)}
+.outdoor-mode .ci-card.lift .ci-val{color:var(--strength)}
+.outdoor-mode .goals-prompt-label{color:var(--run-strong)}
+.outdoor-mode .sc-nudge{color:var(--run-strong);background:var(--run-bg);border-top-color:var(--run-border)}
+.outdoor-mode .nudge-strip-arr,.outdoor-mode #checkinNudge .nudge-strip-arr{color:var(--run-strong)!important}
+.outdoor-mode .hicon-dot,.outdoor-mode .tab-dot{background:var(--run)}
+.outdoor-mode .hicon-goals{border-color:var(--run-border);color:var(--run-strong)}
+.outdoor-mode .hicon-goals:hover{border-color:var(--run);color:var(--run)}
+.outdoor-mode .priority-num{background:var(--run-bg);color:var(--run-strong);border-color:var(--run-border)}
+.outdoor-mode .rest-timer{background:var(--surface2);border:1px solid var(--border)}
+.outdoor-mode .rt-count{color:var(--run-strong)}
+.outdoor-mode .photo-cell.has-photo .photo-overlay{color:#bfe6f5}
+
+/* v11 stat chips force white text/bg with !important - flip them for daylight */
+.outdoor-mode .header-chip,.outdoor-mode .hero-chip,.outdoor-mode .metric-chip,.outdoor-mode .km-chip,.outdoor-mode .goal-chip,.outdoor-mode .pill,.outdoor-mode .badge{color:var(--text)!important}
+.outdoor-mode .header-chip.goal,.outdoor-mode .hero-chip.goal,.outdoor-mode .metric-chip.goal,.outdoor-mode .km-chip,.outdoor-mode .goal-chip{background:var(--surface2)!important;border-color:var(--border)!important;box-shadow:none!important}
+.outdoor-mode .header-chip.goal .label,.outdoor-mode .hero-chip.goal .label,.outdoor-mode .metric-chip.goal .label,.outdoor-mode .km-chip .label,.outdoor-mode .goal-chip .label,.outdoor-mode .header-chip small,.outdoor-mode .hero-chip small,.outdoor-mode .metric-chip small,.outdoor-mode .km-chip small,.outdoor-mode .goal-chip small{color:var(--dim)!important}
+.outdoor-mode .header-chip.goal .value,.outdoor-mode .hero-chip.goal .value,.outdoor-mode .metric-chip.goal .value,.outdoor-mode .km-chip .value,.outdoor-mode .goal-chip .value,.outdoor-mode .header-chip strong,.outdoor-mode .hero-chip strong,.outdoor-mode .metric-chip strong,.outdoor-mode .km-chip strong,.outdoor-mode .goal-chip strong{color:var(--text)!important}
+
+/* Weight-trend charts: white dots/pale line/white grid vanish on white cards */
+.outdoor-mode .progress-card .recharts-cartesian-grid-horizontal line,.outdoor-mode .progress-card .recharts-cartesian-grid-vertical line,.outdoor-mode .progress-panel .recharts-cartesian-grid-horizontal line,.outdoor-mode .progress-panel .recharts-cartesian-grid-vertical line,.outdoor-mode .weight-trend .recharts-cartesian-grid-horizontal line,.outdoor-mode .weight-trend .recharts-cartesian-grid-vertical line,.outdoor-mode .weight-trend-card .recharts-cartesian-grid-horizontal line,.outdoor-mode .weight-trend-card .recharts-cartesian-grid-vertical line{stroke:rgba(7,17,22,.1)!important}
+.outdoor-mode .progress-card .recharts-line path.recharts-curve,.outdoor-mode .progress-panel .recharts-line path.recharts-curve,.outdoor-mode .weight-trend .recharts-line path.recharts-curve,.outdoor-mode .weight-trend-card .recharts-line path.recharts-curve{stroke:var(--run)!important;filter:none}
+.outdoor-mode .progress-card .recharts-dot,.outdoor-mode .progress-panel .recharts-dot,.outdoor-mode .weight-trend .recharts-dot,.outdoor-mode .weight-trend-card .recharts-dot,.outdoor-mode .progress-card .recharts-line-dots circle,.outdoor-mode .progress-panel .recharts-line-dots circle,.outdoor-mode .weight-trend .recharts-line-dots circle,.outdoor-mode .weight-trend-card .recharts-line-dots circle{fill:#fff!important;stroke:var(--run)!important}
+.outdoor-mode .progress-card .recharts-area-area,.outdoor-mode .progress-panel .recharts-area-area,.outdoor-mode .weight-trend .recharts-area-area,.outdoor-mode .weight-trend-card .recharts-area-area{fill:rgba(8,127,174,.08)!important}
+.outdoor-mode .progress-card .graph-wrap,.outdoor-mode .progress-panel .graph-wrap,.outdoor-mode .weight-trend .graph-wrap,.outdoor-mode .weight-trend-card .graph-wrap,.outdoor-mode .weight-trend-card .chart-container{background:var(--surface2)!important}
+
+/* Rest timer text (timer strip is a light surface in daylight) */
+.outdoor-mode .rt-label{color:var(--dim)}
+.outdoor-mode .rt-skip{color:var(--text)}
 
 .outdoor-mode .mobile-nav{background:rgba(255,255,255,.97);box-shadow:0 12px 36px rgba(7,17,22,.16)}
 .outdoor-mode .mobile-nav-item{color:var(--dim)}
@@ -1715,11 +1749,9 @@ body.focus-session-open{overflow:hidden}
   .hb-card{padding:22px 18px}
   html:not(.outdoor-mode) .hb-card:hover{transform:translateY(-2px);border-color:rgba(146,210,237,.2);background:linear-gradient(180deg,rgba(23,30,35,.7),rgba(12,16,19,.55));box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 12px 26px rgba(0,0,0,.2)}
   html:not(.outdoor-mode) .accordion-header:hover{background:rgba(255,255,255,.035)}
-  #tab-goals.active,#tab-progress.active{column-gap:24px}
   #tab-goals>*,#tab-progress>*{margin-bottom:20px}
   .progress-stats{gap:14px}
   #tab-checkin.active{gap:34px}
-  #nutContent{column-gap:24px}
   .macro-grid{gap:12px}
   html:not(.outdoor-mode) .nut-wbar{background:rgba(8,11,14,.74);border:1px solid rgba(255,255,255,.075);backdrop-filter:blur(16px)}
   /* Hero cards get the todaypanel treatment: gradient surface + accent line */
@@ -1746,4 +1778,49 @@ body.focus-session-open{overflow:hidden}
   .outdoor-mode .goals-hero::after,.outdoor-mode .comms-card::after{background:linear-gradient(90deg,transparent,var(--run),transparent)}
   .outdoor-mode .goals-prompt{background:#fff!important;border-color:rgba(7,17,22,.13)!important;box-shadow:0 18px 40px rgba(30,55,67,.1)}
   .outdoor-mode .nut-wbar{box-shadow:0 10px 26px rgba(30,55,67,.08)}
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DESKTOP SIDE NAVIGATION (≥900px)
+   The horizontal tab strip becomes a fixed left rail — the premium
+   app pattern. Pure CSS: same .tab elements, same JS handlers.
+   Mobile (<900px) is untouched.
+   ════════════════════════════════════════════════════════════════ */
+@media(min-width:900px){
+  :root{--railw:236px;--shellpad:max(36px,calc((100vw - var(--railw) - 1200px)/2))}
+
+  /* Everything except the rail shifts right */
+  header,.hero,.wbar,.nudge-strip,.tab-content{margin-left:var(--railw)}
+  header{justify-content:flex-end}
+  header .logo{display:none}
+
+  /* The tab strip becomes the rail */
+  .tabs{position:fixed;left:0;top:0;bottom:0;width:var(--railw);z-index:140;display:flex;flex-direction:column;align-items:stretch;gap:3px;margin:0;padding:104px 14px 24px;overflow-y:auto;overflow-x:hidden;border-bottom:0;border-top:0;border-right:1px solid rgba(255,255,255,.07)}
+  html:not(.outdoor-mode) .tabs{background:linear-gradient(180deg,rgba(9,13,16,.92),rgba(4,7,9,.88));backdrop-filter:blur(22px) saturate(130%)}
+  /* Brand block at the top of the rail */
+  .tabs::before{content:"";position:absolute;top:24px;left:18px;width:40px;height:40px;background:var(--dp-logo) center/contain no-repeat}
+  .tabs::after{content:"DUAL\A PERFORMANCE";white-space:pre;position:absolute;top:29px;left:68px;font-family:var(--display);font-weight:800;font-size:13px;line-height:1.2;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.88)}
+
+  /* Nav items: full-width rows, left accent bar on active */
+  .tab{flex:0 0 auto;width:100%;min-height:0;display:flex;align-items:center;text-align:left;padding:12px 14px;border:0;border-radius:10px;font-size:13.5px;letter-spacing:.06em;color:rgba(255,255,255,.42);transition:color .15s,background .15s}
+  .tab:hover{color:var(--text);background:rgba(255,255,255,.045)}
+  .tab.active{color:var(--run-strong);background:rgba(146,210,237,.09);box-shadow:inset 2.5px 0 0 var(--run);border-bottom:0}
+  .tab-dot{margin-left:auto;margin-bottom:0}
+
+  /* Sticky offsets shrink: tabs are no longer in the top stack */
+  .wbar{top:54px}
+  #tab-training .todaywrap{top:118px}
+  #tab-checkin>.ci-rail{top:118px}
+
+  /* Floating chrome re-centres within the content area */
+  .quicklog-strip{left:calc(var(--railw) + (100vw - var(--railw))/2);width:min(720px,calc(100vw - var(--railw) - 48px))}
+  .wa-fab{right:max(28px,calc((100vw - var(--railw) - 1200px)/2))}
+  .focus-session-card{left:0!important;margin-left:0!important}
+
+  /* Daylight rail */
+  .outdoor-mode .tabs{background:rgba(255,255,255,.93);backdrop-filter:blur(22px);border-right:1px solid var(--border)}
+  .outdoor-mode .tabs::after{color:var(--text)}
+  .outdoor-mode .tab{color:var(--dim)}
+  .outdoor-mode .tab:hover{color:var(--text);background:rgba(7,17,22,.045)}
+  .outdoor-mode .tab.active{color:var(--run-strong);background:var(--run-bg);box-shadow:inset 2.5px 0 0 var(--run)}
 }
