@@ -87,7 +87,7 @@
       <div class="code-box"></div>
       <div class="code-box"></div>
     </div>
-    <input class="code-hidden" id="codeInput" maxlength="6" autocomplete="one-time-code" autocapitalize="characters" inputmode="text" aria-label="Athlete access code" oninput="this.value=sanitizeCode(this.value);renderCode()" onfocus="setLoginKeyboardState(true);clearLoginError();renderCode()" onblur="setTimeout(function(){setLoginKeyboardState(false)},120)" onpaste="handleCodePaste(event)" onkeydown="handleCodeKey(event)"/>
+    <input class="code-hidden" id="codeInput" maxlength="10" autocomplete="one-time-code" autocapitalize="characters" inputmode="text" aria-label="Athlete access code" oninput="this.value=sanitizeCode(this.value);renderCode()" onfocus="setLoginKeyboardState(true);clearLoginError();renderCode()" onblur="setTimeout(function(){setLoginKeyboardState(false)},120)" onpaste="handleCodePaste(event)" onkeydown="handleCodeKey(event)"/>
     <div class="login-actions">
       <button class="lbtn" id="loginBtn" onclick="login()" disabled>Enter Portal</button>
       <div class="lerr" id="lerr">Invalid code — check with your coach</div>
@@ -103,12 +103,33 @@
   </div>
   <div class="login-footer">Dual Performance Coaching System</div>
 </div>
+
+<!-- PAUSED ACCESS — shown when the roster marks this athlete active=false -->
+<div id="pausedScreen" style="display:none;position:fixed;inset:0;z-index:2000;background:#0a0d10;align-items:center;justify-content:center;padding:24px">
+  <div style="max-width:400px;width:100%;text-align:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:38px 28px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">
+    <div style="font-size:34px;line-height:1;margin-bottom:14px">⏸</div>
+    <div id="pausedName" style="color:#92d2ed;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Hey —</div>
+    <div style="color:#f0ede8;font-size:21px;font-weight:800;margin-bottom:10px">Your portal access is paused</div>
+    <div style="color:rgba(240,237,232,.55);font-size:13.5px;line-height:1.55;margin-bottom:26px">Your coaching programme is currently on hold, so the portal is locked for now. Message your coach and we'll get you back training.</div>
+    <a href="https://wa.me/" style="display:inline-block;background:#92d2ed;color:#0a0d10;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;border-radius:10px;padding:12px 22px;text-decoration:none;margin-bottom:14px">Message Coach</a>
+    <div><button onclick="pausedBackToLogin()" style="background:transparent;border:0;color:rgba(240,237,232,.4);font-size:12px;cursor:pointer;text-decoration:underline;padding:6px">Use a different code</button></div>
+  </div>
+</div>
 <script>
 var manualLoginIntent=false;
-function sanitizeCode(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);}
+// Codes are uppercase first names, de-duped with a numeric suffix (THOMAS2),
+// so they can exceed 6 chars — allow up to 10 and grow the boxes to fit.
+function sanitizeCode(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,10);}
+function syncCodeBoxCount(len){
+  var wrap=document.getElementById('codeBoxes');if(!wrap)return;
+  var want=Math.max(6,len);
+  while(wrap.children.length<want){var b=document.createElement('div');b.className='code-box';wrap.appendChild(b);}
+  while(wrap.children.length>want){wrap.removeChild(wrap.lastChild);}
+}
 function renderCode(){
   var inp=document.getElementById('codeInput');if(!inp)return;
   var v=sanitizeCode(inp.value||'');if(inp.value!==v) inp.value=v;
+  syncCodeBoxCount(v.length);
   var boxes=document.querySelectorAll('#codeBoxes .code-box');
   var active=v.length<boxes.length?v.length:-1;
   for(var i=0;i<boxes.length;i++){
@@ -125,7 +146,7 @@ function handleCodePaste(event){
   var text=(event.clipboardData||window.clipboardData).getData('text');
   var inp=document.getElementById('codeInput');if(!inp)return;
   inp.value=sanitizeCode(text);renderCode();
-  if(inp.value.length===6) setTimeout(login,80);
+  if(inp.value.length>=2) setTimeout(login,80);
 }
 function handleCodeKey(event){
   if(event.key==='Enter') login();
@@ -1450,20 +1471,56 @@ function login(){
   manualLoginIntent=true;
   doLogin(c);
 }
+// Roster validation — Supabase public.athletes via /api/athletes is the
+// single source of truth. Unknown codes are rejected; paused (active=false)
+// athletes get the paused-access screen. The Notion profile fetch below is a
+// legacy read for existing athletes' profile fields only — new athletes have
+// no Notion row and log in fine with roster data alone.
+async function validateRosterCode(code){
+  try{
+    var r=await fetch('/api/athletes?action=validate&code='+encodeURIComponent(code),{cache:'no-store'});
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){return null;}
+}
+function showPausedScreen(name){
+  var el=document.getElementById('pausedScreen');if(!el)return;
+  var n=document.getElementById('pausedName');
+  if(n) n.textContent=name?('Hey '+String(name).split(' ')[0]+' —'):'Hey —';
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('portalScreen').style.display='none';
+  var strip=document.getElementById('quicklogStrip');if(strip) strip.style.display='none';
+  el.style.display='flex';
+}
+function pausedBackToLogin(){
+  localStorage.removeItem('dp_auth_code');
+  var el=document.getElementById('pausedScreen');if(el) el.style.display='none';
+  document.getElementById('loginScreen').style.display='block';
+  var inp=document.getElementById('codeInput');if(inp) inp.value='';
+  renderCode();
+}
 async function doLogin(code){
   var btn=document.getElementById('loginBtn')||document.querySelector('.lbtn');
   btn.textContent='Authenticating...';btn.disabled=true;btn.classList.add('loading');
   clearLoginError();
-  var data=await api('databases/'+ATHLETE_DB+'/query',{filter:{property:'Code',rich_text:{equals:code}},page_size:5});
-  btn.textContent='Enter Portal';btn.disabled=false;btn.classList.remove('loading');
-  if(!data||!data.results||!data.results.length){showLoginError('Access code not recognised');renderCode();return;}
-  var p=data.results[0],props=p.properties;
-  var name=getNotionTitle(props)||'Athlete';
+  function resetBtn(){btn.textContent='Enter Portal';btn.disabled=false;btn.classList.remove('loading');}
+  // 1) Roster check (source of truth). null = endpoint unreachable → legacy fallback.
+  var roster=await validateRosterCode(code);
+  if(roster&&!roster.exists){resetBtn();showLoginError('Access code not recognised');renderCode();return;}
+  if(roster&&roster.exists&&!roster.active){resetBtn();showPausedScreen(roster.name);return;}
+  // 2) Legacy Notion profile read (optional for roster-validated athletes).
+  var data=null;
+  try{data=await api('databases/'+ATHLETE_DB+'/query',{filter:{property:'Code',rich_text:{equals:code}},page_size:5});}catch(e){}
+  resetBtn();
+  var p=(data&&data.results&&data.results.length)?data.results[0]:null;
+  if(!p&&!(roster&&roster.exists)){showLoginError('Access code not recognised');renderCode();return;}
+  var props=p?(p.properties||{}):{};
+  var name=(p?getNotionTitle(props):'')||(roster&&roster.name)||'Athlete';
   var showWelcome=manualLoginIntent;
   manualLoginIntent=false;
   if(showWelcome) showLoginSuccess(name);
-  athlete={id:p.id,notionPageId:p.id,name:name,code:code,
-    goalRace:getSelect(props['Goal Race'])||getRichText(props['Goal Race'])||'',
+  athlete={id:p?p.id:null,notionPageId:p?p.id:null,name:name,code:code,
+    goalRace:getSelect(props['Goal Race'])||getRichText(props['Goal Race'])||(roster&&roster.race_target)||'',
     peakWeek:(props['Weekly KM Target']&&props['Weekly KM Target'].number!=null?String(props['Weekly KM Target'].number):'')||getRichText(props['Weekly KM Target'])||'',
     weight:getRichText(props['Body Weight (kg)'])||'',startWeight:getRichText(props['Starting Weight'])||getRichText(props['Body Weight (kg)'])||'',bodyFat:getRichText(props['Body Fat %'])||'',
     time5k:getRichText(props['5km Time'])||'',time10k:getRichText(props['10km Time'])||'',
@@ -1472,7 +1529,7 @@ async function doLogin(code){
     why:getRichText(props['Your Why'])||'',m4:getRichText(props['Milestone W4'])||'',
     m8:getRichText(props['Milestone W8'])||'',m12:getRichText(props['Milestone W12'])||'',
     targetWeight:getRichText(props['Target Weight'])||'—',
-    startDate:props['Start Date']&&props['Start Date'].date&&props['Start Date'].date.start||'—',
+    startDate:(props['Start Date']&&props['Start Date'].date&&props['Start Date'].date.start)||(roster&&roster.start_date)||'—',
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
   localStorage.setItem('dp_auth_code',code);
