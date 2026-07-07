@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=14">
+<link rel="stylesheet" href="/styles.css?v=15">
 <style>
 /* DP icon system */
 .icon{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-0.14em;flex-shrink:0}
@@ -1483,6 +1483,7 @@ function sortSessionsForDisplay(list){
 
 function logout(){
   localStorage.removeItem('dp_auth_code');
+  if(athlete&&athlete.code){try{localStorage.removeItem('dp_profile_'+athlete.code);}catch(e){}}
   athlete=null;sessions=[];allSessions=[];ticked={};logs={};exPicks={};
   document.getElementById('portalScreen').style.display='none';
   document.getElementById('quicklogStrip').style.display='none';
@@ -1526,30 +1527,10 @@ function pausedBackToLogin(){
   var inp=document.getElementById('codeInput');if(inp) inp.value='';
   renderCode();
 }
-async function doLogin(code){
-  var btn=document.getElementById('loginBtn')||document.querySelector('.lbtn');
-  btn.textContent='Authenticating...';btn.disabled=true;btn.classList.add('loading');
-  clearLoginError();
-  function resetBtn(){btn.textContent='Enter Portal';btn.disabled=false;btn.classList.remove('loading');}
-  // 1) Roster check (source of truth). null = endpoint unreachable → legacy fallback.
-  var roster=await validateRosterCode(code);
-  if(roster&&!roster.exists){resetBtn();showLoginError('Access code not recognised');renderCode();return;}
-  if(roster&&roster.exists&&!roster.active){resetBtn();showPausedScreen(roster.name);return;}
-  // The login screen does not need Supabase. Start loading it only after the
-  // access code passes roster validation, in parallel with profile enrichment.
-  var supabaseReady=ensureSupabaseClient();
-  // 2) Legacy Notion profile read (optional for roster-validated athletes).
-  var data=null;
-  try{data=await api('databases/'+ATHLETE_DB+'/query',{filter:{property:'Code',rich_text:{equals:code}},page_size:5});}catch(e){}
-  resetBtn();
-  var p=(data&&data.results&&data.results.length)?data.results[0]:null;
-  if(!p&&!(roster&&roster.exists)){showLoginError('Access code not recognised');renderCode();return;}
+function buildAthleteProfile(p,code,roster){
   var props=p?(p.properties||{}):{};
   var name=(p?getNotionTitle(props):'')||(roster&&roster.name)||'Athlete';
-  var showWelcome=manualLoginIntent;
-  manualLoginIntent=false;
-  if(showWelcome) showLoginSuccess(name);
-  athlete={id:p?p.id:null,notionPageId:p?p.id:null,name:name,code:code,
+  return {id:p?p.id:null,notionPageId:p?p.id:null,name:name,code:code,
     goalRace:getSelect(props['Goal Race'])||getRichText(props['Goal Race'])||(roster&&roster.race_target)||'',
     peakWeek:(props['Weekly KM Target']&&props['Weekly KM Target'].number!=null?String(props['Weekly KM Target'].number):'')||getRichText(props['Weekly KM Target'])||'',
     weight:getRichText(props['Body Weight (kg)'])||'',startWeight:getRichText(props['Starting Weight'])||getRichText(props['Body Weight (kg)'])||'',bodyFat:getRichText(props['Body Fat %'])||'',
@@ -1562,6 +1543,56 @@ async function doLogin(code){
     startDate:(props['Start Date']&&props['Start Date'].date&&props['Start Date'].date.start)||(roster&&roster.start_date)||'—',
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
+}
+// Legacy Notion profile read (optional for roster-validated athletes).
+async function fetchAthleteProfile(code,roster){
+  var data=null;
+  try{data=await api('databases/'+ATHLETE_DB+'/query',{filter:{property:'Code',rich_text:{equals:code}},page_size:5});}catch(e){}
+  var p=(data&&data.results&&data.results.length)?data.results[0]:null;
+  if(!p&&!(roster&&roster.exists)) return null;
+  return buildAthleteProfile(p,code,roster);
+}
+function saveProfileCache(code,profile){try{localStorage.setItem('dp_profile_'+code,JSON.stringify(profile));}catch(e){}}
+async function doLogin(code){
+  var btn=document.getElementById('loginBtn')||document.querySelector('.lbtn');
+  btn.textContent='Authenticating...';btn.disabled=true;btn.classList.add('loading');
+  clearLoginError();
+  function resetBtn(){btn.textContent='Enter Portal';btn.disabled=false;btn.classList.remove('loading');}
+  var showWelcome=manualLoginIntent;
+  manualLoginIntent=false;
+  // Start everything the login needs in parallel: Supabase library, roster
+  // validation, and (below) the Notion profile — instead of one after another.
+  var supabaseReady=ensureSupabaseClient();
+  var rosterPromise=validateRosterCode(code);
+  var cached=null;
+  if(!showWelcome){try{cached=JSON.parse(localStorage.getItem('dp_profile_'+code)||'null');}catch(e){}}
+  if(cached&&cached.code===code){
+    // Returning user: enter instantly on the cached profile. Roster status and
+    // a fresh profile are verified in the background.
+    athlete=cached;
+    rosterPromise.then(function(roster){
+      if(roster&&!roster.exists){logout();showLoginError('Access code not recognised');renderCode();return;}
+      if(roster&&roster.exists&&!roster.active){showPausedScreen(roster.name);return;}
+      fetchAthleteProfile(code,roster).then(function(fresh){
+        if(!fresh) return;
+        athlete=fresh;saveProfileCache(code,fresh);
+        var hn=document.getElementById('heroName');if(hn) hn.textContent=athlete.name;
+        populateStatic();
+      });
+    });
+  }else{
+    // 1) Roster check (source of truth). null = endpoint unreachable → legacy fallback.
+    var roster=await rosterPromise;
+    if(roster&&!roster.exists){resetBtn();showLoginError('Access code not recognised');renderCode();return;}
+    if(roster&&roster.exists&&!roster.active){resetBtn();showPausedScreen(roster.name);return;}
+    // 2) Notion profile enrichment.
+    var fresh=await fetchAthleteProfile(code,roster);
+    resetBtn();
+    if(!fresh){showLoginError('Access code not recognised');renderCode();return;}
+    if(showWelcome) showLoginSuccess(fresh.name);
+    athlete=fresh;saveProfileCache(code,fresh);
+  }
+  resetBtn();
   localStorage.setItem('dp_auth_code',code);
   await supabaseReady;
   await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);})(),loadSessionLogs()]);
@@ -2339,9 +2370,21 @@ function parseKmFromText(txt){
 async function getWeeklyCompletedKmFromTracker(offset){
   if(!ATHLETE_SESSION_TRACKER_DB || ATHLETE_SESSION_TRACKER_DB.indexOf('PASTE_YOUR')===0) return null;
   var range=getWeekDateRangeFromOffset(offset||0);
+  // Server-side date filter: fetch one week instead of the whole database.
+  // If the DB's date property isn't 'Date', the filtered query returns nothing
+  // and we fall back to the old full scan.
   var allRows=await apiAll('databases/'+ATHLETE_SESSION_TRACKER_DB+'/query',{
+    filter:{and:[
+      {property:'Date',date:{on_or_after:range.startISO}},
+      {property:'Date',date:{on_or_before:range.endISO}}
+    ]},
     sorts:[{property:'Date',direction:'descending'}]
   });
+  if(!allRows||!allRows.results||!allRows.results.length){
+    allRows=await apiAll('databases/'+ATHLETE_SESSION_TRACKER_DB+'/query',{
+      sorts:[{property:'Date',direction:'descending'}]
+    });
+  }
   if(!allRows||!allRows.results) return null;
   var athleteIdClean=(athlete.notionPageId||'').replace(/-/g,'');
   var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
@@ -2394,12 +2437,10 @@ async function loadWeeklyKmData(offset){
   if(!WEEKLY_KM_DB || WEEKLY_KM_DB.indexOf('PASTE_YOUR')===0) return null;
   var range=getWeekDateRangeFromOffset(offset);
   var displayWeek=getDisplayWeekNumber(offset);
-  var allKm=await apiAll('databases/'+WEEKLY_KM_DB+'/query',{sorts:[{property:'Week Start',direction:'ascending'}]});
-  if(!allKm||!allKm.results) return null;
   var athleteIdClean=(athlete.notionPageId||'').replace(/-/g,'');
   var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
   var athleteCodeUpper=(athlete.code||'').toUpperCase().trim();
-  var matched=allKm.results.filter(function(r){
+  var matchRow=function(r){
     var pr=r.properties||{};
     var rowName=getNotionTitle(pr).toUpperCase().trim();
     var athleteMatch=rowName===athleteNameUpper||rowName===athleteCodeUpper;
@@ -2419,7 +2460,18 @@ async function loadWeeklyKmData(offset){
     var labelMatch=weekLabel && weekLabel.toLowerCase()===('Week '+displayWeek).toLowerCase();
     var numMatch=weekNumber===displayWeek;
     return startMatch||labelMatch||numMatch;
-  });
+  };
+  // Server-side filter: fetch only this week's rows. Falls back to the old
+  // full scan if nothing matches (e.g. rows keyed by week label/number only).
+  var allKm=await apiAll('databases/'+WEEKLY_KM_DB+'/query',{
+    filter:{property:'Week Start',date:{equals:range.startISO}},
+    sorts:[{property:'Week Start',direction:'ascending'}]});
+  var matched=(allKm&&allKm.results?allKm.results:[]).filter(matchRow);
+  if(!matched.length){
+    allKm=await apiAll('databases/'+WEEKLY_KM_DB+'/query',{sorts:[{property:'Week Start',direction:'ascending'}]});
+    if(!allKm||!allKm.results) return null;
+    matched=allKm.results.filter(matchRow);
+  }
   if(!matched.length) return null;
   var pr=matched[0].properties||{};
   var target=numFromProp(pr['Target KM']) ?? numFromProp(pr['Weekly KM Target']) ?? numFromProp(pr['KM Target']) ?? numFromProp(pr['Target']);
