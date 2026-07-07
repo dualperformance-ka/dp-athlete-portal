@@ -1,7 +1,8 @@
-const CACHE_NAME = 'dp-athlete-v13';
+const CACHE_NAME = 'dp-athlete-v14';
 const APP_SHELL = [
-  '/', '/index.html', '/styles.css?v=13', '/config.js',
-  '/logo.png', '/dp_baby_blue_transparent_512x512.png'
+  '/index.html', '/styles.css?v=14', '/config.js',
+  '/dual_performance_one_line_filled_logo_black_preview.png',
+  '/dp_baby_blue_transparent_512x512.png'
 ];
 
 self.addEventListener('install', event => {
