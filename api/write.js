@@ -22,6 +22,8 @@
 // weekly check-in (and all other writes) failed with 500 before reaching Notion.
 // Now a missing module only disables the best-effort GHL tag; Notion writes work.
 
+import { getRosterAthlete, checkRosterAccess } from './lib/roster.js';
+
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VERSION = '2022-06-28';
 
@@ -157,6 +159,26 @@ async function findAthleteProfile(payload) {
 }
 
 async function resolveAthleteIdentity(payload) {
+  // Supabase roster (public.athletes) is the source of truth for identity.
+  // New athletes exist ONLY there — they have no Notion profile row, so the
+  // Notion lookup is best-effort (used for the legacy Athlete relation only).
+  const rosterCode = safeText(payload.athleteCode, 120)?.toUpperCase();
+  if (rosterCode) {
+    let roster = null;
+    try { roster = await getRosterAthlete(rosterCode); } catch {}
+    if (roster) {
+      let page = null;
+      try { page = await findAthleteProfile(payload); } catch {}
+      return {
+        ...payload,
+        athleteId: (page && page.id) || safeText(payload.athleteId, 120) || null,
+        athleteCode: String(roster.code).toUpperCase(),
+        athleteName: safeText(roster.name, 180) || String(roster.code),
+      };
+    }
+  }
+
+  // Legacy fallback: resolve via the Notion Athlete DB (read-only legacy).
   const page = await findAthleteProfile(payload);
   const properties = page.properties || {};
 
@@ -387,6 +409,13 @@ export default async function handler(req, res) {
 
   const type = String(p && p.type || '').trim();
   if (type === 'test_ping') return res.status(200).json({ ok: true, skipped: 'test_ping' });
+
+  // Paused / archived athletes are blocked from writing fresh data. Unknown
+  // codes fall through to the existing identity checks (legacy behaviour).
+  const guard = await checkRosterAccess(p && p.athleteCode);
+  if (guard.blocked) {
+    return res.status(403).json({ ok: false, stage: 'access', error: 'access_paused' });
+  }
 
   try {
     p = await resolveAthleteIdentity(p);

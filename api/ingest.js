@@ -1,4 +1,5 @@
 import { insert, upsert } from './lib/supabase-rest.js';
+import { getRosterAthlete, checkRosterAccess } from './lib/roster.js';
 
 const ALLOWED_TARGETS = new Set(['/api/write', '/api/notion']);
 
@@ -136,6 +137,26 @@ async function findAthleteProfile(payload) {
 }
 
 async function resolveAthleteIdentity(payload) {
+  // Supabase roster (public.athletes) is the source of truth for identity.
+  // New athletes exist ONLY there — the Notion profile lookup is best-effort
+  // legacy (used for the Athlete relation on mirrored Notion rows).
+  const rosterCode = text(payload.athleteCode, 120)?.toUpperCase();
+  if (rosterCode) {
+    let roster = null;
+    try { roster = await getRosterAthlete(rosterCode); } catch {}
+    if (roster) {
+      let page = null;
+      try { page = await findAthleteProfile(payload); } catch {}
+      return {
+        ...payload,
+        athleteId: (page && page.id) || text(payload.athleteId, 120) || null,
+        athleteCode: String(roster.code).toUpperCase(),
+        athleteName: text(roster.name, 180) || String(roster.code),
+      };
+    }
+  }
+
+  // Legacy fallback: resolve via the Notion Athlete DB (read-only legacy).
   const page = await findAthleteProfile(payload);
   const properties = page.properties || {};
 
@@ -354,6 +375,13 @@ export default async function handler(req, res) {
 
   if (!athleteCode(payload) && targetUrl !== '/api/notion') {
     return send(res, 400, { ok: false, error: 'athleteCode is required' });
+  }
+
+  // Paused / archived athletes are blocked from writing fresh data. Unknown
+  // codes fall through to the existing identity checks (legacy behaviour).
+  const guard = await checkRosterAccess(athleteCode(payload));
+  if (guard.blocked) {
+    return send(res, 403, { ok: false, stage: 'access', error: 'access_paused' });
   }
 
   let identityError = null;
