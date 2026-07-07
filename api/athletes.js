@@ -26,7 +26,7 @@
 import { select, insert, patch } from './lib/supabase-rest.js';
 import { normCode } from './lib/roster.js';
 
-const PORTAL_URL = (process.env.PORTAL_URL || 'https://dp-athlete-portal.vercel.app').replace(/\/+$/, '');
+const PORTAL_URL = (process.env.PORTAL_URL || 'https://dp-athleteportal.vercel.app').replace(/\/+$/, '');
 
 const ROSTER_FIELDS = 'code,name,active,coach,start_date,race_target,ghl_contact_id,notes,created_at,archived_at';
 
