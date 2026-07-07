@@ -1,6 +1,7 @@
-const CACHE_NAME = 'dp-athlete-v14';
+const CACHE_NAME = 'dp-athlete-v15';
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=15', '/config.js',
+  '/dp_logo_inline.png',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
 ];
@@ -21,12 +22,20 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
+  // Navigations: stale-while-revalidate — serve the cached shell instantly and
+  // refresh it in the background. New deploys land on the next visit
+  // (bump CACHE_NAME + ?v= when shipping changes).
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put('/index.html', copy));
-      return response;
-    }).catch(() => caches.match('/index.html')));
+    event.respondWith(caches.match('/index.html').then(cached => {
+      const network = fetch(request).then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put('/index.html', copy));
+        }
+        return response;
+      }).catch(() => cached);
+      return cached || network;
+    }));
     return;
   }
 
