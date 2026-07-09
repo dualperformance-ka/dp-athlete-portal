@@ -3570,7 +3570,7 @@ async function syncPushSubscription(){
     }
     if(!('Notification'in window)||Notification.permission!=='granted')return;
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(VAPID_PUBLIC_KEY)});
-    await fetch('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',code:athlete.code,subscription:sub.toJSON(),prefs:prefs,userAgent:navigator.userAgent})});
+    await fetch('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',code:athlete.code,subscription:sub.toJSON(),prefs:prefs,userAgent:navigator.userAgent,timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone||'')})});
   }catch(e){/* push is best-effort — never break the portal */}
 }
 // Service worker registration
