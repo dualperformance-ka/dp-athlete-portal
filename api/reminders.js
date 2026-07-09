@@ -5,7 +5,7 @@
 // GET  (scheduled)        : authorised with REMINDERS_CRON_SECRET or CRON_SECRET.
 //   Triggered every minute by Supabase pg_cron (job: send-athlete-reminders) and
 //   once daily by Vercel cron as a backstop. Each run only sends to athletes whose
-//   LOCAL time matches: 6am for morning reminders, 6am–9pm for coach updates.
+//   LOCAL time matches: 6am for morning reminders, 6am–11:30pm for coach updates.
 import webpush from 'web-push';
 import { select, upsert, patch, supabaseRequest, tablePath } from './lib/supabase-rest.js';
 
@@ -30,13 +30,14 @@ function localNow(tz) {
   try {
     const parts = new Intl.DateTimeFormat('en-GB', {
       timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-      weekday: 'short', hour: '2-digit', hourCycle: 'h23',
+      weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
     }).formatToParts(new Date());
     const get = (t) => { const p = parts.find((x) => x.type === t); return p ? p.value : null; };
     return {
       iso: `${get('year')}-${get('month')}-${get('day')}`,
       dow: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(get('weekday')),
       hour: parseInt(get('hour'), 10),
+      minute: parseInt(get('minute'), 10),
     };
   } catch (e) { return null; }
 }
@@ -232,7 +233,7 @@ async function handleCronSend(req, res) {
     const now = localNow(tz);
     const allowed = {
       morning: now.hour === MORNING_HOUR,               // 6am local: sessions, check-ins, photos
-      coach: now.hour >= MORNING_HOUR && now.hour <= 21, // coach updates: 6am–9pm local
+      coach: now.hour >= MORNING_HOUR && (now.hour < 23 || (now.hour === 23 && now.minute < 30)), // coach updates: 6am–11:30pm local
     };
     if (!allowed.morning && !allowed.coach) { skippedZones++; continue; }
 
