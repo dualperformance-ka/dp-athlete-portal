@@ -1,0 +1,14 @@
+/* DP icon system */
+.icon{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-0.14em;flex-shrink:0}
+.icon-sm{width:14px;height:14px}.icon-md{width:18px;height:18px}.icon-lg{width:24px;height:24px}
+.icon-run{color:var(--run)}.icon-muted{color:var(--muted)}.icon-dim{color:var(--dim)}.icon-ok{color:var(--ok)}.icon-pb{color:var(--pb)}
+.nudge-strip-icon .icon{width:20px;height:20px;color:var(--run)}
+.nudge-strip-arr .icon{width:15px;height:15px;color:var(--dim)}
+.hb-icon .icon{width:24px;height:24px;color:var(--run)}
+.ci-step-title .icon{width:17px;height:17px;color:var(--run);margin-right:6px;vertical-align:-0.16em}
+.quicklog-btn .icon{width:16px;height:16px;color:var(--run);margin-right:7px}
+.warr .icon{width:15px;height:15px;color:var(--muted)}
+.hicon .icon{width:14px;height:14px}
+.hp .icon{width:13px;height:13px;vertical-align:-0.18em}
+.ex-stat .icon,.pb-badge .icon{width:12px;height:12px}
+.saved-label .icon{width:13px;height:13px;color:var(--ok)}
