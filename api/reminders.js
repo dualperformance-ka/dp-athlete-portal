@@ -1,17 +1,17 @@
 // ── ATHLETE REMINDERS ─────────────────────────────────────────────────────────
 // POST (from portal client): save / remove a push subscription + preferences.
-//   The client includes its device timezone, so reminders arrive at 6am local.
+//   The client includes its device timezone, so reminders arrive at 5am local.
 // GET  ?code=X            : return which reminders are due today for one athlete.
 // GET  (scheduled)        : authorised with REMINDERS_CRON_SECRET or CRON_SECRET.
 //   Triggered every minute by Supabase pg_cron (job: send-athlete-reminders) and
 //   once daily by Vercel cron as a backstop. Each run only sends to athletes whose
-//   LOCAL time matches: 6am for morning reminders, 6am–11:30pm for coach updates.
+//   LOCAL time matches: 5am for morning reminders, 5am–11:30pm for coach updates.
 import webpush from 'web-push';
 import { select, upsert, patch, supabaseRequest, tablePath } from './lib/supabase-rest.js';
 
 const DONE_STATUS = /^(done|completed?|complete|skipped|missed)$/i;
 const DEFAULT_TZ = 'Australia/Adelaide';
-const MORNING_HOUR = 6;
+const MORNING_HOUR = 5;
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
@@ -232,8 +232,8 @@ async function handleCronSend(req, res) {
   for (const [tz, zoneSubs] of groups) {
     const now = localNow(tz);
     const allowed = {
-      morning: now.hour === MORNING_HOUR,               // 6am local: sessions, check-ins, photos
-      coach: now.hour >= MORNING_HOUR && (now.hour < 23 || (now.hour === 23 && now.minute < 30)), // coach updates: 6am–11:30pm local
+      morning: now.hour === MORNING_HOUR,               // 5am local: sessions, check-ins, photos
+      coach: now.hour >= MORNING_HOUR && (now.hour < 23 || (now.hour === 23 && now.minute < 30)), // coach updates: 5am–11:30pm local
     };
     if (!allowed.morning && !allowed.coach) { skippedZones++; continue; }
 
