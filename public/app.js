@@ -3174,6 +3174,8 @@ function showToast(msg){var t=document.getElementById('toast');t.textContent=msg
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 var urlCode=new URLSearchParams(location.search).get('code');
+// Sign-out is coach-only: the dashboard opens the portal with ?code=, athletes launch the installed app without it.
+if(urlCode){var _lb=document.getElementById('logoutBtn');if(_lb)_lb.style.display='';}
 if(urlCode) doLogin(urlCode);
 else { var savedCode=localStorage.getItem('dp_auth_code'); if(savedCode) doLogin(savedCode); else document.getElementById('loginScreen').style.display='block'; }
 
