@@ -3743,36 +3743,43 @@ function buildBody(s,i,type){
   return h;
 }
 
-var focusedSessionIndex=null,focusedExerciseIndex=0;
+var focusedSessionIndex=null;
+function ensureFocusOverlay(){
+  var ov=document.getElementById('focusOverlay');
+  if(ov)return ov;
+  ov=document.createElement('div');ov.id='focusOverlay';ov.className='focus-overlay';
+  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" onclick="closeFocusedSession()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong></div><span id="focusOverlayMeta"></span></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><button class="focus-done-btn" onclick="closeFocusedSession()">Done — back to plan</button></div>';
+  document.body.appendChild(ov);
+  return ov;
+}
 function startFocusedSession(i){
   var card=document.getElementById('sc_'+i),body=document.getElementById('scb_'+i);if(!card||!body)return;
-  if(body&&!body.classList.contains('open'))body.classList.add('open');
-  focusedSessionIndex=i;focusedExerciseIndex=0;
-  document.body.classList.add('focus-session-open');card.classList.add('focus-session-card');
-  var toolbar=document.createElement('div');toolbar.className='focus-toolbar';toolbar.id='focusToolbar';
-  toolbar.innerHTML='<button onclick="closeFocusedSession()" aria-label="Close focused session">×</button><div><small>Focused session</small><strong>'+esc((sessions[i]&&sessions[i].name)||'Workout')+'</strong></div><span id="focusExerciseCount"></span>';
-  card.insertBefore(toolbar,card.firstChild);
-  updateFocusedExercise();card.scrollTop=0;
-}
-function updateFocusedExercise(){
-  if(focusedSessionIndex==null)return;var card=document.getElementById('sc_'+focusedSessionIndex);if(!card)return;
-  var exercises=card.querySelectorAll('.exc'),count=document.getElementById('focusExerciseCount');
-  if(!exercises.length){if(count)count.textContent='Session';return;}
-  focusedExerciseIndex=Math.max(0,Math.min(exercises.length-1,focusedExerciseIndex));
-  exercises.forEach(function(ex,idx){ex.classList.toggle('focus-active',idx===focusedExerciseIndex);});
-  if(count)count.textContent=(focusedExerciseIndex+1)+' / '+exercises.length;
-  var nav=card.querySelector('.focus-exercise-nav');if(!nav){nav=document.createElement('div');nav.className='focus-exercise-nav';nav.innerHTML='<button onclick="focusExerciseStep(-1)">Previous</button><button onclick="focusExerciseStep(1)">Next exercise</button>';card.appendChild(nav);}
-  var buttons=nav.querySelectorAll('button');buttons[0].disabled=focusedExerciseIndex===0;buttons[1].textContent=focusedExerciseIndex===exercises.length-1?'Review session':'Next exercise';
-}
-function focusExerciseStep(delta){
-  if(focusedSessionIndex==null)return;var card=document.getElementById('sc_'+focusedSessionIndex),total=card?card.querySelectorAll('.exc').length:0;
-  if(delta>0&&focusedExerciseIndex>=total-1){card.scrollTo({top:card.scrollHeight,behavior:'smooth'});return;}
-  focusedExerciseIndex+=delta;updateFocusedExercise();card.scrollTo({top:0,behavior:'smooth'});
+  if(focusedSessionIndex!=null&&focusedSessionIndex!==i)closeFocusedSession();
+  if(!body.classList.contains('open'))body.classList.add('open');
+  focusedSessionIndex=i;
+  var ov=ensureFocusOverlay(),scroll=document.getElementById('focusOverlayScroll');
+  if(!scroll.contains(card)){
+    var ph=document.getElementById('focusCardPlaceholder');
+    if(!ph){ph=document.createElement('div');ph.id='focusCardPlaceholder';ph.style.display='none';}
+    card.parentNode.insertBefore(ph,card);
+    scroll.appendChild(card);
+  }
+  card.classList.add('in-focus-overlay');
+  var nameEl=document.getElementById('focusOverlayName');if(nameEl)nameEl.textContent=(sessions[i]&&sessions[i].name)||'Workout';
+  var exCount=card.querySelectorAll('.exc').length,metaEl=document.getElementById('focusOverlayMeta');
+  if(metaEl)metaEl.textContent=exCount?exCount+(exCount===1?' exercise':' exercises'):'';
+  document.body.classList.add('focus-session-open');
+  void ov.offsetHeight;ov.classList.add('open');scroll.scrollTop=0;
 }
 function closeFocusedSession(){
-  if(focusedSessionIndex!=null){var card=document.getElementById('sc_'+focusedSessionIndex);if(card){card.classList.remove('focus-session-card');card.querySelectorAll('.exc').forEach(function(ex){ex.classList.remove('focus-active');});var nav=card.querySelector('.focus-exercise-nav');if(nav)nav.remove();}}
-  var toolbar=document.getElementById('focusToolbar');if(toolbar)toolbar.remove();document.body.classList.remove('focus-session-open');focusedSessionIndex=null;
+  if(focusedSessionIndex!=null){
+    var card=document.getElementById('sc_'+focusedSessionIndex),ph=document.getElementById('focusCardPlaceholder');
+    if(card){card.classList.remove('in-focus-overlay');if(ph&&ph.parentNode){ph.parentNode.insertBefore(card,ph);ph.parentNode.removeChild(ph);}}
+  }
+  var ov=document.getElementById('focusOverlay');if(ov)ov.classList.remove('open');
+  document.body.classList.remove('focus-session-open');focusedSessionIndex=null;
 }
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&focusedSessionIndex!=null)closeFocusedSession();});
 function togS(i){var el=document.getElementById('scb_'+i);if(el) el.classList.toggle('open');}
 async function tickS(i){
   var s=sessions[i],on=!ticked[s.id];
