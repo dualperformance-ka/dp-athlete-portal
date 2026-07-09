@@ -941,9 +941,9 @@ var REMINDER_OPTIONS=[
 function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp_reminders_'+((athlete&&athlete.code)||'default'))||'{}');}catch(e){return{};}}
 function openPreferences(){
   toggleMoreMenu(false);var prefs=getReminderPreferences(),list=document.getElementById('notificationPreferences');
-  list.innerHTML=REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
-    +'<div id="pushStatus" style="font-family:var(--mono);font-size:10px;margin-top:10px;color:var(--muted)">Notifications: '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>'
-    +'<button onclick="hardRefreshPortal()" style="margin-top:12px;width:100%;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">Refresh portal</button>';
+  list.innerHTML='<button onclick="hardRefreshPortal()" style="margin-bottom:14px;width:100%;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">\u21bb Refresh portal</button>'
+    +REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
+    +'<div id="pushStatus" style="font-family:var(--mono);font-size:10px;margin-top:10px;color:var(--muted)">Notifications: '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>';
   syncPushSubscription();
   document.getElementById('preferencesModal').classList.add('open');document.body.style.overflow='hidden';
 }
