@@ -3567,7 +3567,22 @@ async function syncPushSubscription(){
     if(typeof VAPID_PUBLIC_KEY==='undefined'||!VAPID_PUBLIC_KEY){setPushStatus('app update pending — close and reopen the portal',false);return;}
     var prefs=getReminderPreferences();
     var anyOn=REMINDER_OPTIONS.some(function(o){return !!prefs[o.key];});
-    var reg=await navigator.serviceWorker.ready;
+    setPushStatus('setting up\u2026',false);
+    // Robust service-worker acquisition: iOS PWAs can leave .ready hanging on a
+    // fresh install, so register explicitly and time out instead of stalling.
+    var reg=await navigator.serviceWorker.getRegistration();
+    if(!reg){
+      try{reg=await navigator.serviceWorker.register('/sw.js');}
+      catch(e){setPushStatus('service worker failed: '+String(e&&e.message||e).slice(0,60),false);return;}
+    }
+    if(!reg.active){
+      var ready=await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise(function(res){setTimeout(function(){res(null);},8000);})
+      ]);
+      if(!ready){setPushStatus('service worker not ready \u2014 close the app fully and reopen',false);return;}
+      reg=ready;
+    }
     var sub=await reg.pushManager.getSubscription();
     if(!anyOn){
       if(sub){
