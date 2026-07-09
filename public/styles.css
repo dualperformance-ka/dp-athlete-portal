@@ -1599,7 +1599,7 @@ body{font-size:15px;line-height:1.55}
   body{font-size:16px}
   header{padding-left:14px;padding-right:14px}
   .header-actions .hicon-goals,.header-actions .hicon-desktop{display:none}
-  .theme-toggle{width:34px;height:34px;justify-content:center;padding:0}
+  .theme-toggle{height:34px;padding:0 10px;font-size:11px}
   .tabs{display:none}
   .hero{padding:22px 16px 18px}.hi{font-size:10px}.hn{font-size:40px}
   .tab-content{padding:20px 14px 210px}
