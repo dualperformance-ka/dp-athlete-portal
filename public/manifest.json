@@ -4,10 +4,20 @@
   "description": "Training, readiness, nutrition and coaching in one place.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#040506",
+  "background_color": "#a8dcf2",
   "theme_color": "#070a0d",
   "icons": [
-    {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
-    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }
