@@ -22,8 +22,8 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .header-actions{display:flex;align-items:center;gap:6px}
 .hicon{background:transparent;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;transition:border-color .15s,color .15s;white-space:nowrap;display:flex;align-items:center;gap:5px}
 .hicon:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.8)}
-.hicon-goals{border-color:rgba(146,210,237,.5);color:#92d2ed}
-.hicon-goals:hover{border-color:#92d2ed;color:#aadcf2}
+.hicon-goals,.hicon-accent{border-color:rgba(146,210,237,.5);color:#92d2ed}
+.hicon-goals:hover,.hicon-accent:hover{border-color:#92d2ed;color:#aadcf2}
 .hicon-dot{width:6px;height:6px;border-radius:50%;background:#92d2ed;flex-shrink:0;animation:pdot 2s ease-in-out infinite}
 @keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.65)}}
 .goals-prompt{background: rgba(255,255,255,0.06);border:1px solid rgba(146,210,237,.25);border-radius:12px;padding:18px 16px;margin-bottom:16px;display:none}
@@ -1564,7 +1564,7 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode .sc-nudge{color:var(--run-strong);background:var(--run-bg);border-top-color:var(--run-border)}
 .outdoor-mode .nudge-strip-arr,.outdoor-mode #checkinNudge .nudge-strip-arr{color:var(--run-strong)!important}
 .outdoor-mode .hicon-dot,.outdoor-mode .tab-dot{background:var(--run)}
-.outdoor-mode .hicon-goals{border-color:var(--run-border);color:var(--run-strong)}
+.outdoor-mode .hicon-goals,.outdoor-mode .hicon-accent{border-color:var(--run-border);color:var(--run-strong)}
 .outdoor-mode .hicon-goals:hover{border-color:var(--run);color:var(--run)}
 .outdoor-mode .priority-num{background:var(--run-bg);color:var(--run-strong);border-color:var(--run-border)}
 .outdoor-mode .rest-timer{background:var(--surface2);border:1px solid var(--border)}
@@ -1599,7 +1599,7 @@ body{font-size:15px;line-height:1.55}
 @media(max-width:760px){
   body{font-size:16px}
   header{padding-left:14px;padding-right:14px}
-  .header-actions .hicon-goals,.header-actions .hicon:nth-of-type(3),.header-actions .hicon:nth-of-type(4),.theme-toggle-label{display:none}
+  .header-actions .hicon-goals,.header-actions .hicon-desktop,.theme-toggle-label{display:none}
   .theme-toggle{width:34px;height:34px;justify-content:center;padding:0}
   .tabs{display:none}
   .hero{padding:22px 16px 18px}.hi{font-size:10px}.hn{font-size:40px}
