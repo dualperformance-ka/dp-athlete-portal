@@ -85,17 +85,54 @@ async function computeDue(codes, { iso, dow }) {
   //    fields like session status.)
   const since24 = new Date(Date.now() - 24 * 36e5).toISOString();
   const changes = await select('coach_change_log', {
-    athlete_code: list, changed_at: `gte.${since24}`, select: 'athlete_code,source,changed_at',
+    athlete_code: list, changed_at: `gte.${since24}`, select: 'athlete_code,source,changed_at,detail',
   });
   for (const c of changes || []) {
     const d = due[c.athlete_code];
-    if (d) d.coach.push({ source: c.source, at: c.changed_at });
+    if (d) d.coach.push({ source: c.source, at: c.changed_at, detail: c.detail });
   }
 
   return due;
 }
 
-function buildMessages(dueForAthlete, prefs, allowed, coachSources) {
+// "Tue 14 Jul" from a YYYY-MM-DD planned date (locale-independent).
+function formatChangeDate(iso) {
+  const d = new Date(String(iso) + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return null;
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return days[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + months[d.getUTCMonth()];
+}
+
+// Build the coach-update body from change details: name up to three changes
+// ("Tempo Run (Tue 14 Jul) updated - Long Run added"), falling back to
+// per-area counts when there are too many or details are missing.
+function coachBody(changes) {
+  const seen = new Set();
+  const named = [];
+  for (const c of changes) { // newest first
+    const det = c.detail || {};
+    if (!det.item) continue;
+    const key = det.action + '|' + det.item + '|' + (det.date || '');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const date = det.date ? formatChangeDate(det.date) : null;
+    named.push(det.item + (date ? ' (' + date + ')' : '') + ' ' + (det.action || 'updated'));
+  }
+  const allNamed = named.length && named.length === seen.size && changes.every((c) => c.detail && c.detail.item);
+  if (allNamed && named.length <= 3) {
+    const body = named.join(' \u00b7 ');
+    if (body.length <= 140) return body + ' \u2014 open the portal for details.';
+  }
+  // Fallback: counts per area, e.g. "4 training changes \u00b7 nutrition updated".
+  const bySource = {};
+  for (const c of changes) bySource[c.source] = (bySource[c.source] || 0) + 1;
+  const parts = Object.entries(bySource)
+    .map(([src, n]) => (n > 1 ? n + ' ' + src + ' changes' : src + ' updated'));
+  return 'Your coach made changes: ' + parts.join(' \u00b7 ') + ' \u2014 see the portal.';
+}
+
+function buildMessages(dueForAthlete, prefs, allowed, coachChanges) {
   const messages = [];
   if (allowed.morning && prefs.sessions && dueForAthlete.sessions.length) {
     messages.push({
@@ -213,10 +250,10 @@ async function handleCronSend(req, res) {
       const lastCoach = lastSent.coach ? new Date(lastSent.coach).getTime() : 0;
       const freshChanges = coachEntries.filter((c) => new Date(c.at).getTime() > lastCoach);
       const newest = freshChanges.length ? Math.max(...freshChanges.map((c) => new Date(c.at).getTime())) : 0;
-      const coachSources = (freshChanges.length && Date.now() - newest >= 2 * 60 * 1000)
-        ? [...new Set(freshChanges.map((c) => c.source))] : [];
+      const coachChanges = (freshChanges.length && Date.now() - newest >= 2 * 60 * 1000)
+        ? freshChanges.slice().sort((a, b) => new Date(b.at) - new Date(a.at)) : [];
 
-      const messages = buildMessages(due[sub.athlete_code] || {}, prefs, allowed, coachSources)
+      const messages = buildMessages(due[sub.athlete_code] || {}, prefs, allowed, coachChanges)
         .filter((m) => m.type === 'coach' || lastSent[m.type] !== now.iso); // morning types: one per local day
 
       let delivered = false;
