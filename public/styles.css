@@ -1695,6 +1695,7 @@ body.focus-session-open{overflow:hidden}
 .focus-overlay-scroll .sch{display:none}
 .focus-overlay-scroll .scb{display:block!important;border-top:0;padding:0}
 .focus-overlay-scroll .sc-nudge{display:none}
+.focus-overlay-scroll input,.focus-overlay-scroll textarea,.focus-overlay-scroll select{font-size:16px!important}
 .focus-overlay-foot{flex:0 0 auto;padding:10px 16px calc(12px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--border)}
 .focus-done-btn{width:100%;min-height:48px;border:0;border-radius:12px;background:var(--run);color:#061117;font-family:var(--display);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
 .focus-done-btn:active{opacity:.85}
