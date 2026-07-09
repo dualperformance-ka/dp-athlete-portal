@@ -153,12 +153,8 @@ function buildMessages(dueForAthlete, prefs, allowed, coachChanges) {
       body: 'New week — grab your four angles. Same time, same lighting.',
     });
   }
-  if (allowed.coach && prefs.coach && coachSources && coachSources.length) {
-    const what = coachSources.join(' & ');
-    messages.push({
-      type: 'coach', title: 'Coach update',
-      body: 'Your coach updated your ' + what + ' — check the changes in the portal.',
-    });
+  if (allowed.coach && prefs.coach && coachChanges && coachChanges.length) {
+    messages.push({ type: 'coach', title: 'Coach update', body: coachBody(coachChanges) });
   }
   return messages;
 }
