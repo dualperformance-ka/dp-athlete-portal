@@ -3,8 +3,8 @@
 //   The client includes its device timezone, so reminders arrive at 6am local.
 // GET  ?code=X            : return which reminders are due today for one athlete.
 // GET  (scheduled)        : authorised with REMINDERS_CRON_SECRET or CRON_SECRET.
-//   Triggered hourly by Supabase pg_cron (job: send-athlete-reminders) and once
-//   daily by Vercel cron as a backstop. Each run only sends to athletes whose
+//   Triggered every minute by Supabase pg_cron (job: send-athlete-reminders) and
+//   once daily by Vercel cron as a backstop. Each run only sends to athletes whose
 //   LOCAL time matches: 6am for morning reminders, 6am–9pm for coach updates.
 import webpush from 'web-push';
 import { select, upsert, patch, supabaseRequest, tablePath } from './lib/supabase-rest.js';
@@ -207,13 +207,13 @@ async function handleCronSend(req, res) {
 
       // Coach updates: notify per batch of changes, not once per day.
       // A change qualifies once it is newer than the last coach alert AND the
-      // newest change is >15 min old (debounce, so an editing session lands
+      // newest change is >2 min old (debounce, so an editing session lands
       // as a single ping rather than one per save).
       const coachEntries = (due[sub.athlete_code] || {}).coach || [];
       const lastCoach = lastSent.coach ? new Date(lastSent.coach).getTime() : 0;
       const freshChanges = coachEntries.filter((c) => new Date(c.at).getTime() > lastCoach);
       const newest = freshChanges.length ? Math.max(...freshChanges.map((c) => new Date(c.at).getTime())) : 0;
-      const coachSources = (freshChanges.length && Date.now() - newest >= 15 * 60 * 1000)
+      const coachSources = (freshChanges.length && Date.now() - newest >= 2 * 60 * 1000)
         ? [...new Set(freshChanges.map((c) => c.source))] : [];
 
       const messages = buildMessages(due[sub.athlete_code] || {}, prefs, allowed, coachSources)
