@@ -52,7 +52,7 @@ function inList(values) {
 // For each athlete code, work out which reminder types are due on this local day.
 async function computeDue(codes, { iso, dow }) {
   const due = {};
-  codes.forEach((c) => { due[c] = { sessions: [], checkin: false, photos: false, coach: false }; });
+  codes.forEach((c) => { due[c] = { sessions: [], checkin: false, photos: false, coach: [] }; });
   const list = inList(codes);
 
   // 1. Training sessions planned today (local) and not already completed.
@@ -79,14 +79,17 @@ async function computeDue(codes, { iso, dow }) {
     codes.forEach((c) => { due[c].photos = true; });
   }
 
-  // 4. Coach replies: prescription overrides touched in the last 24h.
+  // 4. Coach updates: any coach-side change logged in the last 24h.
+  //    (DB triggers on planned_sessions, nutrition_plans, workout_splits and
+  //    session_overrides write to coach_change_log, ignoring athlete-driven
+  //    fields like session status.)
   const since24 = new Date(Date.now() - 24 * 36e5).toISOString();
-  const overrides = await select('session_overrides', { updated_at: `gte.${since24}`, select: 'notion_page_id' });
-  if (overrides && overrides.length) {
-    const pages = await select('planned_sessions', {
-      notion_page_id: inList(overrides.map((o) => o.notion_page_id)), select: 'athlete_code',
-    });
-    for (const p of pages || []) if (due[p.athlete_code]) due[p.athlete_code].coach = true;
+  const changes = await select('coach_change_log', {
+    athlete_code: list, changed_at: `gte.${since24}`, select: 'athlete_code,source',
+  });
+  for (const c of changes || []) {
+    const d = due[c.athlete_code];
+    if (d && !d.coach.includes(c.source)) d.coach.push(c.source);
   }
 
   return due;
@@ -112,10 +115,11 @@ function buildMessages(dueForAthlete, prefs, allowed) {
       body: 'New week — grab your four angles. Same time, same lighting.',
     });
   }
-  if (allowed.coach && prefs.coach && dueForAthlete.coach) {
+  if (allowed.coach && prefs.coach && dueForAthlete.coach.length) {
+    const what = dueForAthlete.coach.join(' & ');
     messages.push({
       type: 'coach', title: 'Coach update',
-      body: 'Your coach adjusted your plan — check the changes before your next session.',
+      body: 'Your coach updated your ' + what + ' — check the changes in the portal.',
     });
   }
   return messages;
