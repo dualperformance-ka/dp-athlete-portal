@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v20';
+const CACHE_NAME = 'dp-athlete-v21';
 const APP_SHELL = [
   '/index.html', '/styles.css?v=15', '/config.js',
   '/app.js', '/login.js', '/icons.css?v=1',

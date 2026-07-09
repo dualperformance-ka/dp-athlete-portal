@@ -942,7 +942,8 @@ function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp
 function openPreferences(){
   toggleMoreMenu(false);var prefs=getReminderPreferences(),list=document.getElementById('notificationPreferences');
   list.innerHTML=REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
-    +'<div id="pushStatus" style="font-family:var(--mono);font-size:10px;margin-top:10px;color:var(--muted)">Notifications: '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>';
+    +'<div id="pushStatus" style="font-family:var(--mono);font-size:10px;margin-top:10px;color:var(--muted)">Notifications: '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>'
+    +'<button onclick="hardRefreshPortal()" style="margin-top:12px;width:100%;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">Refresh portal</button>';
   syncPushSubscription();
   document.getElementById('preferencesModal').classList.add('open');document.body.style.overflow='hidden';
 }
@@ -3600,5 +3601,27 @@ async function syncPushSubscription(){
     else{setPushStatus('server rejected: '+(data.error||resp.status),false);}
   }catch(e){setPushStatus('error: '+String(e&&e.message||e).slice(0,80),false);}
 }
+async function hardRefreshPortal(){
+  showToast('Refreshing portal\u2026');
+  try{var keys=await caches.keys();await Promise.all(keys.map(function(k){return caches.delete(k);}));}catch(e){}
+  try{var reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update();}catch(e){}
+  setTimeout(function(){location.reload();},300);
+}
 // Service worker registration
-if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});
+  // Check for updates whenever the app comes back to the foreground (key for
+  // home-screen apps, which iOS keeps alive for days without a fresh load).
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'){
+      navigator.serviceWorker.getRegistration().then(function(reg){if(reg)reg.update().catch(function(){});});
+    }
+  });
+  // When a new service worker takes over, reload once so athletes always run
+  // the latest code. Guard: only when replacing an existing controller.
+  var dpHadController=!!navigator.serviceWorker.controller,dpReloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    if(dpHadController&&!dpReloaded){dpReloaded=true;showToast('Portal updated');setTimeout(function(){location.reload();},600);}
+    dpHadController=true;
+  });
+}
