@@ -941,7 +941,9 @@ var REMINDER_OPTIONS=[
 function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp_reminders_'+((athlete&&athlete.code)||'default'))||'{}');}catch(e){return{};}}
 function openPreferences(){
   toggleMoreMenu(false);var prefs=getReminderPreferences(),list=document.getElementById('notificationPreferences');
-  list.innerHTML=REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('');
+  list.innerHTML=REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
+    +'<div id="pushStatus" style="font-family:var(--mono);font-size:10px;margin-top:10px;color:var(--muted)">Notifications: '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>';
+  syncPushSubscription();
   document.getElementById('preferencesModal').classList.add('open');document.body.style.overflow='hidden';
 }
 function closePreferences(){document.getElementById('preferencesModal').classList.remove('open');document.body.style.overflow='';}
@@ -3552,11 +3554,17 @@ function urlB64ToUint8(base64String){
   for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);
   return arr;
 }
+function setPushStatus(msg,ok){
+  try{localStorage.setItem('dp_push_status',msg);}catch(e){}
+  var el=document.getElementById('pushStatus');
+  if(el){el.textContent='Notifications: '+msg;el.style.color=ok?'var(--ok)':'var(--muted)';}
+}
 async function syncPushSubscription(){
   try{
     if(!athlete||!athlete.code)return;
-    if(!('serviceWorker'in navigator)||!('PushManager'in window))return;
-    if(typeof VAPID_PUBLIC_KEY==='undefined'||!VAPID_PUBLIC_KEY)return;
+    if(!('serviceWorker'in navigator)){setPushStatus('not supported in this browser',false);return;}
+    if(!('PushManager'in window)){setPushStatus('not available — on iPhone, open from the home-screen icon',false);return;}
+    if(typeof VAPID_PUBLIC_KEY==='undefined'||!VAPID_PUBLIC_KEY){setPushStatus('app update pending — close and reopen the portal',false);return;}
     var prefs=getReminderPreferences();
     var anyOn=REMINDER_OPTIONS.some(function(o){return !!prefs[o.key];});
     var reg=await navigator.serviceWorker.ready;
@@ -3566,12 +3574,16 @@ async function syncPushSubscription(){
         try{await fetch('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'unsubscribe',endpoint:sub.endpoint})});}catch(e){}
         try{await sub.unsubscribe();}catch(e){}
       }
+      setPushStatus('off',false);
       return;
     }
-    if(!('Notification'in window)||Notification.permission!=='granted')return;
+    if(!('Notification'in window)||Notification.permission!=='granted'){setPushStatus('waiting for permission — toggle a reminder and tap Allow',false);return;}
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(VAPID_PUBLIC_KEY)});
-    await fetch('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',code:athlete.code,subscription:sub.toJSON(),prefs:prefs,userAgent:navigator.userAgent,timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone||'')})});
-  }catch(e){/* push is best-effort — never break the portal */}
+    var resp=await fetch('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',code:athlete.code,subscription:sub.toJSON(),prefs:prefs,userAgent:navigator.userAgent,timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone||'')})});
+    var data=await resp.json().catch(function(){return{};});
+    if(resp.ok&&data.ok){setPushStatus('active on this device ✓',true);}
+    else{setPushStatus('server rejected: '+(data.error||resp.status),false);}
+  }catch(e){setPushStatus('error: '+String(e&&e.message||e).slice(0,80),false);}
 }
 // Service worker registration
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}
