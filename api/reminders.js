@@ -85,17 +85,17 @@ async function computeDue(codes, { iso, dow }) {
   //    fields like session status.)
   const since24 = new Date(Date.now() - 24 * 36e5).toISOString();
   const changes = await select('coach_change_log', {
-    athlete_code: list, changed_at: `gte.${since24}`, select: 'athlete_code,source',
+    athlete_code: list, changed_at: `gte.${since24}`, select: 'athlete_code,source,changed_at',
   });
   for (const c of changes || []) {
     const d = due[c.athlete_code];
-    if (d && !d.coach.includes(c.source)) d.coach.push(c.source);
+    if (d) d.coach.push({ source: c.source, at: c.changed_at });
   }
 
   return due;
 }
 
-function buildMessages(dueForAthlete, prefs, allowed) {
+function buildMessages(dueForAthlete, prefs, allowed, coachSources) {
   const messages = [];
   if (allowed.morning && prefs.sessions && dueForAthlete.sessions.length) {
     messages.push({
@@ -115,8 +115,8 @@ function buildMessages(dueForAthlete, prefs, allowed) {
       body: 'New week — grab your four angles. Same time, same lighting.',
     });
   }
-  if (allowed.coach && prefs.coach && dueForAthlete.coach.length) {
-    const what = dueForAthlete.coach.join(' & ');
+  if (allowed.coach && prefs.coach && coachSources && coachSources.length) {
+    const what = coachSources.join(' & ');
     messages.push({
       type: 'coach', title: 'Coach update',
       body: 'Your coach updated your ' + what + ' — check the changes in the portal.',
@@ -163,7 +163,9 @@ async function handleDueCheck(req, res) {
   const subs = await select('push_subscriptions', { athlete_code: `eq.${code}`, select: 'timezone', limit: '1' });
   const tz = safeTz(subs && subs[0] && subs[0].timezone);
   const due = await computeDue([code], localNow(tz));
-  return send(res, 200, { ok: true, timezone: tz, due: due[code] });
+  const d = due[code];
+  d.coach = [...new Set((d.coach || []).map((c) => c.source))];
+  return send(res, 200, { ok: true, timezone: tz, due: d });
 }
 
 async function handleCronSend(req, res) {
@@ -202,8 +204,20 @@ async function handleCronSend(req, res) {
     for (const sub of zoneSubs) {
       const prefs = sub.prefs || {};
       const lastSent = sub.last_sent || {};
-      const messages = buildMessages(due[sub.athlete_code] || {}, prefs, allowed)
-        .filter((m) => lastSent[m.type] !== now.iso); // one per type per local day
+
+      // Coach updates: notify per batch of changes, not once per day.
+      // A change qualifies once it is newer than the last coach alert AND the
+      // newest change is >15 min old (debounce, so an editing session lands
+      // as a single ping rather than one per save).
+      const coachEntries = (due[sub.athlete_code] || {}).coach || [];
+      const lastCoach = lastSent.coach ? new Date(lastSent.coach).getTime() : 0;
+      const freshChanges = coachEntries.filter((c) => new Date(c.at).getTime() > lastCoach);
+      const newest = freshChanges.length ? Math.max(...freshChanges.map((c) => new Date(c.at).getTime())) : 0;
+      const coachSources = (freshChanges.length && Date.now() - newest >= 15 * 60 * 1000)
+        ? [...new Set(freshChanges.map((c) => c.source))] : [];
+
+      const messages = buildMessages(due[sub.athlete_code] || {}, prefs, allowed, coachSources)
+        .filter((m) => m.type === 'coach' || lastSent[m.type] !== now.iso); // morning types: one per local day
 
       let delivered = false;
       for (const msg of messages) {
@@ -213,7 +227,7 @@ async function handleCronSend(req, res) {
             JSON.stringify({ title: msg.title, body: msg.body, tag: 'dp-' + msg.type, url: '/' }),
             { TTL: 12 * 3600 }
           );
-          lastSent[msg.type] = now.iso;
+          lastSent[msg.type] = msg.type === 'coach' ? new Date().toISOString() : now.iso;
           sent++; delivered = true;
         } catch (error) {
           if (error.statusCode === 404 || error.statusCode === 410) {
