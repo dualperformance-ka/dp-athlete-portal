@@ -1025,7 +1025,15 @@ function toggleMoreMenu(open){
 }
 function applyOutdoorMode(enabled){
   document.documentElement.classList.toggle('outdoor-mode',!!enabled);
-  var button=document.getElementById('themeToggle');if(button)button.setAttribute('aria-pressed',enabled?'true':'false');
+  var button=document.getElementById('themeToggle');
+  if(button){
+    button.setAttribute('aria-pressed',enabled?'true':'false');
+    var label=button.querySelector('.theme-toggle-label');if(label)label.textContent=enabled?'Indoor':'Outdoor';
+    var hint=enabled?'Switch to indoor (dark) mode':'Switch to outdoor (light) mode';
+    button.title=hint;button.setAttribute('aria-label',hint);
+  }
+  var moreLabel=document.querySelector('.more-outdoor strong');if(moreLabel)moreLabel.textContent=enabled?'Indoor mode':'Outdoor mode';
+  var moreSub=document.querySelector('.more-outdoor small');if(moreSub)moreSub.textContent=enabled?'Back to the dark theme':'Higher contrast for bright conditions';
   try{localStorage.setItem('dp_outdoor_mode',enabled?'1':'0');}catch(e){}
 }
 function toggleOutdoorMode(){applyOutdoorMode(!document.documentElement.classList.contains('outdoor-mode'));}
