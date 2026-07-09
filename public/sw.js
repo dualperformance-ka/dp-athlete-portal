@@ -1,14 +1,17 @@
-const CACHE_NAME = 'dp-athlete-v19';
+const CACHE_NAME = 'dp-athlete-v20';
 const APP_SHELL = [
   '/index.html', '/styles.css?v=15', '/config.js',
   '/app.js', '/login.js', '/icons.css?v=1',
-  '/dp_logo_inline.png',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  // Cache files individually: one missing file must never block the install
+  // (cache.addAll is all-or-nothing and a single 404 bricks the service worker).
+  event.waitUntil(caches.open(CACHE_NAME).then(cache =>
+    Promise.allSettled(APP_SHELL.map(url => cache.add(url)))
+  ));
   self.skipWaiting();
 });
 
