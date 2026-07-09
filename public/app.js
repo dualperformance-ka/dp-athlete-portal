@@ -630,6 +630,7 @@ async function doLogin(code){
   loadWeek();
   initCallNudge();
   initCheckinNudge();
+  syncPushSubscription();
 }
 
 function populateStatic(){
@@ -945,8 +946,20 @@ function openPreferences(){
 }
 function closePreferences(){document.getElementById('preferencesModal').classList.remove('open');document.body.style.overflow='';}
 async function setReminderPreference(key,enabled){
+  var wanted=enabled;
   if(enabled&&'Notification'in window&&Notification.permission==='default'){try{var permission=await Notification.requestPermission();if(permission!=='granted')enabled=false;}catch(e){enabled=false;}}
-  var prefs=getReminderPreferences();prefs[key]=enabled;localStorage.setItem('dp_reminders_'+athlete.code,JSON.stringify(prefs));showToast(enabled?'Reminder enabled':'Reminder disabled');
+  if(enabled&&'Notification'in window&&Notification.permission==='denied')enabled=false;
+  var prefs=getReminderPreferences();prefs[key]=enabled;localStorage.setItem('dp_reminders_'+athlete.code,JSON.stringify(prefs));
+  if(wanted&&!enabled){
+    // Permission was refused — keep the toggle honest.
+    var idx=REMINDER_OPTIONS.map(function(o){return o.key;}).indexOf(key);
+    var inputs=document.querySelectorAll('#notificationPreferences input');
+    if(idx>-1&&inputs[idx])inputs[idx].checked=false;
+    showToast('Notifications are blocked — allow them in your browser or phone settings');
+  } else {
+    showToast(enabled?'Reminder enabled':'Reminder disabled');
+  }
+  syncPushSubscription();
 }
 function getWeeklySummary(){
   var insight=getHomeInsights(),volume=0,wins=[];
@@ -3526,5 +3539,39 @@ window.acknowledgeStrava = async function() {
 // END STRAVA CONNECT BUTTON
 // ============================================================================
 
+
+// ── PUSH REMINDERS ───────────────────────────────────────────────────────────
+// Keeps the browser push subscription in sync with the athlete's reminder
+// preferences. Subscriptions are stored in Supabase via /api/reminders and a
+// daily Vercel cron sends whatever is due. On iPhone the portal must be added
+// to the home screen before notifications are available.
+function urlB64ToUint8(base64String){
+  var padding='='.repeat((4-base64String.length%4)%4);
+  var base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  var raw=window.atob(base64),arr=new Uint8Array(raw.length);
+  for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);
+  return arr;
+}
+async function syncPushSubscription(){
+  try{
+    if(!athlete||!athlete.code)return;
+    if(!('serviceWorker'in navigator)||!('PushManager'in window))return;
+    if(typeof VAPID_PUBLIC_KEY==='undefined'||!VAPID_PUBLIC_KEY)return;
+    var prefs=getReminderPreferences();
+    var anyOn=REMINDER_OPTIONS.some(function(o){return !!prefs[o.key];});
+    var reg=await navigator.serviceWorker.ready;
+    var sub=await reg.pushManager.getSubscription();
+    if(!anyOn){
+      if(sub){
+        try{await fetch('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'unsubscribe',endpoint:sub.endpoint})});}catch(e){}
+        try{await sub.unsubscribe();}catch(e){}
+      }
+      return;
+    }
+    if(!('Notification'in window)||Notification.permission!=='granted')return;
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(VAPID_PUBLIC_KEY)});
+    await fetch('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',code:athlete.code,subscription:sub.toJSON(),prefs:prefs,userAgent:navigator.userAgent})});
+  }catch(e){/* push is best-effort — never break the portal */}
+}
 // Service worker registration
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}

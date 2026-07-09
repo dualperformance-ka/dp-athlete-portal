@@ -1,6 +1,7 @@
-const CACHE_NAME = 'dp-athlete-v15';
+const CACHE_NAME = 'dp-athlete-v16';
 const APP_SHELL = [
   '/index.html', '/styles.css?v=15', '/config.js',
+  '/app.js', '/login.js', '/icons.css?v=1',
   '/dp_logo_inline.png',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
@@ -43,4 +44,29 @@ self.addEventListener('fetch', event => {
     if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
     return response;
   })));
+});
+
+// ── PUSH REMINDERS ───────────────────────────────────────────────────────────
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) {}
+  const title = data.title || 'Dual Performance';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: data.body || '',
+    icon: '/dp_baby_blue_transparent_512x512.png',
+    badge: '/dp_baby_blue_transparent_512x512.png',
+    tag: data.tag || 'dp-reminder',
+    data: { url: data.url || '/' }
+  }));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const client of list) {
+      if ('focus' in client) { client.navigate(url); return client.focus(); }
+    }
+    return clients.openWindow(url);
+  }));
 });
