@@ -1537,8 +1537,26 @@ function renderKmTracker(kmData){
     bar.style.display='none';
     return;
   }
-  document.getElementById('kmTargetVal').textContent=Number(kmData.target).toFixed(1).replace(/\.0$/,'');
+  var target=Number(kmData.target);
+  var done=Number(kmData.completed||0);
+  if(isNaN(done)||done<0) done=0;
+  var pct=Math.min(100,Math.round(done/target*100));
+  var fmt=function(n){return n.toFixed(1).replace(/\.0$/,'');};
+  document.getElementById('kmTargetVal').textContent=fmt(target);
+  var doneEl=document.getElementById('kmDoneVal');
+  if(doneEl) doneEl.textContent=fmt(done);
+  var hit=done>=target;
+  var pctEl=document.getElementById('kmPctVal');
+  if(pctEl) pctEl.textContent=hit?'Target hit ✓':pct+'%';
+  var srcEl=document.getElementById('kmSrcStrava');
+  if(srcEl) srcEl.style.display=(kmData.source==='strava')?'':'none';
+  bar.classList.toggle('km-hit',hit);
   bar.style.display='';
+  // Set width on the next frame so the CSS transition animates from 0
+  var fill=document.getElementById('kmFill');
+  if(fill){
+    requestAnimationFrame(function(){fill.style.width=pct+'%';});
+  }
 }
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 
@@ -1666,7 +1684,7 @@ async function loadNutrition(){
   currentWeekKmData.source=hasStrava?'strava':(trackerCompleted>0?'portal':(localCompleted>0?'local':'nutrition_row'));
 
   if(kmTarget!=null){
-    renderKmTracker({target:kmTarget,completed:kmCompleted});
+    renderKmTracker({target:kmTarget,completed:kmCompleted,source:currentWeekKmData.source});
   }else{
     document.getElementById('kmBar').style.display='none';
   }
