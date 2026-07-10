@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=17">
+<link rel="stylesheet" href="/styles.css?v=18">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -145,6 +145,18 @@
       <div class="km-foot">
         <span id="kmSrcStrava" class="km-src" style="display:none"><svg width="10" height="10" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg> Synced from Strava</span>
         <span id="kmPctVal" class="km-pct">0%</span>
+      </div>
+    </div>
+    <!-- Weekly gym sessions progress bar -->
+    <div id="gymBar" class="km-bar gym-bar" style="display:none">
+      <div class="km-head">
+        <div class="km-label"><svg class="icon"><use href="#i-barbell"/></svg> Gym Sessions</div>
+        <div class="km-nums gym-nums"><span id="gymDoneVal">0</span><span class="km-sep">/</span><span id="gymTargetVal">—</span></div>
+      </div>
+      <div class="gym-segs" id="gymSegs"></div>
+      <div class="km-foot">
+        <span class="km-src"><svg class="icon" style="width:10px;height:10px"><use href="#i-check"/></svg> Ticked in portal</span>
+        <span id="gymPctVal" class="km-pct">0%</span>
       </div>
     </div>
   </div>
