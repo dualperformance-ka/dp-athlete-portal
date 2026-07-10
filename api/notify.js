@@ -15,7 +15,7 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_KEY   -> already configured
 
 import webpush from 'web-push';
-import { select, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
+import { select, supabaseRequest, tablePath } from './lib/supabase-rest.js';
 
 const MAX_TITLE = 80;
 const MAX_MESSAGE = 500;
@@ -25,12 +25,17 @@ function send(res, status, payload) {
 }
 
 function requireSecret(req) {
-  const secret = String(process.env.NOTIFY_SECRET || '').trim();
-  if (!secret) throw new Error('NOTIFY_SECRET is not configured on the portal');
+  // Accept either NOTIFY_SECRET (if configured) or the Supabase service key —
+  // both Vercel projects already hold the identical SUPABASE_SERVICE_KEY, so
+  // no extra secret needs to be kept in sync between them.
+  const secrets = [process.env.NOTIFY_SECRET, process.env.SUPABASE_SERVICE_KEY]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean);
+  if (!secrets.length) throw new Error('No shared secret configured on the portal');
   const header = req.headers.authorization || '';
   const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
   const alt = String(req.headers['x-notify-secret'] || '').trim();
-  if (bearer !== secret && alt !== secret) {
+  if (!secrets.includes(bearer) && !secrets.includes(alt)) {
     const error = new Error('Unauthorized');
     error.status = 401;
     throw error;
