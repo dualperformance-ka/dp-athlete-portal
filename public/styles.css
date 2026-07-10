@@ -8,11 +8,11 @@
   --ok:#22c55e;--ok-bg:rgba(34,197,94,0.10);--ok-border:rgba(34,197,94,0.30);
   --pb:#a78bfa;--pb-bg:rgba(167,139,250,0.14);--pb-border:rgba(167,139,250,0.34);
   --shadow-soft:0 10px 30px rgba(0,0,0,0.28);--shadow-blue:0 14px 36px rgba(146,210,237,0.10);
-  --mono:'DM Mono',monospace;--display:'Barlow Condensed',sans-serif;--body:'Barlow',sans-serif;
+  --mono:'Space Grotesk',sans-serif;--display:'Big Shoulders',sans-serif;--body:'Inter Tight',sans-serif;
   --dp-logo:url('dp_logo_inline.png');
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.55;min-height:100vh;-webkit-font-smoothing:antialiased}
+html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.55;min-height:100vh;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
 header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(146,210,237,0.1)}
 .logo{display:flex;align-items:center;gap:10px}
 .logo img{height:32px;width:auto;display:block}
@@ -35,7 +35,7 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .hero{background:#0a0a0a;padding:14px 16px 12px;text-align:left}
 .hi{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px}
 .hero-name-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px}
-.hn{font-family:var(--display);font-size:40px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:#fff;line-height:1}
+.hn{font-family:var(--display);font-size:46px;font-weight:800;text-transform:uppercase;letter-spacing:.005em;color:#fff;line-height:.96}
 .hero-week{text-align:right;padding-bottom:3px}
 .hero-week-label{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em}
 .hero-week-num{font-family:var(--display);font-size:28px;font-weight:800;color:#92d2ed;line-height:1}
@@ -463,8 +463,8 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
   /* Align the dark shell (header, hero, bars) with the content column */
   header{padding:0 var(--shellpad)}
   .hero{padding:22px var(--shellpad) 16px}
-  .hn{font-size:54px}
-  .hero-week-num{font-size:32px}
+  .hn{font-size:62px}
+  .hero-week-num{font-size:34px}
   .hpills{flex-wrap:wrap;overflow:visible}
   .wbar{padding:10px var(--shellpad)}
   .tabs{padding:0 calc(var(--shellpad) - 16px)}
@@ -1724,7 +1724,7 @@ body.focus-session-open{overflow:hidden}
   }
   html:not(.outdoor-mode) header{background:rgba(5,8,10,.78);backdrop-filter:blur(22px) saturate(130%);border-bottom-color:rgba(255,255,255,.07)}
   html:not(.outdoor-mode) .hero{background:linear-gradient(180deg,rgba(14,20,24,.78),rgba(7,10,12,.58));border-bottom:1px solid rgba(255,255,255,.075)}
-  .hero{padding-top:30px;padding-bottom:26px}.hn{letter-spacing:-.035em}.hero-week-num{letter-spacing:-.03em}
+  .hero{padding-top:30px;padding-bottom:26px}.hn{letter-spacing:-.005em}.hero-week-num{letter-spacing:-.005em}
   .wbar{background:rgba(6,9,11,.74);backdrop-filter:blur(16px)}
   .tabs{background:rgba(5,8,10,.82);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.065)}
   .tab{min-height:48px;padding-left:18px;padding-right:18px;transition:color .16s,background .16s}.tab:hover{color:var(--text);background:rgba(255,255,255,.025)}
