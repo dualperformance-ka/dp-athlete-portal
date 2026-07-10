@@ -32,7 +32,10 @@ async function requireSecret(req) {
 
   const error = new Error('Unauthorized');
   error.status = 401;
-  if (!presented) throw error;
+  if (!presented) {
+    console.log('[notify-auth] no bearer/x-notify-secret header arrived');
+    throw error;
+  }
 
   // Fast path: exact match against this project's own secrets.
   const local = [process.env.NOTIFY_SECRET, process.env.SUPABASE_SERVICE_KEY]
@@ -49,11 +52,22 @@ async function requireSecret(req) {
     const r = await fetch(`${url}/rest/v1/athletes?select=code&limit=1`, {
       headers: { apikey: presented, Authorization: `Bearer ${presented}` },
     });
-    if (r.ok) {
-      const rows = await r.json().catch(() => null);
-      if (Array.isArray(rows) && rows.length > 0) return; // proven service key
-    }
-  } catch (_) { /* fall through to reject */ }
+    const body = await r.text();
+    let rows = null;
+    try { rows = JSON.parse(body); } catch (_) { /* not json */ }
+    if (r.ok && Array.isArray(rows) && rows.length > 0) return; // proven service key
+
+    console.log('[notify-auth] probe failed', JSON.stringify({
+      presentedLen: presented.length,
+      presentedPrefix: presented.slice(0, 10),
+      localSecretLens: local.map((s) => s.length),
+      supabaseUrlSet: Boolean(process.env.SUPABASE_URL),
+      probeStatus: r.status,
+      probeBody: String(body).slice(0, 200),
+    }));
+  } catch (probeError) {
+    console.log('[notify-auth] probe threw', String(probeError && probeError.message || probeError).slice(0, 200));
+  }
 
   throw error;
 }
