@@ -1501,7 +1501,7 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode .hi,.outdoor-mode .hero-week-label,.outdoor-mode .hp{color:var(--dim)!important}
 .outdoor-mode .hn,.outdoor-mode .wlabel,.outdoor-mode .nut-wlabel{color:var(--text)!important}
 .outdoor-mode .hero-week-num,.outdoor-mode .hp span{color:var(--run-strong)!important}
-.outdoor-mode .hp,.outdoor-mode #dp-strava-btn{background:var(--surface2)!important;border-color:var(--border)!important;color:var(--text)!important;box-shadow:none!important}
+.outdoor-mode .hp,#kmBar.outdoor-mode,.outdoor-mode #kmBar,.outdoor-mode #dp-strava-btn{background:var(--surface2)!important;border-color:var(--border)!important;color:var(--text)!important;box-shadow:none!important}
 
 .outdoor-mode .nudge-strip,.outdoor-mode #checkinNudge,.outdoor-mode #callNudge,.outdoor-mode #callConfirmedNudge,.outdoor-mode #photoNudge{background:var(--surface)!important;border-color:var(--border)!important;box-shadow:none!important}
 .outdoor-mode .nudge-strip-title,.outdoor-mode #checkinNudge .nudge-strip-title,.outdoor-mode #callConfirmedTitle{color:var(--text)!important}
@@ -1912,26 +1912,52 @@ body.focus-session-open{overflow:hidden}
 /* Chart/progress card wrappers missed the outdoor surface overrides */
 .outdoor-mode .progress-card,.outdoor-mode .progress-panel,.outdoor-mode .weight-trend,.outdoor-mode .weight-trend-card{background:#fff!important;border-color:rgba(7,17,22,.13)!important;box-shadow:0 14px 30px rgba(30,55,67,.08)!important;color:var(--text)}
 
-/* ── WEEKLY RINGS (running km + gym) ────────────────────────────────────── */
-.week-rings{display:flex;gap:10px;margin-top:14px}
-.ring-item{flex:1;display:flex;align-items:center;gap:11px;min-width:0}
-.ring-wrap{position:relative;width:58px;height:58px;flex-shrink:0}
-.ring-svg{width:58px;height:58px;transform:rotate(-90deg)}
-.ring-bg{fill:none;stroke:rgba(255,255,255,.09);stroke-width:6}
-.ring-fill{fill:none;stroke-width:6;stroke-linecap:round;stroke-dasharray:188.5;stroke-dashoffset:188.5;transition:stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)}
-.ring-fill-km{stroke:#92d2ed}
-.ring-fill-gym{stroke:#e8e8e8}
-.ring-icon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;opacity:.85}
-.ring-text{min-width:0}
-.ring-val{font-family:var(--display);font-size:19px;font-weight:800;color:#fff;line-height:1.1;white-space:nowrap}
-#kmBar .ring-val span{color:#92d2ed}
-.ring-sub{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;white-space:nowrap}
-.ring-src{font-family:var(--mono);font-size:8px;color:rgba(255,255,255,.32);display:inline-flex;align-items:center;gap:4px;margin-top:4px}
-.km-hit .ring-fill{filter:drop-shadow(0 0 5px rgba(146,210,237,.55))}
-#gymBar.km-hit .ring-fill{filter:drop-shadow(0 0 5px rgba(255,255,255,.4))}
+/* ── WEEKLY KM PROGRESS BAR ─────────────────────────────────────────────── */
+.km-bar{margin-top:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px 14px 11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.km-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+.km-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:6px}
+.km-label .icon{width:11px;height:11px;opacity:.7}
+.km-nums{font-family:var(--display);font-size:16px;font-weight:700;color:#fff;letter-spacing:.02em}
+.km-nums #kmDoneVal{color:#92d2ed}
+.km-sep{color:rgba(255,255,255,.3);margin:0 4px;font-weight:400}
+.km-track{height:7px;border-radius:20px;background:rgba(255,255,255,.08);overflow:hidden}
+.km-fill{height:100%;width:0;border-radius:20px;background:linear-gradient(90deg,#5eb4dd,#92d2ed);transition:width .9s cubic-bezier(.22,1,.36,1)}
+.km-hit .km-fill{box-shadow:0 0 12px rgba(146,210,237,.6)}
+.km-foot{display:flex;align-items:center;justify-content:space-between;margin-top:7px}
+.km-src{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.35);display:inline-flex;align-items:center;gap:5px}
+.km-pct{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.5)}
+.km-hit .km-pct{color:#92d2ed;font-weight:700}
 /* Outdoor mode */
-.outdoor-mode .ring-bg{stroke:var(--border)!important}
-.outdoor-mode .ring-fill-gym{stroke:var(--strength)!important}
-.outdoor-mode .ring-val{color:var(--text)!important}
-.outdoor-mode .ring-sub,.outdoor-mode .ring-src{color:var(--dim)!important}
-.outdoor-mode .km-hit .ring-fill{filter:none!important}
+.outdoor-mode .km-bar,#kmBar.outdoor-mode{background:var(--surface2)!important;border-color:var(--border)!important;box-shadow:none!important}
+.outdoor-mode .km-nums{color:var(--text)!important}
+.outdoor-mode .km-label,.outdoor-mode .km-pct,.outdoor-mode .km-src{color:var(--dim)!important}
+.outdoor-mode .km-track{background:var(--border)!important}
+
+/* ── WEEKLY GYM SESSIONS BAR ────────────────────────────────────────────── */
+.gym-segs{display:flex;gap:5px}
+.gym-seg{flex:1;height:7px;border-radius:20px;background:rgba(255,255,255,.08);transition:background .4s,box-shadow .4s}
+.gym-seg.on{background:linear-gradient(90deg,#dcdcdc,#ffffff)}
+.gym-nums #gymDoneVal{color:#fff}
+.gym-bar.km-hit .gym-seg.on{box-shadow:0 0 10px rgba(255,255,255,.35)}
+.gym-bar.km-hit .km-pct{color:#fff;font-weight:700}
+/* Outdoor mode */
+.outdoor-mode .gym-seg{background:var(--border)!important}
+.outdoor-mode .gym-seg.on{background:var(--strength)!important;box-shadow:none!important}
+.outdoor-mode .gym-nums #gymDoneVal{color:var(--strength)!important}
+.outdoor-mode .gym-bar.km-hit .km-pct{color:var(--strength)!important}
+
+/* ── COMPACT CALL-CONFIRMED NUDGE ─────────────────────────────── */
+#callConfirmedNudge{position:relative;cursor:default;padding-top:6px;padding-bottom:6px}
+#callConfirmedNudge::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,rgba(34,197,94,.7),rgba(34,197,94,.15))}
+#callConfirmedNudge .nudge-strip-inner{gap:9px}
+#callConfirmedNudge .nudge-strip-icon{width:20px;height:20px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.28);opacity:1;flex-shrink:0}
+#callConfirmedNudge .nudge-strip-icon .icon{width:11px;height:11px;color:var(--ok)}
+#callConfirmedNudge .nudge-strip-text{display:flex;align-items:baseline;gap:8px;min-width:0}
+#callConfirmedNudge .nudge-strip-title{font-size:12px;color:rgba(255,255,255,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#callConfirmedNudge .nudge-strip-sub{margin-top:0;font-size:9px;color:rgba(34,197,94,.8);white-space:nowrap;flex-shrink:0}
+
+/* outdoor / light mode */
+.outdoor-mode #callConfirmedNudge .nudge-strip-title{color:var(--muted)!important}
+.outdoor-mode #callConfirmedNudge .nudge-strip-sub{color:#15803d!important}
+.outdoor-mode #callConfirmedNudge .nudge-strip-icon{background:rgba(21,128,61,.08);border-color:rgba(21,128,61,.3)}
+.outdoor-mode #callConfirmedNudge .nudge-strip-icon .icon{color:#15803d}
