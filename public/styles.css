@@ -1916,25 +1916,34 @@ body.focus-session-open{overflow:hidden}
 .week-rings{display:flex;gap:10px;margin-top:14px}
 .ring-item{flex:1;display:flex;align-items:center;gap:11px;min-width:0}
 .ring-wrap{position:relative;width:58px;height:58px;flex-shrink:0}
-.ring-svg{width:58px;height:58px;transform:rotate(-90deg)}
-.ring-bg{fill:none;stroke:rgba(255,255,255,.09);stroke-width:6}
-.ring-fill{fill:none;stroke-width:6;stroke-linecap:round;stroke-dasharray:188.5;stroke-dashoffset:188.5;transition:stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)}
-.ring-fill-km{stroke:#92d2ed}
-.ring-fill-gym{stroke:#e8e8e8}
+.ring-svg{width:58px;height:58px}
+/* KM gauge — ticked instrument arc */
+.gauge-tick{stroke:rgba(255,255,255,.13);stroke-width:2.4;stroke-linecap:round;fill:none;transition:stroke .4s ease,filter .4s ease}
+.gauge-tick.lit{stroke:#92d2ed}
+.gauge-tick.tgt{stroke:rgba(255,255,255,.28);stroke-width:2.8}
+.gauge-tick.tgt.lit{stroke:#c8ecfb;filter:drop-shadow(0 0 4px rgba(146,210,237,.8))}
+/* Gym gauge — one segment per session */
+.gauge-seg{stroke:rgba(255,255,255,.12);stroke-width:5.5;stroke-linecap:round;fill:none;transition:stroke .45s ease,filter .45s ease}
+.gauge-seg.done{stroke:#e8e8e8}
 .ring-icon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;opacity:.85}
 .ring-text{min-width:0}
 .ring-val{font-family:var(--display);font-size:19px;font-weight:800;color:#fff;line-height:1.1;white-space:nowrap}
 #kmBar .ring-val span{color:#92d2ed}
 .ring-sub{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;white-space:nowrap}
 .ring-src{font-family:var(--mono);font-size:8px;color:rgba(255,255,255,.32);display:inline-flex;align-items:center;gap:4px;margin-top:4px}
-.km-hit .ring-fill{filter:drop-shadow(0 0 5px rgba(146,210,237,.55))}
-#gymBar.km-hit .ring-fill{filter:drop-shadow(0 0 5px rgba(255,255,255,.4))}
+.km-hit .gauge-tick.lit{filter:drop-shadow(0 0 4px rgba(146,210,237,.6))}
+#gymBar.km-hit .gauge-seg.done{filter:drop-shadow(0 0 4px rgba(255,255,255,.45))}
 /* Outdoor mode */
-.outdoor-mode .ring-bg{stroke:var(--border)!important}
-.outdoor-mode .ring-fill-gym{stroke:var(--strength)!important}
+.outdoor-mode .gauge-tick{stroke:var(--border-mid)!important}
+.outdoor-mode .gauge-tick.lit{stroke:var(--run)!important}
+.outdoor-mode .gauge-tick.tgt{stroke:var(--border-strong)!important}
+.outdoor-mode .gauge-tick.tgt.lit{stroke:var(--run-strong)!important;filter:none!important}
+.outdoor-mode .gauge-seg{stroke:var(--border-mid)!important}
+.outdoor-mode .gauge-seg.done{stroke:var(--strength)!important}
 .outdoor-mode .ring-val{color:var(--text)!important}
+.outdoor-mode #kmBar .ring-val span{color:var(--run)!important}
 .outdoor-mode .ring-sub,.outdoor-mode .ring-src{color:var(--dim)!important}
-.outdoor-mode .km-hit .ring-fill{filter:none!important}
+.outdoor-mode .km-hit .gauge-tick.lit,.outdoor-mode #gymBar.km-hit .gauge-seg.done{filter:none!important}
 
 /* ── COMPACT CALL-CONFIRMED NUDGE ─────────────────────────────── */
 #callConfirmedNudge{position:relative;cursor:default;padding-top:6px;padding-bottom:6px}
