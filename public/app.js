@@ -1133,17 +1133,9 @@ function renderGymTracker(){
   var done=lifts.filter(function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];}).length;
   document.getElementById('gymTargetVal').textContent=lifts.length;
   document.getElementById('gymDoneVal').textContent=done;
-  var hit=done>=lifts.length;
-  var pctEl=document.getElementById('gymPctVal');
-  if(pctEl) pctEl.textContent=hit?'All done ✓':Math.round(done/lifts.length*100)+'%';
-  bar.classList.toggle('km-hit',hit);
-  var segs=document.getElementById('gymSegs');
-  if(segs){
-    var h='';
-    for(var i=0;i<lifts.length;i++) h+='<div class="gym-seg'+(i<done?' on':'')+'"></div>';
-    segs.innerHTML=h;
-  }
+  bar.classList.toggle('km-hit',done>=lifts.length);
   bar.style.display='';
+  setRing(document.getElementById('gymRingFill'),Math.round(done/lifts.length*100));
 }
 function updateSessionCounter(){
   try{renderGymTracker();}catch(e){}
@@ -1551,6 +1543,12 @@ async function loadWeeklyKmData(offset){
   };
   return currentWeekKmData;
 }
+var RING_CIRC=2*Math.PI*30; // r=30 in the 72x72 viewBox
+function setRing(el,pct){
+  if(!el) return;
+  el.style.strokeDasharray=RING_CIRC;
+  requestAnimationFrame(function(){el.style.strokeDashoffset=RING_CIRC*(1-Math.min(100,pct)/100);});
+}
 function renderKmTracker(kmData){
   var bar=document.getElementById('kmBar');
   if(!bar) return;
@@ -1566,18 +1564,11 @@ function renderKmTracker(kmData){
   document.getElementById('kmTargetVal').textContent=fmt(target);
   var doneEl=document.getElementById('kmDoneVal');
   if(doneEl) doneEl.textContent=fmt(done);
-  var hit=done>=target;
-  var pctEl=document.getElementById('kmPctVal');
-  if(pctEl) pctEl.textContent=hit?'Target hit ✓':pct+'%';
   var srcEl=document.getElementById('kmSrcStrava');
   if(srcEl) srcEl.style.display=(kmData.source==='strava')?'':'none';
-  bar.classList.toggle('km-hit',hit);
+  bar.classList.toggle('km-hit',done>=target);
   bar.style.display='';
-  // Set width on the next frame so the CSS transition animates from 0
-  var fill=document.getElementById('kmFill');
-  if(fill){
-    requestAnimationFrame(function(){fill.style.width=pct+'%';});
-  }
+  setRing(document.getElementById('kmRingFill'),pct);
 }
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 
