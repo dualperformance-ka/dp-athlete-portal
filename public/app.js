@@ -1135,7 +1135,7 @@ function renderGymTracker(){
   document.getElementById('gymDoneVal').textContent=done;
   bar.classList.toggle('km-hit',done>=lifts.length);
   bar.style.display='';
-  setRing(document.getElementById('gymRingFill'),Math.round(done/lifts.length*100));
+  buildGymGauge(done,lifts.length);
 }
 function updateSessionCounter(){
   try{renderGymTracker();}catch(e){}
@@ -1543,11 +1543,45 @@ async function loadWeeklyKmData(offset){
   };
   return currentWeekKmData;
 }
-var RING_CIRC=2*Math.PI*30; // r=30 in the 72x72 viewBox
-function setRing(el,pct){
-  if(!el) return;
-  el.style.strokeDasharray=RING_CIRC;
-  requestAnimationFrame(function(){el.style.strokeDashoffset=RING_CIRC*(1-Math.min(100,pct)/100);});
+// ── DP INSTRUMENT GAUGES ─────────────────────────────────────────────────────
+// Open arc: 264° sweep, gap at the bottom. SVG y-down: 90° points down.
+var GAUGE_START=138, GAUGE_SWEEP=264, GAUGE_CX=36, GAUGE_CY=36;
+function gaugePt(deg,r){var a=deg*Math.PI/180;return[GAUGE_CX+r*Math.cos(a),GAUGE_CY+r*Math.sin(a)];}
+// KM: ticked tachometer arc. Ticks light up in a sweep; last tick = target notch.
+function buildKmGauge(pct){
+  var svg=document.getElementById('kmGauge');
+  if(!svg) return;
+  var N=36, lit=Math.round(Math.min(100,Math.max(0,pct))/100*N), html='';
+  for(var i=0;i<N;i++){
+    var a=GAUGE_START+(i/(N-1))*GAUGE_SWEEP;
+    var isTgt=(i===N-1);
+    var r1=isTgt?24.5:26, r2=isTgt?33:31.5;
+    var p1=gaugePt(a,r1), p2=gaugePt(a,r2);
+    html+='<line class="gauge-tick'+(isTgt?' tgt':'')+'" x1="'+p1[0].toFixed(2)+'" y1="'+p1[1].toFixed(2)+'" x2="'+p2[0].toFixed(2)+'" y2="'+p2[1].toFixed(2)+'" style="transition-delay:'+(i*16)+'ms"/>';
+  }
+  svg.innerHTML=html;
+  var ticks=svg.querySelectorAll('.gauge-tick');
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+    for(var i=0;i<lit;i++) ticks[i].classList.add('lit');
+  });});
+}
+// GYM: one arc segment per session; completed sessions fill in.
+function buildGymGauge(done,total){
+  var svg=document.getElementById('gymGauge');
+  if(!svg) return;
+  total=Math.max(1,total);
+  var gap=(total>1)?14:0, segSweep=(GAUGE_SWEEP-gap*(total-1))/total, R=28.5, html='';
+  for(var i=0;i<total;i++){
+    var a0=GAUGE_START+i*(segSweep+gap), a1=a0+segSweep;
+    var p0=gaugePt(a0,R), p1=gaugePt(a1,R);
+    var large=(segSweep>180)?1:0;
+    html+='<path class="gauge-seg" d="M '+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A '+R+' '+R+' 0 '+large+' 1 '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)+'" style="transition-delay:'+(i*90)+'ms"/>';
+  }
+  svg.innerHTML=html;
+  var segs=svg.querySelectorAll('.gauge-seg');
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+    for(var i=0;i<Math.min(done,total);i++) segs[i].classList.add('done');
+  });});
 }
 function renderKmTracker(kmData){
   var bar=document.getElementById('kmBar');
@@ -1568,7 +1602,7 @@ function renderKmTracker(kmData){
   if(srcEl) srcEl.style.display=(kmData.source==='strava')?'':'none';
   bar.classList.toggle('km-hit',done>=target);
   bar.style.display='';
-  setRing(document.getElementById('kmRingFill'),pct);
+  buildKmGauge(pct);
 }
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 
