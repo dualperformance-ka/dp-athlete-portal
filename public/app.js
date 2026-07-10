@@ -1125,7 +1125,28 @@ async function submitCheckin(){
 function resetCheckin(){document.getElementById('ciFormContent').style.display='block';document.getElementById('ciSuccess').style.display='none';var btn=document.getElementById('ciSubmitBtn');btn.textContent='Submit Check-in';btn.disabled=false;ciGoStep(1);}
 function todayISO2(){return localISO(new Date());}
 // ── SESSION COUNTER ───────────────────────────────────────────────────────────
+function renderGymTracker(){
+  var bar=document.getElementById('gymBar');
+  if(!bar) return;
+  var lifts=(sessions||[]).filter(function(s){return getType(s)==='strength';});
+  if(!lifts.length){bar.style.display='none';return;}
+  var done=lifts.filter(function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];}).length;
+  document.getElementById('gymTargetVal').textContent=lifts.length;
+  document.getElementById('gymDoneVal').textContent=done;
+  var hit=done>=lifts.length;
+  var pctEl=document.getElementById('gymPctVal');
+  if(pctEl) pctEl.textContent=hit?'All done ✓':Math.round(done/lifts.length*100)+'%';
+  bar.classList.toggle('km-hit',hit);
+  var segs=document.getElementById('gymSegs');
+  if(segs){
+    var h='';
+    for(var i=0;i<lifts.length;i++) h+='<div class="gym-seg'+(i<done?' on':'')+'"></div>';
+    segs.innerHTML=h;
+  }
+  bar.style.display='';
+}
 function updateSessionCounter(){
+  try{renderGymTracker();}catch(e){}
   var total=sessions.length;
   var done=sessions.filter(function(s){return logHasRealData(logs[s.id])||s.status==='Completed';}).length;
   var marked=sessions.filter(function(s){return !(logHasRealData(logs[s.id])||s.status==='Completed')&&ticked[s.id];}).length;
