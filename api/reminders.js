@@ -7,7 +7,7 @@
 //   once daily by Vercel cron as a backstop. Each run only sends to athletes whose
 //   LOCAL time matches: 5am for morning reminders, 5am–11:30pm for coach updates.
 import webpush from 'web-push';
-import { select, upsert, patch, supabaseRequest, tablePath } from './lib/supabase-rest.js';
+import { select, upsert, patch, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
 
 const DONE_STATUS = /^(done|completed?|complete|skipped|missed)$/i;
 const DEFAULT_TZ = 'Australia/Adelaide';

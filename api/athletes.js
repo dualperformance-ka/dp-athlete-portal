@@ -23,8 +23,8 @@
 // Env: SUPABASE_URL, SUPABASE_SERVICE_KEY (already configured), ADMIN_KEY (new),
 //      PORTAL_URL (optional, defaults to the production portal).
 
-import { select, insert, patch } from './lib/supabase-rest.js';
-import { normCode } from './lib/roster.js';
+import { select, insert, patch } from './_lib/supabase-rest.js';
+import { normCode } from './_lib/roster.js';
 
 const PORTAL_URL = (process.env.PORTAL_URL || 'https://dp-athleteportal.vercel.app').replace(/\/+$/, '');
 

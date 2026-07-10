@@ -1,5 +1,5 @@
-import { insert, upsert } from './lib/supabase-rest.js';
-import { getRosterAthlete, checkRosterAccess } from './lib/roster.js';
+import { insert, upsert } from './_lib/supabase-rest.js';
+import { getRosterAthlete, checkRosterAccess } from './_lib/roster.js';
 
 const ALLOWED_TARGETS = new Set(['/api/write', '/api/notion']);
 

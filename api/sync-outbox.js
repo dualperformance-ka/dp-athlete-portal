@@ -1,4 +1,4 @@
-import { patch, select } from './lib/supabase-rest.js';
+import { patch, select } from './_lib/supabase-rest.js';
 
 const ALLOWED_TARGETS = new Set(['/api/write', '/api/notion']);
 

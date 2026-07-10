@@ -22,7 +22,7 @@
 // weekly check-in (and all other writes) failed with 500 before reaching Notion.
 // Now a missing module only disables the best-effort GHL tag; Notion writes work.
 
-import { getRosterAthlete, checkRosterAccess } from './lib/roster.js';
+import { getRosterAthlete, checkRosterAccess } from './_lib/roster.js';
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VERSION = '2022-06-28';

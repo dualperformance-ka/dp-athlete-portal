@@ -5,7 +5,7 @@
 // progress view in sync with exactly what the coach dashboard sees.
 //
 // Env required: SUPABASE_URL, SUPABASE_SERVICE_KEY (already set for /api/ingest).
-import { select } from './lib/supabase-rest.js';
+import { select } from './_lib/supabase-rest.js';
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
