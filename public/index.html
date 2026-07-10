@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=18">
+<link rel="stylesheet" href="/styles.css?v=19">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -135,28 +135,34 @@
     <div class="hpills">
       <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" style="display:none" class="hp" style="color:rgba(255,255,255,.9)"></a>
     </div>
-    <!-- Weekly KM progress bar -->
-    <div id="kmBar" class="km-bar" style="display:none">
-      <div class="km-head">
-        <div class="km-label"><svg class="icon icon-run"><use href="#i-target"/></svg> Weekly KM</div>
-        <div class="km-nums"><span id="kmDoneVal">0</span><span class="km-sep">/</span><span id="kmTargetVal">—</span> km</div>
+    <!-- Weekly rings: running km + gym sessions -->
+    <div class="week-rings">
+      <div id="kmBar" class="ring-item" style="display:none">
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 72 72">
+            <circle class="ring-bg" cx="36" cy="36" r="30"/>
+            <circle class="ring-fill ring-fill-km" id="kmRingFill" cx="36" cy="36" r="30"/>
+          </svg>
+          <svg class="icon ring-icon"><use href="#i-run"/></svg>
+        </div>
+        <div class="ring-text">
+          <div class="ring-val"><span id="kmDoneVal">0</span> km</div>
+          <div class="ring-sub"><span id="kmTargetVal">—</span> km/week</div>
+          <div class="ring-src" id="kmSrcStrava" style="display:none"><svg width="9" height="9" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg> Strava</div>
+        </div>
       </div>
-      <div class="km-track"><div id="kmFill" class="km-fill"></div></div>
-      <div class="km-foot">
-        <span id="kmSrcStrava" class="km-src" style="display:none"><svg width="10" height="10" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg> Synced from Strava</span>
-        <span id="kmPctVal" class="km-pct">0%</span>
-      </div>
-    </div>
-    <!-- Weekly gym sessions progress bar -->
-    <div id="gymBar" class="km-bar gym-bar" style="display:none">
-      <div class="km-head">
-        <div class="km-label"><svg class="icon"><use href="#i-barbell"/></svg> Gym Sessions</div>
-        <div class="km-nums gym-nums"><span id="gymDoneVal">0</span><span class="km-sep">/</span><span id="gymTargetVal">—</span></div>
-      </div>
-      <div class="gym-segs" id="gymSegs"></div>
-      <div class="km-foot">
-        <span class="km-src"><svg class="icon" style="width:10px;height:10px"><use href="#i-check"/></svg> Ticked in portal</span>
-        <span id="gymPctVal" class="km-pct">0%</span>
+      <div id="gymBar" class="ring-item" style="display:none">
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 72 72">
+            <circle class="ring-bg" cx="36" cy="36" r="30"/>
+            <circle class="ring-fill ring-fill-gym" id="gymRingFill" cx="36" cy="36" r="30"/>
+          </svg>
+          <svg class="icon ring-icon"><use href="#i-barbell"/></svg>
+        </div>
+        <div class="ring-text">
+          <div class="ring-val"><span id="gymDoneVal">0</span></div>
+          <div class="ring-sub"><span id="gymTargetVal">—</span>/week</div>
+        </div>
       </div>
     </div>
   </div>
