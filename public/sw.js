@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v26';
+const CACHE_NAME = 'dp-athlete-v27';
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=18', '/config.js',
+  '/index.html', '/styles.css?v=19', '/config.js',
   '/app.js', '/login.js', '/icons.css?v=1',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
