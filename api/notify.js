@@ -24,22 +24,38 @@ function send(res, status, payload) {
   return res.status(status).json(payload);
 }
 
-function requireSecret(req) {
-  // Accept either NOTIFY_SECRET (if configured) or the Supabase service key —
-  // both Vercel projects already hold the identical SUPABASE_SERVICE_KEY, so
-  // no extra secret needs to be kept in sync between them.
-  const secrets = [process.env.NOTIFY_SECRET, process.env.SUPABASE_SERVICE_KEY]
-    .map((s) => String(s || '').trim())
-    .filter(Boolean);
-  if (!secrets.length) throw new Error('No shared secret configured on the portal');
+async function requireSecret(req) {
   const header = req.headers.authorization || '';
   const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
   const alt = String(req.headers['x-notify-secret'] || '').trim();
-  if (!secrets.includes(bearer) && !secrets.includes(alt)) {
-    const error = new Error('Unauthorized');
-    error.status = 401;
-    throw error;
-  }
+  const presented = bearer || alt;
+
+  const error = new Error('Unauthorized');
+  error.status = 401;
+  if (!presented) throw error;
+
+  // Fast path: exact match against this project's own secrets.
+  const local = [process.env.NOTIFY_SECRET, process.env.SUPABASE_SERVICE_KEY]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean);
+  if (local.includes(presented)) return;
+
+  // Robust path: the dashboard may hold a DIFFERENT (but equally valid)
+  // service key for the same Supabase project. Verify by capability instead
+  // of string equality: only a service-level key can read rows from the
+  // RLS-locked athletes table (anon keys get an empty array, invalid keys 401).
+  try {
+    const url = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+    const r = await fetch(`${url}/rest/v1/athletes?select=code&limit=1`, {
+      headers: { apikey: presented, Authorization: `Bearer ${presented}` },
+    });
+    if (r.ok) {
+      const rows = await r.json().catch(() => null);
+      if (Array.isArray(rows) && rows.length > 0) return; // proven service key
+    }
+  } catch (_) { /* fall through to reject */ }
+
+  throw error;
 }
 
 function configureVapid() {
@@ -72,7 +88,7 @@ async function loadSubscriptions(code) {
 export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'Method not allowed' });
-    requireSecret(req);
+    await requireSecret(req);
 
     const code = String(req.body?.code || '').trim().toUpperCase();
     const title = String(req.body?.title || '').trim().slice(0, MAX_TITLE) || 'Message from your coach';
