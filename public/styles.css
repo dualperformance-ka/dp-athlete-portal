@@ -1501,7 +1501,7 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode .hi,.outdoor-mode .hero-week-label,.outdoor-mode .hp{color:var(--dim)!important}
 .outdoor-mode .hn,.outdoor-mode .wlabel,.outdoor-mode .nut-wlabel{color:var(--text)!important}
 .outdoor-mode .hero-week-num,.outdoor-mode .hp span{color:var(--run-strong)!important}
-.outdoor-mode .hp,#kmBar.outdoor-mode,.outdoor-mode #kmBar,.outdoor-mode #dp-strava-btn{background:var(--surface2)!important;border-color:var(--border)!important;color:var(--text)!important;box-shadow:none!important}
+.outdoor-mode .hp,.outdoor-mode #dp-strava-btn{background:var(--surface2)!important;border-color:var(--border)!important;color:var(--text)!important;box-shadow:none!important}
 
 .outdoor-mode .nudge-strip,.outdoor-mode #checkinNudge,.outdoor-mode #callNudge,.outdoor-mode #callConfirmedNudge,.outdoor-mode #photoNudge{background:var(--surface)!important;border-color:var(--border)!important;box-shadow:none!important}
 .outdoor-mode .nudge-strip-title,.outdoor-mode #checkinNudge .nudge-strip-title,.outdoor-mode #callConfirmedTitle{color:var(--text)!important}
