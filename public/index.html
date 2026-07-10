@@ -131,10 +131,21 @@
         <div class="hero-week-num" id="heroWeek">—</div>
       </div>
     </div>
-    <!-- Row 1: KM target + Strava -->
+    <!-- Row 1: Strava -->
     <div class="hpills">
-      <div id="kmBar" style="display:none;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#ffffff;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)" class="hp"><svg class="icon icon-run"><use href="#i-target"/></svg> <span id="kmTargetVal">—</span> km goal</div>
       <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" style="display:none" class="hp" style="color:rgba(255,255,255,.9)"></a>
+    </div>
+    <!-- Weekly KM progress bar -->
+    <div id="kmBar" class="km-bar" style="display:none">
+      <div class="km-head">
+        <div class="km-label"><svg class="icon icon-run"><use href="#i-target"/></svg> Weekly KM</div>
+        <div class="km-nums"><span id="kmDoneVal">0</span><span class="km-sep">/</span><span id="kmTargetVal">—</span> km</div>
+      </div>
+      <div class="km-track"><div id="kmFill" class="km-fill"></div></div>
+      <div class="km-foot">
+        <span id="kmSrcStrava" class="km-src" style="display:none"><svg width="10" height="10" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg> Synced from Strava</span>
+        <span id="kmPctVal" class="km-pct">0%</span>
+      </div>
     </div>
   </div>
 
