@@ -1951,3 +1951,65 @@ body.focus-session-open{overflow:hidden}
 .outdoor-mode #callConfirmedNudge .nudge-strip-sub{color:#15803d!important}
 .outdoor-mode #callConfirmedNudge .nudge-strip-icon{background:rgba(21,128,61,.08);border-color:rgba(21,128,61,.3)}
 .outdoor-mode #callConfirmedNudge .nudge-strip-icon .icon{color:#15803d}
+
+/* ════════════════════════════════════════════════════════════════
+   MOBILE TYPE + ERGONOMICS SWEEP (v22)
+   1. 16px floor on all form controls ≤760px — kills iOS zoom-on-focus
+   2. 10px legibility floor on micro-labels
+   3. 44px-class tap targets via invisible hit-area expansion
+   Appended last so it wins the cascade. Desktop untouched.
+   ════════════════════════════════════════════════════════════════ */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+
+@media(max-width:760px){
+  /* 1 ── Form controls: 16px minimum. !important beats the inline
+     font-size:13px styles on check-in textareas and app.js templates. */
+  .li,input.li,textarea.li,select.li,
+  .sin,.rpe-in,
+  .run-field input,.run-field select,.run-field textarea,
+  .why-textarea,.milestone-input{font-size:16px !important}
+  .milestone-input::placeholder{font-size:14px}
+  .rpe-in{padding:10px 1px}
+
+  /* 2 ── Micro-label legibility floor: everything that was 8-9px → 10px.
+     Uppercase mono labels need the extra px on small screens. */
+  .plate-calc-label,.rt-label,.qln-fb-label,.qln-fb-status,
+  .photo-cell .photo-overlay,.angle-slot .aslot-overlay,
+  .photo-cell.current-week-badge,.pb-badge,.photo-cell .photo-count,
+  .pb-metrics small,.pb-session-title,.qln-tgt,
+  .ex-stat,.prev-effort,.today-effort,.suggested-load,.ex-stat-e1rm,
+  .lf label,.slbl,.run-field label,.stat-field label,.milestone-field label,
+  .saved-label,.saved-item-label,.goals-prompt-label,.todaytarget .label,
+  .hi,.hero-week-label,.login-footer,
+  .ring-sub,.ring-src{font-size:10px}
+  .command-status small{font-size:10px}
+  .command-status strong{font-size:12px}
+  .insight-delta,.insight-empty{font-size:10px!important}
+  .insight-card small{font-size:11px}
+  .mobile-nav-item{font-size:11px}
+  .exm,.exnotes,.snum,.smeta{font-size:11px}
+  .todaymeta{font-size:12px}
+  .dgdate,.restday,.todaydate{font-size:12px}
+  .nudge-strip-sub{font-size:10px}
+
+  /* Gym logging: exercise names are read mid-set at arm's length */
+  .exn{font-size:17px}
+  .rt-count{font-size:24px}
+
+  /* 3 ── Tap targets. Invisible hit-area expansion where the visual
+     size is part of the design; real size bumps where it isn't. */
+  .st,.del-set,.ci-sdot{position:relative}
+  .st::after,.del-set::after,.ci-sdot::after{content:'';position:absolute;inset:-9px;border-radius:50%}
+  .warr,.wtoday,.nut-arr{min-height:42px;min-width:44px}
+  .hicon{min-height:36px}
+  .ex-pill{min-height:34px;padding:8px 12px;display:inline-flex;align-items:center}
+  .rt-skip{min-height:36px;padding:8px 14px}
+  .coach-moment button,.reschedule-btn{width:40px;height:40px;flex-basis:40px}
+  .hb-modal-close,.ql-modal-close,.more-menu-close,.focus-close{width:42px;height:42px}
+  .photo-modal-close{padding:9px 12px}
+  .addset{min-height:38px}
+  .race-opt{min-height:40px}
+  .del-set{width:26px;height:26px}
+  .setrow.extra{grid-template-columns:22px 1fr 1fr 44px 36px 30px}
+  .setrow-single.extra{grid-template-columns:22px 1fr 1fr 1fr 36px 30px}
+}
