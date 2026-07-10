@@ -547,7 +547,7 @@ function pausedBackToLogin(){
 }
 function buildAthleteProfile(p,code,roster){
   var props=p?(p.properties||{}):{};
-  var name=(p?getNotionTitle(props):'')||(roster&&roster.name)||'Athlete';
+  var name=(roster&&roster.name)||(p?getNotionTitle(props):'')||'Athlete'; // roster name first — dashboard is the source of truth
   return {id:p?p.id:null,notionPageId:p?p.id:null,name:name,code:code,
     goalRace:getSelect(props['Goal Race'])||getRichText(props['Goal Race'])||(roster&&roster.race_target)||'',
     peakWeek:(props['Weekly KM Target']&&props['Weekly KM Target'].number!=null?String(props['Weekly KM Target'].number):'')||getRichText(props['Weekly KM Target'])||'',
