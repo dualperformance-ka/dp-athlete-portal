@@ -1932,3 +1932,16 @@ body.focus-session-open{overflow:hidden}
 .outdoor-mode .km-nums{color:var(--text)!important}
 .outdoor-mode .km-label,.outdoor-mode .km-pct,.outdoor-mode .km-src{color:var(--dim)!important}
 .outdoor-mode .km-track{background:var(--border)!important}
+
+/* ── WEEKLY GYM SESSIONS BAR ────────────────────────────────────────────── */
+.gym-segs{display:flex;gap:5px}
+.gym-seg{flex:1;height:7px;border-radius:20px;background:rgba(255,255,255,.08);transition:background .4s,box-shadow .4s}
+.gym-seg.on{background:linear-gradient(90deg,#dcdcdc,#ffffff)}
+.gym-nums #gymDoneVal{color:#fff}
+.gym-bar.km-hit .gym-seg.on{box-shadow:0 0 10px rgba(255,255,255,.35)}
+.gym-bar.km-hit .km-pct{color:#fff;font-weight:700}
+/* Outdoor mode */
+.outdoor-mode .gym-seg{background:var(--border)!important}
+.outdoor-mode .gym-seg.on{background:var(--strength)!important;box-shadow:none!important}
+.outdoor-mode .gym-nums #gymDoneVal{color:var(--strength)!important}
+.outdoor-mode .gym-bar.km-hit .km-pct{color:var(--strength)!important}
