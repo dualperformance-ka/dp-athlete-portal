@@ -15,7 +15,7 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_KEY   -> already configured
 
 import webpush from 'web-push';
-import { select, supabaseRequest, tablePath } from './lib/supabase-rest.js';
+import { select, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
 
 const MAX_TITLE = 80;
 const MAX_MESSAGE = 500;
