@@ -23,6 +23,7 @@
 // Now a missing module only disables the best-effort GHL tag; Notion writes work.
 
 import { getRosterAthlete, checkRosterAccess } from './_lib/roster.js';
+import { getAuthedAthlete, bearerToken } from './_lib/auth.js';
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VERSION = '2022-06-28';
@@ -398,7 +399,7 @@ async function readBody(req) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
@@ -409,6 +410,16 @@ export default async function handler(req, res) {
 
   const type = String(p && p.type || '').trim();
   if (type === 'test_ping') return res.status(200).json({ ok: true, skipped: 'test_ping' });
+
+  // Email-auth path: a valid Supabase session token overrides any
+  // client-supplied identity — the legacy athlete code comes from the linked
+  // roster row so a signed-in athlete can only write under their own code.
+  // Token-less (legacy) requests keep the existing behaviour untouched.
+  if (bearerToken(req)) {
+    const authed = await getAuthedAthlete(req);
+    if (!authed) return res.status(401).json({ ok: false, stage: 'auth', error: 'Invalid session' });
+    p = { ...p, athleteCode: String(authed.athlete.code).toUpperCase(), athleteName: p.athleteName || authed.athlete.name };
+  }
 
   // Paused / archived athletes are blocked from writing fresh data. Unknown
   // codes fall through to the existing identity checks (legacy behaviour).

@@ -1,5 +1,6 @@
 import { insert, upsert } from './_lib/supabase-rest.js';
 import { getRosterAthlete, checkRosterAccess } from './_lib/roster.js';
+import { getAuthedAthlete, bearerToken } from './_lib/auth.js';
 
 const ALLOWED_TARGETS = new Set(['/api/write', '/api/notion']);
 
@@ -371,6 +372,21 @@ export default async function handler(req, res) {
 
   if (!targetUrl || !ALLOWED_TARGETS.has(targetUrl)) {
     return send(res, 400, { ok: false, error: 'Invalid targetUrl' });
+  }
+
+  // Email-auth path: a valid Supabase session token overrides any
+  // client-supplied identity — the legacy athlete code is resolved
+  // server-side from the linked roster row, so a signed-in athlete can only
+  // ever write under their own code. Token-less (legacy) requests keep the
+  // existing behaviour untouched.
+  if (bearerToken(req)) {
+    const authed = await getAuthedAthlete(req);
+    if (!authed) return send(res, 401, { ok: false, stage: 'auth', error: 'Invalid session' });
+    payload = {
+      ...payload,
+      athleteCode: String(authed.athlete.code).toUpperCase(),
+      athleteName: text(payload.athleteName, 180) || authed.athlete.name,
+    };
   }
 
   if (!athleteCode(payload) && targetUrl !== '/api/notion') {

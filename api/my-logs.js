@@ -6,6 +6,7 @@
 //
 // Env required: SUPABASE_URL, SUPABASE_SERVICE_KEY (already set for /api/ingest).
 import { select } from './_lib/supabase-rest.js';
+import { getAuthedAthlete, bearerToken } from './_lib/auth.js';
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
@@ -15,12 +16,21 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') return send(res, 405, { ok: false, error: 'Method not allowed' });
 
-  const code = String((req.query && req.query.code) || '').trim();
+  // Email-auth path: when a Supabase session token is supplied, identity comes
+  // from the session (auth user → linked athlete row → its legacy code), never
+  // from the query string. Token-less requests keep the legacy ?code= path so
+  // non-migrated athletes are untouched.
+  let code = String((req.query && req.query.code) || '').trim();
+  if (bearerToken(req)) {
+    const authed = await getAuthedAthlete(req);
+    if (!authed) return send(res, 401, { ok: false, error: 'Invalid session', body: [] });
+    code = authed.athlete.code;
+  }
   if (!code) return send(res, 400, { ok: false, error: 'code is required' });
 
   try {
