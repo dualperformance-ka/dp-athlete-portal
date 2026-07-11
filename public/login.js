@@ -192,7 +192,10 @@ async function sendEmailCode(isResend){
     if(res.error){
       resetBtn();
       var m=String(res.error.message||'');
-      if(/rate|too many/i.test(m))showEmailError('Too many codes requested — wait a minute and try again');
+      // Supabase's inter-request cooldown ("you can only request this after N
+      // seconds") is not a failure — tell the athlete to wait, not to panic.
+      if(/security purposes|after \d+ seconds/i.test(m))showEmailError('One moment — wait a few seconds, then tap resend once');
+      else if(/rate|too many/i.test(m))showEmailError('Too many codes requested — wait a minute and try again');
       else showEmailError('Could not send the code — try again');
       return;
     }
