@@ -24,5 +24,11 @@ const SUPABASE_URL = 'https://rugdupplsswxmpoudhpv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_KJU_GYqUOwthiLo5WQjfog_MLaVKw5R';
 // Web Push (public VAPID key — the private key lives in Vercel env vars only)
 const VAPID_PUBLIC_KEY = 'BC7jdUB_OT76fRWp-PgNKyKvErSx0NxH-F7eS-tyQbo7G6YxHJQDwrJ-WwH7WFXQv7WsEOTFcAdSuCPfwfJOWuM';
+// Email OTP sign-in (migration to Supabase Auth). This flag only controls
+// whether the "Sign in with email" toggle is VISIBLE on the login screen —
+// actual code sends are gated server-side by the EMAIL_AUTH_ENABLED env var
+// plus per-athlete enrolment (athletes.email + auth_mode). Legacy code login
+// stays available regardless until migration is complete.
+const EMAIL_AUTH_UI = true;
 var GYM_KEYS = ['Upper A','Upper B','Lower A','Lower B']; // extended at runtime from Supabase workout_splits
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];

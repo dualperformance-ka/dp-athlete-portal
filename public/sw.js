@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v29';
+const CACHE_NAME = 'dp-athlete-v30'; // v30: email OTP auth (login.js/app.js/styles)
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=21', '/config.js',
+  '/index.html', '/styles.css?v=25', '/config.js',
   '/app.js', '/login.js', '/icons.css?v=1',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

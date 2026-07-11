@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=24">
+<link rel="stylesheet" href="/styles.css?v=25">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -53,7 +53,7 @@
 </svg>
 
 <!-- LOGIN -->
-<div id="loginScreen" style="display:none" onclick="var i=document.getElementById('codeInput');if(i){i.focus();renderCode();}">
+<div id="loginScreen" style="display:none" onclick="loginScreenTap(event)">
   <div class="login-depth"></div>
   <div class="login-grid"></div>
   <div class="login-wordmark" role="img" aria-label="Dual Performance"></div>
@@ -64,21 +64,57 @@
     <div class="login-eyebrow">Dual Performance</div>
     <div class="login-brand">Athlete Portal</div>
     <div class="login-subcopy">Your training, nutrition and check-ins in one place.</div>
-    <div class="code-label">Access Code</div>
-    <div class="code-boxes" id="codeBoxes" aria-hidden="true">
-      <div class="code-box"></div>
-      <div class="code-box"></div>
-      <div class="code-box"></div>
-      <div class="code-box"></div>
-      <div class="code-box"></div>
-      <div class="code-box"></div>
+    <!-- LEGACY CODE LOGIN — unchanged; stays until every athlete is migrated -->
+    <div id="codeLogin">
+      <div class="code-label">Access Code</div>
+      <div class="code-boxes" id="codeBoxes" aria-hidden="true">
+        <div class="code-box"></div>
+        <div class="code-box"></div>
+        <div class="code-box"></div>
+        <div class="code-box"></div>
+        <div class="code-box"></div>
+        <div class="code-box"></div>
+      </div>
+      <input class="code-hidden" id="codeInput" maxlength="10" autocomplete="one-time-code" autocapitalize="characters" inputmode="text" aria-label="Athlete access code" oninput="this.value=sanitizeCode(this.value);renderCode()" onfocus="setLoginKeyboardState(true);clearLoginError();renderCode()" onblur="setTimeout(function(){setLoginKeyboardState(false)},120)" onpaste="handleCodePaste(event)" onkeydown="handleCodeKey(event)"/>
+      <div class="login-actions">
+        <button class="lbtn" id="loginBtn" onclick="login()" disabled>Enter Portal</button>
+        <div class="lerr" id="lerr">Invalid code — check with your coach</div>
+      </div>
+      <div class="login-note">Coach-issued code required</div>
     </div>
-    <input class="code-hidden" id="codeInput" maxlength="10" autocomplete="one-time-code" autocapitalize="characters" inputmode="text" aria-label="Athlete access code" oninput="this.value=sanitizeCode(this.value);renderCode()" onfocus="setLoginKeyboardState(true);clearLoginError();renderCode()" onblur="setTimeout(function(){setLoginKeyboardState(false)},120)" onpaste="handleCodePaste(event)" onkeydown="handleCodeKey(event)"/>
-    <div class="login-actions">
-      <button class="lbtn" id="loginBtn" onclick="login()" disabled>Enter Portal</button>
-      <div class="lerr" id="lerr">Invalid code — check with your coach</div>
+    <!-- EMAIL OTP LOGIN — migrated athletes; hidden until toggled -->
+    <div id="emailLogin" style="display:none">
+      <div class="code-label">Email Sign-In</div>
+      <div class="email-notice" id="emailNotice" style="display:none"></div>
+      <div id="emailStep">
+        <input class="email-input" id="emailInput" type="email" autocomplete="email" inputmode="email" spellcheck="false" placeholder="you@email.com" aria-label="Email address" onfocus="setLoginKeyboardState(true);clearEmailError()" onblur="setTimeout(function(){setLoginKeyboardState(false)},120)" onkeydown="if(event.key==='Enter')sendEmailCode()"/>
+        <div class="login-actions">
+          <button class="lbtn" id="emailSendBtn" onclick="sendEmailCode()">Send Code</button>
+        </div>
+        <div class="login-note">We’ll email you a one-time code</div>
+      </div>
+      <div id="otpStep" style="display:none">
+        <div class="email-sent-to" id="otpSentTo">Enter the 6-digit code</div>
+        <div class="code-boxes" id="otpBoxes" aria-hidden="true">
+          <div class="code-box"></div>
+          <div class="code-box"></div>
+          <div class="code-box"></div>
+          <div class="code-box"></div>
+          <div class="code-box"></div>
+          <div class="code-box"></div>
+        </div>
+        <input class="code-hidden" id="otpInput" maxlength="6" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]*" aria-label="One-time email code" oninput="renderOtp()" onfocus="setLoginKeyboardState(true);clearEmailError();renderOtp()" onblur="setTimeout(function(){setLoginKeyboardState(false)},120)" onpaste="handleOtpPaste(event)" onkeydown="if(event.key==='Enter')verifyEmailCode()"/>
+        <div class="login-actions">
+          <button class="lbtn" id="otpVerifyBtn" onclick="verifyEmailCode()" disabled>Verify &amp; Enter</button>
+        </div>
+        <div class="email-links">
+          <button type="button" class="email-link" id="otpResendBtn" onclick="sendEmailCode(true)">Resend code</button>
+          <button type="button" class="email-link" onclick="showOtpStep(false)">Use a different email</button>
+        </div>
+      </div>
+      <div class="lerr" id="emailErr"></div>
     </div>
-    <div class="login-note">Coach-issued code required</div>
+    <button type="button" class="email-link login-alt-toggle" id="loginMethodToggle" style="display:none" onclick="toggleLoginMethod()">Sign in with email instead</button>
   </div>
   <div class="login-success" id="loginSuccess" aria-live="polite">
     <div class="login-success-mark" role="img" aria-label="Dual Performance"></div>

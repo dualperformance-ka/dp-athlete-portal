@@ -28,7 +28,22 @@ function ensureSupabaseClient(){
   if(_supabaseLoadPromise) return _supabaseLoadPromise;
   _supabaseLoadPromise=new Promise(function(resolve){
     function initialise(){
-      try{sbClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);resolve(sbClient);}
+      try{
+        sbClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{
+          // PWA persistence: the session lives in localStorage and refreshes
+          // itself, so athletes stay signed in across reopens until they log
+          // out / clear storage / the refresh token dies.
+          persistSession:true,
+          autoRefreshToken:true,
+          // MUST stay false: legacy coach links open the portal as ?code=THOMAS
+          // and supabase-js would try to exchange that ?code= as an OAuth/PKCE
+          // code. Email login uses explicit OTP entry — no URL detection needed.
+          detectSessionInUrl:false,
+          storageKey:'dp-portal-auth'
+        }});
+        initAuthStateListener();
+        resolve(sbClient);
+      }
       catch(e){console.warn('Supabase init failed',e);resolve(null);}
     }
     if(window.supabase){initialise();return;}
@@ -39,6 +54,66 @@ function ensureSupabaseClient(){
     document.head.appendChild(script);
   });
   return _supabaseLoadPromise;
+}
+
+// ── EMAIL AUTH (Supabase session identity layer) ─────────────────────────────
+// Identity model: auth.users.id -> athletes.auth_user_id -> athlete.code.
+// A session only ever resolves (server-side) to the athlete's EXISTING legacy
+// code — every read, write, historical lookup and sync below keeps flowing
+// through that same code, so migrated athletes keep all prior data.
+var _authToken=null,_authListenerBound=false;
+function initAuthStateListener(){
+  if(_authListenerBound||!sbClient||!sbClient.auth)return;
+  _authListenerBound=true;
+  sbClient.auth.onAuthStateChange(function(event,session){
+    _authToken=(session&&session.access_token)||null;
+    // Email-authed athletes get a visible logout (legacy keeps it coach-only
+    // via the ?code= link — unchanged).
+    if(_authToken){var lb=document.getElementById('logoutBtn');if(lb)lb.style.display='';}
+    // Refresh failed / signed out elsewhere while the portal is open: fall
+    // back to the login screen's email panel with a friendly recovery path
+    // ("send a new code") instead of silently 401-ing in the background.
+    if(event==='SIGNED_OUT'
+       &&localStorage.getItem('dp_auth_method')==='email'
+       &&document.getElementById('portalScreen')
+       &&document.getElementById('portalScreen').style.display!=='none'){
+      handleAuthSessionLost();
+    }
+  });
+}
+// Merge the session token into fetch headers. Legacy (non-migrated) athletes
+// have no session → headers unchanged → serverless endpoints keep the old path.
+function authHeaders(base){
+  var h=base||{};
+  if(_authToken)h['Authorization']='Bearer '+_authToken;
+  return h;
+}
+async function getAuthSession(){
+  var client=await ensureSupabaseClient();
+  if(!client||!client.auth)return null;
+  try{var r=await client.auth.getSession();return (r&&r.data&&r.data.session)||null;}catch(e){return null;}
+}
+// Ask the server who this session belongs to. Also performs the one-time
+// auth_user_id link on an athlete's first OTP sign-in. Never creates athletes.
+async function resolveAuthedAthlete(){
+  if(!_authToken)return null;
+  try{
+    var r=await fetch('/api/auth-athlete',{headers:authHeaders({}),cache:'no-store'});
+    if(r.status===403)return {error:'no_linked_athlete'};
+    if(r.status===401)return {error:'invalid_session'};
+    if(!r.ok)return null;
+    return await r.json();
+  }catch(e){return null;}
+}
+async function authSignOut(){
+  try{var client=await ensureSupabaseClient();if(client&&client.auth)await client.auth.signOut();}catch(e){}
+  _authToken=null;
+}
+function handleAuthSessionLost(){
+  logoutToLogin(true);
+  if(typeof showEmailLogin==='function'){
+    showEmailLogin(true,'Your session expired — enter your email and we’ll send a new code.');
+  }
 }
 
 // Intercept all localStorage writes — auto-sync dp_ keys to Supabase.
@@ -144,7 +219,10 @@ async function queueCoachWrite(url,payload,error){
 }
 async function postJsonChecked(url,payload){
   if(payload&&!payload.clientWriteId) payload.clientWriteId='cw_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-  var response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  // authHeaders: migrated athletes send their session token so the server
+  // derives athlete identity from auth (not the client payload); legacy
+  // athletes have no token and the request is byte-identical to before.
+  var response=await fetch(url,{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(payload)});
   var text=await response.text();
   var data={};
   try{data=text?JSON.parse(text):{};}catch(e){data={raw:text};}
@@ -341,7 +419,7 @@ async function loadStructuredBodyData(code){
   if(!code) return;
   var wasSkipping=_skipSbSync;
   try{
-    var response=await fetch('/api/my-logs?code='+encodeURIComponent(code),{cache:'no-store'});
+    var response=await fetch('/api/my-logs?code='+encodeURIComponent(code),{cache:'no-store',headers:authHeaders({})});
     if(!response.ok) return;
     var result=await response.json();
     if(!result||!Array.isArray(result.body)) return;
@@ -499,8 +577,14 @@ function sortSessionsForDisplay(list){
 }
 
 
-function logout(){
+// Shared UI teardown for both explicit logout and a lost email session.
+// preserveEmail=true keeps the remembered email/method so the recovery path
+// ("send a new code") is one tap; explicit logout clears everything.
+function logoutToLogin(preserveEmail){
   localStorage.removeItem('dp_auth_code');
+  if(!preserveEmail){
+    try{localStorage.removeItem('dp_auth_method');localStorage.removeItem('dp_auth_email');}catch(e){}
+  }
   if(athlete&&athlete.code){try{localStorage.removeItem('dp_profile_'+athlete.code);}catch(e){}}
   athlete=null;sessions=[];allSessions=[];ticked={};logs={};exPicks={};
   document.getElementById('portalScreen').style.display='none';
@@ -509,6 +593,11 @@ function logout(){
   document.getElementById('codeInput').value='';
   clearLoginError();
   renderCode();
+}
+function logout(){
+  logoutToLogin(false);
+  authSignOut(); // ends the Supabase session too (no-op for legacy code logins)
+  if(typeof showEmailLogin==='function') showEmailLogin(false);
 }
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
 function login(){
@@ -1863,7 +1952,7 @@ async function loadProgress(){
   // Primary source of truth: structured daily_body_logs read server-side via
   // /api/my-logs (service key). athlete_data + Notion below only fill gaps — keeps
   // the athlete's progress in sync with what the coach dashboard sees.
-  var myLogsPromise=(athlete&&athlete.code)?fetch('/api/my-logs?code='+encodeURIComponent(athlete.code)).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null);
+  var myLogsPromise=(athlete&&athlete.code)?fetch('/api/my-logs?code='+encodeURIComponent(athlete.code),{headers:authHeaders({})}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null);
   var sbPromise=sbClient?sbClient.from('athlete_data').select('key,value').eq('athlete_code',athlete.code).like('key','daily_body_%').then(function(r){return r;},function(){return null;}):Promise.resolve(null);
   var nPromise=athlete.notionPageId?api('databases/'+DAILY_BODY_DB+'/query',{filter:{property:'AthleteID',rich_text:{equals:athlete.notionPageId}},sorts:[{property:'Date',direction:'descending'}],page_size:100}).catch(function(){return null;}):Promise.resolve(null);
   var both=await Promise.all([myLogsPromise,sbPromise,nPromise]);
@@ -3248,8 +3337,49 @@ function showToast(msg){var t=document.getElementById('toast');t.textContent=msg
 var urlCode=new URLSearchParams(location.search).get('code');
 // Sign-out is coach-only: the dashboard opens the portal with ?code=, athletes launch the installed app without it.
 if(urlCode){var _lb=document.getElementById('logoutBtn');if(_lb)_lb.style.display='';}
-if(urlCode) doLogin(urlCode);
-else { var savedCode=localStorage.getItem('dp_auth_code'); if(savedCode) doLogin(savedCode); else document.getElementById('loginScreen').style.display='block'; }
+// Session-aware boot: resolve the Supabase auth session FIRST so an
+// email-migrated athlete reopening the PWA goes straight to the portal (no
+// login flash). Legacy athletes have no session and fall through to the
+// exact pre-migration paths (?code= link or saved dp_auth_code).
+async function bootPortal(){
+  // Client-side UI flag from config.js — the email toggle stays hidden until
+  // enabled, so shipping this code changes nothing visible by default.
+  if(typeof EMAIL_AUTH_UI!=='undefined'&&EMAIL_AUTH_UI){
+    var _emailToggle=document.getElementById('loginMethodToggle');
+    if(_emailToggle)_emailToggle.style.display='';
+  }
+  if(urlCode){doLogin(urlCode);return;} // legacy coach link — unchanged
+  // Fast path: no persisted auth session in storage → skip loading supabase-js
+  // before boot, so legacy athletes start exactly as fast as before.
+  var hasStoredSession=false;
+  try{hasStoredSession=!!localStorage.getItem('dp-portal-auth');}catch(e){}
+  try{
+    var session=hasStoredSession?await getAuthSession():null;
+    if(session){
+      _authToken=session.access_token;
+      var me=await resolveAuthedAthlete();
+      if(me&&me.ok&&me.exists&&me.code){
+        if(me.active===false){showPausedScreen(me.name);return;}
+        // Same pipeline as a code login → identical portal, same athlete_code,
+        // same history. The session token rides along on API calls.
+        doLogin(me.code);
+        return;
+      }
+      if(me&&me.error==='invalid_session') await authSignOut();
+      // no_linked_athlete: valid session but the coach hasn't enrolled this
+      // email — fall through so a legacy saved code (if any) still works.
+    }
+  }catch(e){console.warn('Auth boot failed, falling back to legacy login',e);}
+  var savedCode=localStorage.getItem('dp_auth_code');
+  if(savedCode){doLogin(savedCode);return;}
+  document.getElementById('loginScreen').style.display='block';
+  // Email-migrated athletes land on the email panel by default (with a
+  // one-tap "send a new code" recovery when their session expired).
+  if(localStorage.getItem('dp_auth_method')==='email'&&typeof showEmailLogin==='function'){
+    showEmailLogin(true);
+  }
+}
+bootPortal();
 
 // ============================================================================
 // RUNNING LIBRARY INTEGRATION
