@@ -18,6 +18,7 @@ In your Vercel project, go to Settings > Environment Variables and add:
 - `CRON_SECRET`: secret used by Vercel Cron when retrying queued coach writes
 - `ALLOWED_ORIGINS`: comma-separated production origins, for example `https://your-portal.vercel.app`
 - `CHECKIN_DATABASE_ID`: `3405a96cc70b80a4b1b9cf5b9c236f18`
+- `EMAIL_AUTH_ENABLED`: set to `true` to enable email OTP sign-in for enrolled athletes (see `docs/auth-migration.md`; leave unset for legacy code login only)
 
 Do not commit real tokens, athlete codes, or private database credentials to GitHub.
 
