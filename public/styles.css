@@ -1913,8 +1913,8 @@ body.focus-session-open{overflow:hidden}
 .outdoor-mode .progress-card,.outdoor-mode .progress-panel,.outdoor-mode .weight-trend,.outdoor-mode .weight-trend-card{background:#fff!important;border-color:rgba(7,17,22,.13)!important;box-shadow:0 14px 30px rgba(30,55,67,.08)!important;color:var(--text)}
 
 /* ── WEEKLY RINGS (running km + gym) ────────────────────────────────────── */
-.week-rings{display:flex;gap:10px;margin-top:14px}
-.ring-item{flex:1;display:flex;align-items:center;gap:11px;min-width:0}
+.week-rings{display:flex;gap:10px;margin-top:14px;justify-content:center}
+.ring-item{flex:1;display:flex;align-items:center;justify-content:center;gap:12px;min-width:0}
 .ring-wrap{position:relative;width:58px;height:58px;flex-shrink:0}
 .ring-svg{width:58px;height:58px}
 /* KM gauge — ticked instrument arc */
