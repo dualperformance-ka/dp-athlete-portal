@@ -266,7 +266,9 @@ async function handleBody(p) {
   // readable name, but AthleteID must stay stable across spelling changes.
   const properties = build([
     ['Name', title(`${p.athleteName || ''} — ${p.date || ''}`.trim())],
-    ['AthleteID', rt(p.athleteCode || p.athleteName)],
+    // AthleteID is the athlete CODE only — the dashboard matches on it, so it
+    // must stay stable and never fall back to the (mutable) display name.
+    ['AthleteID', rt(p.athleteCode)],
     ['Weight', num(p.weight)],
     ['Date', dat(p.date)],
     ['Sleep Score', num(p.sleep)],
@@ -282,7 +284,8 @@ async function handleNutrition(p) {
   // Keep the same athlete identifier convention as BODY logs.
   const properties = build([
     ['Name', title(`${p.athleteName || ''} — ${p.date || ''}`.trim())],
-    ['AthleteID', rt(p.athleteCode || p.athleteName)],
+    // Same convention as BODY logs: identity is the code, never the name.
+    ['AthleteID', rt(p.athleteCode)],
     ['Date', dat(p.date)],
     ['Calories', num(p.calories)],
     ['Protein', num(p.protein)],
