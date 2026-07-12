@@ -45,9 +45,11 @@ function cleanSlug(value, fallback = '') {
 }
 
 function athleteCandidates(payload) {
+  // Identity is the athlete CODE only — never the athlete's name. This keeps
+  // every photo filed under a stable key that doesn't change if the athlete
+  // renames, and stops two athletes with similar names from colliding.
   return Array.from(new Set([
     cleanSlug(payload.athleteCode),
-    cleanSlug(payload.athleteName),
   ].filter(Boolean)));
 }
 
@@ -145,7 +147,9 @@ async function listPhotos(config, candidates) {
 }
 
 async function uploadPhoto(config, payload) {
-  const athlete = cleanSlug(payload.athleteCode || payload.athleteName, 'athlete');
+  // Store strictly under the athlete CODE. If no code is supplied we reject the
+  // upload rather than silently filing the photo under the athlete's name.
+  const athlete = cleanSlug(payload.athleteCode);
   if (!athlete) throw new Error('athleteCode is required');
 
   const week = cleanWeek(payload.week);
