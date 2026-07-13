@@ -2673,6 +2673,41 @@ function refreshStrengthFeedback(i,splitKey){
   });
 }
 
+function computeOverload(ex,prevEffort){
+  var low=parseInt(String(ex.repRange||ex.reps||'').split('-')[0],10)||0;
+  var top=getTopRep(ex);
+  var r={stateCls:'',whyCls:'',chipCls:'hold',arrow:'',chipText:'',why:'',ladder:'',tip:''};
+  if(!prevEffort||!prevEffort.length){
+    r.chipText='Set base';
+    r.why='First time. Find your weight.';
+    r.tip=_ovTip('Pick a weight you control for '+(low||8)+' clean reps with 2 to 3 tough ones left. Form first, numbers after.');
+    return r;
+  }
+  var working=getWorkingSlice(ex,prevEffort);
+  var loads=working.map(function(s){return parseFloat(s.weight);}).filter(function(n){return !isNaN(n)&&n>0;});
+  var maxLoad=loads.length?Math.max.apply(null,loads):null;
+  var reps=working.map(function(s){return parseInt(s.reps,10)||0;});
+  var allTop=working.length&&reps.every(function(v){return v>=top;});
+  if(maxLoad!=null&&allTop){
+    var sug=Math.round((maxLoad*1.025)*2)/2; if(sug<=maxLoad) sug=maxLoad+2.5;
+    r.stateCls=' exc-go'; r.chipCls='go'; r.arrow='↗';
+    r.chipText=sug+'kg'; r.whyCls='go';
+    r.why='Maxed reps at '+maxLoad+'kg. Level up.';
+    r.ladder=_ovLadder([['Own reps','done'],['Add load','active'],['New base','upcoming']]);
+    r.tip=_ovTip('New weight, so reps reset to '+(low||8)+'. Build back to '+top+', then go up again.');
+    return r;
+  }
+  r.chipCls='hold'; r.arrow='→';
+  r.chipText=(maxLoad!=null?maxLoad+'kg':'Log it');
+  r.why='Hold '+(maxLoad!=null?maxLoad+'kg':'weight')+', add a rep.';
+  r.ladder=_ovLadder([['Own reps','active'],['Add load','upcoming'],['New base','upcoming']]);
+  r.tip=_ovTip('Same weight today. Squeeze one more rep per set. Hit '+top+' on every set to earn a load bump.');
+  return r;
+}
+function _ovLadder(steps){var h='<div class="exc-ladder">';steps.forEach(function(s){h+='<div class="exc-rung '+s[1]+'">'+(s[1].indexOf('done')>-1?'<span class="exc-rk">✓</span>':'')+'<span class="exc-rt">'+s[0]+'</span></div>';});return h+'</div>';}
+function _ovTip(t){return '<div class="exc-tip"><span class="exc-tip-i">☀</span><span>'+t+'</span></div>';}
+function toggleExc(el){var c=el.parentNode;if(c&&c.classList)c.classList.toggle('open');}
+
 function buildBody(s,i,type){
   var h='';
   if(type==='run'){
@@ -2855,10 +2890,14 @@ function buildBody(s,i,type){
         var initVol=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight),r=parseInt(sv.reps,10);if(!isNaN(w)&&w>0&&!isNaN(r)&&r>0&&r<=PB_REP_CAP) initVol+=w*r;});
         var isVolPB=!!(stored.volume&&initVol>stored.volume.value);
         var isBarbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust/i.test(resolvedEx)&&!/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/i.test(resolvedEx);
-        h+='<div class="exc"><div class="exh">';
+        var _ov=computeOverload(ex,prevEffort);
+        h+='<div class="exc'+_ov.stateCls+(ei===0?' open':'')+'">';
+        h+='<div class="exc-summary" onclick="toggleExc(this)"><div class="exc-sum-main"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div><div class="exc-why '+_ov.whyCls+'">'+esc(_ov.why)+'</div></div><div class="exc-chip '+_ov.chipCls+'">'+(_ov.arrow?'<span class="exc-ar">'+_ov.arrow+'</span> ':'')+esc(_ov.chipText)+'</div><div class="exc-chev">▾</div></div>';
+        h+='<div class="exc-body">'+_ov.ladder;
+        h+='<div class="exh">';
         h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">';
-        h+='<div style="min-width:0;flex:1"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>';
-        h+='<div class="exm">'+esc(ex.sets)+' sets'+(ex.rest?' · '+formatRest(ex.rest)+' rest':'')+'</div>';
+        h+='<div style="min-width:0;flex:1">';
+        h+='<div class="exm">'+esc(ex.sets)+' sets'+(ex.rest?' · '+formatRest(ex.rest):'')+'</div>';
         if(ex.notes) h+='<div class="exnotes">'+esc(ex.notes)+'</div>';
         h+='</div>';
         h+='<div id="exstat_'+i+'_'+ei+'" style="text-align:right;flex-shrink:0">';
@@ -2914,6 +2953,8 @@ function buildBody(s,i,type){
         if(!isNaN(_restSec)&&_restSec>0) h+='<div class="rest-timer" id="rest_'+i+'_'+ei+'" data-rest="'+_restSec+'" style="display:none"><div><div class="rt-label">Rest</div><div class="rt-count" id="rtc_'+i+'_'+ei+'">0:00</div></div><div class="rt-wrap"><div class="rt-fill" id="rtf_'+i+'_'+ei+'"></div></div><button class="rt-skip" onclick="skipRest('+i+','+ei+')">Skip</button></div>';
         h+='<button class="addset" onclick="addSet('+i+','+ei+',\'—\',\''+esc(splitKey)+'\')">+ Add set</button>';
         if(isBarbell){var topW=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight);if(!isNaN(w)&&w>topW)topW=w;});if(!topW&&prevEffort){prevEffort.forEach(function(p){var w=parseFloat(p.weight);if(!isNaN(w)&&w>topW)topW=w;});}h+='<div class="plate-calc" id="plate_'+i+'_'+ei+'">'+platesHtml(topW)+'</div>';}
+        h+=_ov.tip;
+        h+='</div>';
         h+='</div>';
       });
       h+='</div>';

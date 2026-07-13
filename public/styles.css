@@ -2098,3 +2098,27 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   margin-bottom:16px;
 }
 #emailErr{display:none}
+
+/* ── Progressive overload card redesign (collapsible + coaching) ───────────── */
+.exc-summary{display:flex;align-items:center;gap:9px;padding:12px 14px;cursor:pointer}
+.exc-sum-main{flex:1;min-width:0}
+.exc-why{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:3px;line-height:1.35}
+.exc-why.go{color:var(--ok)}
+.exc-chip{display:flex;align-items:center;gap:5px;border-radius:8px;padding:6px 10px;font-size:13px;white-space:nowrap;font-family:var(--mono);border:1px solid var(--border);background:var(--surface);color:var(--muted)}
+.exc-chip.go{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-border)}
+.exc-chip.warn{color:var(--run);background:rgba(180,83,9,.08);border-color:rgba(180,83,9,.25)}
+.exc-ar{font-weight:700}
+.exc-chev{color:var(--dim);font-size:12px;transition:transform .18s}
+.exc.open .exc-chev{transform:rotate(180deg)}
+.exc.exc-go{border-color:var(--ok-border)}
+.exc-body{display:none;padding:0 14px 12px}
+.exc.open .exc-body{display:block}
+.exc-body .exh{padding:8px 0}
+.exc-ladder{display:flex;gap:5px;margin:6px 0 8px}
+.exc-rung{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:7px 4px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.exc-rung.active{border-color:var(--ok-border);background:var(--ok-bg);color:var(--ok);font-weight:700}
+.exc-rung.upcoming{opacity:.45}
+.exc-rung.done{opacity:.7}
+.exc-rk{color:var(--ok)}
+.exc-tip{display:flex;gap:6px;font-size:11px;color:var(--muted);line-height:1.5;margin-top:10px}
+.exc-tip-i{color:var(--run)}
