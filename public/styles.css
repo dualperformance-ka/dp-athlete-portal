@@ -196,6 +196,8 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 @keyframes pbpop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
 @keyframes pbglow{0%,100%{box-shadow:inset 0 0 7px rgba(167,139,250,.4),0 0 8px rgba(167,139,250,.3)}50%{box-shadow:inset 0 0 14px rgba(167,139,250,.72),0 0 18px rgba(167,139,250,.6)}}
 @keyframes vpbglow{0%,100%{box-shadow:0 0 0 1px var(--vpb-border),0 0 9px rgba(45,212,191,.4)}50%{box-shadow:0 0 0 1px var(--vpb),0 0 20px rgba(45,212,191,.72)}}
+@keyframes pbglowLight{0%,100%{box-shadow:inset 0 0 9px rgba(124,58,237,.5),0 0 8px rgba(124,58,237,.35)}50%{box-shadow:inset 0 0 18px rgba(124,58,237,.85),0 0 18px rgba(124,58,237,.6)}}
+@keyframes vpbglowLight{0%,100%{box-shadow:0 0 0 1px rgba(13,148,136,.5),0 0 9px rgba(13,148,136,.45)}50%{box-shadow:0 0 0 1px rgba(13,148,136,.9),0 0 20px rgba(13,148,136,.7)}}
 .setrow.extra{grid-template-columns:22px 1fr 1fr 44px 36px 26px}
 .setrow-single.extra{grid-template-columns:22px 1fr 1fr 1fr 36px 26px}
 .rest-timer{background:#0a0a0a;padding:9px 14px;display:flex;align-items:center;gap:11px;margin-top:2px}
@@ -1550,8 +1552,8 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode .ex-stat-vol-pb{color:#0c6b73;background:#ccf7f4;border-color:rgba(12,107,115,.42)}
 .outdoor-mode .ex-stat-e1rm{color:#334750}
 .outdoor-mode .ex-stat-vol{color:#075f82;background:#dff1f8;border-color:rgba(8,127,174,.32)}
-.outdoor-mode .ex-stat-vol.pb{color:#04302a;background:#a9f0e4;border-color:rgba(13,148,136,.55);box-shadow:0 0 0 1px rgba(13,148,136,.45),0 0 14px rgba(13,148,136,.4)}
-.outdoor-mode .setrow.has-pb .sin,.outdoor-mode .setrow-single.has-pb .sin{border-color:#7c3aed;background:#e4dcff;box-shadow:inset 0 0 10px rgba(124,58,237,.4),0 0 12px rgba(124,58,237,.3)}
+.outdoor-mode .ex-stat-vol.pb{color:#04302a;background:#7fe6d2;border-color:#0d9488;box-shadow:0 0 0 1px rgba(13,148,136,.5),0 0 14px rgba(13,148,136,.45);animation:vpbglowLight 1.8s ease-in-out infinite}
+.outdoor-mode .setrow.has-pb .sin,.outdoor-mode .setrow-single.has-pb .sin{border-color:#6d28d9;background:#dccdff;color:#4c1d95;-webkit-text-fill-color:#4c1d95;box-shadow:inset 0 0 13px rgba(124,58,237,.55),0 0 10px rgba(124,58,237,.4);animation:pbglowLight 1.8s ease-in-out infinite}
 .outdoor-mode .ex-pill{background:#fff;border-color:rgba(7,17,22,.25);color:#334750}
 .outdoor-mode .ex-pill.active{background:#087fae;border-color:#087fae;color:#fff}
 .outdoor-mode .plate-pill{background:#fff;border-color:rgba(7,17,22,.22);color:#334750}
