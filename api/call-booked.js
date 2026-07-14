@@ -16,9 +16,8 @@
 // (call_booked_YYYY_WW, ISO week of the APPOINTMENT date in Adelaide time),
 // and the value is the display string the portal renders verbatim.
 
-import { select, upsert } from './_lib/supabase-rest.js';
-
-const TZ = 'Australia/Adelaide';
+import { select } from './_lib/supabase-rest.js';
+import { storeCallBooked } from './_lib/booking.js';
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
@@ -38,37 +37,6 @@ function pick(...vals) {
     if (v != null && String(v).trim() !== '') return String(v).trim();
   }
   return '';
-}
-
-// Date shifted into Adelaide wall-clock so week math matches the athlete.
-function adelaideDate(date) {
-  const parts = {};
-  new Intl.DateTimeFormat('en-AU', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
-    .formatToParts(date).forEach((p) => { parts[p.type] = p.value; });
-  return new Date(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
-}
-
-// Same ISO-week math as the portal client's callNudgeWeekKey().
-function isoWeekKey(localDate) {
-  const d = new Date(localDate); d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const w1 = new Date(d.getFullYear(), 0, 4);
-  const week = 1 + Math.round(((d - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7);
-  return `call_booked_${d.getFullYear()}_${week < 10 ? '0' : ''}${week}`;
-}
-
-// Matches the client's dpFormatBookedTime output: "Tue 15 Jul · 6:30 pm".
-// Built from parts so Node's locale data can't drift from browser output.
-function displayTime(date) {
-  const p = {};
-  new Intl.DateTimeFormat('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' })
-    .formatToParts(date).forEach((x) => { p[x.type] = x.value; });
-  const t = {};
-  new Intl.DateTimeFormat('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true })
-    .formatToParts(date).forEach((x) => { t[x.type] = x.value; });
-  const month = String(p.month || '').slice(0, 3);
-  const ampm = String(t.dayPeriod || '').toLowerCase();
-  return `${p.weekday} ${p.day} ${month} · ${t.hour}:${t.minute} ${ampm}`;
 }
 
 export default async function handler(req, res) {
@@ -104,16 +72,8 @@ export default async function handler(req, res) {
     }
     if (!row || !row.code) return send(res, 404, { ok: false, error: 'no_matching_athlete' });
 
-    const key = isoWeekKey(adelaideDate(start));
-    const value = displayTime(start);
-    await upsert('athlete_data', [{
-      athlete_code: row.code,
-      key,
-      value,
-      updated_at: new Date().toISOString(),
-    }], 'athlete_code,key');
-
-    return send(res, 200, { ok: true, code: row.code, key, value });
+    const stored = await storeCallBooked(row.code, start);
+    return send(res, 200, { ok: true, code: row.code, ...stored });
   } catch (e) {
     console.error('[call-booked] failed:', e && e.message);
     return send(res, 500, { ok: false, error: 'server_error' });
