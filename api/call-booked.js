@@ -58,10 +58,17 @@ function isoWeekKey(localDate) {
 }
 
 // Matches the client's dpFormatBookedTime output: "Tue 15 Jul · 6:30 pm".
+// Built from parts so Node's locale data can't drift from browser output.
 function displayTime(date) {
-  const day = new Intl.DateTimeFormat('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(date);
-  const time = new Intl.DateTimeFormat('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }).format(date);
-  return `${day} · ${time}`;
+  const p = {};
+  new Intl.DateTimeFormat('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' })
+    .formatToParts(date).forEach((x) => { p[x.type] = x.value; });
+  const t = {};
+  new Intl.DateTimeFormat('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true })
+    .formatToParts(date).forEach((x) => { t[x.type] = x.value; });
+  const month = String(p.month || '').slice(0, 3);
+  const ampm = String(t.dayPeriod || '').toLowerCase();
+  return `${p.weekday} ${p.day} ${month} · ${t.hour}:${t.minute} ${ampm}`;
 }
 
 export default async function handler(req, res) {
