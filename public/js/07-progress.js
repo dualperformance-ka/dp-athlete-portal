@@ -13,11 +13,26 @@ function renderPhotoGrid(){
     var isCurrent=w===curWeek;
     html+='<div class="photo-cell'+(count?' has-photo':'')+(isCurrent?' current-week':'')+'" onclick="openPhotoModal('+w+')">';
     if(isCurrent&&!firstUrl) html+='<div class="photo-cell current-week-badge" style="font-family:var(--mono);font-size:8px;color:var(--run);text-transform:uppercase;letter-spacing:.06em;position:absolute;top:5px;left:6px;z-index:2;font-weight:700;line-height:1">NOW</div>';
-    if(firstUrl){html+='<img src="'+firstUrl+'" alt="'+wLabel+'" /><div class="photo-count">'+count+'/5</div><div class="photo-overlay">'+wLabel+'</div>';}
+    if(firstUrl){html+='<img src="'+firstUrl+'" alt="'+wLabel+'" onerror="pgImgDead(this)" /><div class="photo-count">'+count+'/5</div><div class="photo-overlay">'+wLabel+'</div>';}
     else{html+='<div class="photo-add">+</div><div class="photo-label">'+wLabel+'</div>';}
     html+='</div>';
   }
   grid.innerHTML=html;
+}
+// A dead image URL (e.g. asset renamed in Cloudinary) falls back to the empty
+// "+" cell instead of a broken-image icon — the athlete can just re-upload.
+function pgImgDead(img){
+  var cell=img.closest('.photo-cell');if(!cell)return;
+  var label=(cell.querySelector('.photo-overlay')||{textContent:''}).textContent;
+  cell.classList.remove('has-photo');
+  cell.innerHTML='<div class="photo-add">+</div><div class="photo-label">'+esc(label)+'</div>';
+}
+function angleImgDead(img){
+  var slot=img.closest('.angle-slot');if(!slot)return;
+  var angle=(slot.querySelector('.aslot-overlay')||{textContent:''}).textContent;
+  slot.classList.remove('has-photo');
+  slot.innerHTML='<div class="aslot-add">+</div><div class="aslot-label">'+esc(angle)+'</div>';
+  slot.onclick=function(){triggerAngleUpload(angle);};
 }
 function openPhotoModal(week){currentPhotoWeek=week;document.getElementById('photoModalTitle').textContent=(week===0?'Discovery Week':'Week '+week)+' Photos';renderAngleGrid(week);document.getElementById('photoModal').classList.add('open');document.body.style.overflow='hidden';}
 function closePhotoModal(e){if(e&&e.target!==document.getElementById('photoModal')&&!e.target.classList.contains('photo-modal-close')) return;document.getElementById('photoModal').classList.remove('open');document.body.style.overflow='';renderPhotoGrid();}
@@ -26,7 +41,7 @@ function renderAngleGrid(week){
   ANGLES.forEach(function(angle){
     var key=angle.toLowerCase().replace(/\s/g,'_');var url=weekPhotos[key]||'';
     html+='<div class="angle-slot'+(url?' has-photo':'')+'" id="aslot_'+key+'"'+(url?'':' onclick="triggerAngleUpload(\''+angle+'\')"')+'>';
-    if(url){html+='<img src="'+url+'" /><div class="aslot-overlay">'+angle+'</div><button onclick="deleteAnglePhoto(\''+angle+'\')" style="position:absolute;top:6px;right:6px;z-index:3;background:rgba(0,0,0,.6);border:none;border-radius:50%;width:26px;height:26px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>';}
+    if(url){html+='<img src="'+url+'" onerror="angleImgDead(this)" /><div class="aslot-overlay">'+angle+'</div><button onclick="deleteAnglePhoto(\''+angle+'\')" style="position:absolute;top:6px;right:6px;z-index:3;background:rgba(0,0,0,.6);border:none;border-radius:50%;width:26px;height:26px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>';}
     else{html+='<div class="aslot-add">+</div><div class="aslot-label">'+angle+'</div>';}
     html+='</div>';
   });
@@ -42,7 +57,10 @@ async function handleAngleUpload(input){
   if(!input.files||!input.files[0]) return;
   var file=input.files[0],week=currentPhotoWeek,angle=currentAngle,key=angle.toLowerCase().replace(/\s/g,'_');
   var slot=document.getElementById('aslot_'+key);if(slot) slot.classList.add('uploading');
-  var safeName=(athlete.name||athlete.code).toLowerCase().replace(/\s+/g,'_');
+  // Folder is keyed by athlete CODE, never display name — names change in
+  // Notion ("Thomas" -> "Thomas Trinh") which forked the folder and broke
+  // stored URLs when assets were later tidied up in the Cloudinary console.
+  var safeName=(athlete.code||athlete.name||'unknown').toLowerCase().replace(/\s+/g,'_');
   var fullPublicId='dp_progress/'+safeName+'/week'+week+'/'+safeName+'_week'+week+'_'+key;
   var formData=new FormData();
   formData.append('file',file);
