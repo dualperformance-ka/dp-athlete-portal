@@ -1047,7 +1047,7 @@ async function setReminderPreference(key,enabled){
     var idx=REMINDER_OPTIONS.map(function(o){return o.key;}).indexOf(key);
     var inputs=document.querySelectorAll('#notificationPreferences input');
     if(idx>-1&&inputs[idx])inputs[idx].checked=false;
-    showToast('Notifications are blocked — allow them in your browser or phone settings');
+    showToast('Notifications are blocked — allow them in your browser or phone settings','error');
   } else {
     showToast(enabled?'Reminder enabled':'Reminder disabled');
   }
@@ -1168,6 +1168,24 @@ function initCheckin(){
     else{sun.setDate(d.getDate()+(7-day));}            // Wed-Sat -> next Sunday
     weEl.value=localISO(sun);
   }
+  // Prefill session counts from the plan the portal already tracks — the
+  // athlete can still edit them if the numbers look wrong. Always uses the
+  // CURRENT week regardless of which week the calendar is browsing.
+  try{
+    var mon=getMon(new Date()),end=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+6);
+    var monISO=localISO(mon),endISO=localISO(end);
+    var wk=(allSessions||[]).filter(function(s){return s.date&&s.date>=monISO&&s.date<=endISO;});
+    var wkRuns=wk.filter(function(s){return getType(s)==='run';});
+    var wkLifts=wk.filter(function(s){return getType(s)==='strength';});
+    var isDone=function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];};
+    var setIfEmpty=function(id,v){var el=document.getElementById(id);if(el&&el.value==='')el.value=v;};
+    if(wk.length){
+      setIfEmpty('ciRunPlan',wkRuns.length);
+      setIfEmpty('ciRunComp',wkRuns.filter(isDone).length);
+      setIfEmpty('ciLiftPlan',wkLifts.length);
+      setIfEmpty('ciLiftComp',wkLifts.filter(isDone).length);
+    }
+  }catch(e){}
 }
 
 async function submitCheckin(){
@@ -1209,7 +1227,7 @@ async function submitCheckin(){
     hideCheckinNudge();
     document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
     showToast(checkinResult.queued?'Check-in saved - coach dashboard sync pending':'Check-in submitted ✓');
-  }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit — please try again');}
+  }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit your check-in — please try again','error');}
 }
 function resetCheckin(){document.getElementById('ciFormContent').style.display='block';document.getElementById('ciSuccess').style.display='none';var btn=document.getElementById('ciSubmitBtn');btn.textContent='Submit Check-in';btn.disabled=false;ciGoStep(1);}
 function todayISO2(){return localISO(new Date());}
@@ -1893,8 +1911,8 @@ async function handleAngleUpload(input){
       }
       renderAngleGrid(week);showToast(angle+' uploaded ✓');initPhotoNudge();
     }
-    else{showToast('Upload failed — try again');}
-  }catch(e){showToast('Upload failed — check connection');}
+    else{showToast('Upload failed — try again','error');}
+  }catch(e){showToast('Upload failed — check your connection and try again','error');}
   if(slot) slot.classList.remove('uploading');input.value='';
 }
 
@@ -2030,15 +2048,21 @@ async function loadWeek(){
   document.getElementById('wbar').style.display='';
   document.getElementById('loadingEl').style.display='block';
   document.getElementById('calEl').style.display='none';document.getElementById('noplanEl').style.display='none';
+  var _errEl=document.getElementById('loadErrEl');if(_errEl)_errEl.style.display='none';
   // Run library + workout splits + plan fetch in parallel — all from Supabase
-  var results=await Promise.all([
-    loadRunningLibrary(),
-    loadWorkoutSplits(),
-    loadPlannedSessions(wsISO,weISO)
-  ]);
+  var results;
+  try{
+    results=await Promise.all([
+      loadRunningLibrary(),
+      loadWorkoutSplits(),
+      loadPlannedSessions(wsISO,weISO)
+    ]);
+  }catch(e){console.warn('Week load failed',e);results=[null,null,null];}
   var mapped=results[2];
   document.getElementById('loadingEl').style.display='none';
-  if(!mapped){showNoplan();return;}
+  // null = the fetch FAILED (network/Supabase error) — very different from an
+  // empty week ([]). Show a retryable error, never "No sessions this week".
+  if(!mapped){showLoadError();return;}
   var reschedules={};try{reschedules=JSON.parse(localStorage.getItem('dp_reschedules_'+athlete.code)||'{}');}catch(e){}
   mapped.forEach(function(s){if(reschedules[s.id])s.date=reschedules[s.id];});
   allSessions=mapped;
@@ -2068,6 +2092,11 @@ async function loadWeek(){
   renderCal(ws);
 }
 function showNoplan(){document.getElementById('noplanEl').style.display='block';var tEl=document.getElementById('todayEl');if(tEl) tEl.style.display='none';}
+function showLoadError(){
+  var el=document.getElementById('loadErrEl');if(el)el.style.display='block';
+  var tEl=document.getElementById('todayEl');if(tEl)tEl.style.display='none';
+  document.getElementById('noplanEl').style.display='none';
+}
 
 // ── RENDER CALENDAR ───────────────────────────────────────────────────────────
 function renderCal(ws){
@@ -3372,7 +3401,33 @@ async function saveGym(i,splitKey){
   lockSaveButton(i,'Save session');
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';btn.disabled=true;setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;btn.disabled=false;},2500);}}
-function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},2500);}
+function showToast(msg,type){
+  // type==='error': persistent until dismissed — a failed submission must
+  // never vanish after 2.5s while the athlete is looking at their phone.
+  var t=document.getElementById('toast');
+  if(t._timer){clearTimeout(t._timer);t._timer=null;}
+  var isErr=type==='error';
+  t.classList.toggle('toast-error',isErr);
+  if(isErr){
+    t.textContent='';
+    var span=document.createElement('span');span.textContent=msg;t.appendChild(span);
+    var btn=document.createElement('button');btn.className='toast-dismiss';btn.textContent='Dismiss';btn.onclick=hideToast;t.appendChild(btn);
+    t.style.display='flex';
+  }else{
+    t.textContent=msg;t.style.display='block';
+    t._timer=setTimeout(hideToast,2500);
+  }
+}
+function hideToast(){var t=document.getElementById('toast');t.style.display='none';t.classList.remove('toast-error');}
+
+// Sliders start visually "untouched" (dimmed) and light up on first input —
+// nudges athletes to actually set them instead of submitting a wall of 5s.
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('input[type=range]').forEach(function(r){r.classList.add('sl-untouched');});
+});
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.type==='range')e.target.classList.remove('sl-untouched');
+},true);
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 var urlCode=new URLSearchParams(location.search).get('code');
