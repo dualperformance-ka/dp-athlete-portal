@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=27">
+<link rel="stylesheet" href="/styles.css?v=28">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -133,7 +133,7 @@
     <div id="pausedName" style="color:#92d2ed;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Hey —</div>
     <div style="color:#f0ede8;font-size:21px;font-weight:800;margin-bottom:10px">Your portal access is paused</div>
     <div style="color:rgba(240,237,232,.55);font-size:13.5px;line-height:1.55;margin-bottom:26px">Your coaching programme is currently on hold, so the portal is locked for now. Message your coach and we'll get you back training.</div>
-    <a href="https://wa.me/" style="display:inline-block;background:#92d2ed;color:#0a0d10;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;border-radius:10px;padding:12px 22px;text-decoration:none;margin-bottom:14px">Message Coach</a>
+    <a href="https://discord.gg/4AnT6nRNAB" target="_blank" rel="noopener" style="display:inline-block;background:#92d2ed;color:#0a0d10;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;border-radius:10px;padding:12px 22px;text-decoration:none;margin-bottom:14px">Message Coach</a>
     <div><button onclick="pausedBackToLogin()" style="background:transparent;border:0;color:rgba(240,237,232,.4);font-size:12px;cursor:pointer;text-decoration:underline;padding:6px">Use a different code</button></div>
   </div>
 </div>
@@ -170,7 +170,7 @@
     </div>
     <!-- Row 1: Strava -->
     <div class="hpills">
-      <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" style="display:none" class="hp" style="color:rgba(255,255,255,.9)"></a>
+      <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" class="hp" style="display:none;color:rgba(255,255,255,.9)"></a>
     </div>
     <!-- Weekly rings: running km + gym sessions -->
     <div class="week-rings">
@@ -282,6 +282,12 @@
     <div class="loading" id="loadingEl">
       <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
       <div class="ltxt">Loading your plan...</div>
+    </div>
+    <!-- LOAD ERROR — network/Supabase failure. Distinct from "no plan" so a bad connection never reads as "coach didn't program me". -->
+    <div class="load-error" id="loadErrEl" style="display:none">
+      <div class="load-error-title">Couldn&rsquo;t load your plan</div>
+      <div class="load-error-sub">Looks like a connection problem — your plan is still there.</div>
+      <button class="load-error-btn" onclick="loadWeek()"><svg class="icon" style="width:13px;height:13px"><use href="#i-refresh"/></svg> Retry</button>
     </div>
     <div id="todayEl" class="todaywrap" style="display:none"></div>
     <div id="calEl" style="display:none"></div>
@@ -498,7 +504,7 @@
               <div class="lf" style="margin-bottom:12px"><label>Total km this week</label><input type="number" class="li" id="ciRunKm" min="0" placeholder="42" /></div>
               <div class="lf" style="margin-bottom:6px">
                 <label>How did running feel? <span id="ciRunFeelVal" style="font-family:var(--mono);color:var(--run)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+                <input type="range" min="1" max="10" value="5" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>Best ever</span></div>
               </div>
               <div class="lf" style="margin-top:10px"><label>Wins or PBs this week? <svg class="icon icon-sm icon-pb"><use href="#i-trophy"/></svg></label><textarea class="li" id="ciRunWins" placeholder="Tell us what you crushed — a new PB, a strong session, anything you're proud of. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
@@ -515,7 +521,7 @@
               </div>
               <div class="lf" style="margin-bottom:6px">
                 <label>How did lifting feel? <span id="ciLiftFeelVal" style="font-family:var(--mono);color:var(--strength)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+                <input type="range" min="1" max="10" value="5" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>PR session</span></div>
               </div>
               <div class="lf" style="margin-top:10px"><label> Lifting wins or notable sessions? <svg class="icon icon-sm icon-run"><use href="#i-barbell"/></svg></label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
@@ -528,17 +534,17 @@
             <div class="card" style="margin-bottom:12px">
               <div class="lf" style="margin-bottom:14px">
                 <label>Average sleep per night <span id="ciSleepVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciSleep" oninput="document.getElementById('ciSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+                <input type="range" min="1" max="10" value="5" id="ciSleep" oninput="document.getElementById('ciSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Under 5hrs</span><span>8+ hrs quality</span></div>
               </div>
               <div class="lf" style="margin-bottom:14px">
                 <label>Energy levels <span id="ciEnergyVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciEnergy" oninput="document.getElementById('ciEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+                <input type="range" min="1" max="10" value="5" id="ciEnergy" oninput="document.getElementById('ciEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Running on empty</span><span>Felt great</span></div>
               </div>
               <div class="lf">
                 <label>Muscle soreness / fatigue <span id="ciSorenessVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciSoreness" oninput="document.getElementById('ciSorenessVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+                <input type="range" min="1" max="10" value="5" id="ciSoreness" oninput="document.getElementById('ciSorenessVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Destroyed</span><span>Fresh legs</span></div>
               </div>
             </div>
@@ -549,7 +555,7 @@
             <div class="card" style="margin-bottom:12px">
               <div class="lf" style="margin-bottom:14px">
                 <label>Adherence to nutrition plan <span id="ciNutVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciNut" oninput="document.getElementById('ciNutVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+                <input type="range" min="1" max="10" value="5" id="ciNut" oninput="document.getElementById('ciNutVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Off the rails</span><span>Nailed it</span></div>
               </div>
               <div class="lf" style="margin-bottom:14px">
@@ -564,12 +570,12 @@
               </div>
               <div class="lf" style="margin-bottom:14px">
                 <label>Work / life stress <span id="ciStressVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciStress" oninput="document.getElementById('ciStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+                <input type="range" min="1" max="10" value="5" id="ciStress" oninput="document.getElementById('ciStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Calm</span><span>Extremely stressed</span></div>
               </div>
               <div class="lf" style="margin-bottom:14px">
                 <label>Motivation to train <span id="ciMotVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciMot" oninput="document.getElementById('ciMotVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+                <input type="range" min="1" max="10" value="5" id="ciMot" oninput="document.getElementById('ciMotVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
                 <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Dragging myself</span><span>Couldn't wait</span></div>
               </div>
               <div class="lf" style="margin-bottom:10px"><label>Social events affecting nutrition in the next 2 weeks?</label><textarea class="li" id="ciSocial" placeholder="e.g. birthday dinner, work event, holiday — anything that might affect your nutrition." style="min-height:60px;resize:vertical;font-size:13px;margin-top:6px"></textarea></div>
@@ -580,7 +586,7 @@
           <div class="ci-step-panel" data-step="5">
             <div class="ci-step-title"><svg class="icon"><use href="#i-sparkle"/></svg> Your Week in Words</div>
             <div style="background:#0a0a0a;border-radius:12px;padding:18px;margin-bottom:14px">
-              <div style="font-family:var(--mono);font-size:9px;color:#2a3342;text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
+              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
               <div style="font-family:var(--display);font-size:20px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.15;margin-bottom:8px">What did this week mean to you?</div>
               <div style="font-size:13px;color:rgba(255,255,255,.82);line-height:1.6">Your progress is worth sharing. Other people are sitting on the couch wondering if they could do what you're doing — your words might be exactly what they need to hear.</div>
             </div>
@@ -726,22 +732,22 @@
         </div>
         <div class="lf" style="margin-bottom:14px">
           <label>Sleep Quality <span id="qlbSleepVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <input type="range" min="1" max="10" value="5" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Terrible</span><span>Amazing</span></div>
         </div>
         <div class="lf" style="margin-bottom:14px">
           <label>Energy <span id="qlbEnergyVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <input type="range" min="1" max="10" value="5" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Drained</span><span>Energised</span></div>
         </div>
         <div class="lf" style="margin-bottom:14px">
           <label>Stress <span id="qlbStressVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbStress" oninput="document.getElementById('qlbStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <input type="range" min="1" max="10" value="5" id="qlbStress" oninput="document.getElementById('qlbStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Calm</span><span>Maxed out</span></div>
         </div>
         <div class="lf" style="margin-bottom:16px">
           <label>Muscle Soreness <span id="qlbSoreVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#0a0a0a" />
+          <input type="range" min="1" max="10" value="5" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
           <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Fresh</span><span>Destroyed</span></div>
         </div>
         <div class="pain-log-block">
@@ -776,7 +782,7 @@
               <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">protein</div>
             </div>
             <div style="text-align:center">
-              <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#2a3342;line-height:1" id="qlnPrevCarb">—</div>
+              <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#92d2ed;line-height:1" id="qlnPrevCarb">—</div>
               <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">carbs</div>
             </div>
           </div>
