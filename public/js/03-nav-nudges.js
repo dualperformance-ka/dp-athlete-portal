@@ -139,6 +139,10 @@ window.addEventListener('message',function(e){
     if(/appointment|booking/i.test(payloadStr)&&/(book|confirm|success|created|scheduled|complete)/i.test(payloadStr)){
       var d=(typeof e.data==='object')?e.data:{};
       var st=d.startTime||(d.appointment&&d.appointment.startTime)||(d.payload&&(d.payload.startTime||d.payload.start_time));
+      // Fallback: GHL's embed often omits a structured startTime — scan the
+      // raw payload for any ISO datetime before giving up on showing a time.
+      // (The authoritative time still arrives via the GHL webhook -> /api/call-booked.)
+      if(!st){var m=payloadStr.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?/);if(m)st=m[0];}
       dpMarkCallBooked(dpFormatBookedTime(st));
       return;
     }
