@@ -2148,3 +2148,12 @@ input[type=range].sl-untouched{opacity:.45}
 .wg-dot.note{background:var(--pb)}
 .wg-rest{font-family:var(--mono);font-size:7px;color:var(--rest);text-transform:uppercase;letter-spacing:.05em}
 .wg-done{color:var(--ok);font-size:9px;line-height:1;font-weight:700;min-height:9px}
+
+/* Glance tiles: session labels instead of dots */
+.wg-labs{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:12px;max-width:100%}
+.wg-lab{font-family:var(--mono);font-size:8px;text-transform:uppercase;letter-spacing:.03em;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wg-lab.run{color:var(--run)}
+.wg-lab.strength{color:var(--strength)}
+.wg-lab.note{color:var(--pb)}
+.wg-lab.rest{color:var(--rest)}
+.wg-lab.more{color:var(--dim)}

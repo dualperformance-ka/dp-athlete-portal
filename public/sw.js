@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v37'; // v37: Home = today only, Training = week plan only (mobile)
+const CACHE_NAME = 'dp-athlete-v38'; // v38: glance tiles show session labels (Upper/Lower/Tempo...)
 const APP_SHELL = [
   '/index.html', '/styles.css?v=28', '/config.js',
   '/js/01-core.js',

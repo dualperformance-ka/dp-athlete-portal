@@ -70,13 +70,16 @@ function renderCal(ws){
     var gs=sortSessionsForDisplay(sessions.filter(function(s){return s.date===giso;}));
     var real=gs.filter(function(s){return getType(s)!=='rest';});
     var allDone=real.length>0&&real.every(sessionDone);
-    var dots='';
-    if(!real.length){dots='<span class="wg-rest">rest</span>';}
-    else{real.slice(0,3).forEach(function(s){dots+='<i class="wg-dot '+getType(s)+'"></i>';});}
+    var labs='';
+    if(!real.length){labs='<span class="wg-lab rest">Rest</span>';}
+    else{
+      real.slice(0,2).forEach(function(s){labs+='<span class="wg-lab '+getType(s)+'">'+esc(wgShortLabel(s))+'</span>';});
+      if(real.length>2)labs+='<span class="wg-lab more">+'+(real.length-2)+'</span>';
+    }
     html+='<button type="button" class="wg-day'+(gToday?' today':'')+(allDone?' done':'')+'" onclick="scrollToDay('+gi+')" aria-label="'+DAYS[gi]+' '+gd.getDate()+'">'
       +'<span class="wg-name">'+DAYS[gi]+'</span>'
       +'<span class="wg-date">'+gd.getDate()+'</span>'
-      +'<span class="wg-dots">'+dots+'</span>'
+      +'<span class="wg-labs">'+labs+'</span>'
       +'<span class="wg-done">'+(allDone?'✓':'')+'</span>'
       +'</button>';
   }
@@ -97,6 +100,32 @@ function renderCal(ws){
 function scrollToDay(di){
   var el=document.getElementById('dg_'+di);
   if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// Short label for the glance tiles: "Upper"/"Lower" for gym, the run flavour
+// ("Tempo", "Long Run") for runs. Falls back to the generic type.
+function wgShortLabel(s){
+  var t=getType(s),n=String(s.name||'').toLowerCase();
+  if(t==='strength'){
+    if(n.indexOf('upper')>-1)return 'Upper';
+    if(n.indexOf('lower')>-1)return 'Lower';
+    if(n.indexOf('full')>-1)return 'Full Body';
+    if(n.indexOf('push')>-1)return 'Push';
+    if(n.indexOf('pull')>-1)return 'Pull';
+    if(n.indexOf('leg')>-1)return 'Legs';
+    return 'Gym';
+  }
+  if(t==='run'){
+    if(n.indexOf('long')>-1)return 'Long Run';
+    if(n.indexOf('tempo')>-1)return 'Tempo';
+    if(n.indexOf('interval')>-1||n.indexOf('speed')>-1||n.indexOf('track')>-1||n.indexOf('rep')>-1)return 'Speed';
+    if(n.indexOf('hill')>-1)return 'Hills';
+    if(n.indexOf('easy')>-1)return 'Easy Run';
+    if(n.indexOf('recovery')>-1)return 'Recovery';
+    if(n.indexOf('race')>-1||n.indexOf('parkrun')>-1)return 'Race';
+    return 'Run';
+  }
+  if(t==='note')return 'Free';
+  return '';
 }
 
 function logHasRealData(v){
