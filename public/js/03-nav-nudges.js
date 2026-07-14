@@ -169,18 +169,33 @@ function setMobileNav(tab){
     if(active) item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');
   });
 }
+// The training tab has two views on mobile: Home = today's session only,
+// Training = the week plan only (glance strip + day list). Desktop uses the
+// top tabs (no Home/Training split) and keeps both stacked ('both').
+var trainingView=(window.matchMedia&&window.matchMedia('(max-width:760px)').matches)?'home':'both';
+function applyTrainingView(){
+  var t=document.getElementById('todayEl'),c=document.getElementById('calEl'),wb=document.getElementById('wbar');
+  var tab=document.getElementById('tab-training');
+  if(!tab||!tab.classList.contains('active'))return;
+  if(t&&t.innerHTML)t.style.display=(trainingView==='plan')?'none':'block';
+  if(c&&c.innerHTML)c.style.display=(trainingView==='home')?'none':'block';
+  if(wb)wb.style.display=(trainingView==='home')?'none':'';
+}
 function goPortalHome(){
-  // Home = TODAY: always snaps back to the current week and the today panel.
+  // Home = TODAY: current week, today panel, nothing else.
+  trainingView='home';
   switchTab('training');setMobileNav('home');
   if(weekOffset!==0){weekOffset=0;loadWeek();}
+  applyTrainingView();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function goTrainingPlan(){
-  // Training = THE WEEK PLAN: lands on the week bar (arrows + calendar), keeps
-  // whatever week the athlete was browsing.
+  // Training = THE WEEK PLAN: glance strip + full day list, keeps whatever
+  // week the athlete was browsing.
+  trainingView='plan';
   switchTab('training');setMobileNav('training');
-  var plan=document.getElementById('wbar')||document.getElementById('calEl');
-  if(plan) setTimeout(function(){plan.scrollIntoView({behavior:'smooth',block:'start'});},40);
+  applyTrainingView();
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 function openReschedule(i){
   var input=document.getElementById('reschedule_'+i);if(!input)return;

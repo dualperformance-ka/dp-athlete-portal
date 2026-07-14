@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v36'; // v36: week-at-a-glance strip in Training
+const CACHE_NAME = 'dp-athlete-v37'; // v37: Home = today only, Training = week plan only (mobile)
 const APP_SHELL = [
   '/index.html', '/styles.css?v=28', '/config.js',
   '/js/01-core.js',

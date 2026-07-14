@@ -92,6 +92,7 @@ function renderCal(ws){
     html+='</div>';
   }
   var el=document.getElementById('calEl');el.innerHTML=html;el.style.display='block';
+  if(typeof applyTrainingView==='function')applyTrainingView();
 }
 function scrollToDay(di){
   var el=document.getElementById('dg_'+di);
@@ -611,6 +612,7 @@ function renderTodaySection(){
   html+='</div>';
   el.innerHTML=html;
   el.style.display='block';
+  if(typeof applyTrainingView==='function')applyTrainingView();
 }
 
 function scrollToSession(idx){
