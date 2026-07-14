@@ -2133,3 +2133,18 @@ input[type=range].sl-untouched{opacity:.45}
 .load-error-sub{font-size:13px;color:var(--muted);margin-bottom:16px}
 .load-error-btn{background:var(--run);color:#071116;border:0;border-radius:8px;padding:10px 26px;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--body);display:inline-flex;align-items:center;gap:7px}
 .outdoor-mode .toast.toast-error{background:#3b0d10;color:#ffe4e6}
+
+/* ── WEEK AT A GLANCE (bird's-eye strip above the day list) ── */
+.week-glance{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 0 16px}
+.wg-day{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font-family:var(--body);min-width:0}
+.wg-day.today{border-color:var(--run-border);background:var(--run-bg)}
+.wg-day.done{border-color:var(--ok-border)}
+.wg-name{font-family:var(--mono);font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:var(--dim)}
+.wg-date{font-family:var(--display);font-size:16px;font-weight:700;color:var(--text);line-height:1}
+.wg-dots{display:flex;gap:3px;align-items:center;min-height:8px}
+.wg-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.wg-dot.run{background:var(--run)}
+.wg-dot.strength{background:var(--strength)}
+.wg-dot.note{background:var(--pb)}
+.wg-rest{font-family:var(--mono);font-size:7px;color:var(--rest);text-transform:uppercase;letter-spacing:.05em}
+.wg-done{color:var(--ok);font-size:9px;line-height:1;font-weight:700;min-height:9px}

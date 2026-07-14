@@ -60,17 +60,42 @@ function showLoadError(){
 // ── RENDER CALENDAR ───────────────────────────────────────────────────────────
 function renderCal(ws){
   var todayISO=localISO(new Date()),html='<div class="week-plan-title">This week</div>';
+  // WEEK AT A GLANCE — bird's-eye strip: one tile per day, dots per session
+  // type, tick when the day is fully logged. Tapping a tile jumps to that day.
+  var sessionDone=function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];};
+  html+='<div class="week-glance">';
+  for(var gi=0;gi<7;gi++){
+    var gd=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+gi);
+    var giso=localISO(gd),gToday=giso===todayISO;
+    var gs=sortSessionsForDisplay(sessions.filter(function(s){return s.date===giso;}));
+    var real=gs.filter(function(s){return getType(s)!=='rest';});
+    var allDone=real.length>0&&real.every(sessionDone);
+    var dots='';
+    if(!real.length){dots='<span class="wg-rest">rest</span>';}
+    else{real.slice(0,3).forEach(function(s){dots+='<i class="wg-dot '+getType(s)+'"></i>';});}
+    html+='<button type="button" class="wg-day'+(gToday?' today':'')+(allDone?' done':'')+'" onclick="scrollToDay('+gi+')" aria-label="'+DAYS[gi]+' '+gd.getDate()+'">'
+      +'<span class="wg-name">'+DAYS[gi]+'</span>'
+      +'<span class="wg-date">'+gd.getDate()+'</span>'
+      +'<span class="wg-dots">'+dots+'</span>'
+      +'<span class="wg-done">'+(allDone?'✓':'')+'</span>'
+      +'</button>';
+  }
+  html+='</div>';
   for(var di=0;di<7;di++){
     var d=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+di);
     var iso=localISO(d),isToday=iso===todayISO;
     var dayLabel=d.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
     var daySessions=sortSessionsForDisplay(sessions.filter(function(s){return s.date===iso;}));
-    html+='<div class="dg"><div class="dgh'+(isToday?' today':'')+'"><span class="dgname">'+DAYS[di]+'</span><span class="dgdate">'+dayLabel+'</span>'+(isToday?'<span class="todaybadge">Today</span>':'')+'</div>';
+    html+='<div class="dg" id="dg_'+di+'"><div class="dgh'+(isToday?' today':'')+'"><span class="dgname">'+DAYS[di]+'</span><span class="dgdate">'+dayLabel+'</span>'+(isToday?'<span class="todaybadge">Today</span>':'')+'</div>';
     if(!daySessions.length){html+='<div class="restday">Rest</div>';}
     else{daySessions.forEach(function(s){var i=sessions.indexOf(s);html+=buildCard(s,i);});}
     html+='</div>';
   }
   var el=document.getElementById('calEl');el.innerHTML=html;el.style.display='block';
+}
+function scrollToDay(di){
+  var el=document.getElementById('dg_'+di);
+  if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function logHasRealData(v){

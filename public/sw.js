@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v35'; // v35: photo folders keyed by athlete code, broken-image fallback in photo grids
+const CACHE_NAME = 'dp-athlete-v36'; // v36: week-at-a-glance strip in Training
 const APP_SHELL = [
   '/index.html', '/styles.css?v=28', '/config.js',
   '/js/01-core.js',
