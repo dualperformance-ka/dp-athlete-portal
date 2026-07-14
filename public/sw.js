@@ -1,7 +1,17 @@
-const CACHE_NAME = 'dp-athlete-v32'; // v32: stronger light-theme PB glow (styles.css)
+const CACHE_NAME = 'dp-athlete-v34'; // v34: app.js split into js/ modules, booking consolidation, check-in drafts + consent
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=27', '/config.js',
-  '/app.js', '/login.js', '/icons.css?v=1',
+  '/index.html', '/styles.css?v=28', '/config.js',
+  '/js/01-core.js',
+  '/js/02-login-goals.js',
+  '/js/03-nav-nudges.js',
+  '/js/04-checkin.js',
+  '/js/05-handbook.js',
+  '/js/06-nutrition.js',
+  '/js/07-progress.js',
+  '/js/08-training.js',
+  '/js/09-logging.js',
+  '/js/10-boot.js',
+  '/login.js', '/icons.css?v=1',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
 ];

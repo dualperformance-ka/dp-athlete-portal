@@ -461,15 +461,15 @@
       <div class="ci-card run"><div class="ci-val" id="ciRuns">—</div><div class="ci-lbl">Runs this week</div></div>
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
     </div>
-        <!-- STEP 1: BOOK -->
-        <div onclick="openCallModal()" role="button" tabindex="0" style="background:#0a0a0a;border:1px solid rgba(245,158,11,.22);box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.22);border-radius:10px;margin-bottom:16px;overflow:hidden;cursor:pointer">
+        <!-- STEP 1: BOOK — state-aware: renderBookingPrompts() flips it to "booked" once the call is confirmed -->
+        <div id="ciBookCard" onclick="openCallModal()" role="button" tabindex="0" style="background:#0a0a0a;border:1px solid rgba(245,158,11,.22);box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.22);border-radius:10px;margin-bottom:16px;overflow:hidden;cursor:pointer">
           <div style="padding:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative">
             <div style="flex:1;min-width:0">
-              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">Step 1 — Do this first</div>
-              <div style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.1;margin-bottom:4px">Book your coaching call</div>
-              <div style="font-size:13px;color:rgba(255,255,255,.45);line-height:1.5">30 min with Karl &amp; Alex · Tap to open booking</div>
+              <div id="ciBookKicker" style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">Step 1 — Do this first</div>
+              <div id="ciBookTitle" style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.1;margin-bottom:4px">Book your coaching call</div>
+              <div id="ciBookSub" style="font-size:13px;color:rgba(255,255,255,.45);line-height:1.5">30 min with Karl &amp; Alex · Tap to open booking</div>
             </div>
-            <div style="color:#f59e0b;flex-shrink:0;line-height:1"><svg class="icon" style="width:18px;height:18px"><use href="#i-chevron-right"/></svg></div>
+            <div id="ciBookArrow" style="color:#f59e0b;flex-shrink:0;line-height:1"><svg class="icon" style="width:18px;height:18px"><use href="#i-chevron-right"/></svg></div>
           </div>
         </div>
     </div><!-- /ci-rail -->
@@ -601,7 +601,8 @@
                 <div style="font-size:12px;color:var(--muted);line-height:1.5">• What would you say to someone thinking about starting?</div>
               </div>
             </div>
-            <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()" style="margin-bottom:10px">Submit Check-in</button>
+            <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()" style="margin-bottom:8px">Submit Check-in</button>
+            <div style="font-size:11px;color:var(--dim);line-height:1.5;text-align:center;margin-bottom:10px">By submitting, you agree Dual Performance may use your testimonial on social media.</div>
           </div>
           <!-- Nav buttons -->
           <div class="ci-nav-row solo" id="ciNavRow">
@@ -963,6 +964,16 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js"></script>
+<!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
+<script src="js/01-core.js"></script>
+<script src="js/02-login-goals.js"></script>
+<script src="js/03-nav-nudges.js"></script>
+<script src="js/04-checkin.js"></script>
+<script src="js/05-handbook.js"></script>
+<script src="js/06-nutrition.js"></script>
+<script src="js/07-progress.js"></script>
+<script src="js/08-training.js"></script>
+<script src="js/09-logging.js"></script>
+<script src="js/10-boot.js"></script>
 </body>
 </html>

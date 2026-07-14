@@ -71,7 +71,7 @@ renderCode();
 // ── EMAIL OTP LOGIN (migrated athletes) ──────────────────────────────────────
 // Runs alongside the legacy code login above — nothing in the code path
 // changes. Auth helpers (ensureSupabaseClient, resolveAuthedAthlete, doLogin)
-// live in app.js, which loads after this file; every reference here happens at
+// live in js/01-core.js (formerly app.js), which loads after this file; every reference here happens at
 // interaction time, when they exist. OTP entry (not magic links) is deliberate:
 // an installed PWA never has to survive a cross-app redirect.
 var _emailFlow={email:'',cooldownTimer:null,cooldownLeft:0};

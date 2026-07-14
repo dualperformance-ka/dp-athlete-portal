@@ -2122,3 +2122,14 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .exc-rk{color:var(--ok)}
 .exc-tip{display:flex;gap:6px;font-size:11px;color:var(--muted);line-height:1.5;margin-top:10px}
 .exc-tip-i{color:var(--run)}
+
+/* ── UX FIX PACK (Jul 2026): error states, persistent error toasts, slider visibility ── */
+.toast.toast-error{display:flex;align-items:center;gap:14px;white-space:normal;max-width:min(92vw,420px);text-align:left;background:#20090b;border:1px solid rgba(239,68,68,.5);color:#fecaca;line-height:1.45}
+.toast .toast-dismiss{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:5px 11px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;flex-shrink:0}
+input[type=range]{transition:opacity .25s}
+input[type=range].sl-untouched{opacity:.45}
+.load-error{text-align:center;padding:34px 20px;border:1px solid rgba(239,68,68,.28);border-radius:12px;margin:8px 0;background:rgba(239,68,68,.05)}
+.load-error-title{font-family:var(--display);font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px}
+.load-error-sub{font-size:13px;color:var(--muted);margin-bottom:16px}
+.load-error-btn{background:var(--run);color:#071116;border:0;border-radius:8px;padding:10px 26px;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--body);display:inline-flex;align-items:center;gap:7px}
+.outdoor-mode .toast.toast-error{background:#3b0d10;color:#ffe4e6}
