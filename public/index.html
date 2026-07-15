@@ -159,109 +159,119 @@
     </div>
   </header>
 
-  <div class="hero">
-    <div class="hi">Training Portal</div>
-    <div class="hero-name-row">
-      <div class="hn" id="heroName"></div>
-      <div class="hero-week">
-        <div class="hero-week-label">Week</div>
-        <div class="hero-week-num" id="heroWeek">—</div>
-      </div>
-    </div>
-    <!-- Row 1: Strava -->
-    <div class="hpills">
-      <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" class="hp" style="display:none;color:rgba(255,255,255,.9)"></a>
-    </div>
-    <!-- Weekly rings: running km + gym sessions -->
-    <div class="week-rings">
-      <div id="kmBar" class="ring-item" style="display:none">
-        <div class="ring-wrap">
-          <svg class="ring-svg gauge-svg" id="kmGauge" viewBox="0 0 72 72"></svg>
-          <svg class="icon ring-icon"><use href="#i-shoe"/></svg>
+  <div class="top-shell">
+    <div class="hero hero-shell">
+      <div class="hero-main">
+        <div class="hi">Training Portal</div>
+        <div class="hero-name-row">
+          <div class="hn" id="heroName"></div>
+          <div class="hero-week">
+            <div class="hero-week-label">Week</div>
+            <div class="hero-week-num" id="heroWeek">—</div>
+          </div>
         </div>
-        <div class="ring-text">
-          <div class="ring-val"><span id="kmDoneVal">0</span> km</div>
-          <div class="ring-sub"><span id="kmTargetVal">—</span> km/week</div>
-          <div class="ring-src" id="kmSrcStrava" style="display:none"><svg width="9" height="9" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg> Strava</div>
+        <div class="hpills">
+          <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" class="hp" style="display:none;color:rgba(255,255,255,.9)"></a>
         </div>
       </div>
-      <div id="gymBar" class="ring-item" style="display:none">
-        <div class="ring-wrap">
-          <svg class="ring-svg gauge-svg" id="gymGauge" viewBox="0 0 72 72"></svg>
-          <svg class="icon ring-icon"><use href="#i-barbell"/></svg>
+      <div class="hero-side">
+        <div class="hero-side-label">Weekly output</div>
+        <div class="week-rings">
+          <div id="kmBar" class="ring-item" style="display:none">
+            <div class="ring-wrap">
+              <svg class="ring-svg gauge-svg" id="kmGauge" viewBox="0 0 72 72"></svg>
+              <svg class="icon ring-icon"><use href="#i-shoe"/></svg>
+            </div>
+            <div class="ring-text">
+              <div class="ring-val"><span id="kmDoneVal">0</span> km</div>
+              <div class="ring-sub"><span id="kmTargetVal">—</span> km/week</div>
+              <div class="ring-src" id="kmSrcStrava" style="display:none"><svg width="9" height="9" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg> Strava</div>
+            </div>
+          </div>
+          <div id="gymBar" class="ring-item" style="display:none">
+            <div class="ring-wrap">
+              <svg class="ring-svg gauge-svg" id="gymGauge" viewBox="0 0 72 72"></svg>
+              <svg class="icon ring-icon"><use href="#i-barbell"/></svg>
+            </div>
+            <div class="ring-text">
+              <div class="ring-val"><span id="gymDoneVal">0</span></div>
+              <div class="ring-sub"><span id="gymTargetVal">—</span>/week</div>
+            </div>
+          </div>
         </div>
-        <div class="ring-text">
-          <div class="ring-val"><span id="gymDoneVal">0</span></div>
-          <div class="ring-sub"><span id="gymTargetVal">—</span>/week</div>
+      </div>
+    </div>
+
+    <div class="top-shell-priority">
+      <!-- STRAVA CONNECTED BANNER -->
+      <div id="strava-ack-banner" style="display:none;margin:0;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:12px 16px;align-items:center;gap:12px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#22c55e" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg>
+        <div style="flex:1">
+          <div style="color:#22c55e;font-weight:700;font-size:14px;">Strava Connected!</div>
+          <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">Your runs will now sync automatically to your dashboard.</div>
+        </div>
+        <button id="strava-ack-btn" onclick="acknowledgeStrava()" style="background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">Got it</button>
+      </div>
+
+      <!-- NUDGE STRIP — call + photos -->
+      <div id="callNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)" onclick="openCallBooking()">
+        <div class="nudge-strip-inner">
+          <span class="nudge-strip-icon"><svg class="icon"><use href="#i-calendar"/></svg></span>
+          <div class="nudge-strip-text">
+            <div class="nudge-strip-title">Book your weekly coaching call</div>
+            <div class="nudge-strip-sub">30 min · Karl &amp; Alex</div>
+          </div>
+          <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- STRAVA CONNECTED BANNER -->
-  <div id="strava-ack-banner" style="display:none;margin:0 16px 12px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:12px 16px;align-items:center;gap:12px;">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="#22c55e" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg>
-    <div style="flex:1">
-      <div style="color:#22c55e;font-weight:700;font-size:14px;">Strava Connected!</div>
-      <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">Your runs will now sync automatically to your dashboard.</div>
-    </div>
-    <button id="strava-ack-btn" onclick="acknowledgeStrava()" style="background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">Got it</button>
-  </div>
-
-  <!-- NUDGE STRIP — call + photos -->
-  <div id="callNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)" onclick="openCallBooking()">
-    <div class="nudge-strip-inner">
-      <span class="nudge-strip-icon"><svg class="icon"><use href="#i-calendar"/></svg></span>
-      <div class="nudge-strip-text">
-        <div class="nudge-strip-title">Book your weekly coaching call</div>
-        <div class="nudge-strip-sub">30 min · Karl &amp; Alex</div>
+      <!-- CHECK-IN NUDGE — disappears once submitted -->
+      <div id="checkinNudge" class="nudge-strip" style="display:none" onclick="switchTab('checkin')">
+        <div class="nudge-strip-inner">
+          <span class="nudge-strip-icon"><svg class="icon"><use href="#i-clipboard"/></svg></span>
+          <div class="nudge-strip-text">
+            <div class="nudge-strip-title">Time for your weekly check-in</div>
+            <div class="nudge-strip-sub">2 min · helps us coach you better</div>
+          </div>
+          <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
+        </div>
       </div>
-      <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
-    </div>
-  </div>
 
-  <!-- CHECK-IN NUDGE — disappears once submitted -->
-  <div id="checkinNudge" class="nudge-strip" style="display:none" onclick="switchTab('checkin')">
-    <div class="nudge-strip-inner">
-      <span class="nudge-strip-icon"><svg class="icon"><use href="#i-clipboard"/></svg></span>
-      <div class="nudge-strip-text">
-        <div class="nudge-strip-title">Time for your weekly check-in</div>
-        <div class="nudge-strip-sub">2 min · helps us coach you better</div>
+      <!-- CALL CONFIRMED NUDGE — compact, appears once call is booked, shows day/time -->
+      <div id="callConfirmedNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)">
+        <div class="nudge-strip-inner">
+          <span class="nudge-strip-icon"><svg class="icon"><use href="#i-check"/></svg></span>
+          <div class="nudge-strip-text">
+            <div class="nudge-strip-title" id="callConfirmedTitle">Call booked this week</div>
+            <div class="nudge-strip-sub">Karl &amp; Alex · confirmed</div>
+          </div>
+        </div>
       </div>
-      <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
-    </div>
-  </div>
 
-  <!-- CALL CONFIRMED NUDGE — compact, appears once call is booked, shows day/time -->
-  <div id="callConfirmedNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)">
-    <div class="nudge-strip-inner">
-      <span class="nudge-strip-icon"><svg class="icon"><use href="#i-check"/></svg></span>
-      <div class="nudge-strip-text">
-        <div class="nudge-strip-title" id="callConfirmedTitle">Call booked this week</div>
-        <div class="nudge-strip-sub">Karl &amp; Alex · confirmed</div>
+      <!-- PHOTO NUDGE — hidden once this week's photos uploaded -->
+      <div id="photoNudge" class="nudge-strip" style="display:none" onclick="switchTab('progress')">
+        <div class="nudge-strip-inner">
+          <span class="nudge-strip-icon"><svg class="icon"><use href="#i-camera"/></svg></span>
+          <div class="nudge-strip-text">
+            <div class="nudge-strip-title">Upload your progress photos</div>
+            <div class="nudge-strip-sub">Same time, same lighting, same angles</div>
+          </div>
+          <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
+        </div>
       </div>
-    </div>
-  </div>
-
-  <!-- PHOTO NUDGE — hidden once this week's photos uploaded -->
-  <div id="photoNudge" class="nudge-strip" style="display:none" onclick="switchTab('progress')">
-    <div class="nudge-strip-inner">
-      <span class="nudge-strip-icon"><svg class="icon"><use href="#i-camera"/></svg></span>
-      <div class="nudge-strip-text">
-        <div class="nudge-strip-title">Upload your progress photos</div>
-        <div class="nudge-strip-sub">Same time, same lighting, same angles</div>
-      </div>
-      <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
     </div>
   </div>
 
   <div class="wbar" id="wbar" style="display:none">
+    <div class="wbar-meta">
+      <div class="wbar-kicker">Weekly Plan</div>
+      <div class="wlabel" id="wlabel"></div>
+    </div>
     <div class="wnav">
       <button class="warr" onclick="shiftWeek(-1)"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
       <button class="warr" onclick="shiftWeek(1)"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
-      <button class="wtoday" onclick="goToday()">Today</button>
+      <button class="wtoday" onclick="goToday()">This week</button>
     </div>
-    <div class="wlabel" id="wlabel"></div>
   </div>
 
   <div class="tabs" role="tablist" aria-label="Portal sections">

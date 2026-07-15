@@ -34,6 +34,9 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .goals-prompt-btn{background:#92d2ed;color:#050505;font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;transition:background .15s}
 .goals-prompt-btn:active{background:#6bb8d4}
 .hero{background:#0a0a0a;padding:14px 16px 12px;text-align:left}
+.top-shell{position:relative}
+.hero-shell{display:block}
+.hero-main,.hero-side{min-width:0}
 .hi{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px}
 .hero-name-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px}
 .hn{font-family:var(--display);font-size:40px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:#fff;line-height:1}
@@ -41,6 +44,7 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .hero-week-label{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em}
 .hero-week-num{font-family:var(--display);font-size:28px;font-weight:800;color:#92d2ed;line-height:1;white-space:nowrap}
 .hero-week-num.discovery{font-size:15px;line-height:1.05;text-transform:uppercase;letter-spacing:.03em}
+.hero-side-label{display:none}
 .hpills{display:flex;gap:6px;flex-wrap:nowrap;align-items:center;margin-bottom:7px}
 .hp{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.1);padding:5px 13px;border-radius:20px;flex-shrink:0;white-space:nowrap}
 .hp span{color:#92d2ed}
@@ -48,6 +52,8 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .wa-fab:active{transform:scale(.93);box-shadow:0 2px 8px rgba(146,210,237,.25)}
 .wa-fab svg{fill:#050505}
 .wbar{background:#111;border-top:1px solid rgba(255,255,255,.05);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:54px;z-index:90}
+.wbar-meta{display:flex;flex-direction:column;gap:2px}
+.wbar-kicker{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(146,210,237,.72)}
 .wlabel{font-family:var(--display);font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#fff}
 .wnav{display:flex;align-items:center;gap:6px}
 .warr,.wtoday{font-family:var(--mono);font-size:11px;padding:6px 11px;border:1px solid rgba(255,255,255,.13);border-radius:6px;background:transparent;color:rgba(255,255,255,.5);cursor:pointer}
@@ -72,6 +78,7 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 #checkinNudge .nudge-strip-title{color:#fff}
 #checkinNudge .nudge-strip-sub{color:rgba(255,255,255,.48)}
 #checkinNudge .nudge-strip-arr{color:#92d2ed}
+.top-shell-priority{display:grid;gap:0}
 @media(min-width:768px){
   .nudge-strip{padding:16px 24px;border-top:1px solid rgba(255,255,255,.05)}
   .nudge-strip-icon{font-size:22px}
@@ -1777,8 +1784,34 @@ body.focus-session-open{overflow:hidden}
   }
   html:not(.outdoor-mode) header{background:rgba(5,8,10,.78);backdrop-filter:blur(22px) saturate(130%);border-bottom-color:rgba(255,255,255,.07)}
   html:not(.outdoor-mode) .hero{background:linear-gradient(180deg,rgba(14,20,24,.78),rgba(7,10,12,.58));border-bottom:1px solid rgba(255,255,255,.075)}
-  .hero{padding-top:30px;padding-bottom:26px}.hn{letter-spacing:-.035em}.hero-week-num{letter-spacing:-.03em}
-  .wbar{background:rgba(6,9,11,.74);backdrop-filter:blur(16px)}
+  .top-shell{padding:22px var(--shellpad) 18px;background:linear-gradient(180deg,rgba(6,9,11,.9),rgba(6,9,11,.58))}
+  .hero{padding:0;background:transparent!important;border-bottom:0!important}
+  .hero-shell{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(320px,.9fr);gap:18px;align-items:stretch;max-width:1200px;margin:0 auto}
+  .hero-main,.hero-side{padding:26px 28px;border:1px solid rgba(255,255,255,.08);border-radius:24px;background:linear-gradient(155deg,rgba(18,25,29,.96),rgba(9,13,16,.9));box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 22px 50px rgba(0,0,0,.22)}
+  .hero-main{position:relative;overflow:hidden}
+  .hero-main::before{content:"";position:absolute;left:28px;right:28px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(146,210,237,.72),transparent);opacity:.7}
+  .hero-side{display:flex;flex-direction:column;justify-content:space-between;gap:18px}
+  .hero-side-label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(146,210,237,.7)}
+  .hero{padding-top:0;padding-bottom:0}.hn{letter-spacing:-.035em}.hero-week-num{letter-spacing:-.03em}
+  .hpills{margin-bottom:0}
+  .week-rings{height:100%;margin-top:0;justify-content:stretch;align-items:stretch;flex-direction:column;gap:14px}
+  .ring-item{justify-content:flex-start;padding:16px 18px;border:1px solid rgba(255,255,255,.07);border-radius:18px;background:rgba(255,255,255,.025)}
+  .ring-wrap{width:64px;height:64px}
+  .ring-svg{width:64px;height:64px}
+  .ring-val{font-size:26px}
+  .ring-sub{font-size:10px}
+  .ring-src{font-size:9px}
+  .top-shell-priority{max-width:1200px;margin:14px auto 0;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+  .top-shell-priority>#strava-ack-banner{grid-column:1/-1}
+  .top-shell-priority .nudge-strip{margin:0;border:1px solid rgba(255,255,255,.075);border-radius:16px;background:linear-gradient(180deg,rgba(15,21,25,.92),rgba(9,13,16,.84));padding:15px 18px}
+  .top-shell-priority .nudge-strip-inner{max-width:none;align-items:flex-start}
+  .top-shell-priority .nudge-strip-title{font-size:16px}
+  .top-shell-priority .nudge-strip-sub{font-size:10px}
+  #callConfirmedNudge{padding-top:15px;padding-bottom:15px}
+  .wbar{background:rgba(6,9,11,.74);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.05)}
+  .wbar{padding-left:var(--shellpad);padding-right:var(--shellpad)}
+  .wbar>.wbar-meta,.wbar>.wnav{max-width:1200px}
+  .wbar{display:flex}
   .tabs{background:rgba(5,8,10,.82);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.065)}
   .tab{min-height:48px;padding-left:18px;padding-right:18px;transition:color .16s,background .16s}.tab:hover{color:var(--text);background:rgba(255,255,255,.025)}
   #tab-training.active,#tab-weekly.active{padding-top:34px}
@@ -1832,6 +1865,10 @@ body.focus-session-open{overflow:hidden}
 
   .outdoor-mode body{background:linear-gradient(180deg,#eef3f5 0,#f7f9fa 380px)}
   .outdoor-mode header{background:rgba(255,255,255,.84);backdrop-filter:blur(22px);box-shadow:0 1px 0 rgba(7,17,22,.1)}
+  .outdoor-mode .top-shell{background:linear-gradient(180deg,#edf3f5,#f5f8f9)}
+  .outdoor-mode .hero-main,.outdoor-mode .hero-side{background:#fff;border-color:rgba(7,17,22,.13);box-shadow:0 20px 45px rgba(30,55,67,.08)}
+  .outdoor-mode .hero-main::before{background:linear-gradient(90deg,transparent,var(--run),transparent)}
+  .outdoor-mode .top-shell-priority .nudge-strip{background:#fff;border-color:rgba(7,17,22,.13);box-shadow:0 12px 28px rgba(30,55,67,.06)}
   .outdoor-mode #tab-training .todaypanel{background:#fff;border-color:rgba(7,17,22,.13);box-shadow:0 24px 55px rgba(30,55,67,.12)}
   .outdoor-mode #tab-training .todaypanel::before{background:linear-gradient(90deg,transparent,var(--run),transparent)}
   .outdoor-mode #tab-weekly>#weeklyCalEl{background:rgba(255,255,255,.82);border-color:rgba(7,17,22,.12);box-shadow:0 22px 55px rgba(30,55,67,.09)}
@@ -1857,6 +1894,7 @@ body.focus-session-open{overflow:hidden}
 
   /* Everything except the rail shifts right */
   header,.hero,.wbar,.nudge-strip,.tab-content{margin-left:var(--railw)}
+  .top-shell{margin-left:var(--railw)}
   header{justify-content:flex-end}
   header .logo{display:none}
 
@@ -1918,7 +1956,7 @@ body.focus-session-open{overflow:hidden}
    the week plan scrolls inside its own pane. */
 @media(min-width:900px){
   /* Tighter hero */
-  .hero{padding-top:16px;padding-bottom:13px}
+  .top-shell{padding-top:16px;padding-bottom:14px}
   .hi{margin-bottom:2px}
   .hn{font-size:38px}
   .hero-week-num{font-size:26px}
@@ -1926,7 +1964,7 @@ body.focus-session-open{overflow:hidden}
   .hpills{margin-bottom:2px}
 
   /* Compact nudge strips */
-  .nudge-strip{padding-top:9px;padding-bottom:9px}
+  .top-shell-priority .nudge-strip{padding-top:12px;padding-bottom:12px}
   .nudge-strip-icon{font-size:16px}
   #checkinNudge .nudge-strip-icon{width:24px;height:24px}
   .nudge-strip-title{font-size:14px}
@@ -1936,6 +1974,7 @@ body.focus-session-open{overflow:hidden}
   /* Compact week bar + content top */
   .wbar{padding-top:8px;padding-bottom:8px}
   #tab-training.active{padding-top:22px}
+  #tab-training.active>.page-intro,#tab-weekly.active>.page-intro{display:none}
 
   /* Today's Plan stays compact; Weekly Plan gets the week browser */
   #tab-training .todaywrap{top:104px;max-height:calc(100vh - 118px);overflow-y:auto;overscroll-behavior:contain}
