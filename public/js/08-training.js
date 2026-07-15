@@ -572,12 +572,31 @@ function renderCoachMoment(todaySessions){
   return '<div class="coach-moment"><div class="coach-avatars"><span>K</span><span>A</span></div><div><div class="coach-moment-topline"><div class="coach-moment-label">'+label+'</div><div class="coach-moment-tag">Dual Performance</div></div><p>'+esc(note)+'</p></div><button onclick="switchTab(\'comms\')" aria-label="Contact your coaches"><svg class="icon"><use href="#i-chat"/></svg></button></div>';
 }
 
+function syncHeroShell(insights,todaySessions){
+  var support=document.getElementById('heroSupport');
+  if(support){
+    if(todaySessions.length){
+      var primary=(todaySessions[0]&&todaySessions[0].name)||'today\'s session';
+      support.textContent='Today centers on '+primary+'. Open the brief, execute cleanly, and let the week build around it.';
+    }else{
+      support.textContent='Recovery day. Stay ahead of the week, lock in the admin that matters, and be ready for the next key session.';
+    }
+  }
+  var compliance=document.getElementById('heroStatCompliance');
+  if(compliance) compliance.textContent=(insights&&insights.compliance!=null)?(insights.compliance+'%'):'—';
+  var readiness=document.getElementById('heroStatReadiness');
+  if(readiness) readiness.textContent=(insights&&insights.readiness!=null)?String(insights.readiness):'—';
+  var pbs=document.getElementById('heroStatPbs');
+  if(pbs) pbs.textContent=(insights&&insights.pbs!=null)?String(insights.pbs):'—';
+}
+
 function renderTodaySection(){
   var el=document.getElementById('todayEl');if(!el) return;
   var todayISO=localISO(new Date());
   var todaySessions=sortSessionsForDisplay(allSessions.filter(function(s){return s.date===todayISO;}));
   var label=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
   var insights=getHomeInsights();
+  syncHeroShell(insights,todaySessions);
   var title=todaySessions.length?'Today\'s command center':'Recovery command center';
   var subtitle=todaySessions.length?'See the brief, execute cleanly, and log what you actually complete.':'No session scheduled today. Use the space to recover well and stay ahead of the week.';
   var html='<div class="todaypanel"><div class="todayeyebrow">Today plan</div><div class="todayhead"><div><div class="todaytitle">'+title+'</div><div class="today-subtitle">'+subtitle+'</div></div><div class="todaydate">'+esc(label)+'</div></div>';
