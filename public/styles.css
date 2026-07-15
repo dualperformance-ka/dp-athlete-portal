@@ -2014,6 +2014,108 @@ body.focus-session-open{overflow:hidden}
   .outdoor-mode #tab-training .todaypanel{filter:none}
 }
 
+/* ── Desktop fit sweep ──────────────────────────────────────────
+   Keep every main surface inside one consistent content frame so
+   panels stay fully viewable within the window. */
+@media(min-width:900px){
+  :root{
+    --content-max:1120px;
+    --content-wide:1160px;
+    --shellpad:max(28px,calc((100vw - var(--railw) - var(--content-wide))/2));
+  }
+
+  .tab-content{
+    overflow-x:clip;
+  }
+
+  .tab-content.active,
+  #tab-training.active,
+  #tab-weekly.active,
+  #tab-goals.active,
+  #tab-nutrition.active,
+  #tab-checkin.active,
+  #tab-progress.active,
+  #tab-handbook.active,
+  #tab-comms.active{
+    width:100%;
+    max-width:var(--content-wide);
+    margin-left:auto;
+    margin-right:auto;
+  }
+
+  #tab-goals.active,
+  #tab-progress.active,
+  #tab-checkin.active,
+  #tab-comms.active{
+    max-width:var(--content-max);
+  }
+
+  #tab-nutrition>.page-intro,
+  #tab-nutrition>.nut-wbar,
+  #nutContent,
+  #tab-handbook>.page-intro,
+  #tab-handbook>.hb-grid,
+  #tab-comms>.page-intro,
+  #tab-comms>.comms-card{
+    max-width:var(--content-max);
+    margin-left:auto;
+    margin-right:auto;
+  }
+
+  #tab-training.active>*,
+  #tab-weekly.active>*,
+  #tab-goals.active>*,
+  #tab-nutrition.active>*,
+  #tab-checkin.active>*,
+  #tab-progress.active>*,
+  #tab-handbook.active>*,
+  #tab-comms.active>*{
+    min-width:0;
+  }
+
+  .page-intro,
+  .goals-hero,
+  .todaypanel,
+  .card,
+  .accordion-card,
+  .ci-card,
+  .mc,
+  .pstat,
+  .hb-card,
+  .comms-card,
+  .week-plan-shell,
+  .week-glance,
+  .progress-stats,
+  .macro-grid,
+  .stat-grid,
+  .milestone-grid,
+  .ci-grid,
+  .hb-grid,
+  .insight-rail,
+  .command-status-grid{
+    max-width:100%;
+  }
+
+  .progress-stats,
+  .macro-grid,
+  .stat-grid,
+  .milestone-grid,
+  .ci-grid,
+  .hb-grid,
+  .insight-rail,
+  .command-status-grid{
+    align-items:stretch;
+  }
+
+  #tab-weekly>#weeklyCalEl{
+    max-width:var(--content-max);
+  }
+
+  .week-glance{
+    width:100%;
+  }
+}
+
 /* ── Progress tab layout fix (≥900px) ──
    The photo grid card is far taller than its neighbours; in an auto-row
    grid it forces huge gaps before the next card. Stack Progress cards
