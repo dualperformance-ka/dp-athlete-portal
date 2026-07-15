@@ -2581,3 +2581,37 @@ html.outdoor-mode #portalScreen .chart-container{background:rgba(7,17,22,.03)!im
    deliberately dark even in light mode, with light inline text. We do NOT
    blanket-darken translucent-white inline text, because that turns those
    panels' labels dark-on-dark. Fully theming those needs the app JS. */
+
+/* ── Border theming per toggle ──────────────────────────────────────────
+   Light ("Indoor"/white) toggle: borders fade to near-white so cards read
+   as one clean white surface — no dark outlines. Cards stay separated by
+   their soft shadow + the off-white page canvas.
+   Dark toggle: borders become defined dark ("black") lines.
+   Both flow through the --border token the whole stylesheet already uses. */
+html:not(.outdoor-mode){
+  --border:rgba(0,0,0,.42);
+  --border-mid:rgba(0,0,0,.52);
+  --border-strong:rgba(0,0,0,.6);
+}
+html.outdoor-mode{
+  --border:rgba(7,17,22,.05);
+  --border-mid:rgba(7,17,22,.08);
+  --border-strong:rgba(7,17,22,.1);
+}
+/* A few surfaces hard-code their border instead of using the token —
+   pull them onto the token so the toggle stays consistent. */
+html.outdoor-mode #portalScreen .weight-trend-card,
+html.outdoor-mode #portalScreen .hero-main,
+html.outdoor-mode #portalScreen .hero-side,
+html.outdoor-mode #portalScreen .nudge-strip,
+html.outdoor-mode #portalScreen .sc,
+html.outdoor-mode #portalScreen .todayitem,
+html.outdoor-mode #portalScreen input,
+html.outdoor-mode #portalScreen textarea,
+html.outdoor-mode #portalScreen select{border-color:var(--border)!important}
+html:not(.outdoor-mode) #portalScreen .hero-main,
+html:not(.outdoor-mode) #portalScreen .hero-side,
+html:not(.outdoor-mode) #portalScreen .nudge-strip,
+html:not(.outdoor-mode) #portalScreen .sc,
+html:not(.outdoor-mode) #portalScreen .todayitem,
+html:not(.outdoor-mode) #portalScreen .card{border-color:var(--border)!important}
