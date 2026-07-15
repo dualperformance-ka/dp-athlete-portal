@@ -59,7 +59,11 @@ function showLoadError(){
 
 // ── RENDER CALENDAR ───────────────────────────────────────────────────────────
 function renderCal(ws){
-  var todayISO=localISO(new Date()),html='<div class="week-plan-title">This week</div>';
+  var todayISO=localISO(new Date()),we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);
+  var runsThisWeek=sessions.filter(function(s){return getType(s)==='run';}).length;
+  var strengthThisWeek=sessions.filter(function(s){return getType(s)==='strength';}).length;
+  var weekLabel=ws.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' – '+we.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+  var html='<div class="week-plan-shell"><div><div class="week-plan-kicker">Week plan</div><div class="week-plan-title">Built for the week ahead</div><div class="week-plan-subtitle">'+esc(weekLabel)+' · '+sessions.length+' session'+(sessions.length===1?'':'s')+' loaded</div></div><div class="week-plan-meta"><span>'+runsThisWeek+' run'+(runsThisWeek===1?'':'s')+'</span><span>'+strengthThisWeek+' strength</span></div></div>';
   // WEEK AT A GLANCE — bird's-eye strip: one tile per day, dots per session
   // type, tick when the day is fully logged. Tapping a tile jumps to that day.
   var sessionDone=function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];};
@@ -519,11 +523,16 @@ function miniSparkline(points){
 function renderInsightRail(data){
   var readiness=data.readiness==null?'—':data.readiness;
   var readinessPct=data.readiness==null?0:data.readiness;
+  var weightLabel='Open progress';
+  if(data.weights&&data.weights.length>=2){
+    var delta=data.weights[data.weights.length-1].weight-data.weights[0].weight;
+    weightLabel=(delta>0?'+':'')+delta.toFixed(1)+'kg across recent logs';
+  }
   return '<div class="insight-rail" aria-label="This week at a glance">'+
-    '<button type="button" class="insight-card insight-card-button" onclick="openWeeklySummary()" aria-label="View weekly compliance summary"><div class="insight-ring" style="--value:'+data.compliance+'"><strong>'+data.compliance+'%</strong></div><div><span>Compliance</span><small>View weekly summary</small></div></button>'+
-    '<button type="button" class="insight-card insight-card-button" onclick="openQuickLog(\'body\')" aria-label="'+(data.readiness==null?'Log today’s readiness':'Review today’s readiness')+'"><div class="insight-ring readiness" style="--value:'+readinessPct+'"><strong>'+readiness+'</strong></div><div><span>Readiness</span><small>'+(data.readiness==null?'Log today':'Review body log')+'</small></div></button>'+
-    '<button type="button" class="insight-card insight-card-button bodyweight" onclick="switchTab(\'progress\')" aria-label="View bodyweight progress"><div class="insight-viz">'+miniSparkline(data.weights)+'</div><div><span>Bodyweight</span><small>View progress</small></div></button>'+
-    '<button type="button" class="insight-card insight-card-button" onclick="openPbHistory()" aria-label="View personal best history"><div class="insight-pb"><svg class="icon"><use href="#i-trophy"/></svg><strong>'+data.pbs+'</strong></div><div><span>PB tracking</span><small>View exercise history</small></div></button>'+
+    '<button type="button" class="insight-card insight-card-button" onclick="openWeeklySummary()" aria-label="View weekly compliance summary"><div class="insight-ring" style="--value:'+data.compliance+'"><strong>'+data.compliance+'%</strong></div><div><span>Session completion</span><small>'+data.completed+' of '+data.planned+' planned done</small></div></button>'+
+    '<button type="button" class="insight-card insight-card-button" onclick="openQuickLog(\'body\')" aria-label="'+(data.readiness==null?'Log today’s readiness':'Review today’s readiness')+'"><div class="insight-ring readiness" style="--value:'+readinessPct+'"><strong>'+readiness+'</strong></div><div><span>Readiness</span><small>'+(data.readiness==null?'Log your body check':'Body log already captured')+'</small></div></button>'+
+    '<button type="button" class="insight-card insight-card-button bodyweight" onclick="switchTab(\'progress\')" aria-label="View bodyweight progress"><div class="insight-viz">'+miniSparkline(data.weights)+'</div><div><span>Bodyweight trend</span><small>'+esc(weightLabel)+'</small></div></button>'+
+    '<button type="button" class="insight-card insight-card-button" onclick="openPbHistory()" aria-label="View personal best history"><div class="insight-pb"><svg class="icon"><use href="#i-trophy"/></svg><strong>'+data.pbs+'</strong></div><div><span>Personal bests</span><small>Review your strength history</small></div></button>'+
   '</div>';
 }
 function renderCommandStatus(data){
@@ -531,9 +540,9 @@ function renderCommandStatus(data){
   var nextText='No upcoming session';
   if(data.next){var nd=localDateFromISO(data.next.date);nextText=nd.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' · '+(data.next.name||'Session');}
   var html='<div class="command-status-grid">';
-  html+='<button class="command-status" onclick="switchTab(\'checkin\')"><span class="command-status-icon '+(data.checkinDone?'done':'')+'"><svg class="icon"><use href="#i-clipboard"/></svg></span><span><small>Weekly check-in</small><strong>'+(data.checkinDone?'Complete':'Still to do')+'</strong></span></button>';
-  html+='<button class="command-status" onclick="switchTab(\'nutrition\')" aria-label="View weekly kilometre details"><span class="command-status-icon"><svg class="icon"><use href="#i-run"/></svg></span><span><small>Weekly kilometres</small><strong>'+(data.kmTarget?(data.kmDone.toFixed(1).replace(/\.0$/,'')+' / '+data.kmTarget.toFixed(1).replace(/\.0$/,'')+' km'):'Target loading')+'</strong><i><b style="width:'+kmPct+'%"></b></i></span></button>';
-  html+='<button class="command-status next-session" onclick="goTrainingPlan()"><span class="command-status-icon"><svg class="icon"><use href="#i-calendar"/></svg></span><span><small>Up next</small><strong>'+esc(nextText)+'</strong></span></button>';
+  html+='<button class="command-status" onclick="switchTab(\'checkin\')"><span class="command-status-icon '+(data.checkinDone?'done':'')+'"><svg class="icon"><use href="#i-clipboard"/></svg></span><span><small>Check-in status</small><strong>'+(data.checkinDone?'Locked in for the week':'Still waiting on your check-in')+'</strong></span></button>';
+  html+='<button class="command-status" onclick="switchTab(\'nutrition\')" aria-label="View weekly kilometre details"><span class="command-status-icon"><svg class="icon"><use href="#i-run"/></svg></span><span><small>Run volume</small><strong>'+(data.kmTarget?(data.kmDone.toFixed(1).replace(/\.0$/,'')+' / '+data.kmTarget.toFixed(1).replace(/\.0$/,'')+' km'):'Target loading')+'</strong><i><b style="width:'+kmPct+'%"></b></i></span></button>';
+  html+='<button class="command-status next-session" onclick="goTrainingPlan()"><span class="command-status-icon"><svg class="icon"><use href="#i-calendar"/></svg></span><span><small>Next key session</small><strong>'+esc(nextText)+'</strong></span></button>';
   html+='</div>';
   if(data.warning)html+='<div class="recovery-warning"><svg class="icon"><use href="#i-pulse"/></svg><div><strong>Recovery flag</strong><span>'+esc(data.warning)+'</span></div><button onclick="openQuickLog(\'body\')">Review</button></div>';
   return html;
@@ -549,7 +558,8 @@ function sessionWhy(type,meta,title){
 function renderCoachMoment(todaySessions){
   var note='Keep today simple: hit the intended effort and leave enough in the tank to train well again.';
   for(var i=0;i<todaySessions.length;i++){var ov=_sessionOverrides[todaySessions[i].id];if(ov&&ov.notes){note=ov.notes;break;}}
-  return '<div class="coach-moment"><div class="coach-avatars"><span>K</span><span>A</span></div><div><div class="coach-moment-label">From your coaches</div><p>'+esc(note)+'</p></div><button onclick="switchTab(\'comms\')" aria-label="Contact your coaches"><svg class="icon"><use href="#i-chat"/></svg></button></div>';
+  var label=todaySessions.length?'Coach cue for today':'Coach cue';
+  return '<div class="coach-moment"><div class="coach-avatars"><span>K</span><span>A</span></div><div><div class="coach-moment-topline"><div class="coach-moment-label">'+label+'</div><div class="coach-moment-tag">Dual Performance</div></div><p>'+esc(note)+'</p></div><button onclick="switchTab(\'comms\')" aria-label="Contact your coaches"><svg class="icon"><use href="#i-chat"/></svg></button></div>';
 }
 
 function renderTodaySection(){
@@ -558,7 +568,9 @@ function renderTodaySection(){
   var todaySessions=sortSessionsForDisplay(allSessions.filter(function(s){return s.date===todayISO;}));
   var label=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
   var insights=getHomeInsights();
-  var html='<div class="todaypanel"><div class="todayeyebrow">Today</div><div class="todayhead"><div><div class="todaytitle">Your session'+(todaySessions.length>1?'s':'')+'</div><div class="today-subtitle">One clear focus. Log what you complete.</div></div><div class="todaydate">'+esc(label)+'</div></div>';
+  var title=todaySessions.length?'Today\'s command center':'Recovery command center';
+  var subtitle=todaySessions.length?'See the brief, execute cleanly, and log what you actually complete.':'No session scheduled today. Use the space to recover well and stay ahead of the week.';
+  var html='<div class="todaypanel"><div class="todayeyebrow">Today plan</div><div class="todayhead"><div><div class="todaytitle">'+title+'</div><div class="today-subtitle">'+subtitle+'</div></div><div class="todaydate">'+esc(label)+'</div></div>';
   html+=renderCoachMoment(todaySessions);
   html+=renderInsightRail(insights);
   html+=renderCommandStatus(insights);
@@ -608,7 +620,7 @@ function renderTodaySection(){
           html+='</div>';
         } else {
           var targetValue=runMeta.target||runMeta.sessionGoal||runMeta.type||runMeta.intensity||sessionTitle;
-          html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(targetValue)+'</div>';
+          html+='<div class="todaytarget"><div class="label">Primary target</div><div class="value">'+esc(targetValue)+'</div>';
           if(sessionDetail){ html+='<div class="desc">'+esc(sessionDetail)+'</div>'; }
           html+='<div class="session-why"><svg class="icon"><use href="#i-bulb"/></svg><div><span>Why it matters</span>'+esc(sessionWhy(type,runMeta,sessionTitle))+'</div></div>';
           var chips=[];
@@ -624,7 +636,7 @@ function renderTodaySection(){
           html+='</div>';
         }
       }else if(type==='strength'){
-        html+='<div class="todaytarget"><div class="label">Today focus</div><div class="value">'+esc(displayName)+'</div><div class="desc">Use your previous efforts as a guide, then log what you actually complete today.</div><div class="session-why"><svg class="icon"><use href="#i-bulb"/></svg><div><span>Why it matters</span>Build durable strength that supports running economy, resilience and confident progression.</div></div></div>';
+        html+='<div class="todaytarget"><div class="label">Primary target</div><div class="value">'+esc(displayName)+'</div><div class="desc">Use your previous efforts as a guide, then log what you actually complete today.</div><div class="session-why"><svg class="icon"><use href="#i-bulb"/></svg><div><span>Why it matters</span>Build durable strength that supports running economy, resilience and confident progression.</div></div></div>';
       }else if(type==='note'){
         var _noteInstr=s.runDetails||(_sessionOverrides[s.id]&&_sessionOverrides[s.id].notes)||'Train as you normally would and log what you did.';
         html+='<div class="todaytarget"><div class="label">Discovery week</div><div class="value">'+esc(displayName)+'</div><div class="desc">'+esc(_noteInstr)+'</div></div>';
@@ -632,7 +644,7 @@ function renderTodaySection(){
         html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
       }
       if(type!=='rest'&&sessionIdx>=0){
-        html+='<button class="today-action primary" onclick="startFocusedSession('+sessionIdx+')" style="width:100%;margin-top:12px">Start session <svg class="icon"><use href="#i-arrow-right"/></svg></button>';
+        html+='<button class="today-action primary" onclick="startFocusedSession('+sessionIdx+')" style="width:100%;margin-top:12px">Open session <svg class="icon"><use href="#i-arrow-right"/></svg></button>';
       }
       html+='</div></div></div>';
     });
