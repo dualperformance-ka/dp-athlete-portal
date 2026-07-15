@@ -2343,23 +2343,26 @@ input[type=range].sl-untouched{opacity:.45}
    Scoped so light "outdoor mode" keeps its own palette.
    ══════════════════════════════════════════════════════════════════════ */
 
-/* ── Tokens: fonts + dark-theme palette ─────────────────────────────── */
+/* ── Tokens: fonts, accents, radii (shared by BOTH themes) ──────────── */
 :root{
   --display:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
   --body:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,'DM Mono',monospace;
 
-  --bg:#071117;
-  --surface:#0d1820;--surface2:#101d27;--surface3:#132330;
-  --border:rgba(255,255,255,.08);--border-mid:rgba(255,255,255,.14);--border-strong:rgba(146,210,237,.26);
-  --text:#f3fbff;--muted:rgba(243,251,255,.72);--dim:rgba(243,251,255,.44);
-
-  --run:#92d2ed;--run-strong:#d7f1fc;--run-bg:rgba(146,210,237,.10);--run-bg-strong:rgba(146,210,237,.16);--run-border:rgba(146,210,237,.28);
+  --run-strong:#d7f1fc;
   --ok:#73d1a7;--ok-bg:rgba(115,209,167,.12);--ok-border:rgba(115,209,167,.28);
   --warn:#ffb76d;--danger:#ff8879;
 
   --shadow-soft:0 26px 80px rgba(0,0,0,.34);--shadow-blue:0 22px 60px rgba(146,210,237,.10);
   --r-xl:30px;--r-lg:24px;--r-md:18px;--r-sm:14px;
+}
+/* Dark-theme palette ONLY. Scoped to :not(.outdoor-mode) so the light
+   "outdoor" theme keeps its own dark-on-white palette untouched. */
+html:not(.outdoor-mode){
+  --bg:#071117;
+  --surface:#0d1820;--surface2:#101d27;--surface3:#132330;
+  --border:rgba(255,255,255,.08);--border-mid:rgba(255,255,255,.14);--border-strong:rgba(146,210,237,.26);
+  --text:#f3fbff;--muted:rgba(243,251,255,.72);--dim:rgba(243,251,255,.44);
 }
 
 /* ── Ambient background (dark theme only) ───────────────────────────── */
