@@ -1,13 +1,16 @@
 // ── LOAD WEEK ─────────────────────────────────────────────────────────────────
+function setDisplay(id,value){var el=document.getElementById(id);if(el)el.style.display=value;}
 async function loadWeek(){
   var ws=getWS(),we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);
   var wsISO=localISO(ws),weISO=localISO(we);
   var label=ws.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' – '+we.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
   document.getElementById('wlabel').textContent=label;
-  document.getElementById('wbar').style.display='';
-  document.getElementById('loadingEl').style.display='block';
-  document.getElementById('calEl').style.display='none';document.getElementById('noplanEl').style.display='none';
+  setDisplay('loadingEl','block');
+  setDisplay('weeklyLoadingEl','block');
+  setDisplay('calEl','none');setDisplay('weeklyCalEl','none');setDisplay('noplanEl','none');setDisplay('weeklyNoplanEl','none');
   var _errEl=document.getElementById('loadErrEl');if(_errEl)_errEl.style.display='none';
+  var _weeklyErrEl=document.getElementById('weeklyLoadErrEl');if(_weeklyErrEl)_weeklyErrEl.style.display='none';
+  if(typeof applyTrainingView==='function')applyTrainingView();
   // Run library + workout splits + plan fetch in parallel — all from Supabase
   var results;
   try{
@@ -18,7 +21,8 @@ async function loadWeek(){
     ]);
   }catch(e){console.warn('Week load failed',e);results=[null,null,null];}
   var mapped=results[2];
-  document.getElementById('loadingEl').style.display='none';
+  setDisplay('loadingEl','none');
+  setDisplay('weeklyLoadingEl','none');
   // null = the fetch FAILED (network/Supabase error) — very different from an
   // empty week ([]). Show a retryable error, never "No sessions this week".
   if(!mapped){showLoadError();return;}
@@ -50,11 +54,16 @@ async function loadWeek(){
   if(!sessions.length){showNoplan();return;}
   renderCal(ws);
 }
-function showNoplan(){document.getElementById('noplanEl').style.display='block';var tEl=document.getElementById('todayEl');if(tEl) tEl.style.display='none';}
+function showNoplan(){
+  setDisplay('noplanEl','block');setDisplay('weeklyNoplanEl','block');
+  var tEl=document.getElementById('todayEl');if(tEl) tEl.style.display='none';
+  setDisplay('calEl','none');setDisplay('weeklyCalEl','none');
+}
 function showLoadError(){
   var el=document.getElementById('loadErrEl');if(el)el.style.display='block';
+  var wel=document.getElementById('weeklyLoadErrEl');if(wel)wel.style.display='block';
   var tEl=document.getElementById('todayEl');if(tEl)tEl.style.display='none';
-  document.getElementById('noplanEl').style.display='none';
+  setDisplay('noplanEl','none');setDisplay('weeklyNoplanEl','none');setDisplay('calEl','none');setDisplay('weeklyCalEl','none');
 }
 
 // ── RENDER CALENDAR ───────────────────────────────────────────────────────────
@@ -98,7 +107,8 @@ function renderCal(ws){
     else{daySessions.forEach(function(s){var i=sessions.indexOf(s);html+=buildCard(s,i);});}
     html+='</div>';
   }
-  var el=document.getElementById('calEl');el.innerHTML=html;el.style.display='block';
+  var el=document.getElementById('calEl');if(el){el.innerHTML=html;el.style.display='block';}
+  var wel=document.getElementById('weeklyCalEl');if(wel){wel.innerHTML=html;wel.style.display='block';}
   if(typeof applyTrainingView==='function')applyTrainingView();
 }
 function scrollToDay(di){

@@ -158,12 +158,14 @@ function switchTab(tab){
   document.querySelectorAll('.tab').forEach(function(t){var active=t.dataset.tab===tab;t.classList.toggle('active',active);t.setAttribute('aria-selected',active?'true':'false');});
   document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+tab);});
   toggleMoreMenu(false);
-  setMobileNav(tab==='training'?'home':tab);
-  var isTraining=tab==='training';
-  document.getElementById('wbar').style.display=isTraining?'':'none';
+  setMobileNav(tab==='weekly'?'training':(tab==='training'?'home':tab));
+  var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
+  var showWeekBar=(tab==='weekly')||(!isDesktop&&tab==='training'&&trainingView==='plan');
+  document.getElementById('wbar').style.display=showWeekBar?'':'none';
   if(tab==='nutrition'&&Date.now()-_nutLastLoad>60000) loadNutrition(); // skip refetch if loaded <60s ago (week shifts & post-save always reload directly)
   if(tab==='checkin') initCheckin();
   if(tab==='progress') loadProgress();
+  if(tab==='training'||tab==='weekly') applyTrainingView();
 }
 
 function setMobileNav(tab){
@@ -173,16 +175,30 @@ function setMobileNav(tab){
     if(active) item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');
   });
 }
-// The training tab has two views on mobile: Home = today's session only,
-// Training = the week plan only (glance strip + day list). Desktop uses the
-// top tabs (no Home/Training split) and keeps both stacked ('both').
-var trainingView=(window.matchMedia&&window.matchMedia('(max-width:760px)').matches)?'home':'both';
+// Mobile keeps the home/training split inside one tab. Desktop now has
+// separate tabs: Today's Plan and Weekly Plan.
+var trainingView='home';
 function applyTrainingView(){
-  var t=document.getElementById('todayEl'),c=document.getElementById('calEl'),wb=document.getElementById('wbar');
-  var tab=document.getElementById('tab-training');
-  if(!tab||!tab.classList.contains('active'))return;
+  var t=document.getElementById('todayEl');
+  var c=document.getElementById('calEl');
+  var wc=document.getElementById('weeklyCalEl');
+  var wb=document.getElementById('wbar');
+  var trainingTab=document.getElementById('tab-training');
+  var weeklyTab=document.getElementById('tab-weekly');
+  var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
+  if(isDesktop){
+    var trainingActive=!!(trainingTab&&trainingTab.classList.contains('active'));
+    var weeklyActive=!!(weeklyTab&&weeklyTab.classList.contains('active'));
+    if(t&&t.innerHTML)t.style.display=trainingActive?'block':'none';
+    if(c&&c.innerHTML)c.style.display='none';
+    if(wc&&wc.innerHTML)wc.style.display=weeklyActive?'block':'none';
+    if(wb)wb.style.display=weeklyActive?'':'none';
+    return;
+  }
+  if(!trainingTab||!trainingTab.classList.contains('active'))return;
   if(t&&t.innerHTML)t.style.display=(trainingView==='plan')?'none':'block';
   if(c&&c.innerHTML)c.style.display=(trainingView==='home')?'none':'block';
+  if(wc&&wc.innerHTML)wc.style.display='none';
   if(wb)wb.style.display=(trainingView==='home')?'none':'';
 }
 function goPortalHome(){
@@ -194,10 +210,11 @@ function goPortalHome(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function goTrainingPlan(){
-  // Training = THE WEEK PLAN: glance strip + full day list, keeps whatever
-  // week the athlete was browsing.
+  // Desktop jumps to the dedicated Weekly Plan tab. Mobile keeps the original
+  // single-tab split and opens the plan view inside Training.
   trainingView='plan';
-  switchTab('training');setMobileNav('training');
+  var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
+  switchTab(isDesktop?'weekly':'training');setMobileNav('training');
   applyTrainingView();
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -317,4 +334,3 @@ function applyOutdoorMode(enabled){
 }
 function toggleOutdoorMode(){applyOutdoorMode(!document.documentElement.classList.contains('outdoor-mode'));}
 try{if(localStorage.getItem('dp_outdoor_mode')==='1')applyOutdoorMode(true);}catch(e){}
-
