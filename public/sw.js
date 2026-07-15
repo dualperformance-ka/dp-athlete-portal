@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v38'; // v38: glance tiles show session labels (Upper/Lower/Tempo...)
+const CACHE_NAME = 'dp-athlete-v39'; // v39: theme fixes (light/dark) + styles.css?v=30 — bump CACHE_NAME on every ship
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=28', '/config.js',
+  '/index.html', '/styles.css?v=30', '/config.js',
   '/js/01-core.js',
   '/js/02-login-goals.js',
   '/js/03-nav-nudges.js',
@@ -36,23 +36,30 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
-  // Navigations: stale-while-revalidate — serve the cached shell instantly and
-  // refresh it in the background. New deploys land on the next visit
-  // (bump CACHE_NAME + ?v= when shipping changes).
-  if (request.mode === 'navigate') {
-    event.respondWith(caches.match('/index.html').then(cached => {
-      const network = fetch(request).then(response => {
+  // App shell (page navigations + HTML/CSS/JS): NETWORK-FIRST.
+  // Always fetch fresh when online so a new deploy shows immediately; fall
+  // back to cache only when offline. This is what stops the portal from
+  // getting stuck on a stale styles.css after a deploy.
+  const isShell = request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    /\.(?:html|css|js)$/.test(url.pathname);
+
+  if (isShell) {
+    const cacheKey = request.mode === 'navigate' ? '/index.html' : request;
+    event.respondWith(
+      fetch(request).then(response => {
         if (response.ok) {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put('/index.html', copy));
+          caches.open(CACHE_NAME).then(cache => cache.put(cacheKey, copy));
         }
         return response;
-      }).catch(() => cached);
-      return cached || network;
-    }));
+      }).catch(() => caches.match(cacheKey))
+    );
     return;
   }
 
+  // Everything else (images, fonts, icons): cache-first — they're versioned
+  // or immutable, so serving from cache is fine and fast.
   event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(response => {
     if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
     return response;
