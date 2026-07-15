@@ -1546,6 +1546,7 @@ body{font-size:15px;line-height:1.55}
   --strength:#40515a;--strength-bg:rgba(7,17,22,.05);--strength-border:rgba(7,17,22,.18);
 }
 .outdoor-mode body,.outdoor-mode #portalScreen{background:var(--bg);color:var(--text)}
+.outdoor-mode .top-shell{background:linear-gradient(180deg,#edf3f5,#f5f8f9);border-bottom-color:var(--border)}
 .outdoor-mode header,.outdoor-mode .hero,.outdoor-mode .wbar,.outdoor-mode .tabs,.outdoor-mode .quicklog-strip,.outdoor-mode .mobile-nav{background:rgba(255,255,255,.94);color:var(--text);border-color:var(--border)}
 .outdoor-mode .todaypanel,.outdoor-mode .card,.outdoor-mode .sc,.outdoor-mode .todayitem,.outdoor-mode .mc,.outdoor-mode .ci-card,.outdoor-mode .hb-card,.outdoor-mode .accordion-card{background:var(--surface);color:var(--text);border-color:var(--border);box-shadow:0 8px 24px rgba(7,17,22,.06)}
 .outdoor-mode .todaytarget,.outdoor-mode .insight-card{background:var(--surface2);border-color:var(--border)}

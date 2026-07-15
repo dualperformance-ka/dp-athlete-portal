@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v39'; // v39: theme fixes (light/dark) + styles.css?v=30 — bump CACHE_NAME on every ship
+const CACHE_NAME = 'dp-athlete-v40'; // v40: mobile outdoor-shell fix + styles.css?v=31 — bump CACHE_NAME on every ship
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=30', '/config.js',
+  '/index.html', '/styles.css?v=31', '/config.js',
   '/js/01-core.js',
   '/js/02-login-goals.js',
   '/js/03-nav-nudges.js',
