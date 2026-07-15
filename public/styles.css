@@ -2467,3 +2467,23 @@ html:not(.outdoor-mode) #photoNudge{
 
 /* Positive chips pick up the softer green */
 .saved-feeling,.badge.ok{color:#d8f7e9}
+
+/* ── Sweep polish: mobile radii + light-mode nav contrast ───────────── */
+/* Slightly tighter corners on the biggest panels at phone widths */
+@media(max-width:640px){
+  html:not(.outdoor-mode) .todaypanel,
+  html:not(.outdoor-mode) .goals-hero,
+  html:not(.outdoor-mode) .comms-card,
+  html:not(.outdoor-mode) .hero-main,
+  html:not(.outdoor-mode) .hero-side{border-radius:22px}
+  html:not(.outdoor-mode) .card,
+  html:not(.outdoor-mode) .accordion-card,
+  html:not(.outdoor-mode) .ci-card,
+  html:not(.outdoor-mode) .mc,
+  html:not(.outdoor-mode) .pstat,
+  html:not(.outdoor-mode) .hb-card{border-radius:18px}
+}
+/* Light-mode desktop rail: darken active label so it isn't washed out */
+@media(min-width:900px){
+  .outdoor-mode .tab.active{color:#0d3f54}
+}
