@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 :root{
   --bg:#040506;--surface:#0d1013;--surface2:#13181d;--surface3:#1a2229;
   --border:rgba(255,255,255,0.09);--border-mid:rgba(255,255,255,0.16);--border-strong:rgba(255,255,255,0.32);
@@ -2332,3 +2333,134 @@ input[type=range].sl-untouched{opacity:.45}
   .coach-moment button{grid-column:2;justify-self:start}
   .insight-rail{grid-template-columns:1fr}
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   REDESIGN RESKIN · 2026 premium pass
+   CSS-only reskin layered on the existing markup — no structural or JS
+   changes. Adopts the concept-render aesthetic: Inter type system, deeper
+   teal-black palette, rounded gradient panels, softer semantic accents.
+   Blends portal-complete-render + portal-redesign-preview.
+   Scoped so light "outdoor mode" keeps its own palette.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Tokens: fonts + dark-theme palette ─────────────────────────────── */
+:root{
+  --display:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --body:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,'DM Mono',monospace;
+
+  --bg:#071117;
+  --surface:#0d1820;--surface2:#101d27;--surface3:#132330;
+  --border:rgba(255,255,255,.08);--border-mid:rgba(255,255,255,.14);--border-strong:rgba(146,210,237,.26);
+  --text:#f3fbff;--muted:rgba(243,251,255,.72);--dim:rgba(243,251,255,.44);
+
+  --run:#92d2ed;--run-strong:#d7f1fc;--run-bg:rgba(146,210,237,.10);--run-bg-strong:rgba(146,210,237,.16);--run-border:rgba(146,210,237,.28);
+  --ok:#73d1a7;--ok-bg:rgba(115,209,167,.12);--ok-border:rgba(115,209,167,.28);
+  --warn:#ffb76d;--danger:#ff8879;
+
+  --shadow-soft:0 26px 80px rgba(0,0,0,.34);--shadow-blue:0 22px 60px rgba(146,210,237,.10);
+  --r-xl:30px;--r-lg:24px;--r-md:18px;--r-sm:14px;
+}
+
+/* ── Ambient background (dark theme only) ───────────────────────────── */
+html:not(.outdoor-mode) body,
+html:not(.outdoor-mode) #portalScreen{
+  background:
+    radial-gradient(circle at 12% 6%, rgba(146,210,237,.12), transparent 26%),
+    radial-gradient(circle at 88% 14%, rgba(65,119,145,.13), transparent 24%),
+    linear-gradient(180deg,#0c1720 0%, var(--bg) 52%, #040b10 100%);
+  background-attachment:fixed;
+}
+
+/* ── Typography polish ──────────────────────────────────────────────── */
+body{font-family:var(--body);letter-spacing:-.005em}
+.hn{text-transform:none;letter-spacing:-.045em;font-weight:800}
+.page-title,.todaytitle,.stitle,.hero-week-num,
+.goals-name,.comms-title,.ci-step-title,.hb-modal-title{letter-spacing:-.03em}
+.eyebrow,.hi,.page-kicker,.todayeyebrow,.hero-side-label,.card-title,
+.slbl,.ltitle{letter-spacing:.12em}
+@media(min-width:900px){ .hn{font-size:66px;letter-spacing:-.05em} }
+
+/* ── Panels: rounded gradient surfaces + soft depth ─────────────────── */
+html:not(.outdoor-mode) .card,
+html:not(.outdoor-mode) .accordion-card,
+html:not(.outdoor-mode) .ci-card,
+html:not(.outdoor-mode) .mc,
+html:not(.outdoor-mode) .pstat,
+html:not(.outdoor-mode) .hb-card,
+html:not(.outdoor-mode) .insight-card,
+html:not(.outdoor-mode) .command-status{
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 18px 44px rgba(0,0,0,.20);
+}
+html:not(.outdoor-mode) .todaypanel,
+html:not(.outdoor-mode) .goals-hero,
+html:not(.outdoor-mode) .comms-card{
+  border:1px solid var(--border-strong);
+  border-radius:var(--r-xl);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(146,210,237,.10), transparent 34%),
+    linear-gradient(155deg, rgba(19,33,43,.98), rgba(10,18,24,.98));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),var(--shadow-soft);
+}
+html:not(.outdoor-mode) .hero-main,
+html:not(.outdoor-mode) .hero-side{
+  border:1px solid var(--border);
+  border-radius:var(--r-xl);
+  background:linear-gradient(155deg, rgba(19,33,43,.94), rgba(10,18,24,.92));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),var(--shadow-soft);
+}
+
+/* Nudge / priority cards */
+html:not(.outdoor-mode) .top-shell-priority .nudge-strip,
+html:not(.outdoor-mode) #checkinNudge,
+html:not(.outdoor-mode) #callConfirmedNudge,
+html:not(.outdoor-mode) #photoNudge{
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+}
+
+/* Session / list rows a touch rounder */
+.sc,.todayitem,.exc,.saved-data,.rtarget,.hero-stat{border-radius:var(--r-md)}
+.hero-week{border-radius:var(--r-md)}
+
+/* ── Controls: inputs, buttons, pills, chips ────────────────────────── */
+.li,.sin,.stat-input,.why-textarea,.milestone-input,.rpe-in,
+.run-field input,.run-field textarea,.run-field select,.pb-search{
+  border-radius:var(--r-sm);
+}
+.savebtn,.save-run-btn,.comms-btn,.goals-prompt-btn,.lbtn,
+.ci-btn-next,.ci-btn-back,.quicklog-btn{border-radius:var(--r-sm);font-family:var(--display);font-weight:700;letter-spacing:.01em;text-transform:none}
+.hicon,.hp,.chip,.todaychip,.race-opt,.badge,.ex-pill,.plate-pill{border-radius:999px}
+.hicon{padding:8px 14px}
+
+/* Accent buttons: subtle gradient lift */
+.savebtn,.save-run-btn,.comms-btn,.goals-prompt-btn,.ci-btn-next,.quicklog-btn.ql-nut{
+  background:linear-gradient(180deg,#a6ddf3,#92d2ed);color:#05202b;
+  box-shadow:0 10px 26px rgba(146,210,237,.28);
+}
+
+/* ── Left rail (desktop) refinement ─────────────────────────────────── */
+@media(min-width:900px){
+  html:not(.outdoor-mode) .tabs{
+    background:linear-gradient(rgba(255,255,255,.08),rgba(255,255,255,.08)) 14px 82px/calc(100% - 28px) 1px no-repeat,
+      linear-gradient(180deg, rgba(10,18,24,.94), rgba(5,11,16,.92));
+    backdrop-filter:blur(22px) saturate(130%);
+    border-right:1px solid var(--border);
+  }
+  html:not(.outdoor-mode) .tab.active{
+    border-radius:12px;
+    background:linear-gradient(90deg, rgba(146,210,237,.16), rgba(146,210,237,.04));
+    box-shadow:inset 3px 0 0 var(--run),inset 0 0 0 1px rgba(146,210,237,.14);
+  }
+  html:not(.outdoor-mode) header{
+    background:rgba(7,17,23,.72);backdrop-filter:blur(22px) saturate(130%);
+    border-bottom-color:var(--border);
+  }
+}
+
+/* Positive chips pick up the softer green */
+.saved-feeling,.badge.ok{color:#d8f7e9}
