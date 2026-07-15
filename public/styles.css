@@ -2487,3 +2487,43 @@ html:not(.outdoor-mode) #photoNudge{
 @media(min-width:900px){
   .outdoor-mode .tab.active{color:#0d3f54}
 }
+
+/* ── Sweep round 2: header dedupe, nudge fit, progress tightening ────── */
+
+/* Training tab shows a page-intro ("Today's Plan") AND the command-centre
+   panel ("Today's command center"). Desktop already hides the intro; do
+   the same on mobile so there's a single, clear header. */
+#tab-training.active > .page-intro{display:none}
+
+/* "Call booked" nudge lays its title + "Karl & Alex · confirmed" on one
+   inline row, which clips on narrow phones. Stack them like the others. */
+@media(max-width:640px){
+  #callConfirmedNudge .nudge-strip-text{flex-direction:column;align-items:flex-start;gap:3px}
+  #callConfirmedNudge .nudge-strip-title{white-space:normal;line-height:1.3}
+  #callConfirmedNudge .nudge-strip-sub{white-space:normal}
+}
+
+/* Progress tab: tighten cards + stat tiles and trim the chart card's dead
+   space so the panels read denser and more polished on mobile. */
+@media(max-width:640px){
+  #tab-progress .card{padding:16px}
+  #tab-progress .pstat{padding:12px 12px}
+  #tab-progress .progress-stats{gap:10px}
+  #tab-progress .card > div > div:empty{display:none}
+}
+
+/* ── Light (outdoor) mode: hero cards must be light at ALL widths ─────
+   The base .hero-main/.hero-side are dark, and outdoor only whitened them
+   at ≥900px — so on mobile the hero stayed dark with dark text on it.
+   Match the other outdoor cards (white surface, dark text) everywhere. */
+.outdoor-mode .hero-main,
+.outdoor-mode .hero-side{
+  background:var(--surface)!important;
+  border:1px solid var(--border)!important;
+  box-shadow:0 10px 26px rgba(30,55,67,.07)!important;
+  color:var(--text);
+}
+.outdoor-mode .hero-main::before{background:linear-gradient(90deg,transparent,var(--run),transparent)}
+.outdoor-mode .hero-week{background:rgba(7,17,22,.04)!important;border-color:var(--border)!important}
+.outdoor-mode .hero-side-label{color:rgba(7,17,22,.6)}
+.outdoor-mode .hero-stat{background:rgba(7,17,22,.035)!important;border-color:var(--border)!important}
