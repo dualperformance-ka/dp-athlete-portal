@@ -2615,3 +2615,121 @@ html:not(.outdoor-mode) #portalScreen .nudge-strip,
 html:not(.outdoor-mode) #portalScreen .sc,
 html:not(.outdoor-mode) #portalScreen .todayitem,
 html:not(.outdoor-mode) #portalScreen .card{border-color:var(--border)!important}
+/* ═══════════════════════════════════════════════════════════════════════
+   DP ATHLETE PORTAL — theme fix patch
+   PASTE THIS AT THE VERY END of your repo's styles.css (main branch), then
+   bump the cache-buster (styles.css?v=28 → ?v=29) in your HTML and deploy.
+
+   All rules below are cascade overrides that use tokens/classes your file
+   already defines (--border, --surface, --text, .outdoor-mode, .hero-main …),
+   so they layer cleanly on top of the existing stylesheet — nothing to merge.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Sweep polish: mobile radii + light-mode nav contrast ───────────── */
+@media(max-width:640px){
+  html:not(.outdoor-mode) .todaypanel,
+  html:not(.outdoor-mode) .goals-hero,
+  html:not(.outdoor-mode) .comms-card,
+  html:not(.outdoor-mode) .hero-main,
+  html:not(.outdoor-mode) .hero-side{border-radius:22px}
+  html:not(.outdoor-mode) .card,
+  html:not(.outdoor-mode) .accordion-card,
+  html:not(.outdoor-mode) .ci-card,
+  html:not(.outdoor-mode) .mc,
+  html:not(.outdoor-mode) .pstat,
+  html:not(.outdoor-mode) .hb-card{border-radius:18px}
+}
+@media(min-width:900px){
+  .outdoor-mode .tab.active{color:#0d3f54}
+}
+
+/* ── Header dedupe, nudge fit, progress tightening ──────────────────── */
+#tab-training.active > .page-intro{display:none}
+@media(max-width:640px){
+  #callConfirmedNudge .nudge-strip-text{flex-direction:column;align-items:flex-start;gap:3px}
+  #callConfirmedNudge .nudge-strip-title{white-space:normal;line-height:1.3}
+  #callConfirmedNudge .nudge-strip-sub{white-space:normal}
+  #tab-progress .card{padding:16px}
+  #tab-progress .pstat{padding:12px 12px}
+  #tab-progress .progress-stats{gap:10px}
+  #tab-progress .card > div > div:empty{display:none}
+}
+
+/* ── Light (outdoor) mode: hero cards light at ALL widths ───────────── */
+.outdoor-mode .hero-main,
+.outdoor-mode .hero-side{
+  background:var(--surface)!important;
+  border:1px solid var(--border)!important;
+  box-shadow:0 10px 26px rgba(30,55,67,.07)!important;
+  color:var(--text);
+}
+.outdoor-mode .hero-main::before{background:linear-gradient(90deg,transparent,var(--run),transparent)}
+.outdoor-mode .hero-week{background:rgba(7,17,22,.04)!important;border-color:var(--border)!important}
+.outdoor-mode .hero-side-label{color:rgba(7,17,22,.6)}
+.outdoor-mode .hero-stat{background:rgba(7,17,22,.035)!important;border-color:var(--border)!important}
+
+/* ── Light mode legibility: darken muted/dim a step ─────────────────── */
+html.outdoor-mode{
+  --muted:rgba(7,17,22,.82);
+  --dim:rgba(7,17,22,.66);
+}
+.outdoor-mode .hi,
+.outdoor-mode .todayeyebrow,
+.outdoor-mode .todaydate,
+.outdoor-mode .hero-week-label,
+.outdoor-mode .nudge-strip-sub,
+.outdoor-mode .smeta,
+.outdoor-mode .card-title,
+.outdoor-mode .pstat-lbl,
+.outdoor-mode .ml,
+.outdoor-mode .ci-lbl{color:rgba(7,17,22,.66)!important}
+
+/* ── Force stray dark cards white in light mode ─────────────────────── */
+html.outdoor-mode #portalScreen .card,
+html.outdoor-mode #portalScreen .weight-trend-card,
+html.outdoor-mode #portalScreen .progress-card,
+html.outdoor-mode #portalScreen .progress-panel,
+html.outdoor-mode #portalScreen .progress-chart-card,
+html.outdoor-mode #portalScreen .progress-spotlight,
+html.outdoor-mode #portalScreen .graph-spotlight{
+  background:var(--surface)!important;
+  border-color:var(--border)!important;
+  color:var(--text);
+}
+html.outdoor-mode #portalScreen .graph-wrap,
+html.outdoor-mode #portalScreen .chart-wrap,
+html.outdoor-mode #portalScreen .chart-container{background:rgba(7,17,22,.03)!important}
+
+/* ── Inline dark-theme colors that break light mode (JS-set) ────────── */
+.outdoor-mode [style*="34,197,94"],
+.outdoor-mode [style*="34, 197, 94"],
+.outdoor-mode [style*="#22c55e"]{color:#12894e!important}
+.outdoor-mode [style*="255,170,0"],
+.outdoor-mode [style*="255, 170, 0"]{color:#8a5800!important}
+
+/* ── Border theming per toggle: white borders in light, dark in dark ── */
+html:not(.outdoor-mode){
+  --border:rgba(0,0,0,.42);
+  --border-mid:rgba(0,0,0,.52);
+  --border-strong:rgba(0,0,0,.6);
+}
+html.outdoor-mode{
+  --border:rgba(7,17,22,.05);
+  --border-mid:rgba(7,17,22,.08);
+  --border-strong:rgba(7,17,22,.1);
+}
+html.outdoor-mode #portalScreen .weight-trend-card,
+html.outdoor-mode #portalScreen .hero-main,
+html.outdoor-mode #portalScreen .hero-side,
+html.outdoor-mode #portalScreen .nudge-strip,
+html.outdoor-mode #portalScreen .sc,
+html.outdoor-mode #portalScreen .todayitem,
+html.outdoor-mode #portalScreen input,
+html.outdoor-mode #portalScreen textarea,
+html.outdoor-mode #portalScreen select{border-color:var(--border)!important}
+html:not(.outdoor-mode) #portalScreen .hero-main,
+html:not(.outdoor-mode) #portalScreen .hero-side,
+html:not(.outdoor-mode) #portalScreen .nudge-strip,
+html:not(.outdoor-mode) #portalScreen .sc,
+html:not(.outdoor-mode) #portalScreen .todayitem,
+html:not(.outdoor-mode) #portalScreen .card{border-color:var(--border)!important}
