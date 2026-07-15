@@ -82,6 +82,7 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 }
 .tab-content{display:none;max-width:700px;margin:0 auto;padding:16px 14px 120px}
 .tab-content.active{display:block}
+.desktop-weekly-tab{display:none}
 .stitle{font-family:var(--display);font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:14px;margin-top:4px}
 .loading{text-align:center;padding:52px 20px}
 .ldots{display:flex;gap:5px;justify-content:center;margin-bottom:12px}
@@ -477,12 +478,14 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
   .nudge-strip-inner{max-width:none}
   .tab-content{max-width:none;padding:28px var(--shellpad) 150px}
 
-  /* Training: today panel sticky on the left, week plan on the right */
-  #tab-training.active{display:grid;grid-template-columns:minmax(410px,480px) minmax(0,1fr);gap:38px;align-items:start}
-  #tab-training>.goals-prompt,#tab-training>.loading,#tab-training>.noplan{grid-column:1/-1}
-  #tab-training .todaywrap{position:sticky;top:148px;margin-bottom:0}
-  #tab-training>#calEl{min-width:0;padding-top:4px}
-  .dg:first-child .dgh{padding-top:0}
+  /* Desktop IA split: Today's Plan is its own destination, and Weekly Plan
+     gets the calendar view in a separate tab. */
+  .desktop-weekly-tab{display:flex}
+  #tab-training.active{display:block;max-width:760px;margin-right:auto}
+  #tab-training .todaywrap{margin-bottom:0}
+  #tab-weekly.active{display:block}
+  #tab-weekly>#weeklyCalEl{min-width:0;padding-top:4px}
+  #tab-weekly>#weeklyCalEl .dg:first-child .dgh{padding-top:0}
 
   /* Nutrition: macros across one row, cards in a two-column grid
      (grid instead of column-count: multicol fragments tall cards and
@@ -1742,17 +1745,17 @@ body.focus-session-open{overflow:hidden}
   .wbar{background:rgba(6,9,11,.74);backdrop-filter:blur(16px)}
   .tabs{background:rgba(5,8,10,.82);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.065)}
   .tab{min-height:48px;padding-left:18px;padding-right:18px;transition:color .16s,background .16s}.tab:hover{color:var(--text);background:rgba(255,255,255,.025)}
-  #tab-training.active{padding-top:34px}
+  #tab-training.active,#tab-weekly.active{padding-top:34px}
   #tab-training .todaywrap{filter:drop-shadow(0 28px 55px rgba(0,0,0,.26))}
   #tab-training .todaypanel{position:relative;overflow:hidden;border-color:rgba(146,210,237,.14);background:linear-gradient(155deg,rgba(19,25,29,.98),rgba(11,15,18,.98));box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 24px 60px rgba(0,0,0,.34)}
   #tab-training .todaypanel::before{content:"";position:absolute;left:26px;right:26px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(146,210,237,.7),transparent);opacity:.62}
-  #tab-training>#calEl{position:relative;padding:26px 28px 34px;border:1px solid rgba(255,255,255,.075);border-radius:20px;background:linear-gradient(180deg,rgba(13,18,21,.76),rgba(7,10,12,.58));box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 22px 60px rgba(0,0,0,.2)}
-  #tab-training>#calEl .week-plan-title{margin-bottom:22px;color:var(--muted);font-size:11px}
-  #tab-training>#calEl .dg{opacity:1;margin-bottom:20px}
-  #tab-training>#calEl .dgh{padding-bottom:10px;margin-bottom:9px}
-  #tab-training>#calEl .sc{border-color:rgba(255,255,255,.085);border-radius:13px;background:rgba(255,255,255,.027);transition:transform .16s,border-color .16s,background .16s,box-shadow .16s}
-  #tab-training>#calEl .sc:hover{transform:translateY(-2px);border-color:rgba(146,210,237,.2);background:rgba(255,255,255,.045);box-shadow:0 12px 26px rgba(0,0,0,.2)}
-  #tab-training>#calEl .sch{padding:17px 18px}
+  #tab-weekly>#weeklyCalEl{position:relative;max-width:1020px;padding:26px 28px 34px;border:1px solid rgba(255,255,255,.075);border-radius:20px;background:linear-gradient(180deg,rgba(13,18,21,.76),rgba(7,10,12,.58));box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 22px 60px rgba(0,0,0,.2)}
+  #tab-weekly>#weeklyCalEl .week-plan-title{margin-bottom:22px;color:var(--muted);font-size:11px}
+  #tab-weekly>#weeklyCalEl .dg{opacity:1;margin-bottom:20px}
+  #tab-weekly>#weeklyCalEl .dgh{padding-bottom:10px;margin-bottom:9px}
+  #tab-weekly>#weeklyCalEl .sc{border-color:rgba(255,255,255,.085);border-radius:13px;background:rgba(255,255,255,.027);transition:transform .16s,border-color .16s,background .16s,box-shadow .16s}
+  #tab-weekly>#weeklyCalEl .sc:hover{transform:translateY(-2px);border-color:rgba(146,210,237,.2);background:rgba(255,255,255,.045);box-shadow:0 12px 26px rgba(0,0,0,.2)}
+  #tab-weekly>#weeklyCalEl .sch{padding:17px 18px}
   .insight-card,.command-status{box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
   .insight-card-button:hover,.command-status:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 8px 18px rgba(0,0,0,.14)}
   .coach-moment{margin-top:2px}
@@ -1794,9 +1797,9 @@ body.focus-session-open{overflow:hidden}
   .outdoor-mode header{background:rgba(255,255,255,.84);backdrop-filter:blur(22px);box-shadow:0 1px 0 rgba(7,17,22,.1)}
   .outdoor-mode #tab-training .todaypanel{background:#fff;border-color:rgba(7,17,22,.13);box-shadow:0 24px 55px rgba(30,55,67,.12)}
   .outdoor-mode #tab-training .todaypanel::before{background:linear-gradient(90deg,transparent,var(--run),transparent)}
-  .outdoor-mode #tab-training>#calEl{background:rgba(255,255,255,.82);border-color:rgba(7,17,22,.12);box-shadow:0 22px 55px rgba(30,55,67,.09)}
-  .outdoor-mode #tab-training>#calEl .sc{background:#fff;border-color:rgba(7,17,22,.13)}
-  .outdoor-mode #tab-training>#calEl .sc:hover{border-color:rgba(8,127,174,.35);box-shadow:0 12px 25px rgba(30,55,67,.1)}
+  .outdoor-mode #tab-weekly>#weeklyCalEl{background:rgba(255,255,255,.82);border-color:rgba(7,17,22,.12);box-shadow:0 22px 55px rgba(30,55,67,.09)}
+  .outdoor-mode #tab-weekly>#weeklyCalEl .sc{background:#fff;border-color:rgba(7,17,22,.13)}
+  .outdoor-mode #tab-weekly>#weeklyCalEl .sc:hover{border-color:rgba(8,127,174,.35);box-shadow:0 12px 25px rgba(30,55,67,.1)}
   .outdoor-mode .quicklog-strip{background:rgba(255,255,255,.9);border-color:rgba(7,17,22,.15);box-shadow:0 18px 45px rgba(30,55,67,.15)}
   .outdoor-mode .card,.outdoor-mode .accordion-card,.outdoor-mode .ci-card,.outdoor-mode .mc,.outdoor-mode .pstat,.outdoor-mode .hb-card{background:#fff;border-color:rgba(7,17,22,.13);box-shadow:0 14px 30px rgba(30,55,67,.08)}
   .outdoor-mode .hb-card:hover{transform:translateY(-2px);border-color:rgba(8,127,174,.35);box-shadow:0 12px 25px rgba(30,55,67,.12)}
@@ -1859,9 +1862,10 @@ body.focus-session-open{overflow:hidden}
   /* Icons: masked SVG, painted with currentColor so they follow theme + state */
   .tabs .tab{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3C/svg%3E")}
   .tabs .tab:nth-of-type(1){--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M13 2 3 14h7l-1 8 11-12h-7z'/%3E%3C/svg%3E")}
-  .tabs .tab:nth-of-type(2){--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2C9 7 6 9 6 13a6 6 0 0 0 12 0c0-4-3-6-6-11z'/%3E%3C/svg%3E")}
-  .tabs .tab:nth-of-type(3){--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='3' width='14' height='19' rx='2'/%3E%3Cpath d='m9 13 2 2 4-5'/%3E%3C/g%3E%3C/svg%3E")}
-  .tabs .tab:nth-of-type(4){--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 17l6-6 4 4 8-8'/%3E%3Cpath d='M15 7h6v6'/%3E%3C/g%3E%3C/svg%3E")}
+  .tabs .tab:nth-of-type(2){--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M16 3v4M8 3v4M3 11h18'/%3E%3C/g%3E%3C/svg%3E")}
+  .tabs .tab:nth-of-type(3){--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2C9 7 6 9 6 13a6 6 0 0 0 12 0c0-4-3-6-6-11z'/%3E%3C/svg%3E")}
+  .tabs .tab:nth-of-type(4){--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='3' width='14' height='19' rx='2'/%3E%3Cpath d='m9 13 2 2 4-5'/%3E%3C/g%3E%3C/svg%3E")}
+  .tabs .tab:nth-of-type(5){--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 17l6-6 4 4 8-8'/%3E%3Cpath d='M15 7h6v6'/%3E%3C/g%3E%3C/svg%3E")}
   .tabs .tab::before{content:"";width:17px;height:17px;flex:0 0 17px;margin-right:11px;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat;opacity:.8}
   .tabs .tab.active::before,.tabs .tab:hover::before{opacity:1}
   .tab{font-size:14px;letter-spacing:.05em}
@@ -1896,16 +1900,15 @@ body.focus-session-open{overflow:hidden}
   .wbar{padding-top:8px;padding-bottom:8px}
   #tab-training.active{padding-top:22px}
 
-  /* Two-pane app scroll: columns cap at viewport, week plan scrolls internally */
+  /* Today's Plan stays compact; Weekly Plan gets the week browser */
   #tab-training .todaywrap{top:104px;max-height:calc(100vh - 118px);overflow-y:auto;overscroll-behavior:contain}
-  #tab-training>#calEl{position:sticky;top:104px;max-height:calc(100vh - 118px);overflow-y:auto;overscroll-behavior:contain;padding-bottom:96px}
   #tab-checkin>.ci-rail{top:104px;max-height:calc(100vh - 118px);overflow-y:auto;overscroll-behavior:contain}
 
   /* Quiet scrollbars inside the panes */
-  #tab-training .todaywrap::-webkit-scrollbar,#tab-training>#calEl::-webkit-scrollbar,#tab-checkin>.ci-rail::-webkit-scrollbar{width:8px}
-  #tab-training .todaywrap::-webkit-scrollbar-thumb,#tab-training>#calEl::-webkit-scrollbar-thumb,#tab-checkin>.ci-rail::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
-  #tab-training .todaywrap::-webkit-scrollbar-track,#tab-training>#calEl::-webkit-scrollbar-track,#tab-checkin>.ci-rail::-webkit-scrollbar-track{background:transparent}
-  .outdoor-mode #tab-training .todaywrap::-webkit-scrollbar-thumb,.outdoor-mode #tab-training>#calEl::-webkit-scrollbar-thumb,.outdoor-mode #tab-checkin>.ci-rail::-webkit-scrollbar-thumb{background:rgba(7,17,22,.2);background-clip:padding-box}
+  #tab-training .todaywrap::-webkit-scrollbar,#tab-checkin>.ci-rail::-webkit-scrollbar{width:8px}
+  #tab-training .todaywrap::-webkit-scrollbar-thumb,#tab-checkin>.ci-rail::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+  #tab-training .todaywrap::-webkit-scrollbar-track,#tab-checkin>.ci-rail::-webkit-scrollbar-track{background:transparent}
+  .outdoor-mode #tab-training .todaywrap::-webkit-scrollbar-thumb,.outdoor-mode #tab-checkin>.ci-rail::-webkit-scrollbar-thumb{background:rgba(7,17,22,.2);background-clip:padding-box}
 
   /* Sticky drop-shadow filter breaks position:sticky descendants - move it */
   #tab-training .todaywrap{filter:none}

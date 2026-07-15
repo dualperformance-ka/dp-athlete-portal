@@ -265,7 +265,8 @@
   </div>
 
   <div class="tabs" role="tablist" aria-label="Portal sections">
-    <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="training" onclick="switchTab('training')">Training</button>
+    <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="training" onclick="switchTab('training')">Today's Plan</button>
+    <button class="tab desktop-weekly-tab" type="button" role="tab" aria-selected="false" data-tab="weekly" onclick="switchTab('weekly')">Weekly Plan</button>
     <button class="tab" type="button" role="tab" aria-selected="false" data-tab="nutrition" onclick="switchTab('nutrition')">Nutrition</button>
     <button class="tab" type="button" role="tab" aria-selected="false" data-tab="checkin" onclick="switchTab('checkin')">Weekly Check-in<span class="tab-dot" id="tabDotCheckin"></span></button>
     <button class="tab" type="button" role="tab" aria-selected="false" data-tab="progress" onclick="switchTab('progress')">Progress<span class="tab-dot" id="tabDotProgress"></span></button>
@@ -290,8 +291,22 @@
       <button class="load-error-btn" onclick="loadWeek()"><svg class="icon" style="width:13px;height:13px"><use href="#i-refresh"/></svg> Retry</button>
     </div>
     <div id="todayEl" class="todaywrap" style="display:none"></div>
-    <div id="calEl" style="display:none"></div>
+    <div id="calEl" class="weeklyplan-wrap" style="display:none"></div>
     <div class="noplan" id="noplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
+  </div>
+
+  <div class="tab-content" id="tab-weekly">
+    <div class="loading" id="weeklyLoadingEl" style="display:none">
+      <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
+      <div class="ltxt">Loading your weekly plan...</div>
+    </div>
+    <div class="load-error" id="weeklyLoadErrEl" style="display:none">
+      <div class="load-error-title">Couldn&rsquo;t load your week</div>
+      <div class="load-error-sub">Looks like a connection problem — your plan is still there.</div>
+      <button class="load-error-btn" onclick="loadWeek()"><svg class="icon" style="width:13px;height:13px"><use href="#i-refresh"/></svg> Retry</button>
+    </div>
+    <div id="weeklyCalEl" class="weeklyplan-wrap" style="display:none"></div>
+    <div class="noplan" id="weeklyNoplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
   </div>
 
   <!-- GOALS -->
