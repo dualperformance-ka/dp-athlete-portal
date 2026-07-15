@@ -1563,24 +1563,15 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode header{box-shadow:0 1px 0 var(--border)}
 .outdoor-mode .logo-text .d,.outdoor-mode .logo-text .p{color:var(--text)}
 .outdoor-mode .hero{background:#fff!important;border-bottom:1px solid var(--border)}
-.outdoor-mode .top-shell{background:linear-gradient(180deg,#edf3f5,#f5f8f9)}
-.outdoor-mode .hero-main,
-.outdoor-mode .hero-side{background:#fff!important;border-color:rgba(7,17,22,.13)!important;box-shadow:0 20px 45px rgba(30,55,67,.08)!important}
-.outdoor-mode .hero-main::before{background:linear-gradient(90deg,transparent,var(--run),transparent)}
 .outdoor-mode .hi,.outdoor-mode .hero-week-label,.outdoor-mode .hp{color:var(--dim)!important}
 .outdoor-mode .hn,.outdoor-mode .wlabel,.outdoor-mode .nut-wlabel{color:var(--text)!important}
 .outdoor-mode .hero-week-num,.outdoor-mode .hp span{color:var(--run-strong)!important}
-.outdoor-mode .hero-support{color:var(--muted)!important}
-.outdoor-mode .hero-week,
-.outdoor-mode .hero-stat,
-.outdoor-mode .ring-item{background:var(--surface2)!important;border-color:var(--border)!important;box-shadow:none!important}
 .outdoor-mode .hp,.outdoor-mode #dp-strava-btn{background:var(--surface2)!important;border-color:var(--border)!important;color:var(--text)!important;box-shadow:none!important}
 
 .outdoor-mode .nudge-strip,.outdoor-mode #checkinNudge,.outdoor-mode #callNudge,.outdoor-mode #callConfirmedNudge,.outdoor-mode #photoNudge{background:var(--surface)!important;border-color:var(--border)!important;box-shadow:none!important}
 .outdoor-mode .nudge-strip-title,.outdoor-mode #checkinNudge .nudge-strip-title,.outdoor-mode #callConfirmedTitle{color:var(--text)!important}
 .outdoor-mode .nudge-strip-sub,.outdoor-mode #checkinNudge .nudge-strip-sub{color:var(--muted)!important}
 .outdoor-mode .nudge-strip-icon{opacity:1}
-.outdoor-mode .top-shell-priority .nudge-strip{background:#fff!important;border-color:rgba(7,17,22,.13)!important;box-shadow:0 12px 28px rgba(30,55,67,.06)!important}
 .outdoor-mode #checkinNudge::before{background:var(--run)}
 .outdoor-mode #checkinNudge .nudge-strip-icon{background:var(--run-bg);border-color:var(--run-border)}
 
@@ -1806,21 +1797,20 @@ body.focus-session-open{overflow:hidden}
   html:not(.outdoor-mode) .hero{background:linear-gradient(180deg,rgba(14,20,24,.78),rgba(7,10,12,.58));border-bottom:1px solid rgba(255,255,255,.075)}
   .top-shell{padding:22px var(--shellpad) 18px;background:linear-gradient(180deg,rgba(6,9,11,.9),rgba(6,9,11,.58))}
   .hero{padding:0;background:transparent!important;border-bottom:0!important}
-  .hero-shell{display:grid;grid-template-columns:minmax(0,1.38fr) minmax(320px,.62fr);gap:18px;align-items:stretch;max-width:1320px;margin:0 auto}
+  .hero-shell{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(320px,.72fr);gap:18px;align-items:stretch;max-width:1200px;margin:0 auto}
   .hero-main,.hero-side{padding:26px 28px;border-radius:26px;box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 22px 50px rgba(0,0,0,.22)}
-  .hero-main{align-self:stretch;display:flex;flex-direction:column;align-items:stretch;gap:18px;min-height:300px;justify-content:space-between;text-align:left;padding:26px 38px 28px}
-  .hero-side{display:flex;flex-direction:column;justify-content:center;gap:16px}
-  .hi{margin-bottom:0;text-align:left}
-  .hero-name-row{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin:0;width:100%;max-width:none;padding-right:0}
-  .hero-week{position:absolute;right:0;top:50%;transform:translateY(-50%);align-self:auto;margin-left:0;min-width:124px;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.04)}
-  .hero{padding-top:0;padding-bottom:0}.hn{letter-spacing:-.055em;font-size:82px;max-width:8ch;line-height:.9}
-  .hero-week-num{letter-spacing:-.04em;font-size:38px}
-  .hero-support{font-size:15px;max-width:56ch;margin:0;color:rgba(244,251,255,.76)}
-  .hero-bottom{width:100%;max-width:none;margin:0;grid-template-columns:auto minmax(0,1fr);justify-items:stretch;align-items:end;gap:20px}
-  .hero-stat-grid{width:100%;gap:12px}
+  .hero-main{align-self:stretch;display:flex;flex-direction:column;gap:20px;justify-content:center}
+  .hero-side{align-self:stretch;display:flex;flex-direction:column;justify-content:center;gap:16px}
+  .hi{margin-bottom:0}
+  .hero-name-row{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:0}
+  .hero-week{align-self:flex-start;margin-left:0;min-width:124px;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.04)}
+  .hero{padding-top:0;padding-bottom:0}.hn{letter-spacing:-.055em;font-size:76px;max-width:7.4ch}.hero-week-num{letter-spacing:-.04em;font-size:38px}
+  .hero-support{font-size:15px;max-width:46ch}
+  .hero-bottom{grid-template-columns:auto minmax(0,1fr);align-items:end;gap:18px}
+  .hero-stat-grid{gap:12px}
   .hero-stat{padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.04)}
   .hero-stat-value{font-size:28px}
-  .hpills{margin-bottom:0;align-self:end;justify-content:flex-start}
+  .hpills{margin-bottom:0;align-self:start}
   .week-rings{grid-template-columns:1fr;gap:12px}
   .ring-item{padding:18px;border-radius:20px}
   .ring-wrap{width:64px;height:64px}
@@ -1828,7 +1818,7 @@ body.focus-session-open{overflow:hidden}
   .ring-val{font-size:30px}
   .ring-sub{font-size:10px;letter-spacing:.1em}
   .ring-src{font-size:9px}
-  .top-shell-priority{max-width:1320px;margin:14px auto 0;grid-template-columns:minmax(0,1.05fr) minmax(0,.9fr) minmax(0,1.05fr);gap:12px;align-items:stretch}
+  .top-shell-priority{max-width:1200px;margin:14px auto 0;grid-template-columns:minmax(0,1.15fr) minmax(0,.9fr) minmax(0,1.1fr);gap:12px;align-items:stretch}
   .top-shell-priority>#strava-ack-banner{grid-column:1/-1}
   .top-shell-priority .nudge-strip{padding:16px 18px;height:100%}
   .top-shell-priority .nudge-strip-inner{max-width:none;align-items:center}
@@ -1849,8 +1839,7 @@ body.focus-session-open{overflow:hidden}
   #tab-training .todaywrap{filter:drop-shadow(0 28px 55px rgba(0,0,0,.26))}
   #tab-training .todaypanel{position:relative;overflow:hidden;border-color:rgba(146,210,237,.14);background:linear-gradient(155deg,rgba(19,25,29,.98),rgba(11,15,18,.98));box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 24px 60px rgba(0,0,0,.34)}
   #tab-training .todaypanel::before{content:"";position:absolute;left:26px;right:26px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(146,210,237,.7),transparent);opacity:.62}
-  #tab-weekly.active{max-width:1360px;margin:0 auto}
-  #tab-weekly>#weeklyCalEl{position:relative;max-width:1320px;width:100%;margin:0 auto;overflow:hidden;padding:26px 24px 34px;border:1px solid rgba(255,255,255,.075);border-radius:20px;background:linear-gradient(180deg,rgba(13,18,21,.76),rgba(7,10,12,.58));box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 22px 60px rgba(0,0,0,.2)}
+  #tab-weekly>#weeklyCalEl{position:relative;max-width:none;width:100%;padding:26px 28px 34px;border:1px solid rgba(255,255,255,.075);border-radius:20px;background:linear-gradient(180deg,rgba(13,18,21,.76),rgba(7,10,12,.58));box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 22px 60px rgba(0,0,0,.2)}
   #tab-weekly>#weeklyCalEl .week-plan-title{margin-bottom:22px;color:var(--muted);font-size:11px}
   #tab-weekly>#weeklyCalEl .dg{opacity:1;margin-bottom:20px}
   #tab-weekly>#weeklyCalEl .dgh{padding-bottom:10px;margin-bottom:9px}
@@ -2022,113 +2011,6 @@ body.focus-session-open{overflow:hidden}
   #tab-training .todaywrap{filter:none}
   #tab-training .todaypanel{filter:drop-shadow(0 20px 45px rgba(0,0,0,.22))}
   .outdoor-mode #tab-training .todaypanel{filter:none}
-}
-
-/* ── Desktop fit sweep ──────────────────────────────────────────
-   Keep every main surface inside one consistent content frame so
-   panels stay fully viewable within the window. */
-@media(min-width:900px){
-  :root{
-    --content-max:1240px;
-    --content-wide:1360px;
-    --shellpad:max(28px,calc((100vw - var(--railw) - var(--content-wide))/2));
-  }
-
-  .tab-content{
-    overflow-x:clip;
-  }
-
-  .tab-content.active,
-  #tab-training.active,
-  #tab-weekly.active,
-  #tab-goals.active,
-  #tab-nutrition.active,
-  #tab-checkin.active,
-  #tab-progress.active,
-  #tab-handbook.active,
-  #tab-comms.active{
-    width:100%;
-    max-width:var(--content-wide);
-    margin-left:auto;
-    margin-right:auto;
-  }
-
-  #tab-goals.active,
-  #tab-progress.active,
-  #tab-checkin.active,
-  #tab-comms.active{
-    max-width:var(--content-max);
-  }
-
-  #tab-training.active,
-  #tab-weekly.active{
-    max-width:var(--content-wide);
-  }
-
-  #tab-nutrition>.page-intro,
-  #tab-nutrition>.nut-wbar,
-  #nutContent,
-  #tab-handbook>.page-intro,
-  #tab-handbook>.hb-grid,
-  #tab-comms>.page-intro,
-  #tab-comms>.comms-card{
-    max-width:var(--content-max);
-    margin-left:auto;
-    margin-right:auto;
-  }
-
-  #tab-training.active>*,
-  #tab-weekly.active>*,
-  #tab-goals.active>*,
-  #tab-nutrition.active>*,
-  #tab-checkin.active>*,
-  #tab-progress.active>*,
-  #tab-handbook.active>*,
-  #tab-comms.active>*{
-    min-width:0;
-  }
-
-  .page-intro,
-  .goals-hero,
-  .todaypanel,
-  .card,
-  .accordion-card,
-  .ci-card,
-  .mc,
-  .pstat,
-  .hb-card,
-  .comms-card,
-  .week-plan-shell,
-  .week-glance,
-  .progress-stats,
-  .macro-grid,
-  .stat-grid,
-  .milestone-grid,
-  .ci-grid,
-  .hb-grid,
-  .insight-rail,
-  .command-status-grid{
-    max-width:100%;
-  }
-
-  .progress-stats,
-  .macro-grid,
-  .stat-grid,
-  .milestone-grid,
-  .ci-grid,
-  .hb-grid,
-  .insight-rail,
-  .command-status-grid{
-    align-items:stretch;
-  }
-
-  #tab-weekly>#weeklyCalEl{
-    max-width:var(--content-wide);
-  }
-
-  .week-glance{
-    width:100%;
-  }
 }
 
 /* ── Progress tab layout fix (≥900px) ──
@@ -2370,13 +2252,13 @@ input[type=range].sl-untouched{opacity:.45}
 .outdoor-mode .toast.toast-error{background:#3b0d10;color:#ffe4e6}
 
 /* ── WEEK AT A GLANCE (bird's-eye strip above the day list) ── */
-.week-glance{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin:0 0 20px}
-.wg-day{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:12px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-family:var(--body);min-width:0;transition:border-color .16s,background .16s,transform .12s}
+.week-glance{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin:0 0 20px}
+.wg-day{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:13px 8px 11px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-family:var(--body);min-width:0;transition:border-color .16s,background .16s,transform .12s}
 .wg-day:hover{border-color:rgba(146,210,237,.22);background:rgba(255,255,255,.05);transform:translateY(-1px)}
 .wg-day.today{border-color:var(--run-border);background:linear-gradient(180deg,rgba(146,210,237,.12),rgba(255,255,255,.03))}
 .wg-day.done{border-color:rgba(115,209,167,.28)}
 .wg-name{font-family:var(--mono);font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:var(--dim)}
-.wg-date{font-family:var(--display);font-size:15px;font-weight:700;color:var(--text);line-height:1}
+.wg-date{font-family:var(--display);font-size:16px;font-weight:700;color:var(--text);line-height:1}
 .wg-dots{display:flex;gap:3px;align-items:center;min-height:8px}
 .wg-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
 .wg-dot.run{background:var(--run)}
@@ -2387,7 +2269,7 @@ input[type=range].sl-untouched{opacity:.45}
 
 /* Glance tiles: session labels instead of dots */
 .wg-labs{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:12px;max-width:100%}
-.wg-lab{font-family:var(--mono);font-size:7px;text-transform:uppercase;letter-spacing:.03em;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wg-lab{font-family:var(--mono);font-size:8px;text-transform:uppercase;letter-spacing:.03em;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wg-lab.run{color:var(--run)}
 .wg-lab.strength{color:var(--strength)}
 .wg-lab.note{color:var(--pb)}
@@ -2445,119 +2327,4 @@ input[type=range].sl-untouched{opacity:.45}
   .coach-moment{grid-template-columns:auto minmax(0,1fr)}
   .coach-moment button{grid-column:2;justify-self:start}
   .insight-rail{grid-template-columns:1fr}
-}
-
-@media(max-width:760px){
-  .top-shell{
-    padding:10px 10px 8px;
-  }
-
-  .hero-shell{
-    gap:10px;
-  }
-
-  .hero-main,
-  .hero-side{
-    padding:14px 14px 12px;
-    border-radius:18px;
-  }
-
-  .hero-main::before{
-    left:14px;
-    right:14px;
-  }
-
-  .hero-name-row{
-    gap:10px;
-    margin-bottom:8px;
-  }
-
-  .hn{
-    font-size:31px;
-    line-height:.92;
-    max-width:6.8ch;
-  }
-
-  .hero-week{
-    margin-left:0;
-    padding:8px 10px;
-    border-radius:14px;
-  }
-
-  .hero-week-num{
-    font-size:22px;
-  }
-
-  .hero-support{
-    display:none;
-  }
-
-  .hero-bottom{
-    gap:10px;
-    margin-top:0;
-  }
-
-  .hpills{
-    gap:5px;
-  }
-
-  .hero-stat-grid{
-    gap:8px;
-  }
-
-  .hero-stat{
-    padding:10px 10px 9px;
-    border-radius:14px;
-  }
-
-  .hero-stat-value{
-    margin-top:4px;
-    font-size:18px;
-  }
-
-  .hero-side-label{
-    margin-bottom:8px;
-  }
-
-  .week-rings{
-    gap:8px;
-  }
-
-  .ring-item{
-    gap:10px;
-    padding:10px 12px;
-    border-radius:14px;
-  }
-
-  .ring-wrap,
-  .ring-svg{
-    width:52px;
-    height:52px;
-  }
-
-  .ring-val{
-    font-size:20px;
-  }
-
-  .top-shell-priority{
-    gap:8px;
-    margin-top:8px;
-  }
-
-  .top-shell-priority .nudge-strip{
-    padding:12px 14px;
-    border-radius:14px;
-  }
-
-  .top-shell-priority .nudge-strip-inner{
-    gap:10px;
-  }
-
-  .top-shell-priority .nudge-strip-title{
-    font-size:12px;
-  }
-
-  .wbar{
-    padding:8px 10px;
-  }
 }
