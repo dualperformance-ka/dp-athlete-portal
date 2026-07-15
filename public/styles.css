@@ -489,7 +489,9 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
   .desktop-weekly-tab{display:flex}
   #tab-training.active{display:block;max-width:760px;margin-right:auto}
   #tab-training .todaywrap{margin-bottom:0}
+  #tab-training>#calEl,#tab-training>#noplanEl{display:none!important}
   #tab-weekly.active{display:block}
+  #tab-weekly>#todayEl{display:none!important}
   #tab-weekly>#weeklyCalEl{min-width:0;padding-top:4px}
   #tab-weekly>#weeklyCalEl .dg:first-child .dgh{padding-top:0}
 
@@ -1700,10 +1702,11 @@ body{font-size:15px;line-height:1.55}
   .quicklog-strip{left:50%;right:auto;width:min(720px,calc(100vw - 48px));transform:translateX(-50%);border:1px solid var(--border-mid);border-bottom:0;border-radius:14px 14px 0 0;box-shadow:0 -10px 35px rgba(0,0,0,.24)}
 }
 @media(min-width:1200px){
-  #tab-training.active{grid-template-columns:minmax(480px,540px) minmax(0,1fr);gap:42px}
+  #tab-training.active{max-width:820px}
+  #tab-weekly.active{max-width:none}
 }
 @media(min-width:1600px){
-  #tab-training.active{grid-template-columns:560px minmax(0,1fr);gap:48px}
+  #tab-training.active{max-width:880px}
   .todaypanel{padding:26px}
 }
 
