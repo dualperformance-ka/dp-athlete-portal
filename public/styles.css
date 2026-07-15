@@ -1915,7 +1915,11 @@ body.focus-session-open{overflow:hidden}
 
   /* Everything except the rail shifts right */
   header,.hero,.wbar,.nudge-strip,.tab-content{margin-left:var(--railw)}
-  .top-shell{margin-left:var(--railw)}
+  /* .top-shell is nested inside .hero, which already carries the rail
+     offset above — re-applying it here double-shifted the hero band
+     ~236px right, making it narrower and misaligned with the panels
+     below. Keep it at 0 so the band matches .tab-content width. */
+  .top-shell{margin-left:0}
   header{justify-content:flex-end}
   header .logo{display:none}
 
