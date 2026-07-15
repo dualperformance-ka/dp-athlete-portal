@@ -1793,9 +1793,12 @@ body.focus-session-open{overflow:hidden}
   .hero{padding:0;background:transparent!important;border-bottom:0!important}
   .hero-shell{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(320px,.85fr);gap:18px;align-items:start;max-width:1200px;margin:0 auto}
   .hero-main,.hero-side{padding:24px 26px;border-radius:24px;box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 22px 50px rgba(0,0,0,.22)}
-  .hero-main{align-self:start}
+  .hero-main{align-self:start;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"kicker week" "name week" "pills week";gap:10px 18px}
   .hero-side{display:flex;flex-direction:column;justify-content:flex-start;gap:16px}
-  .hero{padding-top:0;padding-bottom:0}.hn{letter-spacing:-.035em;font-size:58px;max-width:none}.hero-week-num{letter-spacing:-.03em}
+  .hi{grid-area:kicker;margin-bottom:0}
+  .hero-name-row{grid-area:name;display:block;margin-bottom:0}
+  .hero-week{grid-area:week;align-self:start;margin-left:0;min-width:124px}
+  .hero{padding-top:0;padding-bottom:0}.hn{letter-spacing:-.04em;font-size:64px;max-width:8.6ch}.hero-week-num{letter-spacing:-.03em}
   .hpills{margin-bottom:0}
   .week-rings{grid-template-columns:1fr;gap:12px}
   .ring-item{padding:16px 18px;border-radius:18px}
@@ -1804,18 +1807,18 @@ body.focus-session-open{overflow:hidden}
   .ring-val{font-size:26px}
   .ring-sub{font-size:10px}
   .ring-src{font-size:9px}
-  .top-shell-priority{max-width:1200px;margin:14px auto 0;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
+  .top-shell-priority{max-width:1200px;margin:14px auto 0;grid-template-columns:minmax(0,1.15fr) minmax(0,.9fr) minmax(0,1.1fr);gap:12px;align-items:stretch}
   .top-shell-priority>#strava-ack-banner{grid-column:1/-1}
   .top-shell-priority .nudge-strip{padding:16px 18px;height:100%}
-  .top-shell-priority .nudge-strip-inner{max-width:none;align-items:flex-start}
+  .top-shell-priority .nudge-strip-inner{max-width:none;align-items:center}
   .top-shell-priority .nudge-strip-title{font-size:15px}
   .top-shell-priority .nudge-strip-sub{font-size:10px}
   #callConfirmedNudge{padding-top:16px;padding-bottom:16px}
   #callConfirmedNudge::before{display:none}
-  #callConfirmedNudge .nudge-strip-text{display:block}
-  #callConfirmedNudge .nudge-strip-title{font-size:15px;white-space:normal;overflow:visible}
-  #callConfirmedNudge .nudge-strip-sub{margin-top:4px;white-space:normal}
-  .wbar{background:rgba(6,9,11,.74);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.05)}
+  .top-shell-priority #callConfirmedNudge .nudge-strip-text{display:block}
+  .top-shell-priority #callConfirmedNudge .nudge-strip-title{font-size:15px;white-space:normal;overflow:visible}
+  .top-shell-priority #callConfirmedNudge .nudge-strip-sub{margin-top:4px;white-space:normal}
+  .wbar{background:transparent;backdrop-filter:none;border-top:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.05)}
   .wbar{padding-left:var(--shellpad);padding-right:var(--shellpad)}
   .wbar>.wbar-meta,.wbar>.wnav{max-width:1200px}
   .wbar{display:flex}
@@ -2060,6 +2063,13 @@ body.focus-session-open{overflow:hidden}
 .outdoor-mode #callConfirmedNudge .nudge-strip-sub{color:#15803d!important}
 .outdoor-mode #callConfirmedNudge .nudge-strip-icon{background:rgba(21,128,61,.08);border-color:rgba(21,128,61,.3)}
 .outdoor-mode #callConfirmedNudge .nudge-strip-icon .icon{color:#15803d}
+
+@media(min-width:900px){
+  .top-shell-priority #callConfirmedNudge::before{display:none}
+  .top-shell-priority #callConfirmedNudge .nudge-strip-text{display:block}
+  .top-shell-priority #callConfirmedNudge .nudge-strip-title{font-size:15px;white-space:normal;overflow:visible}
+  .top-shell-priority #callConfirmedNudge .nudge-strip-sub{margin-top:4px;white-space:normal}
+}
 
 /* ════════════════════════════════════════════════════════════════
    MOBILE TYPE + ERGONOMICS SWEEP (v22)
