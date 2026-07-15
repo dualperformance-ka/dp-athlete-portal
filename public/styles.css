@@ -2527,3 +2527,57 @@ html:not(.outdoor-mode) #photoNudge{
 .outdoor-mode .hero-week{background:rgba(7,17,22,.04)!important;border-color:var(--border)!important}
 .outdoor-mode .hero-side-label{color:rgba(7,17,22,.6)}
 .outdoor-mode .hero-stat{background:rgba(7,17,22,.035)!important;border-color:var(--border)!important}
+
+/* ── Light mode legibility: muted/dim sub-labels were sitting right at
+   the 4.5:1 minimum and reading as "too light". Darken the tokens a step
+   so captions, meta text and eyebrows are comfortably visible. ──────── */
+html.outdoor-mode{
+  --muted:rgba(7,17,22,.82);
+  --dim:rgba(7,17,22,.66);
+}
+/* Belt-and-braces for the specific eyebrow/caption classes that use dim */
+.outdoor-mode .hi,
+.outdoor-mode .todayeyebrow,
+.outdoor-mode .todaydate,
+.outdoor-mode .hero-week-label,
+.outdoor-mode .nudge-strip-sub,
+.outdoor-mode .smeta,
+.outdoor-mode .card-title,
+.outdoor-mode .pstat-lbl,
+.outdoor-mode .ml,
+.outdoor-mode .ci-lbl{color:rgba(7,17,22,.66)!important}
+
+/* Some progress/chart cards render as plain .card but keep a dark
+   (#0a0a0a) background in light mode, so their dark title lands on a dark
+   surface (invisible). Force every card-like surface to the light surface
+   in outdoor mode with ID-level specificity so no stray dark bg survives. */
+html.outdoor-mode #portalScreen .card,
+html.outdoor-mode #portalScreen .weight-trend-card,
+html.outdoor-mode #portalScreen .progress-card,
+html.outdoor-mode #portalScreen .progress-panel,
+html.outdoor-mode #portalScreen .progress-chart-card,
+html.outdoor-mode #portalScreen .progress-spotlight,
+html.outdoor-mode #portalScreen .graph-spotlight{
+  background:var(--surface)!important;
+  border-color:var(--border)!important;
+  color:var(--text);
+}
+/* Keep the chart card's own inner graph surface light too */
+html.outdoor-mode #portalScreen .graph-wrap,
+html.outdoor-mode #portalScreen .chart-wrap,
+html.outdoor-mode #portalScreen .chart-container{background:rgba(7,17,22,.03)!important}
+
+/* Several values/labels use INLINE colors the app's JS hard-codes for the
+   dark theme (bright green, amber, translucent-white eyebrows). On white
+   they drop below AA. Override the specific inline patterns for light mode. */
+/* Bright green metric deltas (rgb 34,197,94) → darker readable green */
+.outdoor-mode [style*="34,197,94"],
+.outdoor-mode [style*="34, 197, 94"],
+.outdoor-mode [style*="#22c55e"]{color:#12894e!important}
+/* Amber warnings (rgb 255,170,0) → darker amber */
+.outdoor-mode [style*="255,170,0"],
+.outdoor-mode [style*="255, 170, 0"]{color:#8a5800!important}
+/* NOTE: some sub-panels (check-in step cards, the weight chart) are
+   deliberately dark even in light mode, with light inline text. We do NOT
+   blanket-darken translucent-white inline text, because that turns those
+   panels' labels dark-on-dark. Fully theming those needs the app JS. */
