@@ -2533,6 +2533,7 @@ html:not(.outdoor-mode) #photoNudge{
    the 4.5:1 minimum and reading as "too light". Darken the tokens a step
    so captions, meta text and eyebrows are comfortably visible. ──────── */
 html.outdoor-mode{
+  --run-strong:#075f82;
   --muted:rgba(7,17,22,.82);
   --dim:rgba(7,17,22,.66);
 }
