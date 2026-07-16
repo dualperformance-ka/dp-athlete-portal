@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v45'; // v45: mobile calendar + full-screen day plans + styles.css?v=36
+const CACHE_NAME = 'dp-athlete-v46'; // v46: full mobile month calendar + session labels + styles.css?v=37
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=36', '/config.js',
+  '/index.html', '/styles.css?v=37', '/config.js',
   '/js/01-core.js',
   '/js/02-login-goals.js',
   '/js/03-nav-nudges.js',

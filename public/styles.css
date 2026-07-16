@@ -2989,11 +2989,11 @@ button.hero-stat{
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   APPLE-STYLE MOBILE TRAINING CALENDAR · v36
-   A clean week selector replaces the long mobile agenda. Tapping a date
-   opens that day as a dedicated, full-screen session workspace.
+   APPLE-STYLE MOBILE TRAINING CALENDAR · v37
+   A complete month view shows every planned session at a glance. Tapping
+   a date opens that day as a dedicated, full-screen session workspace.
    ══════════════════════════════════════════════════════════════════════ */
-.week-plan-title-mobile,.week-plan-subtitle-mobile,.week-calendar-hint{display:none}
+.week-plan-title-mobile,.week-plan-subtitle-mobile,.week-calendar-hint,.month-calendar-actions,.month-weekdays,.month-grid{display:none}
 body.day-plan-open{overflow:hidden}
 .day-plan-overlay{
   position:fixed;inset:0;z-index:220;display:flex;flex-direction:column;overflow:hidden;
@@ -3031,16 +3031,46 @@ body.day-plan-open{overflow:hidden}
 
 @media(max-width:760px){
   body.mobile-training-calendar .top-shell{display:none}
-  body.mobile-training-calendar .wbar{top:62px}
-  body.mobile-training-calendar #tab-training{padding-top:14px;padding-bottom:96px}
+  body.mobile-training-calendar .wbar{display:none}
+  body.mobile-training-calendar #tab-training{padding-top:10px;padding-bottom:96px}
   body.mobile-training-calendar .quicklog-strip,body.mobile-training-calendar .wa-fab{display:none!important}
   .week-plan-title-desktop,.week-plan-subtitle-desktop{display:none}
   .week-plan-title-mobile,.week-plan-subtitle-mobile{display:inline}
-  .week-plan-shell{display:block;padding:8px 2px 18px;margin-bottom:0;border-bottom:0}
+  .week-plan-shell{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:8px 2px 14px;margin-bottom:0;border-bottom:0}
+  .week-plan-heading-copy{min-width:0;flex:1 1 auto}
   .week-plan-kicker{font-size:9px;letter-spacing:.14em;color:var(--run)}
-  .week-plan-shell .week-plan-title{margin-top:4px;font-size:34px;line-height:1;letter-spacing:-.04em}
-  .week-plan-subtitle{margin-top:8px;font-size:13px;color:var(--muted)}
+  .week-plan-shell .week-plan-title{margin-top:4px;font-size:31px;line-height:1;letter-spacing:-.04em;white-space:nowrap}
+  .week-plan-subtitle{max-width:26ch;margin-top:7px;font-size:11px;line-height:1.35;color:var(--muted)}
   .week-plan-meta{display:none}
+  .month-calendar-actions{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+  .month-calendar-actions button{height:34px;min-width:34px;display:grid;place-items:center;padding:0;border:1px solid var(--border);border-radius:50%;background:rgba(255,255,255,.035);color:var(--text);cursor:pointer}
+  .month-calendar-actions button .icon{width:15px;height:15px}
+  .month-calendar-actions .month-today-btn{width:auto;min-width:0;padding:0 9px;border-radius:999px;font:600 10px var(--body);color:var(--run)}
+
+  .month-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding:8px 0 7px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+  .month-weekdays span{text-align:center;font-family:var(--mono);font-size:7px;line-height:1;text-transform:uppercase;letter-spacing:.04em;color:var(--dim)}
+  .month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));width:100%;border-bottom:1px solid var(--border)}
+  .month-day{
+    position:relative;display:flex;flex-direction:column;align-items:stretch;min-width:0;min-height:76px;
+    padding:5px 3px 4px;border:0;border-right:1px solid rgba(255,255,255,.045);border-bottom:1px solid rgba(255,255,255,.055);
+    border-radius:0;background:transparent;color:var(--text);font:inherit;text-align:left;overflow:hidden;cursor:pointer;
+  }
+  .month-day:nth-child(7n){border-right:0}
+  .month-day:focus-visible{z-index:2;outline:2px solid var(--run);outline-offset:-2px}
+  .month-day.selected{background:rgba(146,210,237,.055)}
+  .month-day.outside-month{opacity:.32}
+  .month-date{width:24px;height:24px;display:grid;place-items:center;align-self:center;border-radius:50%;font-size:13px;line-height:1;font-weight:650;color:var(--text)}
+  .month-day.today .month-date{background:var(--run);color:#05202b;box-shadow:0 5px 14px rgba(146,210,237,.24)}
+  .month-session-list{display:flex;flex-direction:column;gap:2px;min-width:0;margin-top:3px}
+  .month-session{display:block;min-width:0;padding:2px 3px;border-radius:4px;font-family:var(--body);font-size:7.5px;line-height:1.2;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#06131a;background:var(--run)}
+  .month-session.strength{color:var(--text);background:rgba(255,255,255,.13);box-shadow:inset 2px 0 0 rgba(244,251,255,.72)}
+  .month-session.run{background:var(--run)}
+  .month-session.note{color:#1b1121;background:var(--pb)}
+  .month-session.more{color:var(--muted);background:rgba(255,255,255,.055);font-weight:600}
+  .month-done{position:absolute;top:7px;right:4px;color:var(--ok);font-size:8px;font-weight:800}
+  .outdoor-mode .month-day{border-color:rgba(7,17,22,.08)}
+  .outdoor-mode .month-calendar-actions button{background:#fff;border-color:var(--border)}
+  .outdoor-mode .month-session.strength{background:rgba(7,17,22,.08);box-shadow:inset 2px 0 0 rgba(7,17,22,.46)}
 
   .week-glance{
     position:relative;width:100%;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;
@@ -3073,7 +3103,14 @@ body.day-plan-open{overflow:hidden}
 }
 
 @media(max-width:390px){
-  .week-plan-shell .week-plan-title{font-size:31px}
+  .week-plan-shell{gap:7px}
+  .week-plan-shell .week-plan-title{font-size:28px}
+  .week-plan-subtitle{font-size:10px}
+  .month-calendar-actions{gap:3px}
+  .month-calendar-actions button{height:31px;min-width:31px}
+  .month-calendar-actions .month-today-btn{padding:0 7px;font-size:9px}
+  .month-day{min-height:70px;padding-left:2px;padding-right:2px}
+  .month-session{font-size:7px;padding-left:2px;padding-right:2px}
   .wg-day,.wg-day:hover,.wg-day.today,.wg-day.done{min-height:84px}
   .wg-name{font-size:8px}
   .wg-date{width:31px;height:31px;font-size:16px}

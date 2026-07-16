@@ -1,8 +1,33 @@
 // ── LOAD WEEK ─────────────────────────────────────────────────────────────────
 function setDisplay(id,value){var el=document.getElementById(id);if(el)el.style.display=value;}
+var trainingMonthOffset=0,trainingMonthGridStart=null,trainingMonthGridEnd=null;
+function isMobileTrainingCalendar(){return !!(window.matchMedia&&window.matchMedia('(max-width:760px)').matches);}
+function getTrainingMonthRange(){
+  var now=new Date(),anchor=new Date(now.getFullYear(),now.getMonth()+trainingMonthOffset,1);
+  var first=new Date(anchor.getFullYear(),anchor.getMonth(),1),last=new Date(anchor.getFullYear(),anchor.getMonth()+1,0);
+  var start=getMon(first),end=new Date(last.getFullYear(),last.getMonth(),last.getDate()+(last.getDay()===0?0:7-last.getDay()));
+  return {anchor:anchor,start:start,end:end};
+}
+function shiftTrainingMonth(delta){
+  trainingMonthOffset+=Number(delta)||0;
+  closeDayPlan();
+  loadWeek();
+}
+function goTrainingMonthToday(){
+  trainingMonthOffset=0;
+  closeDayPlan();
+  loadWeek();
+}
 async function loadWeek(){
   var ws=getWS(),we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);
   var wsISO=localISO(ws),weISO=localISO(we);
+  var mobileCalendar=isMobileTrainingCalendar(),fetchStart=ws,fetchEnd=we;
+  if(mobileCalendar){
+    var monthRange=getTrainingMonthRange();
+    trainingMonthGridStart=monthRange.start;trainingMonthGridEnd=monthRange.end;
+    if(monthRange.start<fetchStart)fetchStart=monthRange.start;
+    if(monthRange.end>fetchEnd)fetchEnd=monthRange.end;
+  }
   var label=ws.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' – '+we.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
   document.getElementById('wlabel').textContent=label;
   setDisplay('loadingEl','block');
@@ -17,7 +42,7 @@ async function loadWeek(){
     results=await Promise.all([
       loadRunningLibrary(),
       loadWorkoutSplits(),
-      loadPlannedSessions(wsISO,weISO)
+      loadPlannedSessions(localISO(fetchStart),localISO(fetchEnd))
     ]);
   }catch(e){console.warn('Week load failed',e);results=[null,null,null];}
   var mapped=results[2];
@@ -51,7 +76,8 @@ async function loadWeek(){
   document.getElementById('ciRuns').textContent=runs.length;document.getElementById('ciLifts').textContent=lifts.length;
   updateSessionCounter();
   loadNutrition(); // also populates KM tracker
-  if(!sessions.length){showNoplan();return;}
+  if(!sessions.length&&!mobileCalendar){showNoplan();return;}
+  setDisplay('noplanEl','none');setDisplay('weeklyNoplanEl','none');
   renderCal(ws);
 }
 function showNoplan(){
@@ -69,39 +95,48 @@ function showLoadError(){
 // ── RENDER CALENDAR ───────────────────────────────────────────────────────────
 function renderCal(ws){
   var todayISO=localISO(new Date()),we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);
-  var mobileCalendar=window.matchMedia&&window.matchMedia('(max-width:760px)').matches;
+  var mobileCalendar=isMobileTrainingCalendar(),monthRange=mobileCalendar?getTrainingMonthRange():null;
   var runsThisWeek=sessions.filter(function(s){return getType(s)==='run';}).length;
   var strengthThisWeek=sessions.filter(function(s){return getType(s)==='strength';}).length;
   var weekLabel=ws.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' – '+we.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
-  var monthLabel=ws.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
-  var html='<div class="week-plan-shell"><div><div class="week-plan-kicker">Training calendar</div><div class="week-plan-title"><span class="week-plan-title-desktop">Built for the week ahead</span><span class="week-plan-title-mobile">'+esc(monthLabel)+'</span></div><div class="week-plan-subtitle"><span class="week-plan-subtitle-desktop">'+esc(weekLabel)+' · '+sessions.length+' session'+(sessions.length===1?'':'s')+' loaded</span><span class="week-plan-subtitle-mobile">Tap a day to open its session plan</span></div></div><div class="week-plan-meta"><span>'+runsThisWeek+' run'+(runsThisWeek===1?'':'s')+'</span><span>'+strengthThisWeek+' strength</span></div></div>';
+  var monthLabel=(monthRange?monthRange.anchor:ws).toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+  var monthStart=monthRange?localISO(new Date(monthRange.anchor.getFullYear(),monthRange.anchor.getMonth(),1)):'';
+  var monthEnd=monthRange?localISO(new Date(monthRange.anchor.getFullYear(),monthRange.anchor.getMonth()+1,0)):'';
+  var monthSessions=mobileCalendar?allSessions.filter(function(s){return s.date>=monthStart&&s.date<=monthEnd&&getType(s)!=='rest';}):[];
+  var html='<div class="week-plan-shell"><div class="week-plan-heading-copy"><div class="week-plan-kicker">Training calendar</div><div class="week-plan-title"><span class="week-plan-title-desktop">Built for the week ahead</span><span class="week-plan-title-mobile">'+esc(monthLabel)+'</span></div><div class="week-plan-subtitle"><span class="week-plan-subtitle-desktop">'+esc(weekLabel)+' · '+sessions.length+' session'+(sessions.length===1?'':'s')+' loaded</span><span class="week-plan-subtitle-mobile">'+monthSessions.length+' session'+(monthSessions.length===1?'':'s')+' this month · tap a date to open</span></div></div><div class="month-calendar-actions"><button type="button" onclick="shiftTrainingMonth(-1)" aria-label="Previous month"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" class="month-today-btn" onclick="goTrainingMonthToday()">Today</button><button type="button" onclick="shiftTrainingMonth(1)" aria-label="Next month"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div><div class="week-plan-meta"><span>'+runsThisWeek+' run'+(runsThisWeek===1?'':'s')+'</span><span>'+strengthThisWeek+' strength</span></div></div>';
   // WEEK AT A GLANCE — bird's-eye strip: one tile per day, dots per session
   // type, tick when the day is fully logged. Tapping a tile jumps to that day.
   var sessionDone=function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];};
-  html+='<div class="week-glance">';
-  for(var gi=0;gi<7;gi++){
-    var gd=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+gi);
-    var giso=localISO(gd),gToday=giso===todayISO;
-    var gs=sortSessionsForDisplay(sessions.filter(function(s){return s.date===giso;}));
-    var real=gs.filter(function(s){return getType(s)!=='rest';});
-    var allDone=real.length>0&&real.every(sessionDone);
-    var labs='';
-    if(!real.length){labs='<span class="wg-lab rest">Rest</span>';}
-    else{
-      real.slice(0,2).forEach(function(s){labs+='<span class="wg-lab '+getType(s)+'">'+esc(wgShortLabel(s))+'</span>';});
-      if(real.length>2)labs+='<span class="wg-lab more">+'+(real.length-2)+'</span>';
-    }
-    html+='<button type="button" class="wg-day'+(gToday?' today':'')+(allDone?' done':'')+(real.length?' has-events':'')+'" data-day-index="'+gi+'" onclick="selectWeekDay('+gi+',this)" aria-label="'+DAYS[gi]+' '+gd.getDate()+', '+(real.length?(real.length+' session'+(real.length===1?'':'s')):'rest day')+'">'
-      +'<span class="wg-name">'+DAYS[gi]+'</span>'
-      +'<span class="wg-date">'+gd.getDate()+'</span>'
-      +'<span class="wg-labs">'+labs+'</span>'
-      +'<span class="wg-done">'+(allDone?'✓':'')+'</span>'
-      +'</button>';
-  }
-  html+='</div>';
   if(mobileCalendar){
-    html+='<div class="week-calendar-hint"><svg class="icon" aria-hidden="true"><use href="#i-calendar"/></svg><div><strong>Choose a day</strong><span>Your session opens in a focused day view.</span></div></div>';
+    trainingMonthGridStart=monthRange.start;trainingMonthGridEnd=monthRange.end;
+    html+='<div class="month-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class="month-grid" role="grid" aria-label="'+esc(monthLabel)+' training calendar">';
+    for(var md=new Date(monthRange.start);md<=monthRange.end;md.setDate(md.getDate()+1)){
+      var cellDate=new Date(md),miso=localISO(cellDate),inMonth=cellDate.getMonth()===monthRange.anchor.getMonth(),isToday=miso===todayISO;
+      var daySessions=sortSessionsForDisplay(allSessions.filter(function(s){return s.date===miso&&getType(s)!=='rest';}));
+      var dayDone=daySessions.length>0&&daySessions.every(sessionDone),labels='';
+      daySessions.slice(0,2).forEach(function(s){labels+='<span class="month-session '+getType(s)+'" title="'+esc(s.name||monthSessionLabel(s))+'">'+esc(monthSessionLabel(s))+'</span>';});
+      if(daySessions.length>2)labels+='<span class="month-session more">+'+(daySessions.length-2)+' more</span>';
+      var aria=cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+', '+(daySessions.length?(daySessions.length+' session'+(daySessions.length===1?'':'s')+': '+daySessions.map(function(s){return s.name||wgShortLabel(s);}).join(', ')):'no sessions');
+      html+='<button type="button" role="gridcell" class="month-day'+(inMonth?'':' outside-month')+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(dayDone?' done':'')+'" data-date="'+miso+'" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(aria)+'"><span class="month-date">'+cellDate.getDate()+'</span><span class="month-session-list">'+labels+'</span>'+(dayDone?'<span class="month-done" aria-hidden="true">✓</span>':'')+'</button>';
+    }
+    html+='</div>';
   }else{
+    html+='<div class="week-glance">';
+    for(var gi=0;gi<7;gi++){
+      var gd=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+gi);
+      var giso=localISO(gd),gToday=giso===todayISO;
+      var gs=sortSessionsForDisplay(sessions.filter(function(s){return s.date===giso;}));
+      var real=gs.filter(function(s){return getType(s)!=='rest';});
+      var allDone=real.length>0&&real.every(sessionDone);
+      var labs='';
+      if(!real.length){labs='<span class="wg-lab rest">Rest</span>';}
+      else{
+        real.slice(0,2).forEach(function(s){labs+='<span class="wg-lab '+getType(s)+'">'+esc(wgShortLabel(s))+'</span>';});
+        if(real.length>2)labs+='<span class="wg-lab more">+'+(real.length-2)+'</span>';
+      }
+      html+='<button type="button" class="wg-day'+(gToday?' today':'')+(allDone?' done':'')+(real.length?' has-events':'')+'" data-day-index="'+gi+'" onclick="selectWeekDay('+gi+',this)" aria-label="'+DAYS[gi]+' '+gd.getDate()+', '+(real.length?(real.length+' session'+(real.length===1?'':'s')):'rest day')+'"><span class="wg-name">'+DAYS[gi]+'</span><span class="wg-date">'+gd.getDate()+'</span><span class="wg-labs">'+labs+'</span><span class="wg-done">'+(allDone?'✓':'')+'</span></button>';
+    }
+    html+='</div>';
     for(var di=0;di<7;di++){
       var d=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+di);
       var iso=localISO(d),isToday=iso===todayISO;
@@ -118,54 +153,68 @@ function renderCal(ws){
   if(typeof applyTrainingView==='function')applyTrainingView();
 }
 function selectWeekDay(di,trigger){
-  if(window.matchMedia&&window.matchMedia('(max-width:760px)').matches){openDayPlan(di,trigger);return;}
+  if(isMobileTrainingCalendar()){
+    var ws=getWS(),d=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+di);openDayPlanDate(localISO(d),trigger);return;
+  }
   scrollToDay(di);
 }
 function scrollToDay(di){
   var el=document.getElementById('dg_'+di);
   if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
 }
-var dayPlanIndex=null,dayPlanReturnFocus=null;
+var dayPlanDateISO=null,dayPlanReturnFocus=null;
 function ensureDayPlanOverlay(){
   var ov=document.getElementById('dayPlanOverlay');
   if(ov)return ov;
   ov=document.createElement('section');ov.id='dayPlanOverlay';ov.className='day-plan-overlay';ov.setAttribute('aria-hidden','true');ov.setAttribute('aria-labelledby','dayPlanTitle');
-  ov.innerHTML='<div class="day-plan-topbar"><button type="button" class="day-plan-back" onclick="closeDayPlan()" aria-label="Back to weekly calendar"><svg class="icon"><use href="#i-chevron-left"/></svg><span>Week</span></button><div class="day-plan-pager"><button type="button" id="dayPlanPrev" onclick="shiftDayPlan(-1)" aria-label="Previous day"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" id="dayPlanNext" onclick="shiftDayPlan(1)" aria-label="Next day"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div></div><div class="day-plan-heading"><div class="day-plan-kicker" id="dayPlanDate"></div><h2 id="dayPlanTitle">Day plan</h2><div class="day-plan-meta" id="dayPlanMeta"></div></div><div class="day-plan-scroll" id="dayPlanContent"></div>';
+  ov.innerHTML='<div class="day-plan-topbar"><button type="button" class="day-plan-back" onclick="closeDayPlan()" aria-label="Back to month calendar"><svg class="icon"><use href="#i-chevron-left"/></svg><span>Month</span></button><div class="day-plan-pager"><button type="button" id="dayPlanPrev" onclick="shiftDayPlan(-1)" aria-label="Previous day"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" id="dayPlanNext" onclick="shiftDayPlan(1)" aria-label="Next day"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div></div><div class="day-plan-heading"><div class="day-plan-kicker" id="dayPlanDate"></div><h2 id="dayPlanTitle">Day plan</h2><div class="day-plan-meta" id="dayPlanMeta"></div></div><div class="day-plan-scroll" id="dayPlanContent"></div>';
   document.body.appendChild(ov);return ov;
 }
-function renderDayPlan(di){
-  var ov=ensureDayPlanOverlay(),ws=getWS(),d=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+di),iso=localISO(d);
-  var daySessions=sortSessionsForDisplay(sessions.filter(function(s){return s.date===iso;}));
-  dayPlanIndex=di;
+function interactiveSessionIndex(s){
+  var existing=sessions.findIndex(function(item){return item.id===s.id;});if(existing>-1)return existing;
+  var allIndex=allSessions.findIndex(function(item){return item.id===s.id;}),index=-(allIndex+1||1);sessions[index]=s;return index;
+}
+function renderDayPlanDate(iso){
+  var ov=ensureDayPlanOverlay(),d=localDateFromISO(iso);
+  var daySessions=sortSessionsForDisplay(allSessions.filter(function(s){return s.date===iso&&getType(s)!=='rest';}));
+  dayPlanDateISO=iso;
   document.getElementById('dayPlanDate').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'});
   document.getElementById('dayPlanTitle').textContent=d.toLocaleDateString('en-AU',{weekday:'long'});
   document.getElementById('dayPlanMeta').textContent=daySessions.length?(daySessions.length+' session'+(daySessions.length===1?'':'s')+' planned'):'Recovery day';
   var content=document.getElementById('dayPlanContent'),html='';
   if(daySessions.length){
-    daySessions.forEach(function(s){html+=buildCard(s,sessions.indexOf(s));});
+    daySessions.forEach(function(s){html+=buildCard(s,interactiveSessionIndex(s));});
   }else{
     html='<div class="day-plan-rest"><span class="day-plan-rest-mark">Rest</span><h3>Recovery is part of the plan.</h3><p>Keep the day easy, stay on top of nutrition and arrive ready for the next session.</p></div>';
   }
   content.innerHTML=html;
-  if(daySessions.length===1){var only=document.getElementById('scb_'+sessions.indexOf(daySessions[0]));if(only)only.classList.add('open');}
-  var prev=document.getElementById('dayPlanPrev'),next=document.getElementById('dayPlanNext');if(prev)prev.disabled=di===0;if(next)next.disabled=di===6;
-  document.querySelectorAll('.wg-day').forEach(function(day){var selected=Number(day.dataset.dayIndex)===di;day.classList.toggle('selected',selected);day.setAttribute('aria-pressed',selected?'true':'false');});
+  if(daySessions.length===1){var only=document.getElementById('scb_'+interactiveSessionIndex(daySessions[0]));if(only)only.classList.add('open');}
+  var prev=document.getElementById('dayPlanPrev'),next=document.getElementById('dayPlanNext');if(prev)prev.disabled=!!(trainingMonthGridStart&&d<=trainingMonthGridStart);if(next)next.disabled=!!(trainingMonthGridEnd&&d>=trainingMonthGridEnd);
+  document.querySelectorAll('.month-day').forEach(function(day){var selected=day.dataset.date===iso;day.classList.toggle('selected',selected);day.setAttribute('aria-pressed',selected?'true':'false');});
   content.scrollTop=0;return ov;
 }
-function openDayPlan(di,trigger){
-  dayPlanReturnFocus=trigger||document.activeElement;var ov=renderDayPlan(Math.max(0,Math.min(6,Number(di)||0)));
+function openDayPlanDate(iso,trigger){
+  dayPlanReturnFocus=trigger||document.activeElement;var ov=renderDayPlanDate(iso);
   document.body.classList.add('day-plan-open');ov.setAttribute('aria-hidden','false');void ov.offsetHeight;ov.classList.add('open');
   var back=ov.querySelector('.day-plan-back');if(back)setTimeout(function(){back.focus();},80);
 }
-function shiftDayPlan(delta){if(dayPlanIndex==null)return;renderDayPlan(Math.max(0,Math.min(6,dayPlanIndex+delta)));}
+function shiftDayPlan(delta){if(!dayPlanDateISO)return;var d=localDateFromISO(dayPlanDateISO);d.setDate(d.getDate()+(Number(delta)||0));renderDayPlanDate(localISO(d));}
 function closeDayPlan(){
   var ov=document.getElementById('dayPlanOverlay');if(!ov)return;if(focusedSessionIndex!=null)closeFocusedSession();
-  ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.classList.remove('day-plan-open');dayPlanIndex=null;
+  ov.classList.remove('open');ov.setAttribute('aria-hidden','true');document.body.classList.remove('day-plan-open');dayPlanDateISO=null;
   var content=document.getElementById('dayPlanContent');if(content)setTimeout(function(){if(!ov.classList.contains('open'))content.innerHTML='';},240);
   if(dayPlanReturnFocus&&typeof dayPlanReturnFocus.focus==='function')dayPlanReturnFocus.focus();dayPlanReturnFocus=null;
 }
 // Short label for the glance tiles: "Upper"/"Lower" for gym, the run flavour
 // ("Tempo", "Long Run") for runs. Falls back to the generic type.
+function monthSessionLabel(s){
+  var type=getType(s),name=String(s.name||'').trim(),match;
+  if(type==='strength'){
+    match=name.match(/\b(upper|lower)\s*([a-z0-9]+)?/i);
+    if(match)return match[1].charAt(0).toUpperCase()+match[1].slice(1).toLowerCase()+(match[2]?' '+match[2].toUpperCase():'');
+  }
+  return wgShortLabel(s)||name||'Session';
+}
 function wgShortLabel(s){
   var t=getType(s),n=String(s.name||'').toLowerCase();
   if(t==='strength'){
@@ -1167,7 +1216,7 @@ function closeFocusedSession(){
   var ov=document.getElementById('focusOverlay');if(ov)ov.classList.remove('open');
   document.body.classList.remove('focus-session-open');focusedSessionIndex=null;
 }
-document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(focusedSessionIndex!=null)closeFocusedSession();else if(dayPlanIndex!=null)closeDayPlan();});
+document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(focusedSessionIndex!=null)closeFocusedSession();else if(dayPlanDateISO)closeDayPlan();});
 function togS(i){var el=document.getElementById('scb_'+i);if(el) el.classList.toggle('open');}
 async function tickS(i){
   var s=sessions[i],on=!ticked[s.id];
