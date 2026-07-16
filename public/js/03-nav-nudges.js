@@ -165,13 +165,16 @@ function switchTab(tab){
     sectionLabel.textContent=labels[tab]||'Athlete Portal';
   }
   toggleMoreMenu(false);
-  setMobileNav(tab==='weekly'?'training':(tab==='training'?'home':tab));
   var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
+  var secondaryTabs=['nutrition','goals','handbook','comms'];
+  var isMobileSecondary=!isDesktop&&secondaryTabs.indexOf(tab)>=0;
+  setMobileNav(tab==='weekly'?'training':(tab==='training'?'home':(isMobileSecondary?'more':tab)));
   var showWeekBar=(tab==='weekly')||(!isDesktop&&tab==='training'&&trainingView==='plan');
   document.body.classList.toggle('mobile-training-calendar',!isDesktop&&tab==='training'&&trainingView==='plan');
   document.body.classList.toggle('mobile-portal-home',!isDesktop&&tab==='training'&&trainingView==='home');
   document.body.classList.toggle('mobile-checkin-tab',!isDesktop&&tab==='checkin');
   document.body.classList.toggle('mobile-progress-tab',!isDesktop&&tab==='progress');
+  document.body.classList.toggle('mobile-secondary-tab',isMobileSecondary);
   syncMobileHomePlacement();
   document.getElementById('wbar').style.display=showWeekBar?'':'none';
   if(tab==='nutrition'&&Date.now()-_nutLastLoad>60000) loadNutrition(); // skip refetch if loaded <60s ago (week shifts & post-save always reload directly)
@@ -179,6 +182,7 @@ function switchTab(tab){
     initCheckin();
     if(!isDesktop) window.scrollTo({top:0,behavior:'smooth'});
   }
+  if(isMobileSecondary) window.scrollTo({top:0,behavior:'smooth'});
   if(tab==='progress') loadProgress();
   if(tab==='training'||tab==='weekly') applyTrainingView();
 }
@@ -263,20 +267,20 @@ function rescheduleSession(i,date){
   renderTodaySection();renderCal(getWS());showToast('Session moved · coach sync pending');
 }
 var REMINDER_OPTIONS=[
-  {key:'sessions',label:'Training sessions',sub:'A reminder before planned training'},
-  {key:'checkins',label:'Weekly check-ins',sub:'A nudge when your review is due'},
-  {key:'photos',label:'Progress photos',sub:'A reminder on your photo week'},
-  {key:'coach',label:'Coach replies',sub:'Updates when coaching feedback arrives'}
+  {key:'sessions',icon:'calendar',label:'Training sessions',sub:'Before planned training'},
+  {key:'checkins',icon:'clipboard',label:'Weekly check-ins',sub:'When your review is due'},
+  {key:'photos',icon:'camera',label:'Progress photos',sub:'On your scheduled photo week'},
+  {key:'coach',icon:'chat',label:'Coach replies',sub:'When coaching feedback arrives'}
 ];
 function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp_reminders_'+((athlete&&athlete.code)||'default'))||'{}');}catch(e){return{};}}
 function openPreferences(){
   toggleMoreMenu(false);var prefs=getReminderPreferences(),list=document.getElementById('notificationPreferences');
-  list.innerHTML=REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
-    +'<div id="pushStatus" style="font-family:var(--mono);font-size:10px;margin-top:10px;color:var(--muted)">Notifications: '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>';
+  list.innerHTML=REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span class="preference-icon"><svg class="icon"><use href="#i-'+o.icon+'"/></svg></span><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
+    +'<div id="pushStatus" class="push-status">Notifications · '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>';
   syncPushSubscription();
-  document.getElementById('preferencesModal').classList.add('open');document.body.style.overflow='hidden';
+  setMobileNav('more');document.getElementById('preferencesModal').classList.add('open');document.body.style.overflow='hidden';
 }
-function closePreferences(){document.getElementById('preferencesModal').classList.remove('open');document.body.style.overflow='';}
+function closePreferences(){document.getElementById('preferencesModal').classList.remove('open');document.body.style.overflow='';restoreMobileNavContext();}
 async function setReminderPreference(key,enabled){
   var wanted=enabled;
   if(enabled&&'Notification'in window&&Notification.permission==='default'){try{var permission=await Notification.requestPermission();if(permission!=='granted')enabled=false;}catch(e){enabled=false;}}
@@ -300,10 +304,10 @@ function getWeeklySummary(){
 }
 function openWeeklySummary(){
   toggleMoreMenu(false);var s=getWeeklySummary(),i=s.insight,body=document.getElementById('weeklySummaryBody');
-  body.innerHTML='<div class="summary-hero"><span>'+i.compliance+'%</span><div><strong>Week completion</strong><small>'+i.completed+' of '+i.planned+' planned sessions complete'+(i.completed<i.planned?' · week in progress':' · week complete')+'</small></div></div><div class="summary-grid"><div><small>Training volume</small><strong>'+s.volume.toLocaleString()+'kg</strong></div><div><small>Readiness</small><strong>'+(i.readiness==null?'Not logged':i.readiness+'/100')+'</strong></div><div><small>Running</small><strong>'+(i.kmTarget?i.kmDone.toFixed(1)+' / '+i.kmTarget.toFixed(1)+'km':'No target')+'</strong></div><div><small>PB history</small><strong>'+i.pbs+' exercises</strong></div></div><div class="summary-wins"><strong>Wins this week</strong><p>'+(s.wins.length?s.wins.map(esc).join(' · '):'Log your first completed session to start building the week.')+'</p></div>'+renderCoachMoment([]);
-  document.getElementById('weeklySummaryModal').classList.add('open');document.body.style.overflow='hidden';
+  body.innerHTML='<div class="summary-week-label">Programme · Week '+getCurrentProgrammeWeek()+'</div><div class="summary-hero"><div class="summary-ring" style="--value:'+i.compliance+'"><strong>'+i.compliance+'%</strong></div><div><strong>Week completion</strong><small>'+i.completed+' of '+i.planned+' planned sessions complete'+(i.completed<i.planned?' · still underway':' · week complete')+'</small></div></div><div class="summary-grid"><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-barbell"/></svg></span><small>Training volume</small><strong>'+s.volume.toLocaleString()+'kg</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-pulse"/></svg></span><small>Readiness</small><strong>'+(i.readiness==null?'Not logged':i.readiness+'/100')+'</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-run"/></svg></span><small>Running</small><strong>'+(i.kmTarget?i.kmDone.toFixed(1)+' / '+i.kmTarget.toFixed(1)+'km':'No target')+'</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-trophy"/></svg></span><small>PB history</small><strong>'+i.pbs+' exercises</strong></div></div><div class="summary-wins"><span class="summary-metric-icon"><svg class="icon"><use href="#i-trophy"/></svg></span><div><strong>Wins this week</strong><p>'+(s.wins.length?s.wins.map(esc).join(' · '):'Log your first completed session to start building the week.')+'</p></div></div>'+renderCoachMoment([]);
+  setMobileNav('more');document.getElementById('weeklySummaryModal').classList.add('open');document.body.style.overflow='hidden';
 }
-function closeWeeklySummary(){document.getElementById('weeklySummaryModal').classList.remove('open');document.body.style.overflow='';}
+function closeWeeklySummary(){document.getElementById('weeklySummaryModal').classList.remove('open');document.body.style.overflow='';restoreMobileNavContext();}
 function getPbHistoryData(){
   var exerciseMap={},sessionMap={};
   (allSessions||[]).concat(sessions||[]).forEach(function(s){if(s&&s.id)sessionMap[s.id]=s;});
@@ -350,7 +354,15 @@ function toggleMoreMenu(open){
   menu.classList.toggle('open',shouldOpen);menu.setAttribute('aria-hidden',shouldOpen?'false':'true');
   var button=document.querySelector('[data-mobile-tab="more"]');if(button)button.setAttribute('aria-expanded',shouldOpen?'true':'false');
   document.body.classList.toggle('menu-open',shouldOpen);
-  if(shouldOpen)setMobileNav('more');
+  if(shouldOpen)setMobileNav('more');else restoreMobileNavContext();
+}
+function restoreMobileNavContext(){
+  var active=document.querySelector('.tab-content.active');if(!active)return;
+  var tab=active.id.replace('tab-','');
+  if(tab==='training'){setMobileNav(trainingView==='home'?'home':'training');return;}
+  if(tab==='weekly'){setMobileNav('training');return;}
+  if(['nutrition','goals','handbook','comms'].indexOf(tab)>=0){setMobileNav('more');return;}
+  setMobileNav(tab);
 }
 function applyOutdoorMode(enabled){
   document.documentElement.classList.toggle('outdoor-mode',!!enabled);

@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v65'; // v65: polished responsive progress dashboard
+const CACHE_NAME = 'dp-athlete-v66'; // v66: polished secondary mobile destinations
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=55', '/config.js',
+  '/index.html', '/styles.css?v=56', '/config.js',
   '/js/01-core.js?v=53',
   '/js/02-login-goals.js?v=53',
-  '/js/03-nav-nudges.js?v=54',
+  '/js/03-nav-nudges.js?v=55',
   '/js/04-checkin.js?v=53',
   '/js/05-handbook.js?v=53',
   '/js/06-nutrition.js?v=53',

@@ -3819,3 +3819,346 @@ html.outdoor-mode .weight-log-toggle{background:rgba(7,17,22,.035)}
   body.mobile-progress-tab .weight-log-table td{padding-top:10px;padding-bottom:10px}
   body.mobile-progress-tab .progress-empty{padding:20px 10px}
 }
+
+/* Secondary mobile destinations — Nutrition, Goals, Guide and Contact share
+   the same focused canvas as Check-in and Progress. */
+.guide-prompt{
+  margin:-2px 0 14px;font-family:var(--body);font-size:12px;line-height:1.4;color:var(--dim);
+}
+.contact-coaches{display:flex;margin-bottom:14px;padding-left:7px}
+.contact-coaches span{
+  width:42px;height:42px;margin-left:-7px;display:grid;place-items:center;border:2px solid var(--surface);
+  border-radius:50%;background:#202d35;font-size:13px;font-weight:750;color:var(--text);
+}
+.contact-coaches span:last-child{background:#173241;color:var(--run)}
+.programme-details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.programme-details-grid>div{
+  padding:13px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.025);
+}
+.programme-details-grid span,.programme-details-grid strong{display:block}
+.programme-details-grid span{font-size:9px;color:var(--dim)}
+.programme-details-grid strong{
+  margin-top:5px;font-family:var(--body);font-size:16px;font-weight:700;
+  line-height:1.15;letter-spacing:-.025em;color:var(--text);
+}
+.portal-signout{
+  width:100%;min-height:44px;margin-top:12px;padding:11px;border:1px solid var(--border);
+  border-radius:12px;background:transparent;display:flex;align-items:center;justify-content:center;gap:7px;
+  font-family:var(--body);font-size:11px;font-weight:650;color:var(--muted);cursor:pointer;
+}
+.portal-signout .icon{width:14px;height:14px}
+.preference-icon,.summary-metric-icon{
+  display:grid;place-items:center;flex:0 0 auto;border:1px solid var(--run-border);
+  background:var(--run-bg);color:var(--run);
+}
+.preference-icon{width:36px;height:36px;border-radius:11px}
+.preference-row>.preference-icon{flex:0 0 36px}
+.preference-icon .icon{width:17px;height:17px}
+.push-status{
+  margin-top:4px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+  font-family:var(--body);font-size:10px;line-height:1.3;color:var(--dim);
+}
+.summary-week-label{
+  margin-bottom:9px;font-family:var(--body);font-size:9px;font-weight:650;
+  line-height:1.2;color:var(--run);
+}
+.summary-ring{
+  --value:0;width:66px;height:66px;flex:0 0 66px;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle closest-side,var(--surface) 72%,transparent 74%),
+    conic-gradient(var(--run) calc(var(--value)*1%),rgba(255,255,255,.09) 0);
+}
+.summary-ring strong{font-size:16px!important;color:var(--text)!important}
+.summary-metric-icon{width:31px;height:31px;margin-bottom:9px;border-radius:10px}
+.summary-metric-icon .icon{width:15px;height:15px}
+.summary-wins{display:flex;align-items:flex-start;gap:11px}
+.summary-wins>.summary-metric-icon{margin:0}
+.summary-wins>div{min-width:0}
+
+@media(max-width:760px){
+  body.mobile-secondary-tab .top-shell,
+  body.mobile-secondary-tab #wbar,
+  body.mobile-secondary-tab .quicklog-strip,
+  body.mobile-secondary-tab .wa-fab{display:none!important}
+
+  body.mobile-secondary-tab #tab-nutrition.active,
+  body.mobile-secondary-tab #tab-goals.active,
+  body.mobile-secondary-tab #tab-handbook.active,
+  body.mobile-secondary-tab #tab-comms.active{
+    display:block;max-width:620px;margin:0 auto;
+    padding:10px 12px calc(98px + env(safe-area-inset-bottom));
+  }
+  body.mobile-secondary-tab .tab-content.active>.page-intro{
+    margin:0 0 9px;padding:16px;border:1px solid var(--border);border-radius:19px;
+    background:radial-gradient(circle at 100% 0%,rgba(146,210,237,.1),transparent 40%),
+      linear-gradient(155deg,rgba(16,27,34,.96),rgba(7,16,22,.96));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 14px 34px rgba(0,0,0,.2);
+  }
+  body.mobile-secondary-tab .tab-content.active .page-kicker{margin-bottom:5px;font-size:8px}
+  body.mobile-secondary-tab .tab-content.active .page-title{font-size:28px;line-height:1;letter-spacing:-.045em}
+  body.mobile-secondary-tab .tab-content.active .page-copy{margin-top:7px;font-size:11px;line-height:1.42}
+  body.mobile-secondary-tab .tab-content.active>.card,
+  body.mobile-secondary-tab .tab-content.active #nutContent>.card{
+    margin-bottom:9px;padding:14px;border:1px solid var(--border)!important;border-radius:17px;
+    background:linear-gradient(155deg,rgba(16,27,34,.92),rgba(7,16,22,.92));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 14px 32px rgba(0,0,0,.16);
+  }
+
+  /* More menu becomes a compact app launcher instead of a long settings list. */
+  .more-menu{background:rgba(0,0,0,.64);backdrop-filter:blur(9px)}
+  .more-menu-sheet{
+    max-height:92vh;padding:8px 14px calc(16px + env(safe-area-inset-bottom));
+    border:1px solid var(--border);border-bottom:0;border-radius:26px 26px 0 0;
+    background:linear-gradient(180deg,#0d1c25,#071219);
+    box-shadow:0 -24px 70px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.045);
+  }
+  .more-menu-handle{width:34px;height:3px;margin:2px auto 12px;background:rgba(146,210,237,.32)}
+  .more-menu-head{margin-bottom:13px;padding:0 2px 12px}
+  .more-menu-kicker{font-family:var(--body);font-size:9px}
+  .more-menu-title{font-size:27px;font-weight:700;letter-spacing:-.045em}
+  .more-menu-close{width:38px;height:38px;font-size:21px;background:rgba(255,255,255,.035)}
+  .more-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .more-menu-grid button{
+    position:relative;min-height:94px;padding:12px;display:grid;
+    grid-template-columns:36px minmax(0,1fr);grid-template-rows:auto 1fr;align-items:start;gap:8px 9px;
+    border-radius:15px;background:linear-gradient(155deg,rgba(255,255,255,.052),rgba(255,255,255,.018));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  }
+  .more-menu-grid button::after{
+    content:"›";position:absolute;right:10px;top:10px;font-size:18px;line-height:1;color:var(--dim);
+  }
+  .more-menu-grid .icon{
+    grid-row:1/3;width:17px;height:17px;padding:9px;box-sizing:content-box;border-radius:11px;
+    background:var(--run-bg);color:var(--run);
+  }
+  .more-menu-grid button span{align-self:center;min-width:0;padding-right:7px}
+  .more-menu-grid strong{font-size:13px;line-height:1.15;letter-spacing:-.015em}
+  .more-menu-grid small{margin-top:4px;font-size:9px;line-height:1.25}
+  .more-outdoor{
+    min-height:58px;margin-top:8px;padding:10px 12px;border-radius:15px;
+    background:linear-gradient(155deg,rgba(255,255,255,.052),rgba(255,255,255,.018));
+  }
+  .more-outdoor>.icon{width:17px;height:17px;padding:8px;box-sizing:content-box;border-radius:10px;background:var(--run-bg);color:var(--run)}
+  .more-outdoor strong{font-size:13px}.more-outdoor small{font-size:9px}
+
+  /* Nutrition */
+  body.mobile-secondary-tab #tab-nutrition .nut-wbar{
+    margin:0 0 9px;padding:11px 12px;display:flex;align-items:center;justify-content:space-between;
+    border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.025);
+  }
+  body.mobile-secondary-tab #tab-nutrition .nut-wlabel{
+    order:-1;font-family:var(--body);font-size:16px;font-weight:700;
+    letter-spacing:-.025em;text-transform:none;color:var(--text);
+  }
+  body.mobile-secondary-tab #tab-nutrition .wnav{gap:5px}
+  body.mobile-secondary-tab #tab-nutrition .nut-arr{min-width:32px;height:32px;padding:6px 9px;border-radius:10px;font-size:9px}
+  body.mobile-secondary-tab #nutContent .cnote{
+    margin-bottom:9px!important;padding:12px 13px;border:1px solid var(--run-border);
+    border-radius:14px;background:var(--run-bg);font-size:11px;line-height:1.45;
+  }
+  body.mobile-secondary-tab #tab-nutrition .macro-grid{gap:7px;margin-bottom:9px}
+  body.mobile-secondary-tab #tab-nutrition .mc{
+    min-height:76px;padding:12px;text-align:left;border-radius:14px;
+    background:linear-gradient(155deg,rgba(255,255,255,.05),rgba(255,255,255,.018));
+  }
+  body.mobile-secondary-tab #tab-nutrition .mc.cal{
+    grid-column:1/-1;min-height:82px;display:grid;grid-template-columns:1fr auto;align-items:end;
+  }
+  body.mobile-secondary-tab #tab-nutrition .mc.cal .ml{grid-column:1;grid-row:1}
+  body.mobile-secondary-tab #tab-nutrition .mc.cal .mv{grid-column:1;grid-row:2}
+  body.mobile-secondary-tab #tab-nutrition .mv{margin:0;font-family:var(--body);font-size:28px;letter-spacing:-.05em}
+  body.mobile-secondary-tab #tab-nutrition .mc.cal .mv{font-size:34px}
+  body.mobile-secondary-tab #tab-nutrition .ml{
+    order:-1;margin-bottom:6px;font-family:var(--body);font-size:9px;
+    letter-spacing:0;text-transform:none;color:var(--dim);
+  }
+  body.mobile-secondary-tab #tab-nutrition .mc.fibre{grid-column:auto!important}
+  body.mobile-secondary-tab #tab-nutrition .card-title{margin-bottom:10px;font-size:15px;letter-spacing:-.02em}
+  body.mobile-secondary-tab #tab-nutrition .priority-item{gap:10px;padding:10px 0}
+  body.mobile-secondary-tab #tab-nutrition .priority-num{width:25px;height:25px;font-family:var(--body);font-size:11px}
+  body.mobile-secondary-tab #tab-nutrition .priority-text{font-size:11px;line-height:1.45}
+  body.mobile-secondary-tab #tab-nutrition .timing-table{display:block;border:0;background:transparent}
+  body.mobile-secondary-tab #tab-nutrition .timing-table thead{display:none}
+  body.mobile-secondary-tab #tab-nutrition .timing-table tbody{display:grid;gap:7px}
+  body.mobile-secondary-tab #tab-nutrition .timing-table tr{
+    display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:11px;
+    border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.025);
+  }
+  body.mobile-secondary-tab #tab-nutrition .timing-table td{padding:0;border:0;font-size:10px;line-height:1.4}
+  body.mobile-secondary-tab #tab-nutrition .timing-table td:first-child{
+    grid-column:1/-1;padding-bottom:7px;border-bottom:1px solid var(--border);
+    font-size:12px;font-weight:700;color:var(--text);
+  }
+  body.mobile-secondary-tab #tab-nutrition .timing-table td:nth-child(2)::before,
+  body.mobile-secondary-tab #tab-nutrition .timing-table td:nth-child(3)::before,
+  body.mobile-secondary-tab #tab-nutrition .timing-table td:nth-child(4)::before{
+    display:block;margin-bottom:2px;font-size:8px;font-weight:600;color:var(--dim);
+  }
+  body.mobile-secondary-tab #tab-nutrition .timing-table td:nth-child(2)::before{content:"Timing"}
+  body.mobile-secondary-tab #tab-nutrition .timing-table td:nth-child(3)::before{content:"Amount"}
+  body.mobile-secondary-tab #tab-nutrition .timing-table td:nth-child(4){grid-column:1/-1}
+  body.mobile-secondary-tab #tab-nutrition .timing-table td:nth-child(4)::before{content:"Examples"}
+  body.mobile-secondary-tab #tab-nutrition .nutrnote{padding:12px;font-size:11px;line-height:1.5}
+
+  /* Goals */
+  body.mobile-secondary-tab #tab-goals{counter-reset:goal-section}
+  body.mobile-secondary-tab #tab-goals .goals-overview{
+    margin-bottom:9px;padding:15px 16px;border-color:var(--border-strong);border-radius:17px;
+  }
+  body.mobile-secondary-tab #tab-goals .goals-label{margin-bottom:4px;font-family:var(--body);font-size:8px;letter-spacing:0;text-transform:none}
+  body.mobile-secondary-tab #tab-goals .goals-name{margin-bottom:5px;font-family:var(--body);font-size:22px;letter-spacing:-.04em;text-transform:none}
+  body.mobile-secondary-tab #tab-goals .goals-sub{font-size:11px;line-height:1.45}
+  body.mobile-secondary-tab #tab-goals .goals-saved-badge{margin-top:8px;font-family:var(--body);font-size:9px}
+  body.mobile-secondary-tab #tab-goals .goals-section-card{counter-increment:goal-section}
+  body.mobile-secondary-tab #tab-goals .goals-section-card .card-title{
+    justify-content:flex-start;margin-bottom:12px;font-size:15px;line-height:1.2;letter-spacing:-.02em;
+  }
+  body.mobile-secondary-tab #tab-goals .goals-section-card .card-title::before{
+    content:counter(goal-section,decimal-leading-zero);width:27px;height:27px;display:grid;place-items:center;
+    flex:0 0 27px;border:1px solid var(--run-border);border-radius:9px;background:var(--run-bg);
+    font-size:9px;font-weight:700;color:var(--run);
+  }
+  body.mobile-secondary-tab #tab-goals .stat-grid{gap:9px}
+  body.mobile-secondary-tab #tab-goals .stat-grid>.stat-field:last-child:nth-child(odd){grid-column:1/-1}
+  body.mobile-secondary-tab #tab-goals .stat-field label,
+  body.mobile-secondary-tab #tab-goals .milestone-field label{
+    font-family:var(--body);font-size:9px;font-weight:550;letter-spacing:0;text-transform:none;text-align:left;
+  }
+  body.mobile-secondary-tab #tab-goals .stat-input,
+  body.mobile-secondary-tab #tab-goals .why-textarea,
+  body.mobile-secondary-tab #tab-goals .milestone-input{
+    min-height:44px;padding:11px 12px;border:1px solid var(--border)!important;border-radius:11px;
+    background:rgba(255,255,255,.035);font-family:var(--body);font-size:16px;
+  }
+  body.mobile-secondary-tab #tab-goals .field-hint{font-size:9px;line-height:1.25}
+  body.mobile-secondary-tab #tab-goals .race-options{gap:6px}
+  body.mobile-secondary-tab #tab-goals .race-opt{
+    min-height:34px;padding:7px 10px;font-family:var(--body);font-size:10px;
+    font-weight:650;letter-spacing:0;text-transform:none;
+  }
+  body.mobile-secondary-tab #tab-goals .why-textarea{min-height:88px;font-size:12px;line-height:1.45}
+  body.mobile-secondary-tab #tab-goals .milestone-grid{grid-template-columns:1fr;gap:7px}
+  body.mobile-secondary-tab #tab-goals .milestone-field{
+    display:grid;grid-template-columns:55px minmax(0,1fr);align-items:stretch;gap:8px;
+  }
+  body.mobile-secondary-tab #tab-goals .milestone-field label{
+    display:grid;place-items:center;border:1px solid var(--border);border-radius:11px;background:var(--run-bg);color:var(--run);
+  }
+  body.mobile-secondary-tab #tab-goals .milestone-input{min-height:64px;text-align:left;font-size:11px;line-height:1.4}
+  body.mobile-secondary-tab #tab-goals .savebtn{
+    position:sticky;bottom:calc(80px + env(safe-area-inset-bottom));z-index:6;
+    min-height:46px;margin:12px 0 0;border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.3);
+  }
+
+  /* Athlete guide */
+  body.mobile-secondary-tab #tab-handbook .guide-prompt{margin:0 2px 9px;font-size:10px}
+  body.mobile-secondary-tab #tab-handbook .hb-grid{grid-template-columns:1fr;gap:7px;margin-bottom:0}
+  body.mobile-secondary-tab #tab-handbook .hb-card{
+    min-height:68px;padding:11px 38px 11px 11px;display:grid;
+    grid-template-columns:38px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;gap:2px 11px;
+    border-radius:14px;background:linear-gradient(155deg,rgba(255,255,255,.05),rgba(255,255,255,.018));
+  }
+  body.mobile-secondary-tab #tab-handbook .hb-card::before{
+    content:"›";position:absolute;right:14px;top:50%;transform:translateY(-52%);font-size:21px;color:var(--dim);
+  }
+  body.mobile-secondary-tab #tab-handbook .hb-card::after{display:none}
+  body.mobile-secondary-tab #tab-handbook .hb-icon{
+    grid-row:1/3;width:38px;height:38px;margin:0;display:grid;place-items:center;
+    border:1px solid var(--run-border);border-radius:11px;background:var(--run-bg);
+  }
+  body.mobile-secondary-tab #tab-handbook .hb-icon .icon{width:18px;height:18px}
+  body.mobile-secondary-tab #tab-handbook .hb-title{
+    align-self:end;margin:0;font-family:var(--body);font-size:14px;font-weight:700;
+    line-height:1.15;letter-spacing:-.015em;text-transform:none;
+  }
+  body.mobile-secondary-tab #tab-handbook .hb-sub{align-self:start;font-family:var(--body);font-size:9px;letter-spacing:0}
+
+  /* Contact */
+  body.mobile-secondary-tab #tab-comms .comms-card{margin-bottom:9px;padding:17px;border-radius:19px}
+  body.mobile-secondary-tab #tab-comms .comms-title{font-family:var(--body);font-size:23px;font-weight:720;letter-spacing:-.04em;text-transform:none}
+  body.mobile-secondary-tab #tab-comms .comms-body{margin-bottom:14px;font-size:11px;line-height:1.5}
+  body.mobile-secondary-tab #tab-comms .comms-btn{
+    min-height:46px;padding:12px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;
+    font-family:var(--body);font-size:12px;letter-spacing:0;text-transform:none;
+  }
+  body.mobile-secondary-tab #tab-comms .comms-note{font-family:var(--body);font-size:9px}
+  body.mobile-secondary-tab #tab-comms .programme-details-card .card-title{margin-bottom:10px;font-size:15px}
+  body.mobile-secondary-tab #tab-comms .programme-details-grid>div{padding:11px}
+  body.mobile-secondary-tab #tab-comms .programme-details-grid strong{font-size:14px}
+
+  /* Preferences and weekly summary sheets */
+  #preferencesModal .ql-modal-inner,#weeklySummaryModal .ql-modal-inner{
+    max-height:88vh;border:1px solid var(--border);border-bottom:0;border-radius:24px 24px 0 0;
+    background:linear-gradient(180deg,#0d1c25,#071219);
+  }
+  #preferencesModal .ql-modal-header,#weeklySummaryModal .ql-modal-header{
+    padding:17px 16px 13px;background:rgba(7,18,25,.9);border-bottom:1px solid var(--border);
+  }
+  #preferencesModal .ql-modal-title,#weeklySummaryModal .ql-modal-title{
+    font-family:var(--body);font-size:24px;font-weight:720;letter-spacing:-.04em;text-transform:none;
+  }
+  #preferencesModal .modal-subtitle,#weeklySummaryModal .modal-subtitle{font-size:10px}
+  #preferencesModal .ql-modal-body,#weeklySummaryModal .ql-modal-body{padding:14px 14px calc(24px + env(safe-area-inset-bottom))}
+  #preferencesModal .preference-list{gap:7px}
+  #preferencesModal .preference-row{
+    min-height:64px;padding:10px 11px;gap:10px;border-radius:13px;
+    background:linear-gradient(155deg,rgba(255,255,255,.05),rgba(255,255,255,.018));
+  }
+  #preferencesModal .preference-row strong{font-size:12px}
+  #preferencesModal .preference-row small{font-size:9px;line-height:1.3}
+  #preferencesModal .data-controls{
+    margin-top:12px;padding:13px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.022);
+  }
+  #preferencesModal .data-controls>div span{font-size:10px;line-height:1.4}
+  #preferencesModal .data-controls button,#preferencesModal .data-controls a{min-height:40px;padding:9px;border-radius:10px;font-size:10px}
+  #weeklySummaryModal .summary-hero{gap:12px;padding:13px;border-radius:14px}
+  #weeklySummaryModal .summary-hero>div:last-child strong{font-size:14px}
+  #weeklySummaryModal .summary-hero>div:last-child small{font-size:10px;line-height:1.35}
+  #weeklySummaryModal .summary-grid{gap:7px;margin-top:9px}
+  #weeklySummaryModal .summary-grid>div{min-height:98px;padding:11px;border-radius:13px}
+  #weeklySummaryModal .summary-grid small{font-size:9px}
+  #weeklySummaryModal .summary-grid strong{font-size:14px}
+  #weeklySummaryModal .summary-wins{margin:9px 0;padding:12px;border-radius:13px}
+  #weeklySummaryModal .summary-wins strong{font-size:12px}
+  #weeklySummaryModal .summary-wins p{font-size:10px;line-height:1.45}
+  #weeklySummaryModal .coach-moment{margin:0;padding:11px;border:1px solid var(--border);border-radius:13px;background:rgba(255,255,255,.022)}
+
+  #hbModal{background:rgba(0,0,0,.64);backdrop-filter:blur(9px)}
+  #hbModal .hb-modal-inner{
+    max-height:88vh;border:1px solid var(--border);border-bottom:0;border-radius:24px 24px 0 0;
+    background:linear-gradient(180deg,#0d1c25,#071219);
+  }
+  #hbModal .hb-modal-header{padding:17px 16px 13px;background:rgba(7,18,25,.9)}
+  #hbModal .hb-modal-title{
+    font-family:var(--body);font-size:23px;font-weight:720;line-height:1.05;
+    letter-spacing:-.04em;text-transform:none;
+  }
+  #hbModal .hb-modal-body{padding:14px 16px calc(28px + env(safe-area-inset-bottom))}
+  #hbModal .hb-modal-body>div{gap:10px!important}
+  #hbModal .hb-modal-body .nutrnote{padding:13px;font-size:11px;line-height:1.5}
+
+  html.outdoor-mode body.mobile-secondary-tab .tab-content.active>.page-intro,
+  html.outdoor-mode body.mobile-secondary-tab .tab-content.active>.card,
+  html.outdoor-mode body.mobile-secondary-tab .tab-content.active #nutContent>.card,
+  html.outdoor-mode #preferencesModal .ql-modal-inner,
+  html.outdoor-mode #weeklySummaryModal .ql-modal-inner{background:#fff}
+  html.outdoor-mode .more-menu-sheet{background:#fff}
+  html.outdoor-mode .more-menu-grid button,
+  html.outdoor-mode .more-outdoor,
+  html.outdoor-mode #preferencesModal .preference-row{background:rgba(7,17,22,.025)}
+  html.outdoor-mode #preferencesModal .ql-modal-header,
+  html.outdoor-mode #weeklySummaryModal .ql-modal-header{background:rgba(255,255,255,.92)}
+  html.outdoor-mode #hbModal .hb-modal-inner{background:#fff}
+  html.outdoor-mode #hbModal .hb-modal-header{background:rgba(255,255,255,.92)}
+  html.outdoor-mode .summary-ring{
+    background:radial-gradient(circle closest-side,#fff 72%,transparent 74%),
+      conic-gradient(var(--run) calc(var(--value)*1%),rgba(7,17,22,.1) 0);
+  }
+}
+
+/* The guide articles still contain legacy inline formatting. Normalize those
+   surfaces inside the polished reader without changing their content. */
+.hb-modal-body [style*="background:#0a0a0a"]{
+  background:var(--surface2)!important;border:1px solid var(--border)!important;
+  border-radius:9px!important;font-family:var(--body)!important;color:var(--text)!important;
+}
+.hb-modal-body [style*="font-family:var(--display)"]{font-family:var(--body)!important;letter-spacing:-.02em!important;text-transform:none!important}
