@@ -127,7 +127,7 @@ function renderCal(ws){
       if(daySessions.length>2)labels+='<span class="month-session more">+'+(daySessions.length-2)+' more</span>';
       if(!daySessions.length&&hasRecoveryOnly)labels='<span class="month-rest-label">Rest day</span>';
       var aria=cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+', '+(daySessions.length?(daySessions.length+' session'+(daySessions.length===1?'':'s')+': '+daySessions.map(function(s){return s.name||wgShortLabel(s);}).join(', ')):'no sessions');
-      html+='<button type="button" role="gridcell" class="month-day'+(inMonth?'':' outside-month')+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(aria)+'"><span class="month-date">'+cellDate.getDate()+'</span><span class="month-session-list">'+labels+'</span>'+(dayDone?'<span class="month-done" aria-label="Completed">✓</span>':dayMissed?'<span class="month-missed" aria-label="Needs attention">!</span>':'')+'</button>';
+      html+='<button type="button" role="gridcell" class="month-day'+(inMonth?'':' outside-month')+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'"'+(isToday?' aria-current="date"':'')+' onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(aria)+'"><span class="month-date">'+cellDate.getDate()+'</span><span class="month-session-list">'+labels+'</span>'+(dayDone?'<span class="month-done" aria-label="Completed">✓</span>':dayMissed?'<span class="month-missed" aria-label="Needs attention">!</span>':'')+'</button>';
     }
     html+='</div>';
   }else{

@@ -2989,7 +2989,7 @@ button.hero-stat{
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   APPLE-STYLE MOBILE TRAINING CALENDAR · v39
+   APPLE-STYLE MOBILE TRAINING CALENDAR · v40
    A complete month view shows every planned session at a glance. Tapping
    a date opens that day as a dedicated, full-screen session workspace.
    ══════════════════════════════════════════════════════════════════════ */
@@ -3065,8 +3065,14 @@ body.day-plan-open{overflow:hidden}
   .month-day:focus-visible{z-index:2;outline:2px solid var(--run);outline-offset:-2px}
   .month-day.selected{background:rgba(146,210,237,.055)}
   .month-day.outside-month{opacity:.32}
+  .month-day.today{
+    z-index:1;background:linear-gradient(180deg,rgba(146,210,237,.19),rgba(146,210,237,.055));
+    box-shadow:inset 0 0 0 1px rgba(146,210,237,.48),0 0 24px rgba(77,169,207,.09);
+  }
+  .month-day.today::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--run);box-shadow:0 2px 10px rgba(146,210,237,.42)}
   .month-date{width:30px;height:30px;display:grid;place-items:center;align-self:center;border-radius:50%;font-size:16px;line-height:1;font-weight:700;color:var(--text)}
-  .month-day.today .month-date{background:var(--run);color:#05202b;box-shadow:0 5px 14px rgba(146,210,237,.24)}
+  .month-day.today .month-date{width:34px;height:34px;background:var(--run);color:#05202b;font-size:17px;font-weight:850;box-shadow:0 6px 18px rgba(146,210,237,.45)}
+  .month-day.today .month-session{filter:saturate(1.08)}
   .month-session-list{display:flex;flex-direction:column;gap:4px;min-width:0;margin-top:7px}
   .month-session{display:block;min-width:0;padding:4px;border-radius:5px;font-family:var(--body);font-size:9px;line-height:1.1;font-weight:750;color:#06131a;background:var(--run);overflow:hidden}
   .month-session-line{display:flex;align-items:center;gap:2px;min-width:0}
@@ -3086,6 +3092,7 @@ body.day-plan-open{overflow:hidden}
   .month-done{position:absolute;top:10px;right:5px;color:var(--ok);font-size:10px;font-weight:800}
   .month-missed{position:absolute;top:9px;right:5px;width:12px;height:12px;display:grid;place-items:center;border-radius:50%;background:rgba(240,184,91,.14);color:#f0b85b;font-size:8px;line-height:1;font-weight:850}
   .outdoor-mode .month-day{border-color:rgba(7,17,22,.08)}
+  .outdoor-mode .month-day.today{background:linear-gradient(180deg,rgba(8,127,174,.16),rgba(8,127,174,.045));box-shadow:inset 0 0 0 1px rgba(8,127,174,.45),0 10px 24px rgba(30,55,67,.08)}
   .outdoor-mode .month-calendar-actions button{background:#fff;border-color:var(--border)}
   .outdoor-mode .month-session.strength{background:rgba(7,17,22,.08);box-shadow:inset 2px 0 0 rgba(7,17,22,.46)}
 
@@ -3128,6 +3135,7 @@ body.day-plan-open{overflow:hidden}
   .month-calendar-actions .month-today-btn{padding:0 7px;font-size:9px}
   .month-day{padding:6px 3px 5px}
   .month-date{width:27px;height:27px;font-size:15px}
+  .month-day.today .month-date{width:31px;height:31px;font-size:16px}
   .month-session-list{gap:3px;margin-top:5px}
   .month-session{font-size:8px;padding:3px}
   .month-session small{font-size:6px}
