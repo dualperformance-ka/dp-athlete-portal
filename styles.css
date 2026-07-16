@@ -3461,3 +3461,165 @@ body.day-plan-open{overflow:hidden}
 @media(prefers-reduced-motion:reduce){
   #portalScreen>header{transition:none!important}
 }
+
+/* Focused, border-consistent mobile check-in experience. */
+.ci-form-kicker{
+  margin-bottom:12px;font-family:var(--mono);font-size:9px;line-height:1;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+}
+
+@media(max-width:760px){
+  body.mobile-checkin-tab .top-shell,
+  body.mobile-checkin-tab #wbar,
+  body.mobile-checkin-tab .quicklog-strip,
+  body.mobile-checkin-tab .wa-fab{display:none!important}
+
+  body.mobile-checkin-tab #tab-checkin.active{
+    display:block;max-width:620px;margin:0 auto;
+    padding:10px 12px calc(98px + env(safe-area-inset-bottom));
+  }
+  body.mobile-checkin-tab #tab-checkin .page-intro{
+    margin:0 0 10px;padding:16px;border:1px solid var(--border);border-radius:18px;
+    background:radial-gradient(circle at 100% 0%,rgba(146,210,237,.1),transparent 38%),
+      linear-gradient(155deg,rgba(16,27,34,.96),rgba(7,16,22,.96));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 14px 34px rgba(0,0,0,.2);
+  }
+  body.mobile-checkin-tab #tab-checkin .page-kicker{margin-bottom:6px;font-size:8px}
+  body.mobile-checkin-tab #tab-checkin .page-title{font-size:27px;line-height:1;letter-spacing:-.04em}
+  body.mobile-checkin-tab #tab-checkin .page-copy{margin-top:7px;font-size:12px;line-height:1.45}
+
+  body.mobile-checkin-tab .ci-rail{display:grid;gap:9px}
+  body.mobile-checkin-tab .ci-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:0!important;
+  }
+  body.mobile-checkin-tab .ci-card{
+    min-height:66px;padding:11px 12px;border:1px solid var(--border)!important;border-radius:13px;
+    background:linear-gradient(155deg,rgba(255,255,255,.045),rgba(255,255,255,.018));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+  }
+  body.mobile-checkin-tab .ci-val{
+    margin-bottom:3px;font-family:var(--body);font-size:23px;font-weight:700;
+    line-height:1;letter-spacing:-.04em;color:var(--text)!important;
+  }
+  body.mobile-checkin-tab .ci-lbl{
+    font-family:var(--body);font-size:9px;font-weight:500;line-height:1.2;
+    letter-spacing:0;text-transform:none;color:var(--muted);
+  }
+
+  body.mobile-checkin-tab #ciBookCard{
+    position:relative;margin-bottom:2px!important;border:1px solid var(--border)!important;
+    border-radius:15px!important;background:linear-gradient(155deg,rgba(255,255,255,.045),rgba(255,255,255,.018))!important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035)!important;
+  }
+  body.mobile-checkin-tab #ciBookCard::before{
+    content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;
+    background:#f0b85b;
+  }
+  body.mobile-checkin-tab #ciBookCard.booked::before{background:var(--ok)}
+  body.mobile-checkin-tab #ciBookCard>div{padding:13px 14px 13px 16px!important}
+  body.mobile-checkin-tab #ciBookKicker{
+    margin-bottom:4px!important;font-family:var(--body)!important;font-size:9px!important;
+    font-weight:650!important;letter-spacing:0!important;text-transform:none!important;color:var(--dim)!important;
+  }
+  body.mobile-checkin-tab #ciBookTitle{
+    margin-bottom:3px!important;font-family:var(--body)!important;font-size:15px!important;
+    font-weight:650!important;line-height:1.2!important;letter-spacing:-.015em!important;
+    text-transform:none!important;color:var(--text)!important;
+  }
+  body.mobile-checkin-tab #ciBookSub{font-size:11px!important;line-height:1.35!important;color:var(--muted)!important}
+
+  body.mobile-checkin-tab .ci-main{
+    margin-top:10px;padding:14px;border:1px solid var(--border);border-radius:19px;
+    background:linear-gradient(155deg,rgba(16,27,34,.94),rgba(7,16,22,.94));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 16px 38px rgba(0,0,0,.2);
+  }
+  body.mobile-checkin-tab .ci-form-kicker{margin-bottom:10px;font-size:8px;color:var(--run)}
+  body.mobile-checkin-tab .ci-identity-grid{grid-template-columns:1fr!important;gap:9px!important;margin-bottom:12px!important}
+  body.mobile-checkin-tab .lf{gap:5px}
+  body.mobile-checkin-tab .lf label{
+    font-family:var(--body);font-size:10px;font-weight:550;line-height:1.25;
+    letter-spacing:0;text-transform:none;color:var(--muted);
+  }
+  body.mobile-checkin-tab .li{
+    min-height:46px;padding:11px 12px;border:1px solid var(--border)!important;border-radius:11px;
+    background:rgba(255,255,255,.035);font-family:var(--body);font-size:16px;color:var(--text);
+  }
+  body.mobile-checkin-tab #ciWeekEnding{border-color:var(--border)!important}
+  body.mobile-checkin-tab .li:focus{
+    border-color:var(--run)!important;background:rgba(146,210,237,.055);
+    box-shadow:0 0 0 3px rgba(146,210,237,.1);
+  }
+
+  body.mobile-checkin-tab .ci-wizard-bar{
+    gap:12px;margin-bottom:14px;padding:11px 0 13px;border-top:1px solid var(--border);
+    border-bottom:1px solid var(--border);
+  }
+  body.mobile-checkin-tab .ci-sdots{flex:1;gap:5px}
+  body.mobile-checkin-tab .ci-sdot{
+    flex:1;width:auto;height:4px;border-radius:999px;background:rgba(255,255,255,.1);
+    transform:none;
+  }
+  body.mobile-checkin-tab .ci-sdot.done{background:rgba(34,197,94,.7)}
+  body.mobile-checkin-tab .ci-sdot.active{background:var(--run);transform:none;box-shadow:0 0 10px rgba(146,210,237,.28)}
+  body.mobile-checkin-tab .ci-step-counter{
+    font-family:var(--body);font-size:9px;font-weight:600;letter-spacing:0;
+    text-transform:none;white-space:nowrap;color:var(--muted);
+  }
+  body.mobile-checkin-tab .ci-step-title{
+    display:flex;align-items:center;gap:7px;margin-bottom:10px;font-family:var(--body);
+    font-size:22px;font-weight:700;line-height:1.05;letter-spacing:-.035em;text-transform:none;color:var(--text);
+  }
+  body.mobile-checkin-tab .ci-step-title .icon{width:18px;height:18px;margin:0;color:var(--run)}
+  body.mobile-checkin-tab .ci-step-panel>.card,
+  body.mobile-checkin-tab .ci-testimonial-card{
+    margin-bottom:10px!important;padding:13px;border:1px solid var(--border)!important;border-radius:14px;
+    background:rgba(255,255,255,.025);box-shadow:none;
+  }
+  body.mobile-checkin-tab .rlog{gap:7px}
+  body.mobile-checkin-tab input[type="range"]{height:26px;margin-top:5px!important;accent-color:var(--run)!important}
+  body.mobile-checkin-tab textarea.li{min-height:82px!important;line-height:1.45}
+  body.mobile-checkin-tab select.li{padding-right:34px}
+
+  body.mobile-checkin-tab .ci-reflection-intro{
+    padding:14px!important;border:1px solid var(--border);border-radius:14px!important;
+    background:radial-gradient(circle at 100% 0%,rgba(146,210,237,.1),transparent 42%),
+      rgba(255,255,255,.025)!important;
+  }
+  body.mobile-checkin-tab .ci-reflection-intro>div:nth-child(2){
+    font-family:var(--body)!important;font-size:18px!important;font-weight:700!important;
+    line-height:1.15!important;letter-spacing:-.025em!important;text-transform:none!important;
+  }
+  body.mobile-checkin-tab .ci-reflection-intro>div:last-child{font-size:12px!important;line-height:1.5!important;color:var(--muted)!important}
+
+  body.mobile-checkin-tab .ci-nav-row{
+    position:sticky;bottom:calc(80px + env(safe-area-inset-bottom));z-index:6;
+    gap:7px;margin:12px -6px -6px;padding:7px;border:1px solid var(--border);
+    border-radius:14px;background:rgba(7,17,23,.84);box-shadow:0 12px 30px rgba(0,0,0,.28);
+    backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  }
+  body.mobile-checkin-tab .ci-btn-back,
+  body.mobile-checkin-tab .ci-btn-next{
+    min-height:44px;padding:10px 12px;border-radius:10px;font-family:var(--body);
+    font-size:12px;font-weight:700;letter-spacing:0;text-transform:none;
+  }
+  body.mobile-checkin-tab .ci-btn-back{border:1px solid var(--border);background:rgba(255,255,255,.045)}
+  body.mobile-checkin-tab .ci-btn-next{border:1px solid var(--run)}
+
+  body.mobile-checkin-tab .mobile-nav-item:focus-visible{
+    outline:1px solid var(--run-border);outline-offset:-1px;
+  }
+
+  html.outdoor-mode body.mobile-checkin-tab #tab-checkin .page-intro,
+  html.outdoor-mode body.mobile-checkin-tab .ci-main{
+    background:#fff;border-color:var(--border);box-shadow:0 12px 30px rgba(30,55,67,.08);
+  }
+  html.outdoor-mode body.mobile-checkin-tab .ci-card,
+  html.outdoor-mode body.mobile-checkin-tab #ciBookCard,
+  html.outdoor-mode body.mobile-checkin-tab .ci-step-panel>.card,
+  html.outdoor-mode body.mobile-checkin-tab .ci-testimonial-card,
+  html.outdoor-mode body.mobile-checkin-tab .ci-reflection-intro{
+    background:rgba(7,17,22,.025)!important;border-color:var(--border)!important;
+  }
+  html.outdoor-mode body.mobile-checkin-tab .li{background:#fff}
+  html.outdoor-mode body.mobile-checkin-tab .ci-nav-row{background:rgba(255,255,255,.88)}
+}

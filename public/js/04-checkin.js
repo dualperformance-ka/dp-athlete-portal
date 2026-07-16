@@ -8,18 +8,20 @@ function ciGoStep(n){
   CI_STEP=n;
   document.querySelectorAll('.ci-sdot').forEach(function(dot,i){
     dot.classList.remove('active','done');
-    if(i+1===n) dot.classList.add('active');
-    else if(i+1<n) dot.classList.add('done');
+    if(i+1===n){dot.classList.add('active');dot.setAttribute('aria-current','step');}
+    else{dot.removeAttribute('aria-current');if(i+1<n)dot.classList.add('done');}
   });
   var counter=document.getElementById('ciStepCounter');
-  if(counter) counter.textContent=n+' of '+CI_TOTAL;
+  if(counter) counter.textContent='Step '+n+' of '+CI_TOTAL;
   var back=document.getElementById('ciBtnBack'),next=document.getElementById('ciBtnNext');
   var navRow=document.getElementById('ciNavRow');
   var isLast=n===CI_TOTAL;
   if(back){back.style.display=n>1?'':'none';}
   if(next){next.style.display=isLast?'none':'';}
   if(navRow){navRow.classList.toggle('solo',n===1||isLast);}
-  window.scrollTo({top:0,behavior:'smooth'});
+  var tab=document.getElementById('tab-checkin');
+  var y=tab?tab.getBoundingClientRect().top+window.scrollY-70:0;
+  window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
 }
 function ciStep(dir){ciGoStep(CI_STEP+dir);}
 

@@ -32,6 +32,7 @@ function renderBookingPrompts(){
   if(dot) dot.classList.toggle('visible',!st.booked);
   var card=document.getElementById('ciBookCard');
   if(card){
+    card.classList.toggle('booked',st.booked);
     card.style.borderColor=st.booked?'rgba(34,197,94,.35)':'rgba(245,158,11,.22)';
     var k=document.getElementById('ciBookKicker'),t=document.getElementById('ciBookTitle'),s=document.getElementById('ciBookSub'),a=document.getElementById('ciBookArrow');
     if(k) k.textContent=st.booked?'Step 1 — Done':'Step 1 — Do this first';
@@ -169,10 +170,14 @@ function switchTab(tab){
   var showWeekBar=(tab==='weekly')||(!isDesktop&&tab==='training'&&trainingView==='plan');
   document.body.classList.toggle('mobile-training-calendar',!isDesktop&&tab==='training'&&trainingView==='plan');
   document.body.classList.toggle('mobile-portal-home',!isDesktop&&tab==='training'&&trainingView==='home');
+  document.body.classList.toggle('mobile-checkin-tab',!isDesktop&&tab==='checkin');
   syncMobileHomePlacement();
   document.getElementById('wbar').style.display=showWeekBar?'':'none';
   if(tab==='nutrition'&&Date.now()-_nutLastLoad>60000) loadNutrition(); // skip refetch if loaded <60s ago (week shifts & post-save always reload directly)
-  if(tab==='checkin') initCheckin();
+  if(tab==='checkin'){
+    initCheckin();
+    if(!isDesktop) window.scrollTo({top:0,behavior:'smooth'});
+  }
   if(tab==='progress') loadProgress();
   if(tab==='training'||tab==='weekly') applyTrainingView();
 }

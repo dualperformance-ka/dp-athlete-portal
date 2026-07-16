@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=52">
+<link rel="stylesheet" href="/styles.css?v=53">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -560,21 +560,21 @@
     </div><!-- /ci-rail -->
     <div class="ci-main" id="accWeeklyContent">
         <!-- STEP 2: CHECK-IN FORM -->
-        <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.14em;margin-bottom:12px">Step 2 — Complete your check-in</div>
+        <div class="ci-form-kicker">Step 2 — Complete your check-in</div>
         <div id="ciFormContent">
           <!-- Always-visible details -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+          <div class="ci-identity-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
             <div class="lf"><label>Your name</label><input type="text" class="li" id="ciName" placeholder="Your name" /></div>
             <div class="lf"><label style="display:flex;align-items:center;gap:6px">Week ending <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.85);font-family:var(--mono)">— confirm before submitting</span></label><input type="date" class="li" id="ciWeekEnding" style="border-color:rgba(255,170,0,.4)" /></div>
           </div>
           <!-- Step indicator -->
           <div class="ci-wizard-bar">
             <div class="ci-sdots">
-              <button class="ci-sdot active" onclick="ciGoStep(1)"></button>
-              <button class="ci-sdot" onclick="ciGoStep(2)"></button>
-              <button class="ci-sdot" onclick="ciGoStep(3)"></button>
-              <button class="ci-sdot" onclick="ciGoStep(4)"></button>
-              <button class="ci-sdot" onclick="ciGoStep(5)"></button>
+              <button class="ci-sdot active" onclick="ciGoStep(1)" aria-label="Running step"></button>
+              <button class="ci-sdot" onclick="ciGoStep(2)" aria-label="Lifting step"></button>
+              <button class="ci-sdot" onclick="ciGoStep(3)" aria-label="Recovery step"></button>
+              <button class="ci-sdot" onclick="ciGoStep(4)" aria-label="Fuelling and life step"></button>
+              <button class="ci-sdot" onclick="ciGoStep(5)" aria-label="Week reflection step"></button>
             </div>
             <div class="ci-step-counter" id="ciStepCounter">1 of 5</div>
           </div>
@@ -670,12 +670,12 @@
           <!-- Step 5: This week -->
           <div class="ci-step-panel" data-step="5">
             <div class="ci-step-title"><svg class="icon"><use href="#i-sparkle"/></svg> Your Week in Words</div>
-            <div style="background:#0a0a0a;border-radius:12px;padding:18px;margin-bottom:14px">
+            <div class="ci-reflection-intro" style="background:#0a0a0a;border-radius:12px;padding:18px;margin-bottom:14px">
               <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
               <div style="font-family:var(--display);font-size:20px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.15;margin-bottom:8px">What did this week mean to you?</div>
               <div style="font-size:13px;color:rgba(255,255,255,.82);line-height:1.6">Your progress is worth sharing. Other people are sitting on the couch wondering if they could do what you're doing — your words might be exactly what they need to hear.</div>
             </div>
-            <div class="card" style="margin-bottom:10px;border:2px solid #0a0a0a">
+            <div class="card ci-testimonial-card" style="margin-bottom:10px">
               <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Write freely — we may share this (with your permission) <svg class="icon icon-sm icon-run"><use href="#i-sparkle"/></svg></div>
               <textarea class="li" id="ciTestimonial" placeholder="e.g. Three weeks ago I could barely run 2km without stopping. This week I nailed every session and hit a new PB. I didn't think I had it in me — but here I am. The coaching from Karl and Alex has completely changed how I train..." style="min-height:180px;resize:vertical;font-size:13px;line-height:1.6"></textarea>
               <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
@@ -1065,15 +1065,15 @@
 
 <script src="config.js"></script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=52"></script>
-<script src="js/02-login-goals.js?v=52"></script>
-<script src="js/03-nav-nudges.js?v=52"></script>
-<script src="js/04-checkin.js?v=52"></script>
-<script src="js/05-handbook.js?v=52"></script>
-<script src="js/06-nutrition.js?v=52"></script>
-<script src="js/07-progress.js?v=52"></script>
-<script src="js/08-training.js?v=52"></script>
-<script src="js/09-logging.js?v=52"></script>
-<script src="js/10-boot.js?v=52"></script>
+<script src="js/01-core.js?v=53"></script>
+<script src="js/02-login-goals.js?v=53"></script>
+<script src="js/03-nav-nudges.js?v=53"></script>
+<script src="js/04-checkin.js?v=53"></script>
+<script src="js/05-handbook.js?v=53"></script>
+<script src="js/06-nutrition.js?v=53"></script>
+<script src="js/07-progress.js?v=53"></script>
+<script src="js/08-training.js?v=53"></script>
+<script src="js/09-logging.js?v=53"></script>
+<script src="js/10-boot.js?v=53"></script>
 </body>
 </html>
