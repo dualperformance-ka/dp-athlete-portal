@@ -11,13 +11,17 @@ function renderPhotoGrid(){
     var wLabel=w===0?'Discovery Week':'Week '+w;
     var weekPhotos=photos['week'+w]||{};var count=Object.keys(weekPhotos).length;var firstUrl=count?weekPhotos[Object.keys(weekPhotos)[0]]:'';
     var isCurrent=w===curWeek;
-    html+='<div class="photo-cell'+(count?' has-photo':'')+(isCurrent?' current-week':'')+'" onclick="openPhotoModal('+w+')">';
-    if(isCurrent&&!firstUrl) html+='<div class="photo-cell current-week-badge" style="font-family:var(--mono);font-size:8px;color:var(--run);text-transform:uppercase;letter-spacing:.06em;position:absolute;top:5px;left:6px;z-index:2;font-weight:700;line-height:1">NOW</div>';
+    html+='<button type="button" class="photo-cell'+(count?' has-photo':'')+(isCurrent?' current-week':'')+'" onclick="openPhotoModal('+w+')" aria-label="Open '+wLabel+' progress photos">';
+    if(isCurrent) html+='<div class="current-week-badge">Now</div>';
     if(firstUrl){html+='<img src="'+firstUrl+'" alt="'+wLabel+'" onerror="pgImgDead(this)" /><div class="photo-count">'+count+'/5</div><div class="photo-overlay">'+wLabel+'</div>';}
     else{html+='<div class="photo-add">+</div><div class="photo-label">'+wLabel+'</div>';}
-    html+='</div>';
+    html+='</button>';
   }
   grid.innerHTML=html;
+  if(window.matchMedia&&window.matchMedia('(max-width:760px)').matches){
+    var current=grid.querySelector('.photo-cell.current-week');
+    if(current)requestAnimationFrame(function(){grid.scrollLeft=Math.max(0,current.offsetLeft-(grid.clientWidth-current.clientWidth)/2);});
+  }
 }
 // A dead image URL (e.g. asset renamed in Cloudinary) falls back to the empty
 // "+" cell instead of a broken-image icon — the athlete can just re-upload.
@@ -88,6 +92,7 @@ async function handleAngleUpload(input){
 
 // ── PROGRESS ──────────────────────────────────────────────────────────────────
 function formatKgDelta(v){if(v==null||isNaN(v)) return '—';var n=Number(v);var rounded=Math.abs(n)<0.05?0:n;return(rounded>0?'+':'')+rounded.toFixed(1)+'kg';}
+function formatKgValue(v){if(v==null||String(v).trim()===''||String(v).trim()==='—')return'—';var s=String(v).trim();return/kg$/i.test(s)?s:s+'kg';}
 function renderWeightChart(entries,targetWeight){
   var chartEl=document.getElementById('pgChart');var emptyEl=document.getElementById('pgChartEmpty');var statsEl=document.getElementById('pgChartStats');
   if(!chartEl||!emptyEl||!statsEl) return;
@@ -106,12 +111,12 @@ function renderWeightChart(entries,targetWeight){
   var poly=coords.map(function(c){return c.x.toFixed(1)+','+c.y.toFixed(1);}).join(' ');
   var areaPoly=poly+' '+coords[coords.length-1].x.toFixed(1)+','+(height-padB)+' '+coords[0].x.toFixed(1)+','+(height-padB);
   var yTicks=[minW,(minW+maxW)/2,maxW];
-  var yLines=yTicks.map(function(v){var y=padT+((maxW-v)/(maxW-minW))*usableH;return '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+y.toFixed(1)+'" stroke="rgba(255,255,255,.08)" stroke-width="1"/><text x="'+(width-padR)+'" y="'+(y-6).toFixed(1)+'" text-anchor="end" fill="rgba(255,255,255,.42)" style="font-family:var(--mono);font-size:10px">'+v.toFixed(1)+'kg</text>';}).join('');
-  var xLabels='<text x="'+coords[0].x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="start" fill="rgba(255,255,255,.42)" style="font-family:var(--mono);font-size:10px">'+new Date(points[0].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text><text x="'+coords[coords.length-1].x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="end" fill="rgba(255,255,255,.42)" style="font-family:var(--mono);font-size:10px">'+new Date(points[points.length-1].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text>';
-  var dots=coords.map(function(c,idx){var isLast=idx===coords.length-1;return '<circle cx="'+c.x.toFixed(1)+'" cy="'+c.y.toFixed(1)+'" r="'+(isLast?4.4:3.2)+'" fill="'+(isLast?'#ffffff':'rgba(255,255,255,.88)')+'"/>';}).join('');
+  var yLines=yTicks.map(function(v){var y=padT+((maxW-v)/(maxW-minW))*usableH;return '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+y.toFixed(1)+'" stroke="var(--border)" stroke-width="1"/><text x="'+(width-padR)+'" y="'+(y-6).toFixed(1)+'" text-anchor="end" fill="var(--dim)" style="font-family:var(--mono);font-size:10px">'+v.toFixed(1)+'kg</text>';}).join('');
+  var xLabels='<text x="'+coords[0].x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="start" fill="var(--dim)" style="font-family:var(--mono);font-size:10px">'+new Date(points[0].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text><text x="'+coords[coords.length-1].x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="end" fill="var(--dim)" style="font-family:var(--mono);font-size:10px">'+new Date(points[points.length-1].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text>';
+  var dots=coords.map(function(c,idx){var isLast=idx===coords.length-1;return '<circle cx="'+c.x.toFixed(1)+'" cy="'+c.y.toFixed(1)+'" r="'+(isLast?4.4:3.2)+'" fill="'+(isLast?'var(--text)':'var(--run)')+'"/>';}).join('');
   var targetLine='';var targetNum=targetWeight!=null&&!isNaN(targetWeight)?Number(targetWeight):null;
-  if(targetNum!=null&&targetNum>=minW&&targetNum<=maxW){var ty=padT+((maxW-targetNum)/(maxW-minW))*usableH;targetLine='<line x1="'+padL+'" y1="'+ty.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+ty.toFixed(1)+'" stroke="rgba(146,210,237,.35)" stroke-dasharray="4 4" stroke-width="1"/><text x="'+padL+'" y="'+(ty-6).toFixed(1)+'" fill="rgba(146,210,237,.72)" style="font-family:var(--mono);font-size:10px">Target '+targetNum.toFixed(1)+'kg</text>';}
-  chartEl.innerHTML='<svg viewBox="0 0 '+width+' '+height+'" width="100%" height="220" role="img" aria-label="Weight trend chart">'+yLines+targetLine+'<polygon points="'+areaPoly+'" fill="rgba(146,210,237,.09)"></polygon><polyline points="'+poly+'" fill="none" stroke="#92d2ed" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></polyline>'+dots+xLabels+'</svg>';
+  if(targetNum!=null&&targetNum>=minW&&targetNum<=maxW){var ty=padT+((maxW-targetNum)/(maxW-minW))*usableH;targetLine='<line x1="'+padL+'" y1="'+ty.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+ty.toFixed(1)+'" stroke="var(--run-border)" stroke-dasharray="4 4" stroke-width="1"/><text x="'+padL+'" y="'+(ty-6).toFixed(1)+'" fill="var(--run)" style="font-family:var(--mono);font-size:10px">Target '+targetNum.toFixed(1)+'kg</text>';}
+  chartEl.innerHTML='<svg viewBox="0 0 '+width+' '+height+'" width="100%" height="220" role="img" aria-label="Weight trend chart">'+yLines+targetLine+'<polygon points="'+areaPoly+'" fill="var(--run-bg)"></polygon><polyline points="'+poly+'" fill="none" stroke="var(--run)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></polyline>'+dots+xLabels+'</svg>';
   var latestDate=new Date(points[points.length-1].date);var sevenAgo=new Date(latestDate);sevenAgo.setDate(sevenAgo.getDate()-7);
   var compare=points[0];for(var i=points.length-1;i>=0;i--){if(new Date(points[i].date)<=sevenAgo){compare=points[i];break;}}
   var sevenDelta=points[points.length-1].weight-compare.weight;
@@ -129,8 +134,15 @@ async function loadProgress(){
   renderPhotoGrid();
   var savedGoals=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
   var portalStartWeight=savedGoals.startWeight||savedGoals.weight||athlete.startWeight||'';
-  document.getElementById('pgStart').textContent=portalStartWeight?portalStartWeight+'kg':'';
-  document.getElementById('pgTarget').textContent=athlete.targetWeight||'—';
+  var progressWeek=getCurrentProgrammeWeek();
+  var progressWeekEl=document.getElementById('pgProgressWeek');if(progressWeekEl)progressWeekEl.textContent='Week '+progressWeek;
+  document.getElementById('pgStart').textContent=formatKgValue(portalStartWeight);
+  document.getElementById('pgCurrent').textContent='—';
+  document.getElementById('pgTarget').textContent=formatKgValue(athlete.targetWeight);
+  document.getElementById('pgChange').textContent='—';
+  document.getElementById('pgChange').style.color='';
+  document.getElementById('pgChangeLbl').textContent='Change';
+  var lastUpdatedEl=document.getElementById('pgLastUpdated');if(lastUpdatedEl)lastUpdatedEl.textContent='Loading latest entry…';
   document.getElementById('pgLoadingEl').style.display='block';
   document.getElementById('pgWeightLog').style.display='none';
   document.getElementById('pgNoData').style.display='none';
@@ -156,39 +168,40 @@ async function loadProgress(){
   }catch(e){}
   document.getElementById('pgLoadingEl').style.display='none';
   var entries=Object.values(sbEntries).filter(function(e){return e.weight&&!isNaN(parseFloat(e.weight));}).map(function(e){return{date:e.date,weight:parseFloat(e.weight)};}).sort(function(a,b){return b.date.localeCompare(a.date);});
-  if(!entries.length){document.getElementById('pgNoData').style.display='block';renderWeightChart([],null);return;}
+  if(!entries.length){document.getElementById('pgNoData').style.display='block';if(lastUpdatedEl)lastUpdatedEl.textContent='No weigh-ins yet';renderWeightChart([],null);return;}
   // Remap to format expected by rest of function (weight chart etc uses r.properties)
   // We'll handle the Supabase path inline below
   var currentWeight=entries[0].weight;
   var firstLoggedWeight=entries[entries.length-1].weight;
   var targetFromAthlete=athlete.targetWeight&&athlete.targetWeight!=='—'?athlete.targetWeight:null;
-  var targetFinal=(savedGoals.targetWeight?savedGoals.targetWeight+'kg':null)||targetFromAthlete||'—';
+  var targetFinal=formatKgValue(savedGoals.targetWeight||targetFromAthlete);
   var startWeight=parseFloat(String(portalStartWeight).replace(/[^0-9.\-]/g,''));
   if(isNaN(startWeight)) startWeight=firstLoggedWeight;
-  document.getElementById('pgStart').textContent=portalStartWeight?portalStartWeight+'kg':(startWeight?startWeight+'kg':'');
-  document.getElementById('pgCurrent').textContent=currentWeight?currentWeight+'kg':'—';
+  document.getElementById('pgStart').textContent=portalStartWeight?formatKgValue(portalStartWeight):(startWeight?formatKgValue(startWeight):'—');
+  document.getElementById('pgCurrent').textContent=currentWeight?formatKgValue(currentWeight):'—';
+  if(lastUpdatedEl)lastUpdatedEl.textContent='Last logged '+new Date(entries[0].date+'T00:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'});
   document.getElementById('pgTarget').textContent=targetFinal;
   if(startWeight&&currentWeight&&!isNaN(startWeight)){
     var change=(currentWeight-startWeight).toFixed(1);var positive=change>0;
     var changeEl=document.getElementById('pgChange');changeEl.textContent=(positive?'+':'')+change+'kg';changeEl.style.color=positive?'var(--run)':'var(--ok)';
-    document.getElementById('pgChangeLbl').textContent=portalStartWeight?'kg since starting weight':'kg since first weigh-in';
+    document.getElementById('pgChangeLbl').textContent=portalStartWeight?'Since starting weight':'Since first weigh-in';
   }
   var targetNumber=parseFloat(String(targetFinal).replace(/[^0-9.\-]/g,''));
   var syntheticForChart=entries.map(function(e){return{properties:{'Weight':{number:e.weight},'Date':{date:{start:e.date}}}};});
   renderWeightChart(syntheticForChart,isNaN(targetNumber)?null:targetNumber);
   var COLLAPSED_ROWS=5;
-  var html='<table style="width:100%;border-collapse:collapse"><thead><tr><th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:left;border-bottom:1px solid var(--border-mid)">Date</th><th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:right;border-bottom:1px solid var(--border-mid)">Weight</th><th style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px;text-align:right;border-bottom:1px solid var(--border-mid)">Change</th></tr></thead><tbody>';
+  var html='<table class="weight-log-table"><thead><tr><th>Date</th><th>Weight</th><th>Change</th></tr></thead><tbody>';
   entries.forEach(function(e,idx){
     var dateLabel=e.date?formatDateTimeDMY(e.date):'';
     var changeStr='—',changeColor='var(--dim)';
     if(idx<entries.length-1){var prevWeight=entries[idx+1].weight;if(prevWeight!=null){var diff=(e.weight-prevWeight).toFixed(1);changeStr=(diff>0?'+':'')+diff+'kg';changeColor=diff>0?'var(--run)':diff<0?'var(--ok)':'var(--dim)';}}
-    var hidden=idx>=COLLAPSED_ROWS?' class="wl-extra" style="display:none;border-bottom:1px solid var(--border)"':' style="border-bottom:1px solid var(--border)"';
-    html+='<tr'+hidden+'><td style="padding:10px 4px;font-size:13px">'+dateLabel+'</td><td style="padding:10px 4px;font-family:var(--display);font-size:18px;font-weight:700;text-align:right">'+e.weight+'<span style="font-family:var(--mono);font-size:11px;color:var(--dim);font-weight:400">kg</span></td><td style="padding:10px 4px;font-family:var(--mono);font-size:12px;text-align:right;color:'+changeColor+'">'+changeStr+'</td></tr>';
+    var hidden=idx>=COLLAPSED_ROWS?' class="wl-extra" style="display:none"':'';
+    html+='<tr'+hidden+'><td>'+dateLabel+'</td><td class="weight-log-value">'+e.weight+'<span>kg</span></td><td class="weight-log-change" style="color:'+changeColor+'">'+changeStr+'</td></tr>';
   });
   html+='</tbody></table>';
   var remaining=entries.length-COLLAPSED_ROWS;
   if(remaining>0){
-    html+='<button id="pgWeightToggle" onclick="toggleWeightLog()" style="width:100%;margin-top:10px;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:rgba(255,255,255,.6);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer">Show all '+entries.length+' entries</button>';
+    html+='<button id="pgWeightToggle" class="weight-log-toggle" onclick="toggleWeightLog()">Show all '+entries.length+' entries</button>';
   }
   var logEl=document.getElementById('pgWeightLog');logEl.innerHTML=html;logEl.style.display='block';
 }
@@ -208,4 +221,3 @@ function getCurrentProgrammeWeek(){
   if(athlete.startDate&&athlete.startDate!=='—'){var start=localDateFromISO(athlete.startDate);var now=new Date();var diff=Math.floor((now-start)/(7*24*60*60*1000))+1;return Math.max(1,Math.min(programmeWeeks,diff));}
   return 1;
 }
-

@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=53">
+<link rel="stylesheet" href="/styles.css?v=55">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -709,41 +709,85 @@
 
   <!-- PROGRESS -->
   <div class="tab-content" id="tab-progress">
-    <div class="page-intro">
-      <div class="page-kicker">Measure</div>
-      <div class="page-title">Progress</div>
-      <div class="page-copy">Track bodyweight trend, photo consistency, and the measurable change your block is creating.</div>
+    <div class="page-intro progress-intro">
+      <div class="progress-intro-head">
+        <div>
+          <div class="page-kicker">Your trajectory</div>
+          <div class="page-title">Progress</div>
+        </div>
+        <div class="progress-week-pill"><span>Programme</span><strong id="pgProgressWeek">Week —</strong></div>
+      </div>
+      <div class="page-copy">See the trend, compare consistently, and keep the bigger picture in view.</div>
+      <div class="progress-hero-summary">
+        <div class="progress-current">
+          <span class="progress-summary-icon"><svg class="icon"><use href="#i-trend-up"/></svg></span>
+          <div>
+            <span>Current weight</span>
+            <strong id="pgCurrent">—</strong>
+            <small id="pgLastUpdated">No weigh-ins yet</small>
+          </div>
+        </div>
+        <div class="progress-change">
+          <span id="pgChangeLbl">Change</span>
+          <strong id="pgChange">—</strong>
+        </div>
+      </div>
     </div>
     <div class="stitle">Progress</div>
-    <div class="progress-stats" style="margin-bottom:12px;grid-template-columns:repeat(2,1fr)">
-      <div class="pstat"><div class="pstat-val" id="pgStart"></div><div class="pstat-lbl">Start kg</div></div>
-      <div class="pstat"><div class="pstat-val" id="pgCurrent">—</div><div class="pstat-lbl">Current kg</div></div>
-      <div class="pstat"><div class="pstat-val" id="pgTarget">—</div><div class="pstat-lbl">Target kg</div></div>
-      <div class="pstat"><div class="pstat-val" id="pgChange" style="font-size:22px">—</div><div class="pstat-lbl" id="pgChangeLbl">Change</div></div>
+    <div class="progress-baseline">
+      <div class="progress-baseline-item">
+        <span>Starting weight</span>
+        <strong id="pgStart">—</strong>
+        <small>Your baseline</small>
+      </div>
+      <div class="progress-baseline-divider" aria-hidden="true"></div>
+      <div class="progress-baseline-item">
+        <span>Target weight</span>
+        <strong id="pgTarget">—</strong>
+        <small>Your direction</small>
+      </div>
     </div>
-    <div class="card" style="margin-bottom:12px;background:#0a0a0a;border:1px solid rgba(255,255,255,.08);box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.20)">
-      <div class="card-title">Weight Trend</div>
+    <section class="card progress-card progress-trend-card">
+      <div class="progress-section-head">
+        <div>
+          <div class="card-title">Weight trend</div>
+          <div class="progress-section-copy">The direction matters more than one reading.</div>
+        </div>
+        <span class="progress-section-icon"><svg class="icon"><use href="#i-trend-up"/></svg></span>
+      </div>
       <div id="pgChartWrap">
-        <div id="pgChartEmpty" style="display:none;font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:20px">Need at least 2 weigh-ins to show the trend</div>
+        <div id="pgChartEmpty" class="progress-empty" style="display:none">Add two weigh-ins to reveal your trend</div>
         <div id="pgChart"></div>
-        <div class="progress-stats" id="pgChartStats" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">
+        <div class="progress-stats progress-trend-stats" id="pgChartStats">
           <div class="pstat"><div class="pstat-val" id="pg7d">—</div><div class="pstat-lbl">7d change</div></div>
           <div class="pstat"><div class="pstat-val" id="pgWeeklyRate">—</div><div class="pstat-lbl">Avg / week</div></div>
           <div class="pstat"><div class="pstat-val" id="pgToTarget">—</div><div class="pstat-lbl">To target</div></div>
         </div>
       </div>
-    </div>
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-title">Progress Photos</div>
-      <div class="nutrnote" style="margin-bottom:14px">Same time every week. Same lighting, same angles. Tap a week to upload.</div>
+    </section>
+    <section class="card progress-card progress-photo-card">
+      <div class="progress-section-head">
+        <div>
+          <div class="card-title">Progress photos</div>
+          <div class="progress-section-copy">Same light, time and angles each week.</div>
+        </div>
+        <span class="progress-section-icon"><svg class="icon"><use href="#i-camera"/></svg></span>
+      </div>
       <div class="photo-grid" id="photoGrid"></div>
-    </div>
-    <div class="card">
-      <div class="card-title">Weight Log</div>
+      <div class="progress-photo-hint">Swipe through your programme · tap a week to add photos</div>
+    </section>
+    <section class="card progress-card progress-log-card">
+      <div class="progress-section-head">
+        <div>
+          <div class="card-title">Weight history</div>
+          <div class="progress-section-copy">Your latest entries, newest first.</div>
+        </div>
+        <span class="progress-section-icon"><svg class="icon"><use href="#i-calendar"/></svg></span>
+      </div>
       <div class="loading" id="pgLoadingEl" style="padding:24px"><div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div><div class="ltxt">Loading...</div></div>
       <div id="pgWeightLog" style="display:none"></div>
-      <div id="pgNoData" style="display:none;font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:20px">No weigh-ins logged yet</div>
-    </div>
+      <div id="pgNoData" class="progress-empty" style="display:none">Your weigh-ins will appear here</div>
+    </section>
   </div>
 
   <!-- HANDBOOK -->
@@ -1067,11 +1111,11 @@
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=53"></script>
 <script src="js/02-login-goals.js?v=53"></script>
-<script src="js/03-nav-nudges.js?v=53"></script>
+<script src="js/03-nav-nudges.js?v=54"></script>
 <script src="js/04-checkin.js?v=53"></script>
 <script src="js/05-handbook.js?v=53"></script>
 <script src="js/06-nutrition.js?v=53"></script>
-<script src="js/07-progress.js?v=53"></script>
+<script src="js/07-progress.js?v=54"></script>
 <script src="js/08-training.js?v=53"></script>
 <script src="js/09-logging.js?v=53"></script>
 <script src="js/10-boot.js?v=53"></script>

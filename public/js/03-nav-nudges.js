@@ -171,6 +171,7 @@ function switchTab(tab){
   document.body.classList.toggle('mobile-training-calendar',!isDesktop&&tab==='training'&&trainingView==='plan');
   document.body.classList.toggle('mobile-portal-home',!isDesktop&&tab==='training'&&trainingView==='home');
   document.body.classList.toggle('mobile-checkin-tab',!isDesktop&&tab==='checkin');
+  document.body.classList.toggle('mobile-progress-tab',!isDesktop&&tab==='progress');
   syncMobileHomePlacement();
   document.getElementById('wbar').style.display=showWeekBar?'':'none';
   if(tab==='nutrition'&&Date.now()-_nutLastLoad>60000) loadNutrition(); // skip refetch if loaded <60s ago (week shifts & post-save always reload directly)
