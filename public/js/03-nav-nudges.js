@@ -265,8 +265,7 @@ var REMINDER_OPTIONS=[
 function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp_reminders_'+((athlete&&athlete.code)||'default'))||'{}');}catch(e){return{};}}
 function openPreferences(){
   toggleMoreMenu(false);var prefs=getReminderPreferences(),list=document.getElementById('notificationPreferences');
-  list.innerHTML='<button onclick="hardRefreshPortal()" style="margin-bottom:14px;width:100%;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">\u21bb Refresh portal</button>'
-    +REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
+  list.innerHTML=REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
     +'<div id="pushStatus" style="font-family:var(--mono);font-size:10px;margin-top:10px;color:var(--muted)">Notifications: '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>';
   syncPushSubscription();
   document.getElementById('preferencesModal').classList.add('open');document.body.style.overflow='hidden';
@@ -347,18 +346,7 @@ function toggleMoreMenu(open){
   document.body.classList.toggle('menu-open',shouldOpen);
   if(shouldOpen)setMobileNav('more');
 }
-function applyOutdoorMode(enabled){
-  document.documentElement.classList.toggle('outdoor-mode',!!enabled);
-  var button=document.getElementById('themeToggle');
-  if(button){
-    button.setAttribute('aria-pressed',enabled?'true':'false');
-    var label=button.querySelector('.theme-toggle-label');if(label)label.textContent=enabled?'Indoor':'Outdoor';
-    var hint=enabled?'Switch to indoor (dark) mode':'Switch to outdoor (light) mode';
-    button.title=hint;button.setAttribute('aria-label',hint);
-  }
-  var moreLabel=document.querySelector('.more-outdoor strong');if(moreLabel)moreLabel.textContent=enabled?'Indoor mode':'Outdoor mode';
-  var moreSub=document.querySelector('.more-outdoor small');if(moreSub)moreSub.textContent=enabled?'Back to the dark theme':'Higher contrast for bright conditions';
-  try{localStorage.setItem('dp_outdoor_mode',enabled?'1':'0');}catch(e){}
-}
-function toggleOutdoorMode(){applyOutdoorMode(!document.documentElement.classList.contains('outdoor-mode'));}
-try{if(localStorage.getItem('dp_outdoor_mode')==='1')applyOutdoorMode(true);}catch(e){}
+// The portal now uses one deliberate dark visual system. Remove the retired
+// preference so an older saved setting cannot unexpectedly restore light mode.
+document.documentElement.classList.remove('outdoor-mode');
+try{localStorage.removeItem('dp_outdoor_mode');}catch(e){}

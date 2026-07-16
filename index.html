@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=45">
+<link rel="stylesheet" href="/styles.css?v=46">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -137,7 +137,7 @@
     <div><button onclick="pausedBackToLogin()" style="background:transparent;border:0;color:rgba(240,237,232,.4);font-size:12px;cursor:pointer;text-decoration:underline;padding:6px">Use a different code</button></div>
   </div>
 </div>
-<script src="login.js?v=45"></script>
+<script src="login.js?v=46"></script>
 
 
 <!-- PORTAL -->
@@ -154,8 +154,6 @@
     </div>
     <div class="header-actions">
       <div class="save-state-pill" id="saveStatePill" aria-live="polite"><span></span><b>Saved</b></div>
-      <button class="hicon theme-toggle hicon-accent" id="refreshBtn" onclick="hardRefreshPortal()" title="Refresh portal" aria-label="Refresh portal"><svg class="icon"><use href="#i-refresh"/></svg><span class="theme-toggle-label">Refresh</span></button>
-      <button class="hicon theme-toggle hicon-accent" id="themeToggle" onclick="toggleOutdoorMode()" title="Toggle outdoor mode" aria-label="Toggle high-contrast outdoor mode"><svg class="icon"><use href="#i-sparkle"/></svg><span class="theme-toggle-label">Outdoor</span></button>
       <button class="hicon hicon-goals" id="goalsBtn" data-portal-dest="goals" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
       <button class="hicon hicon-desktop" data-portal-dest="handbook" onclick="switchTab('handbook')">Guide</button>
       <button class="hicon hicon-desktop" data-portal-dest="comms" onclick="switchTab('comms')">Contact</button>
@@ -1005,7 +1003,6 @@
         <button onclick="openPreferences()"><svg class="icon"><use href="#i-gear"/></svg><span><strong>Preferences</strong><small>Reminders and data controls</small></span></button>
         <button onclick="openWeeklySummary()"><svg class="icon"><use href="#i-bars"/></svg><span><strong>Weekly summary</strong><small>Adherence, readiness and wins</small></span></button>
       </div>
-      <button class="more-outdoor" onclick="toggleOutdoorMode()"><svg class="icon"><use href="#i-sparkle"/></svg><span><strong>Outdoor mode</strong><small>Higher contrast for bright conditions</small></span><span class="theme-switch" aria-hidden="true"></span></button>
     </div>
   </div>
 
@@ -1058,15 +1055,15 @@
 
 <script src="config.js"></script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=45"></script>
-<script src="js/02-login-goals.js?v=45"></script>
-<script src="js/03-nav-nudges.js?v=45"></script>
-<script src="js/04-checkin.js?v=45"></script>
-<script src="js/05-handbook.js?v=45"></script>
-<script src="js/06-nutrition.js?v=45"></script>
-<script src="js/07-progress.js?v=45"></script>
-<script src="js/08-training.js?v=45"></script>
-<script src="js/09-logging.js?v=45"></script>
-<script src="js/10-boot.js?v=45"></script>
+<script src="js/01-core.js?v=46"></script>
+<script src="js/02-login-goals.js?v=46"></script>
+<script src="js/03-nav-nudges.js?v=46"></script>
+<script src="js/04-checkin.js?v=46"></script>
+<script src="js/05-handbook.js?v=46"></script>
+<script src="js/06-nutrition.js?v=46"></script>
+<script src="js/07-progress.js?v=46"></script>
+<script src="js/08-training.js?v=46"></script>
+<script src="js/09-logging.js?v=46"></script>
+<script src="js/10-boot.js?v=46"></script>
 </body>
 </html>

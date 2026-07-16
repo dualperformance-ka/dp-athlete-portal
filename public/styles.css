@@ -3261,9 +3261,9 @@ body.day-plan-open{overflow:hidden}
 
   body.mobile-portal-home #todayEl{display:block!important;max-width:none;margin:8px 0 0}
   body.mobile-portal-home #todayEl .todaypanel{
-    padding:12px;border-radius:18px;
+    padding:12px;border:1px solid rgba(255,255,255,.92);border-radius:18px;
     background:radial-gradient(circle at 100% 0%,rgba(146,210,237,.1),transparent 35%),linear-gradient(155deg,rgba(15,26,33,.98),rgba(7,15,20,.98));
-    box-shadow:0 16px 38px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.04);
+    box-shadow:0 16px 38px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.08);
   }
   body.mobile-portal-home .today-mobile-heading{
     display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;
@@ -3290,8 +3290,6 @@ body.day-plan-open{overflow:hidden}
   body.mobile-portal-home .top-shell-priority{margin-top:8px;gap:7px}
   body.mobile-portal-home .top-shell-priority .nudge-strip{padding:10px 12px;border-radius:14px}
 
-  .outdoor-mode.mobile-portal-home .hero-main,
-  .outdoor-mode.mobile-portal-home #todayEl .todaypanel{background:#fff}
 }
 
 @media(max-width:390px){
