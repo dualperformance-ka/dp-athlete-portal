@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=56">
+<link rel="stylesheet" href="/styles.css?v=60">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -720,7 +720,7 @@
       <div class="page-copy">See the trend, compare consistently, and keep the bigger picture in view.</div>
       <div class="progress-hero-summary">
         <div class="progress-current">
-          <span class="progress-summary-icon"><svg class="icon"><use href="#i-trend-up"/></svg></span>
+          <span class="progress-summary-icon" aria-hidden="true"><span class="progress-trend-glyph"><i></i><i></i><i></i><b></b></span></span>
           <div>
             <span>Current weight</span>
             <strong id="pgCurrent">—</strong>
@@ -753,7 +753,7 @@
           <div class="card-title">Weight trend</div>
           <div class="progress-section-copy">The direction matters more than one reading.</div>
         </div>
-        <span class="progress-section-icon"><svg class="icon"><use href="#i-trend-up"/></svg></span>
+        <span class="progress-section-icon progress-trend-section-icon" aria-hidden="true"><span class="progress-trend-glyph"><i></i><i></i><i></i><b></b></span></span>
       </div>
       <div id="pgChartWrap">
         <div id="pgChartEmpty" class="progress-empty" style="display:none">Add two weigh-ins to reveal your trend</div>
@@ -1049,11 +1049,15 @@
     <div class="more-menu-sheet" role="dialog" aria-modal="true" aria-labelledby="moreMenuTitle">
       <div class="more-menu-handle"></div>
       <div class="more-menu-head"><div><div class="more-menu-kicker">Dual Performance</div><div class="more-menu-title" id="moreMenuTitle">More</div></div><button class="more-menu-close" onclick="toggleMoreMenu(false)" aria-label="Close menu">×</button></div>
+      <div class="more-menu-section-label">Plan and support</div>
       <div class="more-menu-grid">
         <button onclick="switchTab('nutrition')"><svg class="icon"><use href="#i-utensils"/></svg><span><strong>Nutrition</strong><small>Targets and daily guidance</small></span></button>
         <button onclick="switchTab('goals')"><svg class="icon"><use href="#i-target"/></svg><span><strong>Goals</strong><small>Your programme direction</small></span></button>
         <button onclick="switchTab('handbook')"><svg class="icon"><use href="#i-book"/></svg><span><strong>Guide</strong><small>Training and nutrition help</small></span></button>
         <button onclick="switchTab('comms')"><svg class="icon"><use href="#i-chat"/></svg><span><strong>Contact</strong><small>Reach Karl and Alex</small></span></button>
+      </div>
+      <div class="more-menu-section-label more-menu-tools-label">Portal tools</div>
+      <div class="more-menu-utilities">
         <button onclick="openPreferences()"><svg class="icon"><use href="#i-gear"/></svg><span><strong>Preferences</strong><small>Reminders and data controls</small></span></button>
         <button onclick="openWeeklySummary()"><svg class="icon"><use href="#i-bars"/></svg><span><strong>Weekly summary</strong><small>Adherence, readiness and wins</small></span></button>
       </div>

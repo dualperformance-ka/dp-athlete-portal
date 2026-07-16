@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v66'; // v66: polished secondary mobile destinations
+const CACHE_NAME = 'dp-athlete-v70'; // v70: full mobile outdoor theme repair
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=56', '/config.js',
+  '/index.html', '/styles.css?v=60', '/config.js',
   '/js/01-core.js?v=53',
   '/js/02-login-goals.js?v=53',
   '/js/03-nav-nudges.js?v=55',
