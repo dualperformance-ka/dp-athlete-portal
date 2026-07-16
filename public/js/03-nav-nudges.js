@@ -168,6 +168,8 @@ function switchTab(tab){
   var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
   var showWeekBar=(tab==='weekly')||(!isDesktop&&tab==='training'&&trainingView==='plan');
   document.body.classList.toggle('mobile-training-calendar',!isDesktop&&tab==='training'&&trainingView==='plan');
+  document.body.classList.toggle('mobile-portal-home',!isDesktop&&tab==='training'&&trainingView==='home');
+  syncMobileHomePlacement();
   document.getElementById('wbar').style.display=showWeekBar?'':'none';
   if(tab==='nutrition'&&Date.now()-_nutLastLoad>60000) loadNutrition(); // skip refetch if loaded <60s ago (week shifts & post-save always reload directly)
   if(tab==='checkin') initCheckin();
@@ -185,6 +187,18 @@ function setMobileNav(tab){
 // Mobile keeps the home/training split inside one tab. Desktop now has
 // separate tabs: Today's Plan and Weekly Plan.
 var trainingView='home';
+function syncMobileHomePlacement(){
+  var today=document.getElementById('todayEl');
+  var anchor=document.getElementById('todayHomeAnchor');
+  var topShell=document.querySelector('.top-shell');
+  var priority=document.querySelector('.top-shell-priority');
+  if(!today||!anchor||!topShell||!priority)return;
+  if(document.body.classList.contains('mobile-portal-home')){
+    if(today.parentNode!==topShell)topShell.insertBefore(today,priority);
+  }else if(anchor.parentNode&&today.parentNode!==anchor.parentNode){
+    anchor.parentNode.insertBefore(today,anchor.nextSibling);
+  }
+}
 function applyTrainingView(){
   var t=document.getElementById('todayEl');
   var c=document.getElementById('calEl');
@@ -193,8 +207,10 @@ function applyTrainingView(){
   var trainingTab=document.getElementById('tab-training');
   var weeklyTab=document.getElementById('tab-weekly');
   var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
+  var trainingActive=!!(trainingTab&&trainingTab.classList.contains('active'));
+  document.body.classList.toggle('mobile-portal-home',!isDesktop&&trainingActive&&trainingView==='home');
+  syncMobileHomePlacement();
   if(isDesktop){
-    var trainingActive=!!(trainingTab&&trainingTab.classList.contains('active'));
     var weeklyActive=!!(weeklyTab&&weeklyTab.classList.contains('active'));
     if(t&&t.innerHTML)t.style.display=trainingActive?'block':'none';
     if(c&&c.innerHTML)c.style.display='none';
@@ -207,6 +223,11 @@ function applyTrainingView(){
   if(c&&c.innerHTML)c.style.display=(trainingView==='home')?'none':'block';
   if(wc&&wc.innerHTML)wc.style.display='none';
   if(wb)wb.style.display=(trainingView==='home')?'none':'';
+}
+if(window.matchMedia){
+  var portalDesktopQuery=window.matchMedia('(min-width:900px)');
+  if(portalDesktopQuery.addEventListener)portalDesktopQuery.addEventListener('change',applyTrainingView);
+  else if(portalDesktopQuery.addListener)portalDesktopQuery.addListener(applyTrainingView);
 }
 function goPortalHome(){
   // Home = TODAY: current week, today panel, nothing else.

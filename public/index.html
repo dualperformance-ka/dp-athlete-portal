@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=42">
+<link rel="stylesheet" href="/styles.css?v=44">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -137,7 +137,7 @@
     <div><button onclick="pausedBackToLogin()" style="background:transparent;border:0;color:rgba(240,237,232,.4);font-size:12px;cursor:pointer;text-decoration:underline;padding:6px">Use a different code</button></div>
   </div>
 </div>
-<script src="login.js"></script>
+<script src="login.js?v=44"></script>
 
 
 <!-- PORTAL -->
@@ -332,6 +332,7 @@
       <div class="load-error-sub">Looks like a connection problem — your plan is still there.</div>
       <button class="load-error-btn" onclick="loadWeek()"><svg class="icon" style="width:13px;height:13px"><use href="#i-refresh"/></svg> Retry</button>
     </div>
+    <span id="todayHomeAnchor" hidden></span>
     <div id="todayEl" class="todaywrap" style="display:none"></div>
     <div id="calEl" class="weeklyplan-wrap" style="display:none"></div>
     <div class="noplan" id="noplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
@@ -1057,15 +1058,15 @@
 
 <script src="config.js"></script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js"></script>
-<script src="js/02-login-goals.js"></script>
-<script src="js/03-nav-nudges.js"></script>
-<script src="js/04-checkin.js"></script>
-<script src="js/05-handbook.js"></script>
-<script src="js/06-nutrition.js"></script>
-<script src="js/07-progress.js"></script>
-<script src="js/08-training.js"></script>
-<script src="js/09-logging.js"></script>
-<script src="js/10-boot.js"></script>
+<script src="js/01-core.js?v=44"></script>
+<script src="js/02-login-goals.js?v=44"></script>
+<script src="js/03-nav-nudges.js?v=44"></script>
+<script src="js/04-checkin.js?v=44"></script>
+<script src="js/05-handbook.js?v=44"></script>
+<script src="js/06-nutrition.js?v=44"></script>
+<script src="js/07-progress.js?v=44"></script>
+<script src="js/08-training.js?v=44"></script>
+<script src="js/09-logging.js?v=44"></script>
+<script src="js/10-boot.js?v=44"></script>
 </body>
 </html>

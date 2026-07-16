@@ -1,17 +1,17 @@
-const CACHE_NAME = 'dp-athlete-v52'; // v52: compact workout prescription modal + styles.css?v=42
+const CACHE_NAME = 'dp-athlete-v54'; // v54: mobile session action fix + versioned scripts
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=42', '/config.js',
-  '/js/01-core.js',
-  '/js/02-login-goals.js',
-  '/js/03-nav-nudges.js',
-  '/js/04-checkin.js',
-  '/js/05-handbook.js',
-  '/js/06-nutrition.js',
-  '/js/07-progress.js',
-  '/js/08-training.js',
-  '/js/09-logging.js',
-  '/js/10-boot.js',
-  '/login.js', '/icons.css?v=1',
+  '/index.html', '/styles.css?v=44', '/config.js',
+  '/js/01-core.js?v=44',
+  '/js/02-login-goals.js?v=44',
+  '/js/03-nav-nudges.js?v=44',
+  '/js/04-checkin.js?v=44',
+  '/js/05-handbook.js?v=44',
+  '/js/06-nutrition.js?v=44',
+  '/js/07-progress.js?v=44',
+  '/js/08-training.js?v=44',
+  '/js/09-logging.js?v=44',
+  '/js/10-boot.js?v=44',
+  '/login.js?v=44', '/icons.css?v=1',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
 ];

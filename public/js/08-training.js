@@ -757,7 +757,7 @@ function renderTodaySection(){
   syncHeroShell(insights,todaySessions);
   var title=todaySessions.length?'Today\'s command center':'Recovery command center';
   var subtitle=todaySessions.length?'See the brief, execute cleanly, and log what you actually complete.':'No session scheduled today. Use the space to recover well and stay ahead of the week.';
-  var html='<div class="todaypanel"><div class="todayeyebrow">Today plan</div><div class="todayhead"><div><div class="todaytitle">'+title+'</div><div class="today-subtitle">'+subtitle+'</div></div><div class="todaydate">'+esc(label)+'</div></div>';
+  var html='<div class="todaypanel"><div class="today-mobile-heading"><span>Today&rsquo;s session</span><small>'+esc(label)+'</small></div><div class="todayeyebrow">Today plan</div><div class="todayhead"><div><div class="todaytitle">'+title+'</div><div class="today-subtitle">'+subtitle+'</div></div><div class="todaydate">'+esc(label)+'</div></div>';
   html+=renderCoachMoment(todaySessions);
   html+=renderInsightRail(insights);
   html+=renderCommandStatus(insights);
@@ -831,7 +831,7 @@ function renderTodaySection(){
         html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
       }
       if(type!=='rest'&&sessionIdx>=0){
-        html+='<button class="today-action primary" onclick="startFocusedSession('+sessionIdx+')" style="width:100%;margin-top:12px">Open session <svg class="icon"><use href="#i-arrow-right"/></svg></button>';
+        html+='<button type="button" class="today-action primary" onclick="startFocusedSession('+sessionIdx+')" style="width:100%;margin-top:12px">Open session <svg class="icon"><use href="#i-arrow-right"/></svg></button>';
       }
       html+='</div></div></div>';
     });
@@ -1222,7 +1222,7 @@ function buildBody(s,i,type){
   return h;
 }
 
-var focusedSessionIndex=null;
+var focusedSessionIndex=null,focusedSessionGenerated=false;
 function ensureFocusOverlay(){
   var ov=document.getElementById('focusOverlay');
   if(ov)return ov;
@@ -1232,15 +1232,28 @@ function ensureFocusOverlay(){
   return ov;
 }
 function startFocusedSession(i){
-  var card=document.getElementById('sc_'+i),body=document.getElementById('scb_'+i);if(!card||!body)return;
+  var card=document.getElementById('sc_'+i),body=document.getElementById('scb_'+i),generated=false;
+  // The mobile month calendar intentionally renders compact day cells rather
+  // than every full workout card. Build the selected card on demand so the
+  // Home "Open session" action does not depend on hidden calendar markup.
+  if((!card||!body)&&sessions[i]){
+    var staging=document.createElement('div');
+    staging.innerHTML=buildCard(sessions[i],i);
+    card=staging.querySelector('#sc_'+i);
+    body=staging.querySelector('#scb_'+i);
+    generated=!!(card&&body);
+  }
+  if(!card||!body)return;
   if(focusedSessionIndex!=null&&focusedSessionIndex!==i)closeFocusedSession();
   if(!body.classList.contains('open'))body.classList.add('open');
-  focusedSessionIndex=i;
+  focusedSessionIndex=i;focusedSessionGenerated=generated;
   var ov=ensureFocusOverlay(),scroll=document.getElementById('focusOverlayScroll');
   if(!scroll.contains(card)){
-    var ph=document.getElementById('focusCardPlaceholder');
-    if(!ph){ph=document.createElement('div');ph.id='focusCardPlaceholder';ph.style.display='none';}
-    card.parentNode.insertBefore(ph,card);
+    if(!generated){
+      var ph=document.getElementById('focusCardPlaceholder');
+      if(!ph){ph=document.createElement('div');ph.id='focusCardPlaceholder';ph.style.display='none';}
+      card.parentNode.insertBefore(ph,card);
+    }
     scroll.appendChild(card);
   }
   card.classList.add('in-focus-overlay');
@@ -1253,10 +1266,14 @@ function startFocusedSession(i){
 function closeFocusedSession(){
   if(focusedSessionIndex!=null){
     var card=document.getElementById('sc_'+focusedSessionIndex),ph=document.getElementById('focusCardPlaceholder');
-    if(card){card.classList.remove('in-focus-overlay');if(ph&&ph.parentNode){ph.parentNode.insertBefore(card,ph);ph.parentNode.removeChild(ph);}}
+    if(card){
+      card.classList.remove('in-focus-overlay');
+      if(focusedSessionGenerated)card.remove();
+      else if(ph&&ph.parentNode){ph.parentNode.insertBefore(card,ph);ph.parentNode.removeChild(ph);}
+    }
   }
   var ov=document.getElementById('focusOverlay');if(ov)ov.classList.remove('open');
-  document.body.classList.remove('focus-session-open');focusedSessionIndex=null;
+  document.body.classList.remove('focus-session-open');focusedSessionIndex=null;focusedSessionGenerated=false;
 }
 document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(focusedSessionIndex!=null)closeFocusedSession();else if(dayPlanDateISO)closeDayPlan();});
 function togS(i){var el=document.getElementById('scb_'+i);if(el) el.classList.toggle('open');}
