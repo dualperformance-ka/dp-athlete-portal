@@ -584,10 +584,28 @@ function syncHeroShell(insights,todaySessions){
   }
   var compliance=document.getElementById('heroStatCompliance');
   if(compliance) compliance.textContent=(insights&&insights.compliance!=null)?(insights.compliance+'%'):'—';
+  var complianceBar=document.getElementById('heroStatComplianceBar');
+  if(complianceBar)complianceBar.style.width=((insights&&insights.compliance)||0)+'%';
+  var complianceNote=document.getElementById('heroStatComplianceNote');
+  if(complianceNote){
+    complianceNote.textContent=insights&&insights.planned?(insights.completed+'/'+insights.planned+' complete · '+(insights.completed>=insights.planned?'week done':'underway')):'No sessions planned';
+  }
+  var complianceCard=document.getElementById('heroComplianceCard');
+  if(complianceCard&&insights)complianceCard.setAttribute('aria-label','Open weekly completion summary. '+insights.completed+' of '+insights.planned+' planned sessions complete.');
   var readiness=document.getElementById('heroStatReadiness');
   if(readiness) readiness.textContent=(insights&&insights.readiness!=null)?String(insights.readiness):'—';
+  var readinessPct=(insights&&insights.readiness!=null)?Math.max(0,Math.min(100,insights.readiness)):0;
+  var readinessRing=document.getElementById('heroReadinessRing');
+  if(readinessRing)readinessRing.style.setProperty('--value',readinessPct);
+  var readinessNote=document.getElementById('heroStatReadinessNote');
+  var readinessText=readinessPct>=80?'Ready to go':readinessPct>=65?'Good to train':readinessPct>=50?'Train with awareness':readinessPct>0?'Recovery first':'Log body check';
+  if(readinessNote)readinessNote.textContent=readinessText;
+  var readinessCard=document.getElementById('heroReadinessCard');
+  if(readinessCard)readinessCard.setAttribute('aria-label',(readinessPct?'Review readiness '+readinessPct+' out of 100. ':'Log today’s readiness. ')+readinessText+'.');
   var pbs=document.getElementById('heroStatPbs');
   if(pbs) pbs.textContent=(insights&&insights.pbs!=null)?String(insights.pbs):'—';
+  var pbsCard=document.getElementById('heroPbsCard');
+  if(pbsCard&&insights)pbsCard.setAttribute('aria-label','Open all personal bests. '+insights.pbs+' exercises tracked.');
 }
 
 function renderTodaySection(){

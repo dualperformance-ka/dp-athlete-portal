@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=34">
+<link rel="stylesheet" href="/styles.css?v=35">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -180,18 +180,24 @@
             <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" class="hp" style="display:none;color:rgba(255,255,255,.9)"></a>
           </div>
           <div class="hero-stat-grid" aria-label="This week at a glance">
-            <div class="hero-stat">
-              <div class="hero-stat-label">Compliance</div>
-              <div class="hero-stat-value" id="heroStatCompliance">—</div>
-            </div>
-            <div class="hero-stat">
+            <button class="hero-stat hero-stat-action hero-stat-progress" id="heroComplianceCard" type="button" onclick="openWeeklySummary()" aria-label="Open weekly completion summary">
+              <div class="hero-stat-label">Week progress</div>
+              <div class="hero-stat-row"><div class="hero-stat-value" id="heroStatCompliance">—</div><span class="hero-stat-chevron" aria-hidden="true">›</span></div>
+              <div class="hero-progress-track" aria-hidden="true"><span id="heroStatComplianceBar"></span></div>
+              <div class="hero-stat-note" id="heroStatComplianceNote">Week in progress</div>
+            </button>
+            <button class="hero-stat hero-stat-action hero-stat-readiness" id="heroReadinessCard" type="button" onclick="openQuickLog('body')" aria-label="Open readiness check-in">
               <div class="hero-stat-label">Readiness</div>
-              <div class="hero-stat-value" id="heroStatReadiness">—</div>
-            </div>
-            <div class="hero-stat">
+              <div class="hero-readiness-wrap">
+                <div class="hero-readiness-ring" id="heroReadinessRing" style="--value:0"><span class="hero-stat-value" id="heroStatReadiness">—</span></div>
+                <div class="hero-stat-note" id="heroStatReadinessNote">Log body check</div>
+              </div>
+            </button>
+            <button class="hero-stat hero-stat-action hero-stat-pbs" id="heroPbsCard" type="button" onclick="openPbHistory()" aria-label="Open personal best history">
               <div class="hero-stat-label">PB tracking</div>
-              <div class="hero-stat-value" id="heroStatPbs">—</div>
-            </div>
+              <div class="hero-stat-row"><div class="hero-pb-value"><svg class="icon" aria-hidden="true"><use href="#i-trophy"/></svg><span class="hero-stat-value" id="heroStatPbs">—</span></div><span class="hero-stat-chevron" aria-hidden="true">›</span></div>
+              <div class="hero-stat-note">Open all PBs</div>
+            </button>
           </div>
         </div>
       </div>
