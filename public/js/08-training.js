@@ -2,6 +2,16 @@
 function setDisplay(id,value){var el=document.getElementById(id);if(el)el.style.display=value;}
 var trainingMonthGridStart=null,trainingMonthGridEnd=null;
 function isMobileTrainingCalendar(){return !!(window.matchMedia&&window.matchMedia('(max-width:760px)').matches);}
+function trainingWeekDisplayLabel(){
+  var wkS=sessions.find(function(s){return s.week;});
+  var raw=wkS&&wkS.week;
+  if(isDiscoveryWeek(raw)) return 'Discovery Week';
+  var match=String(raw||'').match(/\d+/);
+  if(match) return 'Week '+parseInt(match[0],10);
+  var fallback=getCurrentProgrammeWeek()+weekOffset;
+  fallback=Math.max(0,Math.min(programmeWeeks,fallback));
+  return isDiscoveryWeek(fallback)?'Discovery Week':'Week '+fallback;
+}
 async function loadWeek(){
   var ws=getWS(),we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);
   var wsISO=localISO(ws),weISO=localISO(we);
@@ -36,6 +46,8 @@ async function loadWeek(){
   if(weekOffset===0) initPhotoNudge();
   renderTodaySection();
   var wkS=sessions.find(function(s){return s.week;});
+  var outputWeek=document.getElementById('heroOutputWeek');
+  if(outputWeek) outputWeek.textContent=trainingWeekDisplayLabel();
   if(wkS){
     var _hl=document.querySelector('.hero-week-label');
     var _hn=document.getElementById('heroWeek');
@@ -78,10 +90,11 @@ function renderCal(ws){
   var strengthThisWeek=sessions.filter(function(s){return getType(s)==='strength';}).length;
   var weekLabel=ws.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' – '+we.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
   var weekTitle=ws.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' – '+we.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+  var programmeWeekLabel=trainingWeekDisplayLabel();
   var weekSummary=sessions.length+' session'+(sessions.length===1?'':'s');
   if(runsThisWeek)weekSummary+=' · '+runsThisWeek+' run'+(runsThisWeek===1?'':'s');
   if(strengthThisWeek)weekSummary+=' · '+strengthThisWeek+' gym';
-  var html='<div class="week-plan-shell"><div class="week-plan-heading-copy"><div class="week-plan-kicker">Training week</div><div class="week-plan-title"><span class="week-plan-title-desktop">Built for the week ahead</span><span class="week-plan-title-mobile">'+esc(weekTitle)+'</span></div><div class="week-plan-subtitle"><span class="week-plan-subtitle-desktop">'+esc(weekLabel)+' · '+sessions.length+' session'+(sessions.length===1?'':'s')+' loaded</span><span class="week-plan-subtitle-mobile">'+esc(weekSummary)+'</span></div></div><div class="month-calendar-actions"><button type="button" onclick="shiftWeek(-1)" aria-label="Previous week"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" class="month-today-btn" onclick="goToday()">Today</button><button type="button" onclick="shiftWeek(1)" aria-label="Next week"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div><div class="week-plan-meta"><span>'+runsThisWeek+' run'+(runsThisWeek===1?'':'s')+'</span><span>'+strengthThisWeek+' strength</span></div></div>';
+  var html='<div class="week-plan-shell"><div class="week-plan-heading-copy"><div class="week-plan-kicker">Training week <span class="week-plan-number">'+esc(programmeWeekLabel)+'</span></div><div class="week-plan-title"><span class="week-plan-title-desktop">Built for the week ahead</span><span class="week-plan-title-mobile">'+esc(weekTitle)+'</span></div><div class="week-plan-subtitle"><span class="week-plan-subtitle-desktop">'+esc(weekLabel)+' · '+sessions.length+' session'+(sessions.length===1?'':'s')+' loaded</span><span class="week-plan-subtitle-mobile">'+esc(weekSummary)+'</span></div></div><div class="month-calendar-actions"><button type="button" onclick="shiftWeek(-1)" aria-label="Previous week"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" class="month-today-btn" onclick="goToday()">Today</button><button type="button" onclick="shiftWeek(1)" aria-label="Next week"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div><div class="week-plan-meta"><span>'+runsThisWeek+' run'+(runsThisWeek===1?'':'s')+'</span><span>'+strengthThisWeek+' strength</span></div></div>';
   // WEEK AT A GLANCE — bird's-eye strip: one tile per day, dots per session
   // type, tick when the day is fully logged. Tapping a tile jumps to that day.
   var sessionDone=function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];};

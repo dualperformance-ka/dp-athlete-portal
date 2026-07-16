@@ -159,6 +159,14 @@ function renderGymTracker(){
   var done=lifts.filter(function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];}).length;
   document.getElementById('gymTargetVal').textContent=lifts.length;
   document.getElementById('gymDoneVal').textContent=done;
+  var progress=document.getElementById('gymProgress');
+  var progressFill=document.getElementById('gymProgressFill');
+  var pct=lifts.length?Math.min(100,Math.round(done/lifts.length*100)):0;
+  if(progress){
+    progress.setAttribute('aria-valuenow',String(done));
+    progress.setAttribute('aria-valuemax',String(lifts.length));
+  }
+  if(progressFill) progressFill.style.width=pct+'%';
   bar.classList.toggle('km-hit',done>=lifts.length);
   bar.style.display='';
   buildGymGauge(done,lifts.length);
@@ -354,4 +362,3 @@ async function submitQuickNut(){
   document.getElementById('qlnNotes').value='';
   var prevPanel=document.getElementById('qlnPrevDay');if(prevPanel) prevPanel.style.display='none';
 }
-

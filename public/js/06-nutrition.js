@@ -53,6 +53,13 @@ function renderKmTracker(kmData){
   document.getElementById('kmTargetVal').textContent=fmt(target);
   var doneEl=document.getElementById('kmDoneVal');
   if(doneEl) doneEl.textContent=fmt(done);
+  var progress=document.getElementById('kmProgress');
+  var progressFill=document.getElementById('kmProgressFill');
+  if(progress){
+    progress.setAttribute('aria-valuenow',String(done));
+    progress.setAttribute('aria-valuemax',String(target));
+  }
+  if(progressFill) progressFill.style.width=pct+'%';
   var srcEl=document.getElementById('kmSrcStrava');
   if(srcEl) srcEl.style.display=(kmData.source==='strava')?'':'none';
   bar.classList.toggle('km-hit',done>=target);
@@ -193,4 +200,3 @@ async function loadNutrition(){
   document.getElementById('nutContent').style.display='block';
   if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();
 }
-

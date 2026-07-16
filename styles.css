@@ -3292,6 +3292,24 @@ body.day-plan-open{overflow:hidden}
   body.mobile-portal-home #todayEl .today-action{min-height:40px;margin-top:8px!important;padding:8px 10px;font-size:11px}
   body.mobile-portal-home .top-shell-priority{margin-top:8px;gap:7px}
   body.mobile-portal-home .top-shell-priority .nudge-strip{padding:10px 12px;border-radius:14px}
+  body.mobile-portal-home .top-shell-priority .nudge-strip-text{min-width:0}
+  body.mobile-portal-home .top-shell-priority .nudge-strip-title{
+    font-family:var(--body);font-size:14px;font-weight:600;line-height:1.2;
+    letter-spacing:-.015em;text-transform:none;color:var(--text);
+  }
+  body.mobile-portal-home .top-shell-priority .nudge-strip-sub{
+    margin-top:3px;font-family:var(--body);font-size:11px;font-weight:400;line-height:1.3;
+    letter-spacing:0;color:var(--muted);
+  }
+  body.mobile-portal-home .top-shell-priority #callConfirmedNudge .nudge-strip-text{display:block}
+  body.mobile-portal-home .top-shell-priority #callConfirmedNudge .nudge-strip-title{
+    font-family:var(--body);font-size:14px;font-weight:600;line-height:1.2;
+    letter-spacing:-.015em;color:var(--text);white-space:normal;overflow:visible;
+  }
+  body.mobile-portal-home .top-shell-priority #callConfirmedNudge .nudge-strip-sub{
+    margin-top:3px;font-family:var(--body);font-size:11px;font-weight:500;line-height:1.3;
+    letter-spacing:0;color:var(--ok);white-space:normal;
+  }
 
 }
 
@@ -3320,4 +3338,95 @@ body.day-plan-open{overflow:hidden}
   header{padding-left:10px;padding-right:10px}
   header .logo-text{display:none}
   header .header-actions .theme-toggle{padding:0 8px}
+}
+
+/* Weekly context + output cards aligned with the redesigned portal. */
+.week-plan-kicker{display:flex;align-items:center;gap:8px}
+.week-plan-number{
+  display:inline-flex;align-items:center;min-height:21px;padding:0 8px;border:1px solid var(--run-border);
+  border-radius:999px;background:var(--run-bg);font-family:var(--body);font-size:9px;font-weight:700;
+  line-height:1;letter-spacing:0;text-transform:none;color:var(--run-strong);
+}
+.hero-output-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.hero-output-heading .hero-side-label{margin-bottom:0}
+.hero-output-week{
+  display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border:1px solid var(--run-border);
+  border-radius:999px;background:var(--run-bg);font-size:10px;font-weight:700;line-height:1;color:var(--run-strong);
+}
+.week-rings{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.ring-item{
+  display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:11px;padding:13px;
+  border-color:var(--border);border-radius:16px;
+  background:linear-gradient(155deg,rgba(255,255,255,.05),rgba(255,255,255,.018));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.ring-wrap{
+  width:42px;height:42px;display:grid;place-items:center;border:1px solid var(--run-border);
+  border-radius:13px;background:var(--run-bg);
+}
+#gymBar .ring-wrap{border-color:var(--strength-border);background:var(--strength-bg)}
+.ring-svg{display:none}
+.ring-icon{position:static;width:18px;height:18px;transform:none;color:var(--run-strong);opacity:1}
+#gymBar .ring-icon{color:var(--strength)}
+.ring-kicker{
+  font-family:var(--body);font-size:10px;font-weight:650;line-height:1.15;
+  letter-spacing:-.01em;color:var(--muted);
+}
+.ring-val{
+  display:flex;align-items:baseline;gap:4px;margin-top:3px;font-family:var(--body);font-size:23px;
+  font-weight:720;line-height:1;letter-spacing:-.045em;color:var(--text);
+}
+#kmBar .ring-val span{color:var(--text)}
+.ring-val small{font-size:11px;font-weight:600;letter-spacing:0;color:var(--muted)}
+.ring-sub{
+  margin-top:4px;font-family:var(--body);font-size:9px;font-weight:450;line-height:1.2;
+  letter-spacing:0;text-transform:none;color:var(--dim);
+}
+.ring-progress{height:4px;margin-top:8px;border-radius:999px;background:rgba(255,255,255,.075);overflow:hidden}
+.ring-progress span{display:block;width:0;height:100%;border-radius:inherit;background:var(--run);transition:width .45s ease}
+.ring-progress.strength span{background:rgba(243,251,255,.82)}
+.ring-src{margin-top:5px;font-family:var(--body);font-size:8px;letter-spacing:0;color:var(--dim)}
+.outdoor-mode .hero-output-week,.outdoor-mode .week-plan-number{color:var(--run-strong)}
+.outdoor-mode .ring-item{background:rgba(7,17,22,.035);border-color:var(--border);box-shadow:none}
+.outdoor-mode .ring-wrap{background:rgba(8,127,174,.08);border-color:rgba(8,127,174,.2)}
+.outdoor-mode #gymBar .ring-wrap{background:rgba(7,17,22,.045);border-color:var(--border)}
+.outdoor-mode .ring-progress{background:rgba(7,17,22,.09)}
+.outdoor-mode .ring-progress.strength span{background:rgba(7,17,22,.58)}
+
+@media(min-width:900px){
+  .hero-side{gap:0}
+  .week-rings{grid-template-columns:1fr;gap:10px}
+  .ring-item{grid-template-columns:50px minmax(0,1fr);padding:15px 16px}
+  .ring-wrap{width:50px;height:50px;border-radius:15px}
+  .ring-icon{width:20px;height:20px}
+  .ring-kicker{font-size:11px}
+  .ring-val{font-size:27px}
+  .ring-sub{font-size:10px}
+}
+
+@media(min-width:761px) and (max-width:899px){
+  .week-rings{grid-template-columns:1fr}
+}
+
+@media(max-width:760px){
+  body.mobile-portal-home .hero-shell{gap:8px}
+  body.mobile-portal-home .hero-side{
+    display:block;padding:10px 12px 11px;border-radius:16px;
+    background:linear-gradient(155deg,rgba(16,27,34,.96),rgba(7,16,22,.96));
+  }
+  body.mobile-portal-home .hero-output-heading{margin-bottom:7px}
+  body.mobile-portal-home .hero-side-label{font-size:7px;letter-spacing:.12em}
+  body.mobile-portal-home .hero-output-week{min-height:19px;padding:0 7px;font-size:8px}
+  body.mobile-portal-home .week-rings{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  body.mobile-portal-home .ring-item{
+    grid-template-columns:29px minmax(0,1fr);gap:7px;min-height:58px;padding:7px 8px;border-radius:11px;
+  }
+  body.mobile-portal-home .ring-wrap{width:29px;height:29px;border-radius:9px}
+  body.mobile-portal-home .ring-icon{width:13px;height:13px}
+  body.mobile-portal-home .ring-kicker{font-size:7px}
+  body.mobile-portal-home .ring-val{margin-top:2px;font-size:16px}
+  body.mobile-portal-home .ring-val small{font-size:8px}
+  body.mobile-portal-home .ring-sub{margin-top:2px;font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body.mobile-portal-home .ring-progress{height:3px;margin-top:5px}
+  body.mobile-portal-home .ring-src{display:none!important}
 }
