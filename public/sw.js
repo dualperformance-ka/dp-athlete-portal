@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v41'; // v41: light-mode font contrast fix + styles.css?v=32 — bump CACHE_NAME on every ship
+const CACHE_NAME = 'dp-athlete-v42'; // v42: desktop alignment polish + styles.css?v=33 — bump CACHE_NAME on every ship
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=32', '/config.js',
+  '/index.html', '/styles.css?v=33', '/config.js',
   '/js/01-core.js',
   '/js/02-login-goals.js',
   '/js/03-nav-nudges.js',

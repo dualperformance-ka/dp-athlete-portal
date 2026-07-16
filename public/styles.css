@@ -506,11 +506,11 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
   /* Desktop IA split: Today's Plan is its own destination, and Weekly Plan
      gets the calendar view in a separate tab. */
   .desktop-weekly-tab{display:flex}
-  #tab-training.active{display:block;max-width:none;width:100%;margin-right:0}
+  #tab-training.active{display:block;max-width:none;width:auto;margin-right:0}
   #tab-training .todaywrap{margin-bottom:0}
   #tab-training>#calEl,#tab-training>#noplanEl{display:none!important}
   #tab-training .page-intro,#tab-training .todaywrap{max-width:none}
-  #tab-weekly.active{display:block;max-width:none;width:100%}
+  #tab-weekly.active{display:block;max-width:none;width:auto}
   #tab-weekly>#todayEl{display:none!important}
   #tab-weekly>#weeklyCalEl{min-width:0;padding-top:4px}
   #tab-weekly>#weeklyCalEl .dg:first-child .dgh{padding-top:0}
@@ -1915,13 +1915,12 @@ body.focus-session-open{overflow:hidden}
 @media(min-width:900px){
   :root{--railw:236px;--shellpad:max(36px,calc((100vw - var(--railw) - 1200px)/2))}
 
-  /* Everything except the rail shifts right */
-  header,.hero,.wbar,.nudge-strip,.tab-content{margin-left:var(--railw)}
-  /* .top-shell is nested inside .hero, which already carries the rail
-     offset above — re-applying it here double-shifted the hero band
-     ~236px right, making it narrower and misaligned with the panels
-     below. Keep it at 0 so the band matches .tab-content width. */
-  .top-shell{margin-left:0}
+  /* Shift each top-level desktop region once. The hero and priority cards
+     share .top-shell, so moving their parent keeps both grids on the same
+     content axis instead of centring one against the full viewport. */
+  header,.wbar,.nudge-strip,.tab-content{margin-left:var(--railw)}
+  .top-shell{margin-left:var(--railw)}
+  .top-shell>.hero{margin-left:0}
   header{justify-content:flex-end}
   header .logo{display:none}
 
