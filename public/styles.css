@@ -2989,7 +2989,7 @@ button.hero-stat{
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   APPLE-STYLE MOBILE TRAINING CALENDAR · v37
+   APPLE-STYLE MOBILE TRAINING CALENDAR · v38
    A complete month view shows every planned session at a glance. Tapping
    a date opens that day as a dedicated, full-screen session workspace.
    ══════════════════════════════════════════════════════════════════════ */
@@ -3032,7 +3032,13 @@ body.day-plan-open{overflow:hidden}
 @media(max-width:760px){
   body.mobile-training-calendar .top-shell{display:none}
   body.mobile-training-calendar .wbar{display:none}
-  body.mobile-training-calendar #tab-training{padding-top:10px;padding-bottom:96px}
+  body.mobile-training-calendar #tab-training.active{
+    display:flex;flex-direction:column;height:calc(100dvh - 62px);min-height:calc(100vh - 62px);
+    padding-top:10px;padding-bottom:calc(88px + env(safe-area-inset-bottom));overflow:hidden;
+  }
+  body.mobile-training-calendar #calEl{
+    display:flex!important;flex:1 1 auto;min-height:0;flex-direction:column;
+  }
   body.mobile-training-calendar .quicklog-strip,body.mobile-training-calendar .wa-fab{display:none!important}
   .week-plan-title-desktop,.week-plan-subtitle-desktop{display:none}
   .week-plan-title-mobile,.week-plan-subtitle-mobile{display:inline}
@@ -3049,25 +3055,25 @@ body.day-plan-open{overflow:hidden}
 
   .month-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding:8px 0 7px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
   .month-weekdays span{text-align:center;font-family:var(--mono);font-size:7px;line-height:1;text-transform:uppercase;letter-spacing:.04em;color:var(--dim)}
-  .month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));width:100%;border-bottom:1px solid var(--border)}
+  .month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);flex:1 1 auto;min-height:0;width:100%;border-bottom:1px solid var(--border)}
   .month-day{
-    position:relative;display:flex;flex-direction:column;align-items:stretch;min-width:0;min-height:76px;
-    padding:5px 3px 4px;border:0;border-right:1px solid rgba(255,255,255,.045);border-bottom:1px solid rgba(255,255,255,.055);
+    position:relative;display:flex;flex-direction:column;align-items:stretch;min-width:0;min-height:0;
+    padding:8px 4px 6px;border:0;border-right:1px solid rgba(255,255,255,.045);border-bottom:1px solid rgba(255,255,255,.055);
     border-radius:0;background:transparent;color:var(--text);font:inherit;text-align:left;overflow:hidden;cursor:pointer;
   }
   .month-day:nth-child(7n){border-right:0}
   .month-day:focus-visible{z-index:2;outline:2px solid var(--run);outline-offset:-2px}
   .month-day.selected{background:rgba(146,210,237,.055)}
   .month-day.outside-month{opacity:.32}
-  .month-date{width:24px;height:24px;display:grid;place-items:center;align-self:center;border-radius:50%;font-size:13px;line-height:1;font-weight:650;color:var(--text)}
+  .month-date{width:30px;height:30px;display:grid;place-items:center;align-self:center;border-radius:50%;font-size:16px;line-height:1;font-weight:700;color:var(--text)}
   .month-day.today .month-date{background:var(--run);color:#05202b;box-shadow:0 5px 14px rgba(146,210,237,.24)}
-  .month-session-list{display:flex;flex-direction:column;gap:2px;min-width:0;margin-top:3px}
-  .month-session{display:block;min-width:0;padding:2px 3px;border-radius:4px;font-family:var(--body);font-size:7.5px;line-height:1.2;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#06131a;background:var(--run)}
+  .month-session-list{display:flex;flex-direction:column;gap:4px;min-width:0;margin-top:7px}
+  .month-session{display:block;min-width:0;padding:4px 4px;border-radius:5px;font-family:var(--body);font-size:9px;line-height:1.15;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#06131a;background:var(--run)}
   .month-session.strength{color:var(--text);background:rgba(255,255,255,.13);box-shadow:inset 2px 0 0 rgba(244,251,255,.72)}
   .month-session.run{background:var(--run)}
   .month-session.note{color:#1b1121;background:var(--pb)}
   .month-session.more{color:var(--muted);background:rgba(255,255,255,.055);font-weight:600}
-  .month-done{position:absolute;top:7px;right:4px;color:var(--ok);font-size:8px;font-weight:800}
+  .month-done{position:absolute;top:10px;right:5px;color:var(--ok);font-size:10px;font-weight:800}
   .outdoor-mode .month-day{border-color:rgba(7,17,22,.08)}
   .outdoor-mode .month-calendar-actions button{background:#fff;border-color:var(--border)}
   .outdoor-mode .month-session.strength{background:rgba(7,17,22,.08);box-shadow:inset 2px 0 0 rgba(7,17,22,.46)}
@@ -3109,8 +3115,10 @@ body.day-plan-open{overflow:hidden}
   .month-calendar-actions{gap:3px}
   .month-calendar-actions button{height:31px;min-width:31px}
   .month-calendar-actions .month-today-btn{padding:0 7px;font-size:9px}
-  .month-day{min-height:70px;padding-left:2px;padding-right:2px}
-  .month-session{font-size:7px;padding-left:2px;padding-right:2px}
+  .month-day{padding:6px 3px 5px}
+  .month-date{width:27px;height:27px;font-size:15px}
+  .month-session-list{gap:3px;margin-top:5px}
+  .month-session{font-size:8px;padding:3px}
   .wg-day,.wg-day:hover,.wg-day.today,.wg-day.done{min-height:84px}
   .wg-name{font-size:8px}
   .wg-date{width:31px;height:31px;font-size:16px}
