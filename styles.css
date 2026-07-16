@@ -3440,8 +3440,9 @@ body.day-plan-open{overflow:hidden}
       border-color .22s ease,border-radius .22s ease,background .22s ease,
       box-shadow .22s ease,backdrop-filter .22s ease;
   }
+  body.portal-header-scrolled #portalScreen{padding-top:62px}
   body.portal-header-scrolled #portalScreen>header{
-    top:8px;width:calc(100% - 20px);margin:0 10px;
+    position:fixed;top:8px;left:10px;right:10px;width:auto;margin:0;z-index:180;
     border-color:rgba(255,255,255,.12);border-radius:18px;
     background:rgba(7,17,23,.66);
     box-shadow:0 14px 34px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.055);
