@@ -2989,11 +2989,12 @@ button.hero-stat{
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   APPLE-STYLE MOBILE TRAINING CALENDAR · v42
-   A complete month view shows every planned session at a glance. Tapping
-   a date opens that day as a dedicated, full-screen session workspace.
+   APPLE-STYLE MOBILE TRAINING CALENDAR · v45
+   A focused seven-day agenda keeps real session names and doubles readable.
+   Tapping a day opens that workout in the existing focused session workspace.
    ══════════════════════════════════════════════════════════════════════ */
 .week-plan-title-mobile,.week-plan-subtitle-mobile,.week-calendar-hint,.month-calendar-actions,.month-weekdays,.month-grid{display:none}
+.mobile-week-agenda{display:none}
 body.day-plan-open{overflow:hidden}
 .day-plan-overlay{
   position:fixed;inset:0;z-index:220;display:flex;align-items:center;justify-content:center;overflow:hidden;
@@ -3077,6 +3078,49 @@ body.day-plan-open{overflow:hidden}
   .month-calendar-actions button{height:34px;min-width:34px;display:grid;place-items:center;padding:0;border:1px solid var(--border);border-radius:50%;background:rgba(255,255,255,.035);color:var(--text);cursor:pointer}
   .month-calendar-actions button .icon{width:15px;height:15px}
   .month-calendar-actions .month-today-btn{width:auto;min-width:0;padding:0 9px;border-radius:999px;font:600 10px var(--body);color:var(--run)}
+  .month-calendar-actions .month-today-btn{background:var(--run);border-color:var(--run);color:#05202b;font-weight:800;box-shadow:0 7px 18px rgba(146,210,237,.18)}
+
+  .mobile-week-agenda{
+    display:grid;grid-template-rows:repeat(7,minmax(0,1fr));flex:1 1 auto;min-height:0;
+    border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+  }
+  .mobile-week-day{
+    position:relative;display:grid;grid-template-columns:48px minmax(0,1fr) 20px;align-items:center;gap:10px;
+    min-width:0;min-height:0;padding:7px 5px 7px 2px;border:0;border-bottom:1px solid rgba(255,255,255,.065);
+    background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer;overflow:hidden;
+  }
+  .mobile-week-day:last-child{border-bottom:0}
+  .mobile-week-day:focus-visible{z-index:2;outline:2px solid var(--run);outline-offset:-2px}
+  .mobile-week-day.selected{background:rgba(146,210,237,.055)}
+  .mobile-week-day.today{
+    background:linear-gradient(90deg,rgba(146,210,237,.16),rgba(146,210,237,.025) 62%,transparent);
+    box-shadow:inset 3px 0 0 var(--run);
+  }
+  .mobile-week-date{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
+  .mobile-week-date small{font-family:var(--mono);font-size:8px;line-height:1;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
+  .mobile-week-date strong{width:30px;height:30px;display:grid;place-items:center;margin-top:4px;border-radius:50%;font-size:17px;line-height:1}
+  .mobile-week-date em{margin-top:2px;font:700 7px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--run)}
+  .mobile-week-day.today .mobile-week-date strong{background:var(--run);color:#05202b;box-shadow:0 6px 18px rgba(146,210,237,.3)}
+  .mobile-week-sessions{display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0}
+  .mobile-week-session{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.055);box-shadow:inset 3px 0 0 rgba(255,255,255,.48)}
+  .mobile-week-session.run{background:rgba(146,210,237,.12);box-shadow:inset 3px 0 0 var(--run)}
+  .mobile-week-session.note{background:rgba(182,144,255,.11);box-shadow:inset 3px 0 0 var(--pb)}
+  .mobile-week-session.rescheduled{box-shadow:inset 3px 0 0 #f0b85b}
+  .mobile-week-session>span{min-width:0}
+  .mobile-week-session strong,.mobile-week-session small{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mobile-week-session strong{font-size:11px;line-height:1.1;font-weight:750;color:var(--text)}
+  .mobile-week-session small{margin-top:2px;font-family:var(--mono);font-size:7px;line-height:1;color:var(--muted)}
+  .mobile-week-time{font-family:var(--mono);font-size:7px;line-height:1;color:var(--run);letter-spacing:.06em}
+  .mobile-week-key{font-style:normal;font-size:9px;line-height:1;color:var(--run)}
+  .mobile-week-more{font-family:var(--mono);font-size:8px;color:var(--muted)}
+  .mobile-week-rest{font-size:11px;color:var(--dim)}
+  .mobile-week-status{display:grid;place-items:center;font-size:17px;color:var(--dim)}
+  .mobile-week-day.done .mobile-week-status{color:var(--ok);font-weight:850}
+  .mobile-week-day.missed .mobile-week-status{width:17px;height:17px;border-radius:50%;background:rgba(240,184,91,.14);color:#f0b85b;font-size:10px;font-weight:850}
+  .outdoor-mode .mobile-week-day{border-color:rgba(7,17,22,.09)}
+  .outdoor-mode .mobile-week-day.today{background:linear-gradient(90deg,rgba(8,127,174,.13),rgba(8,127,174,.025) 62%,transparent)}
+  .outdoor-mode .mobile-week-session{background:rgba(7,17,22,.045)}
+  .outdoor-mode .mobile-week-session.run{background:rgba(8,127,174,.08)}
 
   .month-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding:8px 0 7px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
   .month-weekdays span{text-align:center;font-family:var(--mono);font-size:7px;line-height:1;text-transform:uppercase;letter-spacing:.04em;color:var(--dim)}
@@ -3158,6 +3202,10 @@ body.day-plan-open{overflow:hidden}
   .month-calendar-actions{gap:3px}
   .month-calendar-actions button{height:31px;min-width:31px}
   .month-calendar-actions .month-today-btn{padding:0 7px;font-size:9px}
+  .mobile-week-day{grid-template-columns:43px minmax(0,1fr) 17px;gap:7px;padding-top:5px;padding-bottom:5px}
+  .mobile-week-date strong{width:27px;height:27px;font-size:15px}
+  .mobile-week-session{padding:5px 7px}
+  .mobile-week-session strong{font-size:10px}
   .month-day{padding:6px 3px 5px}
   .month-date{width:27px;height:27px;font-size:15px}
   .month-day.today .month-date{width:31px;height:31px;font-size:16px}

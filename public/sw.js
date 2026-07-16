@@ -1,17 +1,17 @@
-const CACHE_NAME = 'dp-athlete-v54'; // v54: mobile session action fix + versioned scripts
+const CACHE_NAME = 'dp-athlete-v55'; // v55: focused mobile week agenda + versioned scripts
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=44', '/config.js',
-  '/js/01-core.js?v=44',
-  '/js/02-login-goals.js?v=44',
-  '/js/03-nav-nudges.js?v=44',
-  '/js/04-checkin.js?v=44',
-  '/js/05-handbook.js?v=44',
-  '/js/06-nutrition.js?v=44',
-  '/js/07-progress.js?v=44',
-  '/js/08-training.js?v=44',
-  '/js/09-logging.js?v=44',
-  '/js/10-boot.js?v=44',
-  '/login.js?v=44', '/icons.css?v=1',
+  '/index.html', '/styles.css?v=45', '/config.js',
+  '/js/01-core.js?v=45',
+  '/js/02-login-goals.js?v=45',
+  '/js/03-nav-nudges.js?v=45',
+  '/js/04-checkin.js?v=45',
+  '/js/05-handbook.js?v=45',
+  '/js/06-nutrition.js?v=45',
+  '/js/07-progress.js?v=45',
+  '/js/08-training.js?v=45',
+  '/js/09-logging.js?v=45',
+  '/js/10-boot.js?v=45',
+  '/login.js?v=45', '/icons.css?v=1',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
 ];
