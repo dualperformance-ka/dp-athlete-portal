@@ -46,6 +46,17 @@ async function bootPortal(){
 }
 bootPortal();
 
+// Mobile portal header: keep the full-width brand bar at the top, then turn it
+// into a compact glass surface once content is moving underneath it.
+function updateFloatingPortalHeader(){
+  var portal=document.getElementById('portalScreen');
+  var active=!!(portal&&portal.style.display!=='none'&&window.scrollY>18);
+  document.body.classList.toggle('portal-header-scrolled',active);
+}
+window.addEventListener('scroll',updateFloatingPortalHeader,{passive:true});
+window.addEventListener('resize',updateFloatingPortalHeader);
+updateFloatingPortalHeader();
+
 // ============================================================================
 // RUNNING LIBRARY INTEGRATION
 // Enhances calendar sessions with full workout details from the Supabase
