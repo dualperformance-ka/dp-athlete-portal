@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=28">
+<link rel="stylesheet" href="/styles.css?v=34">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -148,13 +148,17 @@
       <div class="logo-img" role="img" aria-label="Dual Performance"></div>
       <div class="logo-text"><span class="d">DUAL</span><span class="p">PERFORMANCE</span></div>
     </div>
+    <div class="portal-context" aria-live="polite">
+      <span class="portal-context-kicker">Athlete command center</span>
+      <strong id="portalSectionLabel">Today&rsquo;s Plan</strong>
+    </div>
     <div class="header-actions">
       <div class="save-state-pill" id="saveStatePill" aria-live="polite"><span></span><b>Saved</b></div>
       <button class="hicon theme-toggle hicon-accent" id="refreshBtn" onclick="hardRefreshPortal()" title="Refresh portal" aria-label="Refresh portal"><svg class="icon"><use href="#i-refresh"/></svg><span class="theme-toggle-label">Refresh</span></button>
       <button class="hicon theme-toggle hicon-accent" id="themeToggle" onclick="toggleOutdoorMode()" title="Toggle outdoor mode" aria-label="Toggle high-contrast outdoor mode"><svg class="icon"><use href="#i-sparkle"/></svg><span class="theme-toggle-label">Outdoor</span></button>
-      <button class="hicon hicon-goals" id="goalsBtn" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
-      <button class="hicon hicon-desktop" onclick="switchTab('handbook')">Guide</button>
-      <button class="hicon hicon-desktop" onclick="switchTab('comms')">Contact</button>
+      <button class="hicon hicon-goals" id="goalsBtn" data-portal-dest="goals" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
+      <button class="hicon hicon-desktop" data-portal-dest="handbook" onclick="switchTab('handbook')">Guide</button>
+      <button class="hicon hicon-desktop" data-portal-dest="comms" onclick="switchTab('comms')">Contact</button>
       <button class="hicon" id="logoutBtn" onclick="logout()" title="Sign out" aria-label="Sign out" style="font-size:10px;padding:4px 9px;opacity:.55;display:none"><svg class="icon"><use href="#i-logout"/></svg></button>
     </div>
   </header>

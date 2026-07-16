@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 :root{
   --bg:#040506;--surface:#0d1013;--surface2:#13181d;--surface3:#1a2229;
   --border:rgba(255,255,255,0.09);--border-mid:rgba(255,255,255,0.16);--border-strong:rgba(255,255,255,0.32);
@@ -505,11 +506,11 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
   /* Desktop IA split: Today's Plan is its own destination, and Weekly Plan
      gets the calendar view in a separate tab. */
   .desktop-weekly-tab{display:flex}
-  #tab-training.active{display:block;max-width:none;width:100%;margin-right:0}
+  #tab-training.active{display:block;max-width:none;width:auto;margin-right:0}
   #tab-training .todaywrap{margin-bottom:0}
   #tab-training>#calEl,#tab-training>#noplanEl{display:none!important}
   #tab-training .page-intro,#tab-training .todaywrap{max-width:none}
-  #tab-weekly.active{display:block;max-width:none;width:100%}
+  #tab-weekly.active{display:block;max-width:none;width:auto}
   #tab-weekly>#todayEl{display:none!important}
   #tab-weekly>#weeklyCalEl{min-width:0;padding-top:4px}
   #tab-weekly>#weeklyCalEl .dg:first-child .dgh{padding-top:0}
@@ -1545,6 +1546,7 @@ body{font-size:15px;line-height:1.55}
   --strength:#40515a;--strength-bg:rgba(7,17,22,.05);--strength-border:rgba(7,17,22,.18);
 }
 .outdoor-mode body,.outdoor-mode #portalScreen{background:var(--bg);color:var(--text)}
+.outdoor-mode .top-shell{background:linear-gradient(180deg,#edf3f5,#f5f8f9);border-bottom-color:var(--border)}
 .outdoor-mode header,.outdoor-mode .hero,.outdoor-mode .wbar,.outdoor-mode .tabs,.outdoor-mode .quicklog-strip,.outdoor-mode .mobile-nav{background:rgba(255,255,255,.94);color:var(--text);border-color:var(--border)}
 .outdoor-mode .todaypanel,.outdoor-mode .card,.outdoor-mode .sc,.outdoor-mode .todayitem,.outdoor-mode .mc,.outdoor-mode .ci-card,.outdoor-mode .hb-card,.outdoor-mode .accordion-card{background:var(--surface);color:var(--text);border-color:var(--border);box-shadow:0 8px 24px rgba(7,17,22,.06)}
 .outdoor-mode .todaytarget,.outdoor-mode .insight-card{background:var(--surface2);border-color:var(--border)}
@@ -1797,10 +1799,10 @@ body.focus-session-open{overflow:hidden}
   html:not(.outdoor-mode) .hero{background:linear-gradient(180deg,rgba(14,20,24,.78),rgba(7,10,12,.58));border-bottom:1px solid rgba(255,255,255,.075)}
   .top-shell{padding:22px var(--shellpad) 18px;background:linear-gradient(180deg,rgba(6,9,11,.9),rgba(6,9,11,.58))}
   .hero{padding:0;background:transparent!important;border-bottom:0!important}
-  .hero-shell{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(320px,.72fr);gap:18px;align-items:start;max-width:1200px;margin:0 auto}
+  .hero-shell{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(320px,.72fr);gap:18px;align-items:stretch;max-width:1200px;margin:0 auto}
   .hero-main,.hero-side{padding:26px 28px;border-radius:26px;box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 22px 50px rgba(0,0,0,.22)}
-  .hero-main{align-self:start;display:flex;flex-direction:column;gap:16px;min-height:336px;justify-content:space-between}
-  .hero-side{display:flex;flex-direction:column;justify-content:flex-start;gap:16px}
+  .hero-main{align-self:stretch;display:flex;flex-direction:column;gap:20px;justify-content:center}
+  .hero-side{align-self:stretch;display:flex;flex-direction:column;justify-content:center;gap:16px}
   .hi{margin-bottom:0}
   .hero-name-row{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:0}
   .hero-week{align-self:flex-start;margin-left:0;min-width:124px;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.04)}
@@ -1913,9 +1915,12 @@ body.focus-session-open{overflow:hidden}
 @media(min-width:900px){
   :root{--railw:236px;--shellpad:max(36px,calc((100vw - var(--railw) - 1200px)/2))}
 
-  /* Everything except the rail shifts right */
-  header,.hero,.wbar,.nudge-strip,.tab-content{margin-left:var(--railw)}
+  /* Shift each top-level desktop region once. The hero and priority cards
+     share .top-shell, so moving their parent keeps both grids on the same
+     content axis instead of centring one against the full viewport. */
+  header,.wbar,.nudge-strip,.tab-content{margin-left:var(--railw)}
   .top-shell{margin-left:var(--railw)}
+  .top-shell>.hero{margin-left:0}
   header{justify-content:flex-end}
   header .logo{display:none}
 
@@ -2327,4 +2332,571 @@ input[type=range].sl-untouched{opacity:.45}
   .coach-moment{grid-template-columns:auto minmax(0,1fr)}
   .coach-moment button{grid-column:2;justify-self:start}
   .insight-rail{grid-template-columns:1fr}
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   REDESIGN RESKIN · 2026 premium pass
+   CSS-only reskin layered on the existing markup — no structural or JS
+   changes. Adopts the concept-render aesthetic: Inter type system, deeper
+   teal-black palette, rounded gradient panels, softer semantic accents.
+   Blends portal-complete-render + portal-redesign-preview.
+   Scoped so light "outdoor mode" keeps its own palette.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Tokens: fonts, accents, radii (shared by BOTH themes) ──────────── */
+:root{
+  --display:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --body:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,'DM Mono',monospace;
+
+  --run-strong:#d7f1fc;
+  --ok:#73d1a7;--ok-bg:rgba(115,209,167,.12);--ok-border:rgba(115,209,167,.28);
+  --warn:#ffb76d;--danger:#ff8879;
+
+  --shadow-soft:0 26px 80px rgba(0,0,0,.34);--shadow-blue:0 22px 60px rgba(146,210,237,.10);
+  --r-xl:30px;--r-lg:24px;--r-md:18px;--r-sm:14px;
+}
+/* Dark-theme palette ONLY. Scoped to :not(.outdoor-mode) so the light
+   "outdoor" theme keeps its own dark-on-white palette untouched. */
+html:not(.outdoor-mode){
+  --bg:#071117;
+  --surface:#0d1820;--surface2:#101d27;--surface3:#132330;
+  --border:rgba(255,255,255,.08);--border-mid:rgba(255,255,255,.14);--border-strong:rgba(146,210,237,.26);
+  --text:#f3fbff;--muted:rgba(243,251,255,.72);--dim:rgba(243,251,255,.44);
+}
+
+/* ── Ambient background (dark theme only) ───────────────────────────── */
+html:not(.outdoor-mode) body,
+html:not(.outdoor-mode) #portalScreen{
+  background:
+    radial-gradient(circle at 12% 6%, rgba(146,210,237,.12), transparent 26%),
+    radial-gradient(circle at 88% 14%, rgba(65,119,145,.13), transparent 24%),
+    linear-gradient(180deg,#0c1720 0%, var(--bg) 52%, #040b10 100%);
+  background-attachment:fixed;
+}
+
+/* ── Typography polish ──────────────────────────────────────────────── */
+body{font-family:var(--body);letter-spacing:-.005em}
+.hn{text-transform:none;letter-spacing:-.045em;font-weight:800}
+.page-title,.todaytitle,.stitle,.hero-week-num,
+.goals-name,.comms-title,.ci-step-title,.hb-modal-title{letter-spacing:-.03em}
+.eyebrow,.hi,.page-kicker,.todayeyebrow,.hero-side-label,.card-title,
+.slbl,.ltitle{letter-spacing:.12em}
+@media(min-width:900px){ .hn{font-size:66px;letter-spacing:-.05em} }
+
+/* ── Panels: rounded gradient surfaces + soft depth ─────────────────── */
+html:not(.outdoor-mode) .card,
+html:not(.outdoor-mode) .accordion-card,
+html:not(.outdoor-mode) .ci-card,
+html:not(.outdoor-mode) .mc,
+html:not(.outdoor-mode) .pstat,
+html:not(.outdoor-mode) .hb-card,
+html:not(.outdoor-mode) .insight-card,
+html:not(.outdoor-mode) .command-status{
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 18px 44px rgba(0,0,0,.20);
+}
+html:not(.outdoor-mode) .todaypanel,
+html:not(.outdoor-mode) .goals-hero,
+html:not(.outdoor-mode) .comms-card{
+  border:1px solid var(--border-strong);
+  border-radius:var(--r-xl);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(146,210,237,.10), transparent 34%),
+    linear-gradient(155deg, rgba(19,33,43,.98), rgba(10,18,24,.98));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),var(--shadow-soft);
+}
+html:not(.outdoor-mode) .hero-main,
+html:not(.outdoor-mode) .hero-side{
+  border:1px solid var(--border);
+  border-radius:var(--r-xl);
+  background:linear-gradient(155deg, rgba(19,33,43,.94), rgba(10,18,24,.92));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),var(--shadow-soft);
+}
+
+/* Nudge / priority cards */
+html:not(.outdoor-mode) .top-shell-priority .nudge-strip,
+html:not(.outdoor-mode) #checkinNudge,
+html:not(.outdoor-mode) #callConfirmedNudge,
+html:not(.outdoor-mode) #photoNudge{
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+}
+
+/* Session / list rows a touch rounder */
+.sc,.todayitem,.exc,.saved-data,.rtarget,.hero-stat{border-radius:var(--r-md)}
+.hero-week{border-radius:var(--r-md)}
+
+/* ── Controls: inputs, buttons, pills, chips ────────────────────────── */
+.li,.sin,.stat-input,.why-textarea,.milestone-input,.rpe-in,
+.run-field input,.run-field textarea,.run-field select,.pb-search{
+  border-radius:var(--r-sm);
+}
+.savebtn,.save-run-btn,.comms-btn,.goals-prompt-btn,.lbtn,
+.ci-btn-next,.ci-btn-back,.quicklog-btn{border-radius:var(--r-sm);font-family:var(--display);font-weight:700;letter-spacing:.01em;text-transform:none}
+.hicon,.hp,.chip,.todaychip,.race-opt,.badge,.ex-pill,.plate-pill{border-radius:999px}
+.hicon{padding:8px 14px}
+
+/* Accent buttons: subtle gradient lift */
+.savebtn,.save-run-btn,.comms-btn,.goals-prompt-btn,.ci-btn-next,.quicklog-btn.ql-nut{
+  background:linear-gradient(180deg,#a6ddf3,#92d2ed);color:#05202b;
+  box-shadow:0 10px 26px rgba(146,210,237,.28);
+}
+
+/* ── Left rail (desktop) refinement ─────────────────────────────────── */
+@media(min-width:900px){
+  html:not(.outdoor-mode) .tabs{
+    background:linear-gradient(rgba(255,255,255,.08),rgba(255,255,255,.08)) 14px 82px/calc(100% - 28px) 1px no-repeat,
+      linear-gradient(180deg, rgba(10,18,24,.94), rgba(5,11,16,.92));
+    backdrop-filter:blur(22px) saturate(130%);
+    border-right:1px solid var(--border);
+  }
+  html:not(.outdoor-mode) .tab.active{
+    border-radius:12px;
+    background:linear-gradient(90deg, rgba(146,210,237,.16), rgba(146,210,237,.04));
+    box-shadow:inset 3px 0 0 var(--run),inset 0 0 0 1px rgba(146,210,237,.14);
+  }
+  html:not(.outdoor-mode) header{
+    background:rgba(7,17,23,.72);backdrop-filter:blur(22px) saturate(130%);
+    border-bottom-color:var(--border);
+  }
+}
+
+/* Positive chips pick up the softer green */
+.saved-feeling,.badge.ok{color:#d8f7e9}
+
+/* ── Sweep polish: mobile radii + light-mode nav contrast ───────────── */
+/* Slightly tighter corners on the biggest panels at phone widths */
+@media(max-width:640px){
+  html:not(.outdoor-mode) .todaypanel,
+  html:not(.outdoor-mode) .goals-hero,
+  html:not(.outdoor-mode) .comms-card,
+  html:not(.outdoor-mode) .hero-main,
+  html:not(.outdoor-mode) .hero-side{border-radius:22px}
+  html:not(.outdoor-mode) .card,
+  html:not(.outdoor-mode) .accordion-card,
+  html:not(.outdoor-mode) .ci-card,
+  html:not(.outdoor-mode) .mc,
+  html:not(.outdoor-mode) .pstat,
+  html:not(.outdoor-mode) .hb-card{border-radius:18px}
+}
+/* Light-mode desktop rail: darken active label so it isn't washed out */
+@media(min-width:900px){
+  .outdoor-mode .tab.active{color:#0d3f54}
+}
+
+/* ── Sweep round 2: header dedupe, nudge fit, progress tightening ────── */
+
+/* Training tab shows a page-intro ("Today's Plan") AND the command-centre
+   panel ("Today's command center"). Desktop already hides the intro; do
+   the same on mobile so there's a single, clear header. */
+#tab-training.active > .page-intro{display:none}
+
+/* "Call booked" nudge lays its title + "Karl & Alex · confirmed" on one
+   inline row, which clips on narrow phones. Stack them like the others. */
+@media(max-width:640px){
+  #callConfirmedNudge .nudge-strip-text{flex-direction:column;align-items:flex-start;gap:3px}
+  #callConfirmedNudge .nudge-strip-title{white-space:normal;line-height:1.3}
+  #callConfirmedNudge .nudge-strip-sub{white-space:normal}
+}
+
+/* Progress tab: tighten cards + stat tiles and trim the chart card's dead
+   space so the panels read denser and more polished on mobile. */
+@media(max-width:640px){
+  #tab-progress .card{padding:16px}
+  #tab-progress .pstat{padding:12px 12px}
+  #tab-progress .progress-stats{gap:10px}
+  #tab-progress .card > div > div:empty{display:none}
+}
+
+/* ── Light (outdoor) mode: hero cards must be light at ALL widths ─────
+   The base .hero-main/.hero-side are dark, and outdoor only whitened them
+   at ≥900px — so on mobile the hero stayed dark with dark text on it.
+   Match the other outdoor cards (white surface, dark text) everywhere. */
+.outdoor-mode .hero-main,
+.outdoor-mode .hero-side{
+  background:var(--surface)!important;
+  border:1px solid var(--border)!important;
+  box-shadow:0 10px 26px rgba(30,55,67,.07)!important;
+  color:var(--text);
+}
+.outdoor-mode .hero-main::before{background:linear-gradient(90deg,transparent,var(--run),transparent)}
+.outdoor-mode .hero-week{background:rgba(7,17,22,.04)!important;border-color:var(--border)!important}
+.outdoor-mode .hero-side-label{color:rgba(7,17,22,.6)}
+.outdoor-mode .hero-stat{background:rgba(7,17,22,.035)!important;border-color:var(--border)!important}
+
+/* ── Light mode legibility: muted/dim sub-labels were sitting right at
+   the 4.5:1 minimum and reading as "too light". Darken the tokens a step
+   so captions, meta text and eyebrows are comfortably visible. ──────── */
+html.outdoor-mode{
+  --run-strong:#075f82;
+  --muted:rgba(7,17,22,.82);
+  --dim:rgba(7,17,22,.66);
+}
+/* Belt-and-braces for the specific eyebrow/caption classes that use dim */
+.outdoor-mode .hi,
+.outdoor-mode .todayeyebrow,
+.outdoor-mode .todaydate,
+.outdoor-mode .hero-week-label,
+.outdoor-mode .nudge-strip-sub,
+.outdoor-mode .smeta,
+.outdoor-mode .card-title,
+.outdoor-mode .pstat-lbl,
+.outdoor-mode .ml,
+.outdoor-mode .ci-lbl{color:rgba(7,17,22,.66)!important}
+
+/* Some progress/chart cards render as plain .card but keep a dark
+   (#0a0a0a) background in light mode, so their dark title lands on a dark
+   surface (invisible). Force every card-like surface to the light surface
+   in outdoor mode with ID-level specificity so no stray dark bg survives. */
+html.outdoor-mode #portalScreen .card,
+html.outdoor-mode #portalScreen .weight-trend-card,
+html.outdoor-mode #portalScreen .progress-card,
+html.outdoor-mode #portalScreen .progress-panel,
+html.outdoor-mode #portalScreen .progress-chart-card,
+html.outdoor-mode #portalScreen .progress-spotlight,
+html.outdoor-mode #portalScreen .graph-spotlight{
+  background:var(--surface)!important;
+  border-color:var(--border)!important;
+  color:var(--text);
+}
+/* Keep the chart card's own inner graph surface light too */
+html.outdoor-mode #portalScreen .graph-wrap,
+html.outdoor-mode #portalScreen .chart-wrap,
+html.outdoor-mode #portalScreen .chart-container{background:rgba(7,17,22,.03)!important}
+
+/* Several values/labels use INLINE colors the app's JS hard-codes for the
+   dark theme (bright green, amber, translucent-white eyebrows). On white
+   they drop below AA. Override the specific inline patterns for light mode. */
+/* Bright green metric deltas (rgb 34,197,94) → darker readable green */
+.outdoor-mode [style*="34,197,94"],
+.outdoor-mode [style*="34, 197, 94"],
+.outdoor-mode [style*="#22c55e"]{color:#12894e!important}
+/* Amber warnings (rgb 255,170,0) → darker amber */
+.outdoor-mode [style*="255,170,0"],
+.outdoor-mode [style*="255, 170, 0"]{color:#8a5800!important}
+/* NOTE: some sub-panels (check-in step cards, the weight chart) are
+   deliberately dark even in light mode, with light inline text. We do NOT
+   blanket-darken translucent-white inline text, because that turns those
+   panels' labels dark-on-dark. Fully theming those needs the app JS. */
+
+/* ── Border theming per toggle ──────────────────────────────────────────
+   Light ("Indoor"/white) toggle: borders fade to near-white so cards read
+   as one clean white surface — no dark outlines. Cards stay separated by
+   their soft shadow + the off-white page canvas.
+   Dark toggle: borders become defined dark ("black") lines.
+   Both flow through the --border token the whole stylesheet already uses. */
+html:not(.outdoor-mode){
+  --border:rgba(0,0,0,.42);
+  --border-mid:rgba(0,0,0,.52);
+  --border-strong:rgba(0,0,0,.6);
+}
+html.outdoor-mode{
+  --border:rgba(7,17,22,.05);
+  --border-mid:rgba(7,17,22,.08);
+  --border-strong:rgba(7,17,22,.1);
+}
+/* A few surfaces hard-code their border instead of using the token —
+   pull them onto the token so the toggle stays consistent. */
+html.outdoor-mode #portalScreen .weight-trend-card,
+html.outdoor-mode #portalScreen .hero-main,
+html.outdoor-mode #portalScreen .hero-side,
+html.outdoor-mode #portalScreen .nudge-strip,
+html.outdoor-mode #portalScreen .sc,
+html.outdoor-mode #portalScreen .todayitem,
+html.outdoor-mode #portalScreen input,
+html.outdoor-mode #portalScreen textarea,
+html.outdoor-mode #portalScreen select{border-color:var(--border)!important}
+html:not(.outdoor-mode) #portalScreen .hero-main,
+html:not(.outdoor-mode) #portalScreen .hero-side,
+html:not(.outdoor-mode) #portalScreen .nudge-strip,
+html:not(.outdoor-mode) #portalScreen .sc,
+html:not(.outdoor-mode) #portalScreen .todayitem,
+html:not(.outdoor-mode) #portalScreen .card{border-color:var(--border)!important}
+
+/* ══════════════════════════════════════════════════════════════════════
+   FULL RESPONSIVE REDESIGN · v34
+   Desktop = persistent command centre. Mobile = focused daily flow.
+   This final layer intentionally owns layout, hierarchy and density while
+   preserving every existing app interaction and data-bound component.
+   ══════════════════════════════════════════════════════════════════════ */
+:root{
+  --railw:252px;
+  --content-max:1280px;
+  --shellpad:max(30px,calc((100vw - var(--railw) - var(--content-max))/2));
+  --surface-glass:rgba(11,24,32,.78);
+}
+
+html:not(.outdoor-mode){
+  --bg:#061016;
+  --surface:#0c1820;
+  --surface2:#101f29;
+  --surface3:#152834;
+  --border:rgba(255,255,255,.085);
+  --border-mid:rgba(255,255,255,.15);
+  --border-strong:rgba(146,210,237,.28);
+  --text:#f4fbff;
+  --muted:rgba(244,251,255,.72);
+  --dim:rgba(244,251,255,.46);
+}
+
+html:not(.outdoor-mode) body,
+html:not(.outdoor-mode) #portalScreen{
+  background:
+    radial-gradient(circle at 18% -4%,rgba(146,210,237,.14),transparent 30%),
+    radial-gradient(circle at 92% 8%,rgba(46,105,132,.14),transparent 26%),
+    linear-gradient(180deg,#0b1820 0%,#061016 52%,#03090d 100%);
+  background-attachment:fixed;
+}
+
+#portalScreen{min-height:100vh}
+.portal-context{display:none;min-width:0}
+.portal-context-kicker,.portal-context strong{display:block}
+.portal-context-kicker{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.portal-context strong{margin-top:2px;font-size:15px;font-weight:650;letter-spacing:-.015em;color:var(--text)}
+.hicon.active{color:var(--run-strong);border-color:var(--run-border);background:var(--run-bg)}
+
+/* Desktop authentication becomes an editorial split screen. */
+@media(min-width:900px){
+  #loginScreen .login-col{
+    position:absolute;top:50%;right:max(7vw,calc((100vw - 1440px)/2 + 74px));
+    width:min(420px,calc(100vw - 56px));max-width:420px;min-height:auto;margin:0;
+    padding:54px 44px 48px;transform:translateY(-50%);border:1px solid rgba(255,255,255,.09);
+    border-radius:30px;background:linear-gradient(155deg,rgba(17,31,40,.9),rgba(6,12,17,.88));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 36px 100px rgba(0,0,0,.42);
+    backdrop-filter:blur(24px) saturate(125%);
+  }
+  #loginScreen.login-authed .login-col{transform:translateY(calc(-50% - 12px)) scale(.985)}
+  #loginScreen .login-wordmark{left:max(5vw,calc((100vw - 1440px)/2 + 32px));right:52%;text-align:left}
+  #loginScreen .login-footer{left:max(5vw,calc((100vw - 1440px)/2 + 32px));transform:none}
+}
+
+/* ── Desktop command centre ────────────────────────────────────────── */
+@media(min-width:900px){
+  header,.wbar,.nudge-strip,.tab-content{margin-left:var(--railw)}
+  .top-shell{margin-left:var(--railw)}
+
+  header{
+    height:68px;padding:0 var(--shellpad);justify-content:space-between;
+    background:rgba(6,16,22,.76);border-bottom:1px solid var(--border);
+    backdrop-filter:blur(24px) saturate(135%);
+  }
+  header .logo{display:none}
+  .portal-context{display:flex;flex-direction:column;justify-content:center}
+  .header-actions{gap:8px}
+  .header-actions .hicon{min-height:36px;padding:7px 13px}
+  .save-state-pill{min-height:32px;padding:6px 11px;background:rgba(255,255,255,.025)}
+
+  .tabs{
+    width:var(--railw);padding:122px 16px 28px;gap:5px;
+    border-right:1px solid var(--border);overflow-x:hidden;
+  }
+  html:not(.outdoor-mode) .tabs{
+    background:
+      linear-gradient(rgba(255,255,255,.08),rgba(255,255,255,.08)) 16px 98px/calc(100% - 32px) 1px no-repeat,
+      radial-gradient(circle at 14% 2%,rgba(146,210,237,.13),transparent 26%),
+      linear-gradient(180deg,rgba(8,19,26,.98),rgba(3,9,13,.98));
+  }
+  .tabs::before{top:29px;left:20px;width:48px;height:48px}
+  .tabs::after{top:35px;left:79px;font-size:14px;line-height:1.18;letter-spacing:.1em}
+  .tab{
+    min-height:48px;padding:13px 15px;border-radius:13px;
+    font-size:13px;line-height:1.25;letter-spacing:0;text-transform:none;
+  }
+  .tabs .tab::before{width:18px;height:18px;flex-basis:18px;margin-right:12px}
+  .tab.active{box-shadow:inset 3px 0 0 var(--run),inset 0 0 0 1px rgba(146,210,237,.15)}
+
+  .top-shell{padding:28px var(--shellpad) 24px;background:transparent;border-bottom:0}
+  .top-shell>.hero{margin:0 auto;padding:0;max-width:var(--content-max);background:transparent}
+  .hero-shell{grid-template-columns:minmax(0,1.42fr) minmax(330px,.58fr);gap:20px;align-items:stretch}
+  .hero-main,.hero-side{min-height:336px;padding:32px;border-radius:28px}
+  .hero-main{display:flex;flex-direction:column;justify-content:center;gap:18px}
+  .hero-side{display:flex;flex-direction:column;justify-content:center}
+  .hero-main::before{left:32px;right:32px}
+  .hi{font-size:10px;color:var(--dim)}
+  .hn{font-size:clamp(54px,5vw,76px);line-height:.9;max-width:12ch}
+  .hero-name-row{align-items:flex-start;margin:0}
+  .hero-week{min-width:118px;padding:15px 17px;text-align:left;background:rgba(255,255,255,.035)}
+  .hero-week-num{font-size:34px;margin-top:3px}
+  .hero-support{max-width:58ch;font-size:15px;line-height:1.55;color:var(--muted)}
+  .hero-bottom{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:18px;margin-top:2px}
+  .hpills{align-self:end}
+  .hero-stat-grid{gap:10px}
+  .hero-stat{padding:13px 14px;background:rgba(255,255,255,.032)}
+  .hero-stat-value{font-size:24px}
+  .hero-side-label{margin-bottom:16px}
+  .week-rings{grid-template-columns:1fr;gap:12px}
+  .ring-item{min-height:94px;padding:16px 17px;border-radius:18px;background:rgba(255,255,255,.03)}
+  .ring-wrap,.ring-svg{width:64px;height:64px}
+  .ring-val{font-size:22px}
+
+  .top-shell-priority{
+    grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;
+    max-width:var(--content-max);margin:14px auto 0;
+  }
+  .top-shell-priority .nudge-strip{padding:15px 16px;border-radius:18px;min-width:0}
+  .top-shell-priority .nudge-strip-inner{height:100%}
+
+  .tab-content{padding:30px var(--shellpad) 150px}
+  .tab-content.active>*{max-width:var(--content-max);margin-left:auto;margin-right:auto}
+  #tab-training.active,#tab-weekly.active{max-width:none}
+  #tab-training .todaywrap,#tab-weekly>#weeklyCalEl{max-width:var(--content-max);margin-left:auto;margin-right:auto}
+  #tab-training .todaywrap{position:static;max-height:none;overflow:visible}
+  #tab-training .todaypanel{padding:30px;border-radius:28px;filter:none}
+  .todayeyebrow{font-size:10px}
+  .todaytitle{font-size:40px;line-height:1;max-width:18ch}
+  .today-subtitle{font-size:15px}
+  .coach-moment{padding:2px 0 20px;margin-bottom:20px}
+  .insight-rail{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .insight-card{min-height:82px;padding:15px}
+  .command-status-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .command-status.next-session{grid-column:auto}
+  .command-status{min-height:76px}
+  .todaylist{gap:14px}
+  .todayitem{padding:20px;border-radius:18px}
+
+  #tab-progress.active{max-width:none}
+  #tab-progress>*{max-width:1120px}
+  #tab-progress>.progress-stats{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+  #tab-checkin.active{grid-template-columns:minmax(310px,360px) minmax(0,1fr);max-width:1180px;gap:32px}
+  #tab-comms.active,#tab-handbook.active{max-width:none}
+  #tab-comms>*{max-width:900px}
+  #tab-handbook>*{max-width:1120px}
+
+  .quicklog-strip{left:calc(var(--railw) + (100vw - var(--railw))/2);width:min(760px,calc(100vw - var(--railw) - 56px))}
+}
+
+@media(min-width:1180px){
+  .hero-main,.hero-side{min-height:354px}
+  #tab-goals.active{gap:0 30px}
+  #nutContent{gap:0 30px}
+}
+
+/* ── Tablet bridge ─────────────────────────────────────────────────── */
+@media(min-width:761px) and (max-width:899px){
+  .top-shell{padding:18px 22px}
+  .hero-shell{grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:14px}
+  .hero-main,.hero-side{padding:24px;min-height:290px}
+  .hn{font-size:52px}
+  .hero-support{font-size:14px}
+  .hero-bottom{gap:12px}
+  .hero-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .hero-stat{padding:11px}
+  .hero-stat-value{font-size:20px}
+  .week-rings{grid-template-columns:1fr}
+  .top-shell-priority{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tab-content{max-width:860px;padding-left:22px;padding-right:22px}
+}
+
+/* ── Mobile editorial focus ────────────────────────────────────────── */
+@media(max-width:760px){
+  header{height:62px;padding:0 12px;background:rgba(6,16,22,.88);backdrop-filter:blur(20px)}
+  .logo{gap:8px}.logo-img{width:32px;height:32px}.logo-text{font-size:11px}
+  .header-actions{gap:5px}
+  .save-state-pill{height:34px;padding:5px 9px}
+  .save-state-pill b{font-size:10px}
+  .header-actions .theme-toggle{width:36px;height:36px;padding:0;justify-content:center}
+  .theme-toggle-label{display:none}
+
+  .top-shell{padding:12px 12px 8px;background:transparent}
+  .hero-shell{gap:10px}
+  .hero-main,.hero-side{padding:20px;border-radius:22px;min-height:0}
+  .hero-main{gap:0}
+  .hero-main::before{left:20px;right:20px}
+  .hi{font-size:10px;margin-bottom:10px}
+  .hero-name-row{align-items:flex-start;margin-bottom:12px}
+  .hn{font-size:42px;line-height:.9;max-width:8ch}
+  .hero-week{min-width:76px;padding:10px 11px;border-radius:14px;text-align:left}
+  .hero-week-num{font-size:25px;margin-top:2px}
+  .hero-support{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.45}
+  .hero-bottom{display:block;margin-top:14px}
+  .hpills{margin-bottom:10px}
+  .hp{padding:6px 10px;font-size:10px}
+  .hero-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+  .hero-stat{min-width:0;padding:10px 9px;border-radius:13px}
+  .hero-stat-label{font-size:8px;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hero-stat-value{font-size:20px;margin-top:4px}
+
+  .hero-side{padding:16px 18px}
+  .hero-side-label{margin-bottom:10px}
+  .week-rings{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .ring-item{padding:10px;gap:9px;border-radius:14px}
+  .ring-wrap,.ring-svg{width:48px;height:48px}
+  .ring-icon{width:15px;height:15px}
+  .ring-val{font-size:16px}
+  .ring-sub{white-space:normal;line-height:1.2}
+
+  .top-shell-priority{gap:8px;margin-top:8px}
+  .top-shell-priority .nudge-strip{padding:12px 13px;border-radius:15px}
+  .nudge-strip-title{text-transform:none;letter-spacing:-.01em;font-size:13px}
+  .nudge-strip-sub{font-size:10px}
+
+  .tab-content{padding:12px 12px 188px}
+  .page-intro{margin-bottom:12px}
+  #tab-training .todaypanel{padding:20px 16px 18px;border-radius:22px;box-shadow:0 20px 50px rgba(0,0,0,.28)}
+  .todayhead{display:block;margin-bottom:18px}
+  .todaytitle{font-size:34px;line-height:1;max-width:none}
+  .today-subtitle{font-size:13px;margin-top:7px}
+  .todaydate{margin-top:8px;padding:0}
+  .coach-moment{grid-template-columns:auto minmax(0,1fr);gap:11px;padding-bottom:16px;margin-bottom:16px}
+  .coach-moment button{grid-column:2;width:40px;height:40px}
+  .coach-moment p{font-size:13px}
+  .insight-rail{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .insight-card{min-height:76px;padding:11px}
+  .command-status-grid{grid-template-columns:1fr;gap:8px}
+  .command-status.next-session{grid-column:auto}
+  .command-status{min-height:66px;padding:12px 13px}
+  .todayitem{padding:16px 14px;border-radius:16px}
+  .todayname{font-size:20px}
+  .todaytarget{padding:13px}
+  .today-actions{gap:8px}
+  .today-action{min-height:46px}
+
+  .progress-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px}
+  #tab-progress .pstat{min-height:92px;padding:14px}
+  .macro-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .macro-grid .mc.fibre{grid-column:auto!important}
+  .ci-grid{grid-template-columns:1fr}
+  .week-glance{gap:5px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+  .wg-day{min-width:62px;padding:10px 6px;border-radius:14px;scroll-snap-align:start}
+
+  .quicklog-strip{bottom:calc(80px + env(safe-area-inset-bottom));left:8px;right:8px}
+  .mobile-nav{left:8px;right:8px;bottom:calc(7px + env(safe-area-inset-bottom));min-height:64px;border-radius:18px}
+  .mobile-nav-item{min-height:50px}
+  .mobile-nav-item.active{background:rgba(146,210,237,.08)}
+  .mobile-nav-item.active::before{display:none}
+  .wa-fab{bottom:145px!important;right:12px}
+  .more-menu-sheet{max-height:88vh;overflow-y:auto}
+}
+
+@media(max-width:390px){
+  .save-state-pill b{display:none}
+  .hn{font-size:37px}
+  .hero-main{padding:18px}
+  .hero-stat{padding:9px 7px}
+  .hero-stat-value{font-size:18px}
+  .week-rings{grid-template-columns:1fr}
+  .ring-item{min-height:62px}
+  .insight-rail{grid-template-columns:1fr}
+}
+
+/* Daylight mode mirrors the hierarchy without losing contrast. */
+.outdoor-mode .portal-context strong{color:var(--text)}
+.outdoor-mode .portal-context-kicker{color:var(--dim)}
+.outdoor-mode .hicon.active{color:var(--run-strong);border-color:var(--run-border);background:var(--run-bg)}
+.outdoor-mode .hero-support{color:var(--muted)}
+.outdoor-mode .hero-stat-label{color:var(--dim)}
+.outdoor-mode .hero-stat-value{color:var(--text)}
+.outdoor-mode .mobile-nav-item.active{background:var(--run-bg)}
+@media(min-width:900px){
+  .outdoor-mode header{background:rgba(255,255,255,.84)}
+  .outdoor-mode .tabs{
+    background:
+      linear-gradient(rgba(7,17,22,.09),rgba(7,17,22,.09)) 16px 98px/calc(100% - 32px) 1px no-repeat,
+      linear-gradient(180deg,rgba(255,255,255,.98),rgba(244,248,250,.98));
+  }
+  .outdoor-mode .ring-item,.outdoor-mode .hero-stat{background:rgba(7,17,22,.035);border-color:var(--border)}
 }

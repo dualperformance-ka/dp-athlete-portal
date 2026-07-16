@@ -106,6 +106,15 @@ The athlete portal includes:
 - Coach alert state
 - Local fallback saving when Notion check-ins are not configured
 
+### Responsive experience
+
+- Desktop uses a persistent left navigation rail, an athlete command-center hero, weekly output rings, and wide data layouts.
+- Tablet keeps the full portal hierarchy while compressing the hero and content grids.
+- Mobile prioritizes today&rsquo;s session, compact weekly signals, touch-sized controls, and a five-item bottom navigation.
+- Outdoor mode preserves the same information hierarchy with a daylight-friendly palette.
+
+The root and `public/` copies of `index.html` and `styles.css` are intentionally kept identical so local previews and Vercel&rsquo;s public app shell render the same interface.
+
 Your BODY check-in database has already been extended with the premium fields: `Session`, `Motivation`, `RPE`, `Pain`, and `Coach Alert`.
 
 ## Premium Portal Roadmap

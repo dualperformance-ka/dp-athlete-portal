@@ -157,6 +157,12 @@ window.addEventListener('message',function(e){
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(function(t){var active=t.dataset.tab===tab;t.classList.toggle('active',active);t.setAttribute('aria-selected',active?'true':'false');});
   document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+tab);});
+  document.querySelectorAll('[data-portal-dest]').forEach(function(item){item.classList.toggle('active',item.dataset.portalDest===tab);});
+  var sectionLabel=document.getElementById('portalSectionLabel');
+  if(sectionLabel){
+    var labels={training:'Today\'s Plan',weekly:'Weekly Plan',nutrition:'Nutrition',checkin:'Weekly Check-in',progress:'Progress',goals:'Goals',handbook:'Athlete Guide',comms:'Contact'};
+    sectionLabel.textContent=labels[tab]||'Athlete Portal';
+  }
   toggleMoreMenu(false);
   setMobileNav(tab==='weekly'?'training':(tab==='training'?'home':tab));
   var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
