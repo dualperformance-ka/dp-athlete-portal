@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v50'; // v50: floating calendar day modal + styles.css?v=41
+const CACHE_NAME = 'dp-athlete-v51'; // v51: workout details open immediately in day modal
 const APP_SHELL = [
   '/index.html', '/styles.css?v=41', '/config.js',
   '/js/01-core.js',

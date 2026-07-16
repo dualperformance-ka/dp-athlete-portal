@@ -200,6 +200,7 @@ function renderDayPlanDate(iso){
     html='<div class="day-plan-rest"><span class="day-plan-rest-mark">Rest</span><h3>Recovery is part of the plan.</h3><p>Keep the day easy, stay on top of nutrition and arrive ready for the next session.</p></div>';
   }
   content.innerHTML=html;
+  daySessions.forEach(function(s){var body=document.getElementById('scb_'+interactiveSessionIndex(s));if(body)body.classList.add('open');});
   var prev=document.getElementById('dayPlanPrev'),next=document.getElementById('dayPlanNext');if(prev)prev.disabled=!!(trainingMonthGridStart&&d<=trainingMonthGridStart);if(next)next.disabled=!!(trainingMonthGridEnd&&d>=trainingMonthGridEnd);
   document.querySelectorAll('.month-day').forEach(function(day){var selected=day.dataset.date===iso;day.classList.toggle('selected',selected);day.setAttribute('aria-pressed',selected?'true':'false');});
   content.scrollTop=0;return ov;
