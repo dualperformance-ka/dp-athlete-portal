@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v57'; // v57: clearly labelled refresh + indoor/outdoor controls
+const CACHE_NAME = 'dp-athlete-v58'; // v58: uniform mobile home card alignment
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=47', '/config.js',
+  '/index.html', '/styles.css?v=48', '/config.js',
   '/js/01-core.js?v=47',
   '/js/02-login-goals.js?v=47',
   '/js/03-nav-nudges.js?v=47',

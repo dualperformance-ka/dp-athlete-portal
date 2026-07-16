@@ -3227,6 +3227,9 @@ body.day-plan-open{overflow:hidden}
 .today-mobile-heading{display:none}
 
 @media(max-width:760px){
+  body.mobile-portal-home .hero.hero-shell{
+    padding:0;border:0;background:transparent;box-shadow:none;
+  }
   body.mobile-portal-home .top-shell{padding-bottom:8px}
   body.mobile-portal-home .hero-shell{gap:0}
   body.mobile-portal-home .hero-main{
