@@ -52,7 +52,7 @@ async function loadWeek(){
   // empty week ([]). Show a retryable error, never "No sessions this week".
   if(!mapped){showLoadError();return;}
   var reschedules={};try{reschedules=JSON.parse(localStorage.getItem('dp_reschedules_'+athlete.code)||'{}');}catch(e){}
-  mapped.forEach(function(s){if(reschedules[s.id])s.date=reschedules[s.id];});
+  mapped.forEach(function(s){if(reschedules[s.id]){s.date=reschedules[s.id];s.rescheduled=true;}});
   allSessions=mapped;
   sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
   if(weekOffset===0) initPhotoNudge();
@@ -102,8 +102,13 @@ function renderCal(ws){
   var monthLabel=(monthRange?monthRange.anchor:ws).toLocaleDateString('en-AU',{month:'long',year:'numeric'});
   var monthStart=monthRange?localISO(new Date(monthRange.anchor.getFullYear(),monthRange.anchor.getMonth(),1)):'';
   var monthEnd=monthRange?localISO(new Date(monthRange.anchor.getFullYear(),monthRange.anchor.getMonth()+1,0)):'';
-  var monthSessions=mobileCalendar?allSessions.filter(function(s){return s.date>=monthStart&&s.date<=monthEnd&&getType(s)!=='rest';}):[];
-  var html='<div class="week-plan-shell"><div class="week-plan-heading-copy"><div class="week-plan-kicker">Training calendar</div><div class="week-plan-title"><span class="week-plan-title-desktop">Built for the week ahead</span><span class="week-plan-title-mobile">'+esc(monthLabel)+'</span></div><div class="week-plan-subtitle"><span class="week-plan-subtitle-desktop">'+esc(weekLabel)+' · '+sessions.length+' session'+(sessions.length===1?'':'s')+' loaded</span><span class="week-plan-subtitle-mobile">'+monthSessions.length+' session'+(monthSessions.length===1?'':'s')+' this month · tap a date to open</span></div></div><div class="month-calendar-actions"><button type="button" onclick="shiftTrainingMonth(-1)" aria-label="Previous month"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" class="month-today-btn" onclick="goTrainingMonthToday()">Today</button><button type="button" onclick="shiftTrainingMonth(1)" aria-label="Next month"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div><div class="week-plan-meta"><span>'+runsThisWeek+' run'+(runsThisWeek===1?'':'s')+'</span><span>'+strengthThisWeek+' strength</span></div></div>';
+  var monthSessions=mobileCalendar?allSessions.filter(function(s){return s.date>=monthStart&&s.date<=monthEnd&&!isCalendarPlaceholder(s);}):[];
+  var monthRuns=monthSessions.filter(function(s){return getType(s)==='run';}),monthStrength=monthSessions.filter(function(s){return getType(s)==='strength';});
+  var monthKm=monthRuns.reduce(function(total,s){return total+calendarRunDistance(s);},0);
+  var monthSummary=monthSessions.length+' session'+(monthSessions.length===1?'':'s');
+  if(monthKm>0)monthSummary+=' · '+String(Math.round(monthKm*10)/10).replace(/\.0$/,'')+' km';else if(monthRuns.length)monthSummary+=' · '+monthRuns.length+' run'+(monthRuns.length===1?'':'s');
+  if(monthStrength.length)monthSummary+=' · '+monthStrength.length+' gym';
+  var html='<div class="week-plan-shell"><div class="week-plan-heading-copy"><div class="week-plan-kicker">Training calendar</div><div class="week-plan-title"><span class="week-plan-title-desktop">Built for the week ahead</span><span class="week-plan-title-mobile">'+esc(monthLabel)+'</span></div><div class="week-plan-subtitle"><span class="week-plan-subtitle-desktop">'+esc(weekLabel)+' · '+sessions.length+' session'+(sessions.length===1?'':'s')+' loaded</span><span class="week-plan-subtitle-mobile">'+esc(monthSummary)+'</span></div></div><div class="month-calendar-actions"><button type="button" onclick="shiftTrainingMonth(-1)" aria-label="Previous month"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" class="month-today-btn" onclick="goTrainingMonthToday()">Today</button><button type="button" onclick="shiftTrainingMonth(1)" aria-label="Next month"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div><div class="week-plan-meta"><span>'+runsThisWeek+' run'+(runsThisWeek===1?'':'s')+'</span><span>'+strengthThisWeek+' strength</span></div></div>';
   // WEEK AT A GLANCE — bird's-eye strip: one tile per day, dots per session
   // type, tick when the day is fully logged. Tapping a tile jumps to that day.
   var sessionDone=function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];};
@@ -112,12 +117,17 @@ function renderCal(ws){
     html+='<div class="month-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class="month-grid" role="grid" aria-label="'+esc(monthLabel)+' training calendar">';
     for(var md=new Date(monthRange.start);md<=monthRange.end;md.setDate(md.getDate()+1)){
       var cellDate=new Date(md),miso=localISO(cellDate),inMonth=cellDate.getMonth()===monthRange.anchor.getMonth(),isToday=miso===todayISO;
-      var daySessions=sortSessionsForDisplay(allSessions.filter(function(s){return s.date===miso&&getType(s)!=='rest';}));
-      var dayDone=daySessions.length>0&&daySessions.every(sessionDone),labels='';
-      daySessions.slice(0,2).forEach(function(s){labels+='<span class="month-session '+getType(s)+'" title="'+esc(s.name||monthSessionLabel(s))+'">'+esc(monthSessionLabel(s))+'</span>';});
+      var rawDaySessions=allSessions.filter(function(s){return s.date===miso;}),hasRecoveryOnly=rawDaySessions.length>0&&rawDaySessions.every(isCalendarPlaceholder);
+      var daySessions=sortSessionsForDisplay(rawDaySessions.filter(function(s){return !isCalendarPlaceholder(s);}));
+      var dayDone=daySessions.length>0&&daySessions.every(sessionDone),dayMissed=daySessions.length>0&&miso<todayISO&&!dayDone,labels='';
+      daySessions.slice(0,2).forEach(function(s,si){
+        var timing=daySessions.length>1?(si===0?'AM':'PM'):'';
+        labels+='<span class="month-session '+getType(s)+(s.rescheduled?' rescheduled':'')+'" title="'+esc(s.name||monthSessionLabel(s))+'"><span class="month-session-line">'+(timing?'<b class="month-session-time">'+timing+'</b>':'')+'<strong>'+esc(monthSessionLabel(s))+'</strong>'+(calendarSessionIsKey(s)?'<i class="month-key" aria-label="Key session">★</i>':'')+'</span><small>'+esc(monthSessionDetail(s))+'</small></span>';
+      });
       if(daySessions.length>2)labels+='<span class="month-session more">+'+(daySessions.length-2)+' more</span>';
+      if(!daySessions.length&&hasRecoveryOnly)labels='<span class="month-rest-label">Rest day</span>';
       var aria=cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+', '+(daySessions.length?(daySessions.length+' session'+(daySessions.length===1?'':'s')+': '+daySessions.map(function(s){return s.name||wgShortLabel(s);}).join(', ')):'no sessions');
-      html+='<button type="button" role="gridcell" class="month-day'+(inMonth?'':' outside-month')+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(dayDone?' done':'')+'" data-date="'+miso+'" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(aria)+'"><span class="month-date">'+cellDate.getDate()+'</span><span class="month-session-list">'+labels+'</span>'+(dayDone?'<span class="month-done" aria-hidden="true">✓</span>':'')+'</button>';
+      html+='<button type="button" role="gridcell" class="month-day'+(inMonth?'':' outside-month')+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(aria)+'"><span class="month-date">'+cellDate.getDate()+'</span><span class="month-session-list">'+labels+'</span>'+(dayDone?'<span class="month-done" aria-label="Completed">✓</span>':dayMissed?'<span class="month-missed" aria-label="Needs attention">!</span>':'')+'</button>';
     }
     html+='</div>';
   }else{
@@ -176,7 +186,7 @@ function interactiveSessionIndex(s){
 }
 function renderDayPlanDate(iso){
   var ov=ensureDayPlanOverlay(),d=localDateFromISO(iso);
-  var daySessions=sortSessionsForDisplay(allSessions.filter(function(s){return s.date===iso&&getType(s)!=='rest';}));
+  var daySessions=sortSessionsForDisplay(allSessions.filter(function(s){return s.date===iso&&!isCalendarPlaceholder(s);}));
   dayPlanDateISO=iso;
   document.getElementById('dayPlanDate').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'});
   document.getElementById('dayPlanTitle').textContent=d.toLocaleDateString('en-AU',{weekday:'long'});
@@ -214,6 +224,36 @@ function monthSessionLabel(s){
     if(match)return match[1].charAt(0).toUpperCase()+match[1].slice(1).toLowerCase()+(match[2]?' '+match[2].toUpperCase():'');
   }
   return wgShortLabel(s)||name||'Session';
+}
+function isCalendarPlaceholder(s){
+  var name=String((s&&s.name)||'').trim().toLowerCase(),type=getType(s||{});
+  return type==='rest'||/^(free|free day|rest|rest day|open|open day|recovery day)$/.test(name);
+}
+function calendarRunDistance(s){
+  if(getType(s)!=='run')return 0;
+  var resolved=resolveRunDisplay(s),meta=resolved.meta||{},raw=meta.distance||((_sessionOverrides[s.id]||{}).distance_km)||'';
+  var value=parseFloat(String(raw).replace(',','.'));return isNaN(value)?0:value;
+}
+function monthSessionDetail(s){
+  var type=getType(s);
+  if(type==='run'){
+    var resolved=resolveRunDisplay(s),meta=resolved.meta||{},distance=meta.distance||'',duration=meta.duration||'',intensity=meta.intensity||s.intensity||'';
+    if(distance)return String(distance).replace(/\s+/g,'');
+    if(duration){var dur=String(duration);return /^\d+$/.test(dur)?dur+' min':dur;}
+    if(intensity)return intensity;
+    return 'Run session';
+  }
+  if(type==='strength'){
+    var splitKey=GYM_KEYS.find(function(k){return String(s.name||'').toLowerCase().indexOf(String(k).toLowerCase())>=0;});
+    var exercises=splitKey?getSplit(splitKey):[];
+    return exercises.length?exercises.length+' exercises':(s.intensity||'Strength');
+  }
+  return s.intensity||'Optional';
+}
+function calendarSessionIsKey(s){
+  if(getType(s)!=='run')return /\bkey\b/i.test(String(s.name||''));
+  var text=(String(s.name||'')+' '+String(s.intensity||'')).toLowerCase();
+  return /\bkey\b|tempo|threshold|interval|speed|track|race|long run|hill/.test(text)&&!/easy|recovery/.test(text);
 }
 function wgShortLabel(s){
   var t=getType(s),n=String(s.name||'').toLowerCase();
