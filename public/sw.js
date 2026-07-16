@@ -1,17 +1,17 @@
-const CACHE_NAME = 'dp-athlete-v56'; // v56: single dark theme + white session border
+const CACHE_NAME = 'dp-athlete-v57'; // v57: clearly labelled refresh + indoor/outdoor controls
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=46', '/config.js',
-  '/js/01-core.js?v=46',
-  '/js/02-login-goals.js?v=46',
-  '/js/03-nav-nudges.js?v=46',
-  '/js/04-checkin.js?v=46',
-  '/js/05-handbook.js?v=46',
-  '/js/06-nutrition.js?v=46',
-  '/js/07-progress.js?v=46',
-  '/js/08-training.js?v=46',
-  '/js/09-logging.js?v=46',
-  '/js/10-boot.js?v=46',
-  '/login.js?v=46', '/icons.css?v=1',
+  '/index.html', '/styles.css?v=47', '/config.js',
+  '/js/01-core.js?v=47',
+  '/js/02-login-goals.js?v=47',
+  '/js/03-nav-nudges.js?v=47',
+  '/js/04-checkin.js?v=47',
+  '/js/05-handbook.js?v=47',
+  '/js/06-nutrition.js?v=47',
+  '/js/07-progress.js?v=47',
+  '/js/08-training.js?v=47',
+  '/js/09-logging.js?v=47',
+  '/js/10-boot.js?v=47',
+  '/login.js?v=47', '/icons.css?v=1',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
 ];

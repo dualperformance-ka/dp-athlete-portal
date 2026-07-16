@@ -346,7 +346,18 @@ function toggleMoreMenu(open){
   document.body.classList.toggle('menu-open',shouldOpen);
   if(shouldOpen)setMobileNav('more');
 }
-// The portal now uses one deliberate dark visual system. Remove the retired
-// preference so an older saved setting cannot unexpectedly restore light mode.
-document.documentElement.classList.remove('outdoor-mode');
-try{localStorage.removeItem('dp_outdoor_mode');}catch(e){}
+function applyOutdoorMode(enabled){
+  document.documentElement.classList.toggle('outdoor-mode',!!enabled);
+  var button=document.getElementById('themeToggle');
+  if(button){
+    button.setAttribute('aria-pressed',enabled?'true':'false');
+    var label=button.querySelector('.theme-toggle-label');if(label)label.textContent=enabled?'Indoor':'Outdoor';
+    var hint=enabled?'Switch to indoor mode':'Switch to outdoor mode';
+    button.title=hint;button.setAttribute('aria-label',hint);
+  }
+  var moreLabel=document.querySelector('.more-outdoor strong');if(moreLabel)moreLabel.textContent=enabled?'Indoor mode':'Outdoor mode';
+  var moreSub=document.querySelector('.more-outdoor small');if(moreSub)moreSub.textContent=enabled?'Return to the dark indoor theme':'Use the light theme in bright conditions';
+  try{localStorage.setItem('dp_outdoor_mode',enabled?'1':'0');}catch(e){}
+}
+function toggleOutdoorMode(){applyOutdoorMode(!document.documentElement.classList.contains('outdoor-mode'));}
+try{applyOutdoorMode(localStorage.getItem('dp_outdoor_mode')==='1');}catch(e){applyOutdoorMode(false);}

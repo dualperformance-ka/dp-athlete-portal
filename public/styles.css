@@ -3297,3 +3297,24 @@ body.day-plan-open{overflow:hidden}
   body.mobile-portal-home .hero-stat-action{min-height:70px;padding:6px}
   body.mobile-portal-home #todayEl .todaypanel{padding:10px}
 }
+
+/* Clearly labelled utility controls on mobile. */
+@media(max-width:760px){
+  header .header-actions{gap:5px}
+  header .header-actions .theme-toggle{
+    width:auto;min-width:0;height:36px;padding:0 9px;justify-content:center;gap:5px;
+    border-radius:999px;background:rgba(146,210,237,.055);
+  }
+  header .theme-toggle .icon{width:12px;height:12px;flex:0 0 12px}
+  header .theme-toggle-label{
+    display:inline!important;font-family:var(--body);font-size:9px;font-weight:700;line-height:1;
+    letter-spacing:.01em;text-transform:none;
+  }
+  .outdoor-mode header .header-actions .theme-toggle{background:rgba(8,127,174,.07)}
+}
+
+@media(max-width:370px){
+  header{padding-left:10px;padding-right:10px}
+  header .logo-text{display:none}
+  header .header-actions .theme-toggle{padding:0 8px}
+}
