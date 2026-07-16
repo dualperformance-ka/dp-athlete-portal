@@ -2989,45 +2989,50 @@ button.hero-stat{
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   APPLE-STYLE MOBILE TRAINING CALENDAR · v40
+   APPLE-STYLE MOBILE TRAINING CALENDAR · v41
    A complete month view shows every planned session at a glance. Tapping
    a date opens that day as a dedicated, full-screen session workspace.
    ══════════════════════════════════════════════════════════════════════ */
 .week-plan-title-mobile,.week-plan-subtitle-mobile,.week-calendar-hint,.month-calendar-actions,.month-weekdays,.month-grid{display:none}
 body.day-plan-open{overflow:hidden}
 .day-plan-overlay{
-  position:fixed;inset:0;z-index:220;display:flex;flex-direction:column;overflow:hidden;
-  background:
-    radial-gradient(circle at 92% 0%,rgba(146,210,237,.12),transparent 28%),
-    linear-gradient(180deg,#0b1820 0%,#061016 56%,#03090d 100%);
-  color:var(--text);opacity:0;visibility:hidden;pointer-events:none;transform:translateX(18px);
-  transition:opacity .2s ease,transform .24s ease,visibility .2s;
+  position:fixed;inset:0;z-index:220;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));
+  background:rgba(1,7,11,.4);color:var(--text);opacity:0;visibility:hidden;pointer-events:none;
+  backdrop-filter:blur(0);transition:opacity .2s ease,visibility .2s,backdrop-filter .24s ease;
 }
-.day-plan-overlay.open{opacity:1;visibility:visible;pointer-events:auto;transform:none}
-.day-plan-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex:0 0 auto;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--border);background:rgba(6,16,22,.82);backdrop-filter:blur(22px)}
-.day-plan-back{display:inline-flex;align-items:center;gap:4px;min-height:42px;padding:8px 8px 8px 2px;border:0;background:transparent;color:var(--run);font:600 16px var(--body);cursor:pointer}
-.day-plan-back .icon{width:20px;height:20px}
+.day-plan-overlay.open{opacity:1;visibility:visible;pointer-events:auto;backdrop-filter:blur(3px)}
+.day-plan-dialog{
+  width:min(100%,560px);max-height:calc(100dvh - 76px);display:flex;flex-direction:column;overflow:hidden;
+  border:1px solid rgba(146,210,237,.2);border-radius:28px;
+  background:radial-gradient(circle at 96% 0%,rgba(146,210,237,.13),transparent 30%),linear-gradient(180deg,rgba(12,27,36,.99),rgba(4,12,17,.99));
+  box-shadow:0 32px 90px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.055);
+  transform:translateY(20px) scale(.975);opacity:.7;transition:transform .26s cubic-bezier(.2,.8,.2,1),opacity .2s ease;
+}
+.day-plan-overlay.open .day-plan-dialog{transform:none;opacity:1}
+.day-plan-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex:0 0 auto;padding:13px 14px 8px;background:transparent}
 .day-plan-pager{display:flex;align-items:center;gap:8px}
-.day-plan-pager button{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--border);border-radius:50%;background:var(--surface2);color:var(--text);cursor:pointer}
-.day-plan-pager button .icon{width:17px;height:17px}
+.day-plan-pager button{width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--border);border-radius:50%;background:rgba(255,255,255,.045);color:var(--text);cursor:pointer}
+.day-plan-pager button .icon{width:15px;height:15px}
 .day-plan-pager button:disabled{opacity:.25;cursor:default}
-.day-plan-heading{flex:0 0 auto;padding:24px 18px 20px;border-bottom:1px solid var(--border)}
+.day-plan-close{width:38px;height:38px;display:grid;place-items:center;padding:0;border:1px solid var(--border);border-radius:50%;background:rgba(255,255,255,.055);color:var(--text);font:300 27px/1 var(--body);cursor:pointer}
+.day-plan-close:focus-visible{outline:2px solid var(--run);outline-offset:2px}
+.day-plan-heading{flex:0 0 auto;padding:4px 20px 18px;border-bottom:1px solid var(--border)}
 .day-plan-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--run);margin-bottom:7px}
-.day-plan-heading h2{font-size:44px;line-height:.95;letter-spacing:-.045em;font-weight:750;color:var(--text)}
+.day-plan-heading h2{font-size:34px;line-height:.98;letter-spacing:-.04em;font-weight:750;color:var(--text)}
 .day-plan-meta{margin-top:9px;font-size:14px;color:var(--muted)}
-.day-plan-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 14px calc(32px + env(safe-area-inset-bottom));overscroll-behavior:contain}
-.day-plan-scroll .sc{margin:0 0 12px;border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018));box-shadow:0 18px 44px rgba(0,0,0,.22)}
-.day-plan-scroll .sch{padding:17px 15px}
+.day-plan-scroll{flex:0 1 auto;min-height:0;max-height:calc(100dvh - 245px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 14px 18px;overscroll-behavior:contain}
+.day-plan-scroll .sc{margin:0 0 10px;border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.052),rgba(255,255,255,.02));box-shadow:0 14px 34px rgba(0,0,0,.2)}
+.day-plan-scroll .sch{padding:15px 14px}
 .day-plan-scroll .scb.open{display:block}
-.day-plan-rest{margin-top:8px;padding:30px 24px;border:1px solid var(--border);border-radius:24px;background:linear-gradient(155deg,rgba(19,33,43,.96),rgba(10,18,24,.96));box-shadow:0 24px 60px rgba(0,0,0,.28)}
+.day-plan-rest{padding:24px 20px;border:1px solid var(--border);border-radius:20px;background:linear-gradient(155deg,rgba(19,33,43,.96),rgba(10,18,24,.96));box-shadow:0 18px 44px rgba(0,0,0,.24)}
 .day-plan-rest-mark{display:inline-flex;padding:6px 10px;border:1px solid var(--border);border-radius:999px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 .day-plan-rest h3{margin-top:18px;font-size:28px;line-height:1.05;letter-spacing:-.035em}
 .day-plan-rest p{margin-top:10px;max-width:34ch;color:var(--muted);font-size:14px;line-height:1.55}
-.day-plan-open .mobile-nav,.day-plan-open .quicklog-strip,.day-plan-open .wa-fab{display:none!important}
-
-.outdoor-mode .day-plan-overlay{background:linear-gradient(180deg,#eef3f5 0%,#f7f9fa 100%);color:var(--text)}
-.outdoor-mode .day-plan-topbar{background:rgba(255,255,255,.86)}
+.outdoor-mode .day-plan-overlay{background:rgba(23,42,51,.2);color:var(--text)}
+.outdoor-mode .day-plan-dialog{background:linear-gradient(180deg,rgba(255,255,255,.99),rgba(244,248,250,.99));border-color:rgba(8,127,174,.22);box-shadow:0 32px 80px rgba(30,55,67,.2),inset 0 1px 0 #fff}
 .outdoor-mode .day-plan-pager button,.outdoor-mode .day-plan-scroll .sc,.outdoor-mode .day-plan-rest{background:#fff;border-color:var(--border);box-shadow:0 14px 34px rgba(30,55,67,.09)}
+.outdoor-mode .day-plan-close{background:#fff;border-color:var(--border)}
 
 @media(max-width:760px){
   body.mobile-training-calendar .top-shell{display:none}
@@ -3143,5 +3148,5 @@ body.day-plan-open{overflow:hidden}
   .wg-day,.wg-day:hover,.wg-day.today,.wg-day.done{min-height:84px}
   .wg-name{font-size:8px}
   .wg-date{width:31px;height:31px;font-size:16px}
-  .day-plan-heading h2{font-size:40px}
+  .day-plan-heading h2{font-size:32px}
 }

@@ -177,9 +177,11 @@ function ensureDayPlanOverlay(){
   var ov=document.getElementById('dayPlanOverlay');
   if(ov)return ov;
   ov=document.createElement('section');ov.id='dayPlanOverlay';ov.className='day-plan-overlay';ov.setAttribute('aria-hidden','true');ov.setAttribute('aria-labelledby','dayPlanTitle');
-  ov.innerHTML='<div class="day-plan-topbar"><button type="button" class="day-plan-back" onclick="closeDayPlan()" aria-label="Back to month calendar"><svg class="icon"><use href="#i-chevron-left"/></svg><span>Month</span></button><div class="day-plan-pager"><button type="button" id="dayPlanPrev" onclick="shiftDayPlan(-1)" aria-label="Previous day"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" id="dayPlanNext" onclick="shiftDayPlan(1)" aria-label="Next day"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div></div><div class="day-plan-heading"><div class="day-plan-kicker" id="dayPlanDate"></div><h2 id="dayPlanTitle">Day plan</h2><div class="day-plan-meta" id="dayPlanMeta"></div></div><div class="day-plan-scroll" id="dayPlanContent"></div>';
+  ov.setAttribute('onclick','dayPlanBackdropClick(event)');
+  ov.innerHTML='<div class="day-plan-dialog" role="dialog" aria-modal="true" aria-labelledby="dayPlanTitle"><div class="day-plan-topbar"><div class="day-plan-pager"><button type="button" id="dayPlanPrev" onclick="shiftDayPlan(-1)" aria-label="Previous day"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" id="dayPlanNext" onclick="shiftDayPlan(1)" aria-label="Next day"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div><button type="button" class="day-plan-close" onclick="closeDayPlan()" aria-label="Close day plan">&times;</button></div><div class="day-plan-heading"><div class="day-plan-kicker" id="dayPlanDate"></div><h2 id="dayPlanTitle">Day plan</h2><div class="day-plan-meta" id="dayPlanMeta"></div></div><div class="day-plan-scroll" id="dayPlanContent"></div></div>';
   document.body.appendChild(ov);return ov;
 }
+function dayPlanBackdropClick(event){if(event&&event.target===event.currentTarget)closeDayPlan();}
 function interactiveSessionIndex(s){
   var existing=sessions.findIndex(function(item){return item.id===s.id;});if(existing>-1)return existing;
   var allIndex=allSessions.findIndex(function(item){return item.id===s.id;}),index=-(allIndex+1||1);sessions[index]=s;return index;
@@ -198,7 +200,6 @@ function renderDayPlanDate(iso){
     html='<div class="day-plan-rest"><span class="day-plan-rest-mark">Rest</span><h3>Recovery is part of the plan.</h3><p>Keep the day easy, stay on top of nutrition and arrive ready for the next session.</p></div>';
   }
   content.innerHTML=html;
-  if(daySessions.length===1){var only=document.getElementById('scb_'+interactiveSessionIndex(daySessions[0]));if(only)only.classList.add('open');}
   var prev=document.getElementById('dayPlanPrev'),next=document.getElementById('dayPlanNext');if(prev)prev.disabled=!!(trainingMonthGridStart&&d<=trainingMonthGridStart);if(next)next.disabled=!!(trainingMonthGridEnd&&d>=trainingMonthGridEnd);
   document.querySelectorAll('.month-day').forEach(function(day){var selected=day.dataset.date===iso;day.classList.toggle('selected',selected);day.setAttribute('aria-pressed',selected?'true':'false');});
   content.scrollTop=0;return ov;
@@ -206,7 +207,7 @@ function renderDayPlanDate(iso){
 function openDayPlanDate(iso,trigger){
   dayPlanReturnFocus=trigger||document.activeElement;var ov=renderDayPlanDate(iso);
   document.body.classList.add('day-plan-open');ov.setAttribute('aria-hidden','false');void ov.offsetHeight;ov.classList.add('open');
-  var back=ov.querySelector('.day-plan-back');if(back)setTimeout(function(){back.focus();},80);
+  var close=ov.querySelector('.day-plan-close');if(close)setTimeout(function(){close.focus();},80);
 }
 function shiftDayPlan(delta){if(!dayPlanDateISO)return;var d=localDateFromISO(dayPlanDateISO);d.setDate(d.getDate()+(Number(delta)||0));renderDayPlanDate(localISO(d));}
 function closeDayPlan(){

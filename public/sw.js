@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v49'; // v49: stronger today treatment + styles.css?v=40
+const CACHE_NAME = 'dp-athlete-v50'; // v50: floating calendar day modal + styles.css?v=41
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=40', '/config.js',
+  '/index.html', '/styles.css?v=41', '/config.js',
   '/js/01-core.js',
   '/js/02-login-goals.js',
   '/js/03-nav-nudges.js',
