@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v51'; // v51: workout details open immediately in day modal
+const CACHE_NAME = 'dp-athlete-v52'; // v52: compact workout prescription modal + styles.css?v=42
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=41', '/config.js',
+  '/index.html', '/styles.css?v=42', '/config.js',
   '/js/01-core.js',
   '/js/02-login-goals.js',
   '/js/03-nav-nudges.js',
