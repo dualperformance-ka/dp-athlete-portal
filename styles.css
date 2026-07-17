@@ -2687,7 +2687,7 @@ html:not(.outdoor-mode) #portalScreen{
 .portal-context strong{margin-top:2px;font-size:15px;font-weight:650;letter-spacing:-.015em;color:var(--text)}
 .hicon.active{color:var(--run-strong);border-color:var(--run-border);background:var(--run-bg)}
 
-/* Desktop authentication becomes an editorial split screen. */
+/* Desktop authentication: centered card on the ambient backdrop. */
 @media(min-width:900px){
   #loginScreen .login-col{
     position:absolute;top:50%;left:50%;right:auto;
