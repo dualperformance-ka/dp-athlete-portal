@@ -842,6 +842,23 @@ function getExercisePreviousEffort(sessionId,exerciseName){
   for(var li=allSessIds.length-1;li>=0;li--){var lid=allSessIds[li];if(lid===sessionId) continue;var ldata=logs[lid];if(ldata&&ldata[exerciseName]&&ldata[exerciseName].length){var lsets=ldata[exerciseName].filter(function(ls){return ls&&((ls.weight&&String(ls.weight).trim()!=='')||(ls.reps&&String(ls.reps).trim()!==''));});if(lsets.length){prevEffort=lsets;break;}}}
   return prevEffort;
 }
+// Full history for one exercise across every logged session (excluding the current
+// one), newest first. Feeds multi-session smarts like stall detection. Mirrors the
+// per-session log shape: [{date, sets:[...]}, ...].
+function getExerciseHistory(sessionId,exerciseName){
+  var dateById={};(typeof allSessions!=='undefined'?allSessions:[]||[]).forEach(function(s){if(s&&s.id!=null)dateById[String(s.id)]=s.date||null;});
+  var out=[];
+  Object.keys(logs||{}).forEach(function(sid){
+    if(sid.indexOf('__')===0||sid===String(sessionId)) return;
+    var entry=logs[sid];if(!entry||typeof entry!=='object'||Array.isArray(entry)) return;
+    var sets=entry[exerciseName];if(!Array.isArray(sets)||!sets.length) return;
+    var clean=sets.filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});
+    if(!clean.length) return;
+    out.push({date:dateById[sid]||null,sets:clean});
+  });
+  out.sort(function(a,b){if(a.date&&b.date) return a.date<b.date?1:(a.date>b.date?-1:0);if(a.date&&!b.date) return -1;if(!a.date&&b.date) return 1;return 0;});
+  return out;
+}
 function getWorkingSlice(ex,arr){arr=(arr||[]).filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!==''));});var workingSets=parseInt(ex.workingSets||ex.sets||arr.length||0)||0;if(!workingSets||arr.length<=workingSets) return arr;return arr.slice(arr.length-workingSets);}
 function formatSetSummary(arr){arr=(arr||[]).filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});if(!arr.length) return '';return arr.map(function(ps){var reps=ps.reps?(' × '+ps.reps):(ps.repsLeft||ps.repsRight?(' × L '+(ps.repsLeft||'—')+' / R '+(ps.repsRight||'—')):'');return(ps.weight?ps.weight+'kg':'—')+reps;}).join(' | ');}
 function setVal(v){return String(v==null?'':v).trim();}
@@ -917,7 +934,7 @@ function refreshStrengthFeedback(i,splitKey){
   });
 }
 
-function computeOverload(ex,prevEffort,resolvedName){
+function computeOverload(ex,prevEffort,resolvedName,history){
   var name=resolvedName||ex.exercise||'';
   var low=parseInt(String(ex.repRange||ex.reps||'').split('-')[0],10)||0;
   var top=getTopRep(ex);
@@ -942,6 +959,28 @@ function computeOverload(ex,prevEffort,resolvedName){
     r.ladder=_ovLadder([['Own reps','done'],['Add load','active'],['New base','upcoming']]);
     r.tip=_ovTip('New weight, so reps reset to '+(low||8)+'. Build back to '+top+', then go up again.');
     return r;
+  }
+  // Stall: 3+ recorded sessions stuck at the same top load, none hitting the top of
+  // the range, with no rep gain across the window. Prescribe a small deload so the
+  // athlete rebuilds with momentum instead of grinding the same weight indefinitely.
+  if(maxLoad!=null&&history&&history.length>=3){
+    var recent=history.slice(0,3).map(function(h){
+      var w=getWorkingSlice(ex,h.sets||h);
+      var l=w.map(function(s){return parseFloat(s.weight);}).filter(function(n){return !isNaN(n)&&n>0;});
+      var rp=w.map(_effReps);
+      return {ml:l.length?Math.max.apply(null,l):null,tot:rp.reduce(function(a,b){return a+b;},0),topped:rp.length&&rp.every(function(v){return v>=top;})};
+    });
+    var sameLoad=recent.every(function(x){return x.ml!=null&&x.ml===recent[0].ml;});
+    var noneTopped=recent.every(function(x){return !x.topped;});
+    var noGain=recent[0].tot<=recent[2].tot;
+    if(sameLoad&&noneTopped&&noGain){
+      var deload=Math.round((recent[0].ml*0.9)*2)/2;
+      r.chipCls='warn'; r.arrow='↻'; r.chipText=deload+'kg'; r.whyCls='';
+      r.why='Stuck 3 sessions at '+recent[0].ml+'kg. Reset to '+deload+'kg.';
+      r.ladder=_ovLadder([['Reset','active'],['Rebuild','upcoming'],['Push on','upcoming']]);
+      r.tip=_ovTip('Back off to build momentum. Drop to '+deload+'kg, own every rep with clean form, then climb again past '+recent[0].ml+'kg.');
+      return r;
+    }
   }
   r.chipCls='hold'; r.arrow='→';
   r.chipText=(maxLoad!=null?maxLoad+'kg':'Log it');
@@ -1187,7 +1226,7 @@ function buildBody(s,i,type){
         var initVol=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight),r=parseInt(sv.reps,10);if(!isNaN(w)&&w>0&&!isNaN(r)&&r>0&&r<=PB_REP_CAP) initVol+=w*r;});
         var isVolPB=!!(stored.volume&&initVol>stored.volume.value);
         var isBarbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust/i.test(resolvedEx)&&!/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/i.test(resolvedEx);
-        var _ov=computeOverload(ex,prevEffort,resolvedEx);
+        var _ov=computeOverload(ex,prevEffort,resolvedEx,getExerciseHistory(s.id,resolvedEx));
         var hasExerciseData=!!savedEx.length;
         var exerciseIsComplete=hasExerciseData&&savedEx.length>=sets&&savedEx.slice(0,sets).every(function(set){return !!set.done;});
         h+='<div class="exc'+_ov.stateCls+(ei===0?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'">';
