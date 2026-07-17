@@ -2224,6 +2224,13 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 /* ── Progressive overload card redesign (collapsible + coaching) ───────────── */
 .exc-summary{display:flex;align-items:center;gap:9px;padding:12px 14px;cursor:pointer}
 .exc-sum-main{flex:1;min-width:0}
+.exc-entry-pill{display:none;align-items:center;justify-content:center;min-height:28px;padding:5px 9px;border:1px solid var(--run-border);border-radius:999px;background:rgba(146,210,237,.08);color:var(--run);font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.exc.has-entry:not(.open){border-color:rgba(146,210,237,.42);background:rgba(146,210,237,.055);box-shadow:0 7px 20px rgba(0,0,0,.12)}
+.exc.has-entry:not(.open) .exc-entry-pill{display:inline-flex}
+.exc.has-entry:not(.open) .exc-chip{display:none}
+.exc.exercise-complete:not(.open){border-color:var(--ok-border);background:var(--ok-bg);box-shadow:0 8px 22px rgba(26,140,99,.12)}
+.exc.exercise-complete:not(.open) .exc-entry-pill{border-color:var(--ok-border);background:rgba(115,209,167,.12);color:var(--ok)}
+.exc.exercise-complete:not(.open) .exc-why{color:var(--ok)}
 .exc-why{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:3px;line-height:1.35}
 .exc-why.go{color:var(--ok)}
 .exc-chip{display:flex;align-items:center;gap:5px;border-radius:8px;padding:6px 10px;font-size:13px;white-space:nowrap;font-family:var(--mono);border:1px solid var(--border);background:var(--surface);color:var(--muted)}
@@ -2244,6 +2251,27 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .exc-rk{color:var(--ok)}
 .exc-tip{display:flex;gap:6px;font-size:11px;color:var(--muted);line-height:1.5;margin-top:10px}
 .exc-tip-i{color:var(--run)}
+
+/* Draft and submitted are deliberately different states: autosave protects the
+   athlete's inputs, but only the green state means coaches have received them. */
+.session-submit-status{display:flex;align-items:flex-start;gap:10px;border:1px solid;border-radius:10px;padding:11px 12px;margin:10px 0 8px;font-family:var(--body)}
+.session-submit-status .submit-status-icon{display:flex;align-items:center;justify-content:center;width:24px;height:24px;flex:0 0 24px;border-radius:50%;font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:-.08em}
+.session-submit-status strong{display:block;font-size:12px;line-height:1.25;letter-spacing:.01em}
+.session-submit-status small{display:block;margin-top:3px;font-family:var(--mono);font-size:9px;line-height:1.45;letter-spacing:.025em}
+.session-submit-status.is-draft{background:rgba(146,210,237,.055);border-color:rgba(146,210,237,.28);color:var(--run)}
+.session-submit-status.is-draft .submit-status-icon{background:rgba(146,210,237,.12);border:1px solid rgba(146,210,237,.28)}
+.session-submit-status.is-draft small{color:var(--muted)}
+.session-submit-status.is-submitted{background:var(--ok-bg);border-color:var(--ok-border);color:var(--ok)}
+.session-submit-status.is-submitted .submit-status-icon{background:rgba(115,209,167,.14);border:1px solid var(--ok-border);letter-spacing:0}
+.session-submit-status.is-submitted small{color:var(--muted)}
+.outdoor-mode .exc.has-entry:not(.open){background:#eef8fc;border-color:#80c6e3;box-shadow:0 6px 18px rgba(13,91,120,.08)}
+.outdoor-mode .exc.exercise-complete:not(.open){background:#effaf5;border-color:#75c8a5;box-shadow:0 6px 18px rgba(26,140,99,.08)}
+.outdoor-mode .exc-entry-pill{background:#e6f5fb;border-color:#a2d8ec;color:#08739e}
+.outdoor-mode .exc.exercise-complete:not(.open) .exc-entry-pill{background:#e1f6ec;border-color:#8fd3b5;color:#147a56}
+.outdoor-mode .session-submit-status.is-draft{background:#eef8fc;border-color:#a2d8ec;color:#08739e}
+.outdoor-mode .session-submit-status.is-draft small{color:#61727c}
+.outdoor-mode .session-submit-status.is-submitted{background:#effaf5;border-color:#8fd3b5;color:#147a56}
+.outdoor-mode .session-submit-status.is-submitted small{color:#61727c}
 
 /* ── UX FIX PACK (Jul 2026): error states, persistent error toasts, slider visibility ── */
 .toast.toast-error{display:flex;align-items:center;gap:14px;white-space:normal;max-width:min(92vw,420px);text-align:left;background:#20090b;border:1px solid rgba(239,68,68,.5);color:#fecaca;line-height:1.45}

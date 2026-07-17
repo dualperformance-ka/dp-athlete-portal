@@ -46,10 +46,12 @@ function showRunSaved(i,d){
 }
 var _draftGymTimer=null;
 function draftGym(i,splitKey){
+  refreshStrengthExerciseStates(i);
+  setGymSubmissionStatus(i,'draft');
   if(_draftGymTimer) clearTimeout(_draftGymTimer);
   _draftGymTimer=setTimeout(function(){persistGymDraft(i,splitKey);},250);
 }
-function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);try{markInlinePbs(i,splitKey);}catch(e){}}
+function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;var previous=logs[s.id]||{};var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;if(previous.__submittedAt) log.__submittedAt=previous.__submittedAt;logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);setGymSubmissionStatus(i,gymDraftHasData(log)?'draft':'hidden');try{markInlinePbs(i,splitKey);}catch(e){}}
 
 // ── NOTE-ONLY SESSION (discovery week "train as normal" + log notes) ──────────
 function draftNote(i){
@@ -77,9 +79,10 @@ async function saveNote(i){
     date:noteDate,submittedAt:new Date().toISOString()
   });
   await markSessionLogged(s.id);
+  stampSessionSubmitted(s.id);
   var statusResult=await markSessionDone(i);
   var queued=(noteResult&&noteResult.queued)||(statusResult&&statusResult.queued);
-  showToast(queued?'Saved - coach dashboard sync pending':'Saved ✓');
+  showToast(queued?'Submitted - coach dashboard sync pending':'Submitted ✓');
   var banner=document.getElementById('note_saved_'+i);if(banner) banner.style.display='block';
   lockSaveButton(i,'Save');
 }
@@ -100,16 +103,22 @@ async function loadSessionLogs(){
 function isSessionLogged(sessionId){
   // Primary: in-memory cache (set at save time, or loaded from session_logs on login)
   if(sessionLoggedCache['session_'+athlete.code+'_'+sessionId]) return true;
-  // Fallback: check logs object — reliably synced via athlete_data table in Supabase
+  // Local fallback is an explicit submission marker. Draft autosaves must never
+  // masquerade as a session that has been sent to the coaches.
   var l=logs[sessionId];
-  if(l&&typeof l==='object'&&Object.keys(l).length>0) return true;
-  return false;
+  return !!(l&&typeof l==='object'&&l.__submittedAt);
+}
+function stampSessionSubmitted(sessionId){
+  if(!logs[sessionId]||typeof logs[sessionId]!=='object') logs[sessionId]={};
+  logs[sessionId].__submittedAt=new Date().toISOString();
+  logs.__savedAt=Date.now();
+  localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
 }
 function lockSaveButton(i,label){
   var btn=document.getElementById('sb_'+i);
   if(!btn) return;
   btn.classList.add('saved');
-  btn.textContent='Session Saved ✓';
+  btn.textContent='Session Submitted ✓';
   btn.disabled=true;
   btn.style.opacity='0.7';
   btn.style.cursor='default';
@@ -122,8 +131,9 @@ async function saveRun(i){
   var runDateEl=document.getElementById('run_date_'+i);var runDate=runDateEl&&runDateEl.value?runDateEl.value:(s.date||new Date().toISOString().slice(0,10));
   var runCoachResult=await coachWrite(WEBHOOK,{name:athlete.name+' — '+s.name+' — '+runDate,session:s.name,type:'Run',distanceKm:d.distance,durationMin:d.duration,pace:d.pace,rpe:d.rpe,feel:d.feel,exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:runDate,submittedAt:new Date().toISOString()});
   await markSessionLogged(s.id);
+  stampSessionSubmitted(s.id);
   var runStatusResult=await markSessionDone(i);
-  showToast((runCoachResult&&runCoachResult.queued)||(runStatusResult&&runStatusResult.queued)?'Run saved - coach dashboard sync pending':'Run saved ✓');
+  showToast((runCoachResult&&runCoachResult.queued)||(runStatusResult&&runStatusResult.queued)?'Run submitted - coach dashboard sync pending':'Run submitted ✓');
   showRunSaved(i,d);
   await loadNutrition();
 }
@@ -295,10 +305,11 @@ async function saveGym(i,splitKey){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i],exercises=getSplit(splitKey),log={};
   exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei);var useName=exPicks[ex.exercise]||ex.exercise;if(sets.length) log[useName]=sets;});
+  var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
+  if(gymNotes) log.__notes=gymNotes;
   logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
   if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
   var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:(s.date||new Date().toISOString().slice(0,10));
-  var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
   var pbHits=[];try{pbHits=detectSessionPBs(s.id,log);}catch(e){console.warn('PB detection failed:',e);}
   function setSummary(st,si){
     var reps=(st.reps!==undefined&&st.reps!==null&&st.reps!=='')?(st.reps+'reps'):'';
@@ -306,20 +317,21 @@ async function saveGym(i,splitKey){
     if(!reps) reps='— reps';
     return 'Set '+(si+1)+': '+(st.weight||'—')+'kg × '+reps+(st.rpe?' @ RPE '+st.rpe:'');
   }
-  var fetches=Object.keys(log).filter(function(k){return k!=='__notes';}).map(function(exName){var sets=log[exName];return coachWrite(WEBHOOK,{name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(setSummary).join(' | '),rawSets:sets,notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()});});
+  var fetches=Object.keys(log).filter(function(k){return k.indexOf('__')!==0;}).map(function(exName){var sets=log[exName];return coachWrite(WEBHOOK,{name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(setSummary).join(' | '),rawSets:sets,notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()});});
   var gymCoachResults=await Promise.all(fetches);
   await markSessionLogged(s.id);
+  stampSessionSubmitted(s.id);
   var gymStatusResult=await markSessionDone(i);
   refreshStrengthFeedback(i,splitKey);
   try{markInlinePbs(i,splitKey);}catch(e){}
   var gymQueued=gymCoachResults.some(function(r){return r&&r.queued;})||(gymStatusResult&&gymStatusResult.queued);
-  showToast(gymQueued?'Session saved - coach dashboard sync pending':(pbHits.length?(pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session saved ✓'));
+  showToast(gymQueued?'Session submitted - coach dashboard sync pending':(pbHits.length?(pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session submitted ✓'));
   var gymSavedBanner=document.getElementById('gym_saved_'+i);
   if(!gymSavedBanner){
     var sbBtn=document.getElementById('sb_'+i);
-    if(sbBtn){gymSavedBanner=document.createElement('div');gymSavedBanner.id='gym_saved_'+i;gymSavedBanner.className='saved-data';gymSavedBanner.style.marginBottom='10px';gymSavedBanner.innerHTML='<div class="saved-label">✓ Session Logged — your data above has been saved<\/div>';sbBtn.parentNode.insertBefore(gymSavedBanner,sbBtn);}
+    if(sbBtn){gymSavedBanner=document.createElement('div');gymSavedBanner.id='gym_saved_'+i;sbBtn.parentNode.insertBefore(gymSavedBanner,sbBtn);}
   }
-  if(gymSavedBanner) gymSavedBanner.style.display='block';
+  setGymSubmissionStatus(i,'submitted');
   lockSaveButton(i,'Save session');
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';btn.disabled=true;setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;btn.disabled=false;},2500);}}
@@ -350,4 +362,3 @@ document.addEventListener('DOMContentLoaded',function(){
 document.addEventListener('input',function(e){
   if(e.target&&e.target.type==='range')e.target.classList.remove('sl-untouched');
 },true);
-

@@ -935,7 +935,58 @@ function computeOverload(ex,prevEffort){
 }
 function _ovLadder(steps){var h='<div class="exc-ladder">';steps.forEach(function(s){h+='<div class="exc-rung '+s[1]+'">'+(s[1].indexOf('done')>-1?'<span class="exc-rk">✓</span>':'')+'<span class="exc-rt">'+s[0]+'</span></div>';});return h+'</div>';}
 function _ovTip(t){return '<div class="exc-tip"><span class="exc-tip-i">☀</span><span>'+t+'</span></div>';}
-function toggleExc(el){var c=el.parentNode;if(c&&c.classList)c.classList.toggle('open');}
+function strengthExerciseHasData(card){
+  if(!card) return false;
+  var inputs=card.querySelectorAll('.exsets input');
+  for(var x=0;x<inputs.length;x++){if(String(inputs[x].value||'').trim()!=='') return true;}
+  return !!card.querySelector('.st.on,.st.pb-on');
+}
+function strengthExerciseIsComplete(card){
+  if(!card) return false;
+  var rows=card.querySelectorAll('.setrow,.setrow-single');
+  if(!rows.length) return false;
+  for(var x=0;x<rows.length;x++){
+    var row=rows[x],tick=row.querySelector('.st'),weight=row.querySelector('input[id^="w_"]');
+    var left=row.querySelector('input[id^="rL_"]'),right=row.querySelector('input[id^="rR_"]'),reps=row.querySelector('input[id^="r_"]');
+    var hasWork=weight&&String(weight.value||'').trim()!==''&&(
+      (left&&right&&String(left.value||'').trim()!==''&&String(right.value||'').trim()!=='')||
+      (reps&&String(reps.value||'').trim()!=='')
+    );
+    if(!hasWork||!tick||!tick.classList.contains('on')) return false;
+  }
+  return true;
+}
+function refreshStrengthExerciseState(card){
+  if(!card) return;
+  var hasData=strengthExerciseHasData(card),complete=strengthExerciseIsComplete(card);
+  card.classList.toggle('has-entry',hasData);
+  card.classList.toggle('exercise-complete',complete);
+  var pill=card.querySelector('.exc-entry-pill');
+  if(pill){pill.textContent=complete?'✓ Done':'In progress';pill.setAttribute('aria-label',complete?'Exercise complete':'Exercise has unsaved entries');}
+}
+function refreshStrengthExerciseStates(i){
+  document.querySelectorAll('.exc[data-session-index="'+i+'"]').forEach(refreshStrengthExerciseState);
+}
+function toggleExc(el){
+  var c=el&&el.closest?el.closest('.exc'):null;
+  if(!c) return;
+  c.classList.toggle('open');
+  refreshStrengthExerciseState(c);
+}
+function gymDraftHasData(log){
+  if(!log||typeof log!=='object') return false;
+  if(String(log.__notes||'').trim()) return true;
+  return Object.keys(log).some(function(k){return k.indexOf('__')!==0&&Array.isArray(log[k])&&log[k].length;});
+}
+function setGymSubmissionStatus(i,state){
+  var status=document.getElementById('gym_saved_'+i);if(!status) return;
+  if(state==='hidden'){status.style.display='none';return;}
+  status.style.display='flex';
+  status.className='session-submit-status '+(state==='submitted'?'is-submitted':'is-draft');
+  status.innerHTML=state==='submitted'
+    ?'<span class="submit-status-icon">✓</span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>'
+    :'<span class="submit-status-icon">•••</span><span><strong>Draft saved on this device</strong><small>Press Save session below to submit it to your coaches.</small></span>';
+}
 
 function buildBody(s,i,type){
   var h='';
@@ -955,7 +1006,7 @@ function buildBody(s,i,type){
     if(meta.surface) chips.push(meta.surface);
     if(meta.difficulty) chips.push(meta.difficulty);
     var sl=logs[s.id]||{};
-    var hasSaved=!!(sl.distance||sl.duration||sl.pace||sl.rpe||sl.feel||sl.notes);
+    var hasSaved=isSessionLogged(s.id);
     var rpeInfo=inferRpeMeta(meta,sessionTitle);
     var altInfo=parseAlternative(meta,sessionTitle);
 
@@ -1073,7 +1124,7 @@ function buildBody(s,i,type){
     h+='</div></div>'; // end body + card
     h+='<div class="run-log">';
     h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
-    h+='<div class="saved-label">✓ Session Logged</div>';
+    h+='<div class="saved-label">✓ Session submitted to your coaches</div>';
     h+='<div class="saved-grid">';
     h+='<div class="saved-item"><div class="saved-item-label">Distance</div><div class="saved-item-value" id="saved_run_'+i+'_distance">'+esc(sl.distance?sl.distance+'km':'-')+'</div></div>';
     h+='<div class="saved-item"><div class="saved-item-label">Duration</div><div class="saved-item-value" id="saved_run_'+i+'_duration">'+esc(sl.duration?sl.duration+'min':'-')+'</div></div>';
@@ -1120,8 +1171,10 @@ function buildBody(s,i,type){
         var isVolPB=!!(stored.volume&&initVol>stored.volume.value);
         var isBarbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust/i.test(resolvedEx)&&!/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/i.test(resolvedEx);
         var _ov=computeOverload(ex,prevEffort);
-        h+='<div class="exc'+_ov.stateCls+(ei===0?' open':'')+'">';
-        h+='<div class="exc-summary" onclick="toggleExc(this)"><div class="exc-sum-main"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div><div class="exc-why '+_ov.whyCls+'">'+esc(_ov.why)+'</div></div><div class="exc-chip '+_ov.chipCls+'">'+(_ov.arrow?'<span class="exc-ar">'+_ov.arrow+'</span> ':'')+esc(_ov.chipText)+'</div><div class="exc-chev">▾</div></div>';
+        var hasExerciseData=!!savedEx.length;
+        var exerciseIsComplete=hasExerciseData&&savedEx.length>=sets&&savedEx.slice(0,sets).every(function(set){return !!set.done;});
+        h+='<div class="exc'+_ov.stateCls+(ei===0?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'">';
+        h+='<div class="exc-summary" onclick="toggleExc(this)"><div class="exc-sum-main"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div><div class="exc-why '+_ov.whyCls+'">'+esc(_ov.why)+'</div></div><div class="exc-entry-pill">'+(exerciseIsComplete?'✓ Done':'In progress')+'</div><div class="exc-chip '+_ov.chipCls+'">'+(_ov.arrow?'<span class="exc-ar">'+_ov.arrow+'</span> ':'')+esc(_ov.chipText)+'</div><div class="exc-chev">▾</div></div>';
         h+='<div class="exc-body">'+_ov.ladder;
         h+='<div class="exh">';
         h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">';
@@ -1190,7 +1243,11 @@ function buildBody(s,i,type){
     }
     var sl2notes=(logs[s.id]&&logs[s.id].__notes)||'';
     h+='<div class="run-field run-input-full" style="margin-top:12px;margin-bottom:8px"><label>Session notes <span style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--dim)">(PRs, wins, niggles, anything worth logging)</span></label><textarea id="gn_'+i+'" class="li" placeholder="e.g. Hit a new squat PR, left knee felt a bit off on lunges..." oninput="draftGym('+i+',\''+esc(splitKey)+'\')" style="min-height:70px;resize:vertical;font-size:13px">'+esc(sl2notes)+'</textarea></div>';
-    h+='<div id="gym_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label">✓ Session Logged — your data above has been saved</div></div>';
+    var gymSubmitted=isSessionLogged(s.id),gymHasDraft=gymDraftHasData(sl2);
+    h+='<div id="gym_saved_'+i+'" class="session-submit-status '+(gymSubmitted?'is-submitted':'is-draft')+'" style="display:'+(gymSubmitted||gymHasDraft?'flex':'none')+';">';
+    if(gymSubmitted) h+='<span class="submit-status-icon">✓</span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>';
+    else h+='<span class="submit-status-icon">•••</span><span><strong>Draft saved on this device</strong><small>Press Save session below to submit it to your coaches.</small></span>';
+    h+='</div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveGym('+i+',\''+esc(splitKey)+'\')">Save session</button>';
     if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save session');}(i),0);}
   }else if(type==='note'){
@@ -1200,7 +1257,7 @@ function buildBody(s,i,type){
     h+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border-mid);border-radius:8px;padding:12px 14px">';
     if(instruction) h+='<div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:12px">'+esc(instruction)+'</div>';
     h+='<div class="run-field run-input-full" style="margin-bottom:10px"><label>What did you do? <span style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--dim)">(training + how it felt, anything worth logging)</span></label><textarea id="nt_'+i+'" class="li" placeholder="e.g. 45min easy run + mobility, legs felt good. Hit chest at the gym, normal week..." oninput="draftNote('+i+')" style="min-height:90px;resize:vertical;font-size:13px">'+esc(noteVal)+'</textarea></div>';
-    h+='<div id="note_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label">✓ Logged — saved to your coach</div></div>';
+    h+='<div id="note_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label">✓ Submitted to your coaches</div></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveNote('+i+')">Save</button>';
     if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save');}(i),0);}
     h+='</div>';
@@ -1292,4 +1349,23 @@ async function markSessionDone(i){
   // A saved log with real data = Done → mirror to Notion so the coaches dashboard agrees
   return coachWrite('/api/notion',{endpoint:'pages/'+s.id,body:{properties:{Status:{select:{name:'Completed'}}}}});
 }
-function togSet(i,ei,si){var btn=document.getElementById('st_'+i+'_'+ei+'_'+si),on=!btn.classList.contains('on');btn.classList.toggle('on',on);btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';if(on) startRest(i,ei);}
+function togSet(i,ei,si){
+  var btn=document.getElementById('st_'+i+'_'+ei+'_'+si);if(!btn) return;
+  var on=!btn.classList.contains('on');btn.classList.toggle('on',on);btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';
+  var card=btn.closest('.exc');
+  if(card){
+    var splitKey=card.getAttribute('data-split-key')||'Upper A';
+    draftGym(i,splitKey);
+    refreshStrengthExerciseState(card);
+    if(on&&strengthExerciseIsComplete(card)){
+      setTimeout(function(){
+        if(!card||!strengthExerciseIsComplete(card)) return;
+        card.classList.remove('open');refreshStrengthExerciseState(card);
+        var next=card.nextElementSibling;
+        while(next&&(!next.classList||!next.classList.contains('exc'))) next=next.nextElementSibling;
+        if(next&&!next.classList.contains('exercise-complete')){next.classList.add('open');refreshStrengthExerciseState(next);}
+      },320);
+    }
+  }
+  if(on) startRest(i,ei);
+}
