@@ -2690,16 +2690,17 @@ html:not(.outdoor-mode) #portalScreen{
 /* Desktop authentication becomes an editorial split screen. */
 @media(min-width:900px){
   #loginScreen .login-col{
-    position:absolute;top:50%;right:max(7vw,calc((100vw - 1440px)/2 + 74px));
+    position:absolute;top:50%;left:50%;right:auto;
     width:min(420px,calc(100vw - 56px));max-width:420px;min-height:auto;margin:0;
-    padding:54px 44px 48px;transform:translateY(-50%);border:1px solid rgba(255,255,255,.09);
+    padding:54px 44px 48px;transform:translate(-50%,-50%);border:1px solid rgba(255,255,255,.09);
     border-radius:30px;background:linear-gradient(155deg,rgba(17,31,40,.9),rgba(6,12,17,.88));
     box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 36px 100px rgba(0,0,0,.42);
     backdrop-filter:blur(24px) saturate(125%);
   }
-  #loginScreen.login-authed .login-col{transform:translateY(calc(-50% - 12px)) scale(.985)}
-  #loginScreen .login-wordmark{left:max(5vw,calc((100vw - 1440px)/2 + 32px));right:52%;text-align:left}
-  #loginScreen .login-footer{left:max(5vw,calc((100vw - 1440px)/2 + 32px));transform:none}
+  #loginScreen.login-authed .login-col{transform:translate(-50%,calc(-50% - 12px)) scale(.985)}
+  /* Centered layout: keep the wordmark and footer on the vertical axis. */
+  #loginScreen .login-wordmark{left:50%;right:auto;transform:translateX(-50%);text-align:center}
+  #loginScreen .login-footer{left:50%;transform:translateX(-50%)}
 }
 
 /* ── Desktop command centre ────────────────────────────────────────── */
