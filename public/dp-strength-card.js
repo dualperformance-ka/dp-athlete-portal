@@ -93,11 +93,13 @@ export function renderExerciseCard(prescription, sessions, opts) {
   const card = computeTarget(prescription, sessions, { lastRpe: opts.lastRpe, config: opts.config });
   const st = stateFor(card);
   const why = whyLine(card);
-  const chipText = card.target.weightKg == null ? 'Set base' : fmt(card.target.weightKg, true);
+  const chipText = card.target.weightKg == null
+    ? (card.status === 'first_time' ? 'Set base' : card.target.reps + ' reps')
+    : fmt(card.target.weightKg, true);
   const pb = opts.pbKg ? '<div class="dpsc-pb">PB <b>' + fmt(opts.pbKg) + '</b></div>' : '';
 
   return '' +
-    '<div class="dpsc-ex ' + st.cls + (opts.open ? ' open' : '') + '" data-ex="' + id + '">' +
+    '<div class="dpsc-ex ' + st.cls + (opts.open ? ' open' : '') + '" data-ex="' + id + '" data-status="' + card.status + '">' +
       '<div class="dpsc-row" role="button" tabindex="0" data-toggle="' + id + '">' +
         '<div class="dpsc-main"><div class="dpsc-name">' + esc(prescription.exercise) + '</div>' +
           '<div class="dpsc-why ' + why.cls + '">' + esc(why.text) + '</div></div>' +
