@@ -3256,17 +3256,21 @@ body.day-plan-open{overflow:hidden}
 .today-mobile-heading{display:none}
 
 @media(max-width:760px){
+  /* Home moves today's card into .top-shell. Do not leave the vacated
+     training panel's mobile safe-area padding behind as extra page height. */
+  body.mobile-portal-home #tab-training.active{padding:0}
+
   body.mobile-portal-home .hero.hero-shell{
     padding:0;border:0;background:transparent;box-shadow:none;
   }
-  body.mobile-portal-home .top-shell{padding-bottom:8px}
+  body.mobile-portal-home .top-shell{padding-top:8px;padding-bottom:6px}
   body.mobile-portal-home .hero-shell{gap:0}
   body.mobile-portal-home .hero-main{
-    padding:13px 14px 12px;border-radius:18px;
+    padding:11px 13px 10px;border-radius:18px;
     background:radial-gradient(circle at 100% 0%,rgba(146,210,237,.09),transparent 38%),linear-gradient(155deg,rgba(16,27,34,.96),rgba(7,16,22,.96));
   }
   body.mobile-portal-home .hi{display:none}
-  body.mobile-portal-home .hero-name-row{align-items:center;margin-bottom:6px}
+  body.mobile-portal-home .hero-name-row{align-items:center;margin-bottom:4px}
   body.mobile-portal-home .hn{max-width:9ch;font-size:30px;line-height:.92;letter-spacing:-.055em}
   body.mobile-portal-home .hero-week{min-width:67px;padding:7px 9px;border-radius:12px}
   body.mobile-portal-home .hero-week-label{font-size:8px}
@@ -3274,11 +3278,11 @@ body.day-plan-open{overflow:hidden}
   body.mobile-portal-home .hero-support{
     font-size:11px;line-height:1.35;-webkit-line-clamp:1;line-clamp:1;
   }
-  body.mobile-portal-home .hero-bottom{margin-top:8px}
+  body.mobile-portal-home .hero-bottom{margin-top:6px}
   body.mobile-portal-home .hpills{margin-bottom:7px}
   body.mobile-portal-home .hp{padding:4px 8px;font-size:8px}
   body.mobile-portal-home .hero-stat-grid{gap:5px}
-  body.mobile-portal-home .hero-stat-action{min-height:74px;padding:7px;border-radius:11px}
+  body.mobile-portal-home .hero-stat-action{min-height:68px;padding:7px;border-radius:11px}
   body.mobile-portal-home .hero-stat-label{min-height:0;font-size:7px;letter-spacing:.08em}
   body.mobile-portal-home .hero-stat-action .hero-stat-value{font-size:17px}
   body.mobile-portal-home .hero-stat-note{margin-top:4px;font-size:7px;line-height:1.2}
@@ -3291,14 +3295,14 @@ body.day-plan-open{overflow:hidden}
   body.mobile-portal-home .hero-pb-value .icon{width:12px;height:12px}
   body.mobile-portal-home .hero-side{display:none}
 
-  body.mobile-portal-home #todayEl{display:block!important;max-width:none;margin:8px 0 0}
+  body.mobile-portal-home #todayEl{display:block!important;max-width:none;margin:6px 0 0}
   body.mobile-portal-home #todayEl .todaypanel{
-    padding:12px;border:1px solid rgba(255,255,255,.92);border-radius:18px;
+    padding:10px;border:1px solid rgba(255,255,255,.92);border-radius:18px;
     background:radial-gradient(circle at 100% 0%,rgba(146,210,237,.1),transparent 35%),linear-gradient(155deg,rgba(15,26,33,.98),rgba(7,15,20,.98));
     box-shadow:0 16px 38px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.08);
   }
   body.mobile-portal-home .today-mobile-heading{
-    display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px;
   }
   body.mobile-portal-home .today-mobile-heading span{font-size:16px;font-weight:760;letter-spacing:-.02em;color:var(--text)}
   body.mobile-portal-home .today-mobile-heading small{font-family:var(--mono);font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:var(--run)}
@@ -3310,17 +3314,17 @@ body.day-plan-open{overflow:hidden}
   body.mobile-portal-home #todayEl .recovery-warning,
   body.mobile-portal-home #todayEl .milestone-celebration{display:none!important}
   body.mobile-portal-home #todayEl .todaylist{margin-top:0}
-  body.mobile-portal-home #todayEl .todayitem{padding:11px;border-radius:14px}
+  body.mobile-portal-home #todayEl .todayitem{padding:10px;border-radius:14px}
   body.mobile-portal-home #todayEl .todayname{font-size:17px;line-height:1.05}
   body.mobile-portal-home #todayEl .todaymeta{margin-top:3px;font-size:8px}
-  body.mobile-portal-home #todayEl .todaytarget{margin-top:8px;padding:9px}
+  body.mobile-portal-home #todayEl .todaytarget{margin-top:6px;padding:8px}
   body.mobile-portal-home #todayEl .todaytarget .label{font-size:7px}
   body.mobile-portal-home #todayEl .todaytarget .value{font-size:13px}
-  body.mobile-portal-home #todayEl .todaytarget .desc{font-size:10px;line-height:1.4}
+  body.mobile-portal-home #todayEl .todaytarget .desc{font-size:10px;line-height:1.3}
   body.mobile-portal-home #todayEl .session-why{display:none}
-  body.mobile-portal-home #todayEl .today-action{min-height:40px;margin-top:8px!important;padding:8px 10px;font-size:11px}
-  body.mobile-portal-home .top-shell-priority{margin-top:8px;gap:7px}
-  body.mobile-portal-home .top-shell-priority .nudge-strip{padding:10px 12px;border-radius:14px}
+  body.mobile-portal-home #todayEl .today-action{min-height:38px;margin-top:6px!important;padding:7px 10px;font-size:11px}
+  body.mobile-portal-home .top-shell-priority{margin-top:6px;gap:5px}
+  body.mobile-portal-home .top-shell-priority .nudge-strip{padding:8px 11px;border-radius:14px}
   body.mobile-portal-home .top-shell-priority .nudge-strip-text{min-width:0}
   body.mobile-portal-home .top-shell-priority .nudge-strip-title{
     font-family:var(--body);font-size:14px;font-weight:600;line-height:1.2;
@@ -3438,17 +3442,17 @@ body.day-plan-open{overflow:hidden}
 }
 
 @media(max-width:760px){
-  body.mobile-portal-home .hero-shell{gap:8px}
+  body.mobile-portal-home .hero-shell{gap:6px}
   body.mobile-portal-home .hero-side{
-    display:block;padding:10px 12px 11px;border-radius:16px;
+    display:block;padding:8px 11px 9px;border-radius:16px;
     background:linear-gradient(155deg,rgba(16,27,34,.96),rgba(7,16,22,.96));
   }
-  body.mobile-portal-home .hero-output-heading{margin-bottom:7px}
+  body.mobile-portal-home .hero-output-heading{margin-bottom:5px}
   body.mobile-portal-home .hero-side-label{font-size:7px;letter-spacing:.12em}
   body.mobile-portal-home .hero-output-week{min-height:19px;padding:0 7px;font-size:8px}
   body.mobile-portal-home .week-rings{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
   body.mobile-portal-home .ring-item{
-    grid-template-columns:29px minmax(0,1fr);gap:7px;min-height:58px;padding:7px 8px;border-radius:11px;
+    grid-template-columns:29px minmax(0,1fr);gap:7px;min-height:54px;padding:6px 7px;border-radius:11px;
   }
   body.mobile-portal-home .ring-wrap{width:29px;height:29px;border-radius:9px}
   body.mobile-portal-home .ring-icon{width:13px;height:13px}
