@@ -865,6 +865,21 @@ function displaySavedStrengthSets(sessionId,savedSets,prevSets){
 }
 function getTopRep(ex){var range=String(ex.repRange||ex.reps||'').split('-');var top=parseInt(range[range.length-1],10);return isNaN(top)?parseInt(ex.reps,10)||0:top;}
 function getNumeric(v){var n=parseFloat(v);return isNaN(n)?null:n;}
+// Effective reps for a set: bilateral uses `reps`, unilateral (single-leg/arm)
+// stores `repsLeft`/`repsRight` — use the weaker side so both sides must earn the
+// progression. Without this, single-leg sets read as 0 reps and never progress load.
+function _effReps(s){if(!s) return 0;var l=parseInt(s.repsLeft,10),r=parseInt(s.repsRight,10);if(!isNaN(l)||!isNaN(r)) return Math.min(isNaN(l)?Infinity:l,isNaN(r)?Infinity:r);return parseInt(s.reps,10)||0;}
+// Equipment-aware load increment (kg to add). Keeps bumps sane per equipment
+// instead of a flat percentage that adds trivial amounts on light/machine lifts.
+function _ovStep(name,load){var n=String(name||'').toLowerCase();
+  if(/bodyweight|push[- ]?up|pull[- ]?up|chin[- ]?up|\bdip\b|plank/.test(n)) return 0;
+  if(/lateral raise|face pull|rear delt|reverse fly|\bfly\b|\bcurl\b|tricep|pushdown|calf|cuff|rotator/.test(n)) return 1;
+  var barbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust|\bpress\b/.test(n);
+  var notBar=/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/.test(n);
+  if(barbell&&!notBar) return 2.5;
+  if(/dumbbell|\bdb\b|goblet|kettlebell/.test(n)) return 2;
+  if(/machine|cable|smith|leg press|pulldown|pec deck|extension|hamstring curl|leg curl/.test(n)) return 2.5;
+  return Math.max(1,Math.round(load*0.025*2)/2);}
 function getProgressionFeedback(ex,prevEffort,currentEffort){
   var prevWorking=getWorkingSlice(ex,prevEffort||[]);var currentWorking=getWorkingSlice(ex,currentEffort||[]);
   if(!currentWorking.length) return{tone:'dim',text:(ex.repRange?'Target '+ex.repRange:'Build this session')};
@@ -873,9 +888,9 @@ function getProgressionFeedback(ex,prevEffort,currentEffort){
   var prevWeights=prevWorking.map(function(s){return getNumeric(s.weight);}).filter(function(v){return v!=null;});
   var currentLoad=currentWeights.length?Math.max.apply(null,currentWeights):null;
   var prevLoad=prevWeights.length?Math.max.apply(null,prevWeights):null;
-  var currentTotal=currentWorking.reduce(function(a,s){return a+(parseInt(s.reps,10)||0);},0);
-  var prevTotal=prevWorking.reduce(function(a,s){return a+(parseInt(s.reps,10)||0);},0);
-  var allAtTop=currentWorking.length&&currentWorking.every(function(s){return(parseInt(s.reps,10)||0)>=topRep;});
+  var currentTotal=currentWorking.reduce(function(a,s){return a+_effReps(s);},0);
+  var prevTotal=prevWorking.reduce(function(a,s){return a+_effReps(s);},0);
+  var allAtTop=currentWorking.length&&currentWorking.every(function(s){return _effReps(s)>=topRep;});
   if(allAtTop) return{tone:'ok',text:'Increase load next time'};
   if(prevLoad!=null&&currentLoad!=null&&currentLoad>prevLoad&&currentTotal>0) return{tone:'ok',text:'Load PB'};
   if(prevWorking.length){
@@ -902,7 +917,8 @@ function refreshStrengthFeedback(i,splitKey){
   });
 }
 
-function computeOverload(ex,prevEffort){
+function computeOverload(ex,prevEffort,resolvedName){
+  var name=resolvedName||ex.exercise||'';
   var low=parseInt(String(ex.repRange||ex.reps||'').split('-')[0],10)||0;
   var top=getTopRep(ex);
   var r={stateCls:'',whyCls:'',chipCls:'hold',arrow:'',chipText:'',why:'',ladder:'',tip:''};
@@ -915,10 +931,11 @@ function computeOverload(ex,prevEffort){
   var working=getWorkingSlice(ex,prevEffort);
   var loads=working.map(function(s){return parseFloat(s.weight);}).filter(function(n){return !isNaN(n)&&n>0;});
   var maxLoad=loads.length?Math.max.apply(null,loads):null;
-  var reps=working.map(function(s){return parseInt(s.reps,10)||0;});
+  var reps=working.map(_effReps);
   var allTop=working.length&&reps.every(function(v){return v>=top;});
   if(maxLoad!=null&&allTop){
-    var sug=Math.round((maxLoad*1.025)*2)/2; if(sug<=maxLoad) sug=maxLoad+2.5;
+    var step=_ovStep(name,maxLoad);
+    var sug=step>0?Math.round((maxLoad+step)*2)/2:maxLoad; if(step>0&&sug<=maxLoad) sug=maxLoad+step;
     r.stateCls=' exc-go'; r.chipCls='go'; r.arrow='↗';
     r.chipText=sug+'kg'; r.whyCls='go';
     r.why='Maxed reps at '+maxLoad+'kg. Level up.';
@@ -1170,7 +1187,7 @@ function buildBody(s,i,type){
         var initVol=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight),r=parseInt(sv.reps,10);if(!isNaN(w)&&w>0&&!isNaN(r)&&r>0&&r<=PB_REP_CAP) initVol+=w*r;});
         var isVolPB=!!(stored.volume&&initVol>stored.volume.value);
         var isBarbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust/i.test(resolvedEx)&&!/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/i.test(resolvedEx);
-        var _ov=computeOverload(ex,prevEffort);
+        var _ov=computeOverload(ex,prevEffort,resolvedEx);
         var hasExerciseData=!!savedEx.length;
         var exerciseIsComplete=hasExerciseData&&savedEx.length>=sets&&savedEx.slice(0,sets).every(function(set){return !!set.done;});
         h+='<div class="exc'+_ov.stateCls+(ei===0?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'">';
