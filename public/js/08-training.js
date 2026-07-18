@@ -618,7 +618,7 @@ function buildRunSubtitle(s,meta,resolvedTitle){
 
 function getHomeInsights(){
   var planned=sessions.filter(function(s){return getType(s)!=='rest';}).length;
-  var completed=sessions.filter(function(s){return getType(s)!=='rest'&&isSessionLogged(s.id);}).length;
+  var completed=sessions.filter(function(s){return getType(s)!=='rest'&&(isSessionLogged(s.id)||logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id]);}).length;
   var compliance=planned?Math.min(100,Math.round(completed/planned*100)):0;
   var readiness=null,body=null;
   try{body=JSON.parse(localStorage.getItem('dp_daily_body_'+athlete.code+'_'+localISO(new Date()))||'null');}catch(e){}
