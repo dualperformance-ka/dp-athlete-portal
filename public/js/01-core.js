@@ -242,11 +242,9 @@ async function coachWrite(url,payload,opts){
   if(payload&&!payload.clientWriteId) payload.clientWriteId='cw_'+Date.now()+'_'+Math.random().toString(36).slice(2);
   if(athlete&&athlete.code){try{localStorage.setItem('dp_last_athlete_code',athlete.code);}catch(e){}}
   try{
-    return await ingestWrite(url,payload); // safely persisted to Supabase + mirrored
+    return await ingestWrite(url,payload); // persisted to Supabase (source of truth)
   }catch(ingestError){
-    // Supabase persistence did NOT happen. Best-effort direct write so the coach
-    // still sees it immediately, but ALWAYS queue so Supabase gets it on retry.
-    try{await postJsonChecked(url,payload);}catch(directErr){}
+    // Supabase persistence did NOT happen. Queue locally so it retries via /api/ingest.
     await queueCoachWrite(url,payload,ingestError);
     if(opts.required) throw ingestError;
     console.warn('Coach write queued for Supabase retry:',ingestError&&ingestError.message);
@@ -508,24 +506,10 @@ function getMon(d){var day=d.getDay(),diff=day===0?-6:1-day;return new Date(d.ge
 function getWS(){var m=getMon(new Date());m.setDate(m.getDate()+weekOffset*7);return m;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-// ── NOTION HELPERS ────────────────────────────────────────────────────────────
-async function api(endpoint,body){
-  try{var r=await fetch('/api/notion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint,body})});if(!r.ok)return null;return r.json();}
-  catch(e){return null;}
-}
-async function apiAll(endpoint,body){
-  var allResults=[],cursor=null,hasMore=true;
-  while(hasMore){
-    var params=Object.assign({},body,{page_size:100});
-    if(cursor) params.start_cursor=cursor;
-    var data=await api(endpoint,params);
-    if(!data||!data.results) break;
-    allResults=allResults.concat(data.results);
-    hasMore=data.has_more||false;cursor=data.next_cursor||null;
-    if(!hasMore||!cursor) break;
-  }
-  return {results:allResults};
-}
+// ── LEGACY PROFILE FIELD HELPERS ──────────────────────────────────────────────
+// The Notion API proxy (api/apiAll → /api/notion) was removed on 2026-07-20.
+// These pure property readers remain only to safely no-op over empty objects
+// when building an athlete profile from roster data.
 function getNotionTitle(props){
   for(var k in props){var p=props[k];if(p&&p.type==='title'&&p.title&&p.title.length){var t=p.title.map(function(x){return x.plain_text||'';}).join('');if(t.trim())return t.trim();}}
   var explicit=props['Name']||props['name'];

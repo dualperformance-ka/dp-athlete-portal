@@ -1402,8 +1402,8 @@ async function markSessionDone(i){
   if(btn){btn.classList.remove('marked');btn.classList.add('on');var sv=btn.querySelector('svg');if(sv) sv.style.opacity=1;}
   var nudge=document.getElementById('nudge_'+i);if(nudge) nudge.remove();
   updateSessionCounter();
-  // A saved log with real data = Done → mirror to Notion so the coaches dashboard agrees
-  return coachWrite('/api/notion',{endpoint:'pages/'+s.id,body:{properties:{Status:{select:{name:'Completed'}}}}});
+  // Completion lives in Supabase: the ticked state is saved to athlete_data above,
+  // and the saved run/gym log is the source-of-truth record the coach dashboard reads.
 }
 function togSet(i,ei,si){
   var btn=document.getElementById('st_'+i+'_'+ei+'_'+si);if(!btn) return;
