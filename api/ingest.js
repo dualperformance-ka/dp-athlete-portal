@@ -1,8 +1,19 @@
-import { insert, upsert } from './_lib/supabase-rest.js';
+// /api/ingest.js — the single athlete write endpoint.
+//
+// Supabase is the source of truth. Every coach-facing write from the portal is
+// persisted straight into the structured Supabase tables here. There is no
+// external mirror: the Notion sync (and its retry outbox) was removed on
+// 2026-07-20, so this endpoint now succeeds or fails purely on the Supabase write.
+//
+// Identity: the Supabase roster (public.athletes) is the sole source of identity.
+// A signed-in athlete's code comes from their session; legacy code-only requests
+// resolve their display name from the roster row.
+//
+// Env required: SUPABASE_URL, SUPABASE_SERVICE_KEY.
+// Env required for GHL check-in tagging (best-effort): GHL_API_KEY.
+import { upsert } from './_lib/supabase-rest.js';
 import { getRosterAthlete, checkRosterAccess } from './_lib/roster.js';
 import { getAuthedAthlete, bearerToken } from './_lib/auth.js';
-
-const ALLOWED_TARGETS = new Set(['/api/write', '/api/notion']);
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
@@ -41,153 +52,20 @@ function athleteName(payload) {
   return text(payload.athleteName, 180) || athleteCode(payload);
 }
 
-
-const NOTION_TOKEN = process.env.NOTION_TOKEN;
-const NOTION_VERSION = '2022-06-28';
-const ATHLETE_DB_ID = '4a25a96cc70b82ffa6790139eaa8b458';
-
-function normaliseId(value) {
-  return String(value || '').replace(/-/g, '').trim().toLowerCase();
-}
-
-function notionPlainText(property) {
-  if (!property) return '';
-
-  if (property.type === 'title') {
-    return (property.title || [])
-      .map(item => item.plain_text || item.text?.content || '')
-      .join('')
-      .trim();
-  }
-
-  if (property.type === 'rich_text') {
-    return (property.rich_text || [])
-      .map(item => item.plain_text || item.text?.content || '')
-      .join('')
-      .trim();
-  }
-
-  return '';
-}
-
-async function notionIdentityRequest(path, method = 'GET', body) {
-  if (!NOTION_TOKEN) {
-    throw new Error('NOTION_TOKEN is required for athlete identity verification');
-  }
-
-  const response = await fetch(`https://api.notion.com/v1/${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${NOTION_TOKEN}`,
-      'Notion-Version': NOTION_VERSION,
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-      `Athlete identity lookup failed with HTTP ${response.status}`
-    );
-  }
-
-  return data;
-}
-
-async function findAthleteProfile(payload) {
-  const suppliedPageId = text(payload.athleteId, 120);
-  const suppliedCode = text(payload.athleteCode, 120)?.toUpperCase();
-
-  if (suppliedPageId) {
-    const page = await notionIdentityRequest(`pages/${suppliedPageId}`);
-
-    if (
-      page.parent?.type !== 'database_id' ||
-      normaliseId(page.parent.database_id) !== normaliseId(ATHLETE_DB_ID)
-    ) {
-      throw new Error('The supplied athlete profile does not belong to the Athlete DB');
-    }
-
-    return page;
-  }
-
-  if (!suppliedCode) {
-    throw new Error('athleteId or athleteCode is required');
-  }
-
-  const result = await notionIdentityRequest(
-    `databases/${ATHLETE_DB_ID}/query`,
-    'POST',
-    {
-      filter: {
-        property: 'Code',
-        rich_text: { equals: suppliedCode },
-      },
-      page_size: 2,
-    }
-  );
-
-  if (!Array.isArray(result.results) || result.results.length !== 1) {
-    throw new Error(`Unable to uniquely resolve athlete code ${suppliedCode}`);
-  }
-
-  return result.results[0];
-}
-
+// Identity now comes only from the Supabase roster. If the code exists in the
+// roster, its canonical code + name win. Unknown codes (legacy) are kept as-is.
 async function resolveAthleteIdentity(payload) {
-  // Supabase roster (public.athletes) is the source of truth for identity.
-  // New athletes exist ONLY there — the Notion profile lookup is best-effort
-  // legacy (used for the Athlete relation on mirrored Notion rows).
   const rosterCode = text(payload.athleteCode, 120)?.toUpperCase();
-  if (rosterCode) {
-    let roster = null;
-    try { roster = await getRosterAthlete(rosterCode); } catch {}
-    if (roster) {
-      let page = null;
-      try { page = await findAthleteProfile(payload); } catch {}
-      return {
-        ...payload,
-        athleteId: (page && page.id) || text(payload.athleteId, 120) || null,
-        athleteCode: String(roster.code).toUpperCase(),
-        athleteName: text(roster.name, 180) || String(roster.code),
-      };
-    }
-  }
-
-  // Legacy fallback: resolve via the Notion Athlete DB (read-only legacy).
-  const page = await findAthleteProfile(payload);
-  const properties = page.properties || {};
-
-  const resolvedCode = notionPlainText(properties.Code).toUpperCase().trim();
-  const resolvedName = (
-    notionPlainText(properties.Name) ||
-    notionPlainText(properties.Athlete) ||
-    resolvedCode
-  ).trim();
-
-  if (!resolvedCode) {
-    throw new Error('The athlete profile has no Code value');
-  }
-
-  const suppliedCode = text(payload.athleteCode, 120)?.toUpperCase();
-
-  if (suppliedCode && suppliedCode !== resolvedCode) {
-    throw new Error(
-      `Athlete identity mismatch: submitted ${suppliedCode}, profile resolves to ${resolvedCode}`
-    );
-  }
-
+  if (!rosterCode) return payload;
+  let roster = null;
+  try { roster = await getRosterAthlete(rosterCode); } catch {}
+  if (!roster) return payload;
   return {
     ...payload,
-    athleteId: page.id,
-    athleteCode: resolvedCode,
-    athleteName: resolvedName,
+    athleteCode: String(roster.code).toUpperCase(),
+    athleteName: text(roster.name, 180) || String(roster.code),
   };
 }
-
 
 function weekKey(payload) {
   if (payload.weekKey) return text(payload.weekKey, 80);
@@ -306,13 +184,11 @@ async function persistStructured(payload) {
       session_category: text(payload.sessionCategory || payload.type, 80),
       session_date: date(payload.date),
       exercise_log: text(payload.exerciseLog, 2000),
-      // Structured run detail (was only ever flattened into exercise_log before)
       distance_km: number(payload.distanceKm ?? payload.distance),
       duration_min: number(payload.durationMin ?? payload.duration),
       pace: text(payload.pace, 80),
       rpe: number(payload.rpe),
       feel: number(payload.feel),
-      // Structured strength sets (was only ever inside raw_payload before)
       raw_sets: payload.rawSets ?? null,
       notes: text(payload.notes, 2000),
       raw_payload: payload,
@@ -324,42 +200,56 @@ async function persistStructured(payload) {
   return null;
 }
 
-async function queueOutbox(targetUrl, payload, error) {
-  const now = new Date().toISOString();
-  const clientWriteId = text(payload.clientWriteId, 120) || `server_${Date.now()}`;
-  const row = {
-    client_write_id: clientWriteId,
-    athlete_code: athleteCode(payload),
-    target_url: targetUrl,
-    payload,
-    status: 'pending',
-    attempts: 0,
-    last_error: text(error?.message || error || 'Write failed', 2000),
-    next_attempt_at: now,
-    updated_at: now,
-  };
-  return upsert('coach_write_outbox', row, 'client_write_id');
-}
-
-function absoluteUrl(req, targetUrl) {
-  if (!ALLOWED_TARGETS.has(targetUrl)) throw new Error('Target endpoint is not allowed');
-  const proto = req.headers['x-forwarded-proto'] || 'https';
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  return `${proto}://${host}${targetUrl}`;
-}
-
-async function postCoachWrite(req, targetUrl, payload) {
-  const response = await fetch(absoluteUrl(req, targetUrl), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const textBody = await response.text();
-  const data = textBody ? JSON.parse(textBody) : {};
-  if (!response.ok || data.ok === false) {
-    throw new Error(data.error || data.message || `Coach write failed ${response.status}`);
+// ── GHL check-in tagging ────────────────────────────────────────────────────
+// On a weekly check-in submit, find the athlete's GHL contact via the Supabase
+// ghl_map table (athlete_code -> ghl_contact_id) and add the "checkin_done" tag
+// so the GHL reminder workflow skips them this week. Best-effort: any failure
+// here must NOT block the check-in write. The Supabase client is imported LAZILY
+// so a missing '@supabase/supabase-js' dependency cannot crash the function.
+async function tagGhlCheckinDone(code) {
+  if (!has(code)) return;
+  const { SUPABASE_URL, SUPABASE_SERVICE_KEY, GHL_API_KEY } = process.env;
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !GHL_API_KEY) {
+    console.warn('[ingest] GHL tagging skipped — missing env vars');
+    return;
   }
-  return data;
+
+  let createClient;
+  try {
+    ({ createClient } = await import('@supabase/supabase-js'));
+  } catch (e) {
+    console.warn('[ingest] GHL tagging skipped — @supabase/supabase-js not installed');
+    return;
+  }
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  const { data, error } = await sb
+    .from('ghl_map')
+    .select('ghl_contact_id')
+    .eq('athlete_code', String(code))
+    .single();
+
+  if (error || !data || !data.ghl_contact_id) {
+    console.warn('[ingest] no ghl_map row for code', code);
+    return;
+  }
+
+  const resp = await fetch(
+    `https://services.leadconnectorhq.com/contacts/${data.ghl_contact_id}/tags`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GHL_API_KEY}`,
+        Version: '2021-07-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ tags: ['checkin_done'] }),
+    }
+  );
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '');
+    throw new Error(`GHL tag ${resp.status}: ${t}`);
+  }
 }
 
 export default async function handler(req, res) {
@@ -367,18 +257,14 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'Method not allowed' });
 
   const body = req.body || {};
-  const targetUrl = text(body.targetUrl, 80);
-  let payload = body.payload || {};
+  // Accept both the current payload-only shape and the legacy { targetUrl, payload }
+  // shape sent by older cached clients. targetUrl (the old Notion mirror target)
+  // is ignored — everything is persisted to Supabase.
+  let payload = body.payload || body;
 
-  if (!targetUrl || !ALLOWED_TARGETS.has(targetUrl)) {
-    return send(res, 400, { ok: false, error: 'Invalid targetUrl' });
-  }
-
-  // Email-auth path: a valid Supabase session token overrides any
-  // client-supplied identity — the legacy athlete code is resolved
-  // server-side from the linked roster row, so a signed-in athlete can only
-  // ever write under their own code. Token-less (legacy) requests keep the
-  // existing behaviour untouched.
+  // Email-auth path: a valid Supabase session token overrides any client-supplied
+  // identity — the athlete code is resolved server-side from the linked roster row,
+  // so a signed-in athlete can only ever write under their own code.
   if (bearerToken(req)) {
     const authed = await getAuthedAthlete(req);
     if (!authed) return send(res, 401, { ok: false, stage: 'auth', error: 'Invalid session' });
@@ -389,33 +275,17 @@ export default async function handler(req, res) {
     };
   }
 
-  if (!athleteCode(payload) && targetUrl !== '/api/notion') {
+  if (!athleteCode(payload)) {
     return send(res, 400, { ok: false, error: 'athleteCode is required' });
   }
 
-  // Paused / archived athletes are blocked from writing fresh data. Unknown
-  // codes fall through to the existing identity checks (legacy behaviour).
+  // Paused / archived athletes are blocked from writing fresh data.
   const guard = await checkRosterAccess(athleteCode(payload));
   if (guard.blocked) {
     return send(res, 403, { ok: false, stage: 'access', error: 'access_paused' });
   }
 
-  let identityError = null;
-  if (targetUrl === '/api/write') {
-    try {
-      payload = await resolveAthleteIdentity(payload);
-    } catch (error) {
-      // A genuine identity MISMATCH is a safety stop: never persist a row under
-      // a code that doesn't match the submitted name.
-      if (/mismatch/i.test(error.message || '')) {
-        return send(res, 409, { ok: false, stage: 'identity', error: error.message });
-      }
-      // Any other lookup failure (Notion unreachable, code not yet in the DB,
-      // transient error) must NOT drop the submission. Persist to Supabase with
-      // the identity we already have and queue the Notion mirror for retry.
-      identityError = error;
-    }
-  }
+  payload = await resolveAthleteIdentity(payload);
 
   try {
     await persistStructured(payload);
@@ -423,22 +293,11 @@ export default async function handler(req, res) {
     return send(res, 502, { ok: false, stage: 'supabase', error: error.message });
   }
 
-  // Row is safely in Supabase; the Notion mirror still needs the verified
-  // profile, so queue it for retry and report softly rather than 4xx-ing.
-  if (identityError) {
-    try { await queueOutbox(targetUrl, payload, identityError); } catch (e) {}
-    return send(res, 202, { ok: true, queued: true, stage: 'identity', error: identityError.message });
+  // Best-effort GHL tag on a weekly check-in — never let it fail the write.
+  if (text(payload.type, 80) === 'weekly_checkin') {
+    try { await tagGhlCheckinDone(athleteCode(payload)); }
+    catch (e) { console.warn('[ingest] GHL tag failed:', e && e.message); }
   }
 
-  try {
-    const coach = await postCoachWrite(req, targetUrl, payload);
-    return send(res, 200, { ok: true, queued: false, coach });
-  } catch (error) {
-    try {
-      await queueOutbox(targetUrl, payload, error);
-    } catch (queueError) {
-      return send(res, 502, { ok: false, stage: 'outbox', error: queueError.message, coachError: error.message });
-    }
-    return send(res, 202, { ok: true, queued: true, error: error.message });
-  }
+  return send(res, 200, { ok: true, queued: false });
 }

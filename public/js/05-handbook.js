@@ -91,124 +91,13 @@ function parseKmFromText(txt){
   if(match) return Number(match[1]);
   return null;
 }
+// Weekly-KM tracking previously read two Notion databases. Both were retired on
+// 2026-07-20 (the source DBs were never wired up — the IDs were placeholders).
+// Completed km is derived locally from logged sessions / Strava instead.
 async function getWeeklyCompletedKmFromTracker(offset){
-  if(!ATHLETE_SESSION_TRACKER_DB || ATHLETE_SESSION_TRACKER_DB.indexOf('PASTE_YOUR')===0) return null;
-  var range=getWeekDateRangeFromOffset(offset||0);
-  // Server-side date filter: fetch one week instead of the whole database.
-  // If the DB's date property isn't 'Date', the filtered query returns nothing
-  // and we fall back to the old full scan.
-  var allRows=await apiAll('databases/'+ATHLETE_SESSION_TRACKER_DB+'/query',{
-    filter:{and:[
-      {property:'Date',date:{on_or_after:range.startISO}},
-      {property:'Date',date:{on_or_before:range.endISO}}
-    ]},
-    sorts:[{property:'Date',direction:'descending'}]
-  });
-  if(!allRows||!allRows.results||!allRows.results.length){
-    allRows=await apiAll('databases/'+ATHLETE_SESSION_TRACKER_DB+'/query',{
-      sorts:[{property:'Date',direction:'descending'}]
-    });
-  }
-  if(!allRows||!allRows.results) return null;
-  var athleteIdClean=(athlete.notionPageId||'').replace(/-/g,'');
-  var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
-  var athleteCodeUpper=(athlete.code||'').toUpperCase().trim();
-  var total=0;
-  allRows.results.forEach(function(r){
-    var pr=r.properties||{};
-    var rowDate=textFromAny(pr,['Date','Session Date','Planned Date']);
-    if(!rowDate) return;
-    var rowISO=rowDate.slice(0,10);
-    if(rowISO<range.startISO || rowISO>range.endISO) return;
-
-    var athleteMatch=false;
-    var athRel=pr['Athlete']&&pr['Athlete'].relation||[];
-    athleteMatch=athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
-    if(!athleteMatch){
-      var athleteTxt=(textFromAny(pr,['Athlete','Athlete Name','Name'])||'').toUpperCase().trim();
-      athleteMatch=athleteTxt===athleteNameUpper||athleteTxt===athleteCodeUpper||(getNotionTitle(pr)||'').toUpperCase().indexOf(athleteNameUpper)===0;
-    }
-    if(!athleteMatch) return;
-
-    var sessionType=(textFromAny(pr,['Session Type'])||'').toLowerCase();
-    var sessionName=(textFromAny(pr,['Session','Session Name'])||'').toLowerCase();
-    var exerciseLog=(textFromAny(pr,['Exercise Log','exerciseLog'])||'');
-    var fullName=((getNotionTitle(pr)||'')+' '+sessionName+' '+exerciseLog).toLowerCase();
-    var looksRun=sessionType.indexOf('run')>=0 ||
-      sessionName.indexOf('run')>=0 ||
-      /long run|easy run|tempo|interval|threshold|fartlek|recovery|hill|track/.test(fullName) ||
-      /distance\s*:/.test(fullName);
-    if(!looksRun) return;
-
-    var completedProp=pr['Completed'];
-    var completed=completedProp&&completedProp.checkbox===true;
-    var status=(textFromAny(pr,['Status'])||'').toLowerCase();
-    var looksDone=completed||status.indexOf('complete')>=0||status.indexOf('done')>=0||status.indexOf('finish')>=0||status==='';
-    if(!looksDone) return;
-
-    var km=numFromProp(pr['Distance (km)']);
-    if(km==null) km=numFromProp(pr['Distance']);
-    if(km==null) km=numFromProp(pr['KM']);
-    if(km==null) km=parseKmFromText(exerciseLog);
-    if(km==null) km=parseKmFromText(fullName);
-    if(km==null) km=0;
-    total+=Number(km||0);
-  });
-  return total;
+  return null;
 }
 async function loadWeeklyKmData(offset){
   currentWeekKmData=null;
-  if(!WEEKLY_KM_DB || WEEKLY_KM_DB.indexOf('PASTE_YOUR')===0) return null;
-  var range=getWeekDateRangeFromOffset(offset);
-  var displayWeek=getDisplayWeekNumber(offset);
-  var athleteIdClean=(athlete.notionPageId||'').replace(/-/g,'');
-  var athleteNameUpper=(athlete.name||'').toUpperCase().trim();
-  var athleteCodeUpper=(athlete.code||'').toUpperCase().trim();
-  var matchRow=function(r){
-    var pr=r.properties||{};
-    var rowName=getNotionTitle(pr).toUpperCase().trim();
-    var athleteMatch=rowName===athleteNameUpper||rowName===athleteCodeUpper;
-    if(!athleteMatch){
-      var athRel=pr['Athlete']&&pr['Athlete'].relation||[];
-      athleteMatch=athRel.some(function(a){return a.id.replace(/-/g,'')===athleteIdClean;});
-    }
-    if(!athleteMatch){
-      var athleteTxt=textFromAny(pr,['Athlete Name','Name','Athlete Code','Code']).toUpperCase().trim();
-      athleteMatch=athleteTxt===athleteNameUpper||athleteTxt===athleteCodeUpper;
-    }
-    if(!athleteMatch) return false;
-    var weekStart=textFromAny(pr,['Week Start','Week start','Start Date']);
-    var weekLabel=textFromAny(pr,['Week','Week Label']);
-    var weekNumber=numFromProp(pr['Week Number'])||numFromProp(pr['Week #'])||null;
-    var startMatch=weekStart && weekStart.slice(0,10)===range.startISO;
-    var labelMatch=weekLabel && weekLabel.toLowerCase()===('Week '+displayWeek).toLowerCase();
-    var numMatch=weekNumber===displayWeek;
-    return startMatch||labelMatch||numMatch;
-  };
-  // Server-side filter: fetch only this week's rows. Falls back to the old
-  // full scan if nothing matches (e.g. rows keyed by week label/number only).
-  var allKm=await apiAll('databases/'+WEEKLY_KM_DB+'/query',{
-    filter:{property:'Week Start',date:{equals:range.startISO}},
-    sorts:[{property:'Week Start',direction:'ascending'}]});
-  var matched=(allKm&&allKm.results?allKm.results:[]).filter(matchRow);
-  if(!matched.length){
-    allKm=await apiAll('databases/'+WEEKLY_KM_DB+'/query',{sorts:[{property:'Week Start',direction:'ascending'}]});
-    if(!allKm||!allKm.results) return null;
-    matched=allKm.results.filter(matchRow);
-  }
-  if(!matched.length) return null;
-  var pr=matched[0].properties||{};
-  var target=numFromProp(pr['Target KM']) ?? numFromProp(pr['Weekly KM Target']) ?? numFromProp(pr['KM Target']) ?? numFromProp(pr['Target']);
-  var completed=numFromProp(pr['Completed KM']) ?? numFromProp(pr['Current KM']) ?? numFromProp(pr['KM Completed']) ?? numFromProp(pr['Progress KM']);
-  if(completed==null) completed=deriveCompletedKmFromSessions(sessions);
-  currentWeekKmData={
-    pageId:matched[0].id,
-    target:target,
-    completed:completed||0,
-    weekLabel:textFromAny(pr,['Week','Week Label']) || ('Week '+displayWeek),
-    note:textFromAny(pr,['Notes','Coach Notes','Comment']),
-    weekStart:textFromAny(pr,['Week Start','Week start','Start Date']) || range.startISO,
-    weekEnd:textFromAny(pr,['Week End','Week end','End Date']) || range.endISO
-  };
-  return currentWeekKmData;
+  return null;
 }

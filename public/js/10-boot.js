@@ -129,43 +129,6 @@ function processLibraryRows(rows) {
   });
 }
 
-function processRunLibraryResults(results) {
-  results.forEach(function(page) {
-    const pr = page.properties || {};
-    const mapped = {
-      name: getPropText(pr['Session Name']) || getPropText(pr['Running Session']) || getPropText(pr['Workout']) || getNotionTitle(pr),
-      type: getPropText(pr['Workout Type']) || getPropText(pr['Type']) || getPropText(pr['Session Type']),
-      description: getPropText(pr['Description']) || getPropText(pr['Run Details']) || getPropText(pr['Workout Details']) || getPropText(pr['Session Details']) || getPropText(pr['Details']) || getPropText(pr['Notes']) || getPropText(pr['Coach Notes']),
-      difficulty: getPropText(pr['Difficulty']),
-      distance: getPropText(pr['Distance Focus']) || getPropText(pr['Distance']) || getPropText(pr['Distance / Volume']),
-      duration: getPropText(pr['Duration (mins)']) || getPropText(pr['Duration']) || getPropText(pr['Time']) || getPropText(pr['Time Cap']),
-      rpe: getPropText(pr['RPE']) || getPropText(pr['Effort']),
-      intensity: getPropText(pr['Intensity Zone']) || getPropText(pr['Intensity']) || getPropText(pr['Zone']),
-      phase: getPropText(pr['Training Phase']) || getPropText(pr['Phase']),
-      surface: getPropText(pr['Surface']),
-      fatigue: getPropText(pr['Fatigue Cost']),
-      recovery: getPropText(pr['Recovery Time (hrs)']) || getPropText(pr['Recovery']) || getPropText(pr['Recovery Type']),
-      goal: getPropText(pr['Session Goal']) || getPropText(pr['Goal']) || getPropText(pr['Target']) || getPropText(pr['Focus']),
-      warmup: getPropText(pr['Warm Up']) || getPropText(pr['Warmup']) || getPropText(pr['Warm-up']),
-      cooldown: getPropText(pr['Cool Down']) || getPropText(pr['Cooldown']) || getPropText(pr['Cool-down']),
-      prereqs: getPropText(pr['Prerequisites']),
-      slot: getPropText(pr['Weekly Slot']),
-      targetPace: getPropText(pr['Target Pace']) || getPropText(pr['Pace Target']) || getPropText(pr['Pace']) || '',
-      tags: getPropText(pr['Tags']) || getPropText(pr['Tag']),
-      alternative: getPropText(pr['Alternative']) || getPropText(pr['Alternative Workout']) || getPropText(pr['Alternate Workout']) || getPropText(pr['Option B']) || getPropText(pr['Alternative Session']) || getPropText(pr['Regression']) || ''
-    };
-    RUNNING_LIBRARY_BY_ID[page.id] = mapped;
-    runLibraryById[page.id] = Object.assign({}, runLibraryById[page.id] || {}, mapped, {
-      warmUp: mapped.warmup || '',
-      coolDown: mapped.cooldown || '',
-      sessionGoal: mapped.goal || '',
-      recoveryType: mapped.recovery || '',
-      alternative: mapped.alternative || ''
-    });
-    if (mapped.name) runLibraryByName[mapped.name.toLowerCase()] = runLibraryById[page.id];
-  });
-}
-
 // Get workout details from pre-loaded library using page ID
 function getRunningLibraryWorkout(workoutIds) {
   if (!workoutIds || !workoutIds.length) return null;

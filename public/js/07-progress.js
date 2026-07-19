@@ -146,25 +146,19 @@ async function loadProgress(){
   document.getElementById('pgLoadingEl').style.display='block';
   document.getElementById('pgWeightLog').style.display='none';
   document.getElementById('pgNoData').style.display='none';
-  // Pull Supabase (primary — portal logs) and Notion (direct entries) in parallel.
-  // Supabase is processed first so Notion only fills gaps.
+  // Structured daily_body_logs (server-side via /api/my-logs, service key) is the
+  // source of truth; athlete_data fills any local-only gaps. The Notion read was
+  // removed on 2026-07-20 — Supabase alone now backs the progress view.
   var sbEntries={};
-  // Primary source of truth: structured daily_body_logs read server-side via
-  // /api/my-logs (service key). athlete_data + Notion below only fill gaps — keeps
-  // the athlete's progress in sync with what the coach dashboard sees.
   var myLogsPromise=(athlete&&athlete.code)?fetch('/api/my-logs?code='+encodeURIComponent(athlete.code),{headers:authHeaders({})}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null);
   var sbPromise=sbClient?sbClient.from('athlete_data').select('key,value').eq('athlete_code',athlete.code).like('key','daily_body_%').then(function(r){return r;},function(){return null;}):Promise.resolve(null);
-  var nPromise=athlete.notionPageId?api('databases/'+DAILY_BODY_DB+'/query',{filter:{property:'AthleteID',rich_text:{equals:athlete.notionPageId}},sorts:[{property:'Date',direction:'descending'}],page_size:100}).catch(function(){return null;}):Promise.resolve(null);
-  var both=await Promise.all([myLogsPromise,sbPromise,nPromise]);
-  var myRes=both[0],sbRes=both[1],nRes=both[2];
+  var both=await Promise.all([myLogsPromise,sbPromise]);
+  var myRes=both[0],sbRes=both[1];
   try{
     if(myRes&&myRes.body){myRes.body.forEach(function(row){var date=String(row.log_date||'').slice(0,10);if(date&&row.weight!=null&&row.weight!==''&&!sbEntries[date]) sbEntries[date]={date:date,weight:String(row.weight),sleep:row.sleep,energy:row.energy,stress:row.stress,soreness:row.soreness,notes:row.notes};});}
   }catch(e){}
   try{
     if(sbRes&&sbRes.data){sbRes.data.forEach(function(row){var date=row.key.replace('daily_body_','');if(row.value&&row.value.weight&&!sbEntries[date]) sbEntries[date]=row.value;});}
-  }catch(e){}
-  try{
-    if(nRes&&nRes.results){nRes.results.forEach(function(row){var props=row.properties||{};var date=props['Date']&&props['Date'].date&&props['Date'].date.start?props['Date'].date.start.slice(0,10):'';var wt=props['Weight']&&props['Weight'].number!=null?props['Weight'].number:null;if(date&&wt!=null&&!sbEntries[date]){sbEntries[date]={date:date,weight:String(wt)};}});}
   }catch(e){}
   document.getElementById('pgLoadingEl').style.display='none';
   var entries=Object.values(sbEntries).filter(function(e){return e.weight&&!isNaN(parseFloat(e.weight));}).map(function(e){return{date:e.date,weight:parseFloat(e.weight)};}).sort(function(a,b){return b.date.localeCompare(a.date);});

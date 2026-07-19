@@ -7,9 +7,8 @@ function login(){
 }
 // Roster validation — Supabase public.athletes via /api/athletes is the
 // single source of truth. Unknown codes are rejected; paused (active=false)
-// athletes get the paused-access screen. The Notion profile fetch below is a
-// legacy read for existing athletes' profile fields only — new athletes have
-// no Notion row and log in fine with roster data alone.
+// athletes get the paused-access screen. Profile fields come from the roster
+// and the athlete's own athlete_data (goals); there is no Notion read.
 async function validateRosterCode(code){
   try{
     var r=await fetch('/api/athletes?action=validate&code='+encodeURIComponent(code),{cache:'no-store'});
@@ -50,13 +49,11 @@ function buildAthleteProfile(p,code,roster){
     checkinUrl:getRichText(props['Check-in URL'])||'CHECKIN_URL',whatsapp:getRichText(props['WhatsApp'])||''
   };
 }
-// Legacy Notion profile read (optional for roster-validated athletes).
+// Profile is built from the Supabase roster. The legacy Notion profile read was
+// removed on 2026-07-20; goal/profile detail loads separately from athlete_data.
 async function fetchAthleteProfile(code,roster){
-  var data=null;
-  try{data=await api('databases/'+ATHLETE_DB+'/query',{filter:{property:'Code',rich_text:{equals:code}},page_size:5});}catch(e){}
-  var p=(data&&data.results&&data.results.length)?data.results[0]:null;
-  if(!p&&!(roster&&roster.exists)) return null;
-  return buildAthleteProfile(p,code,roster);
+  if(!(roster&&roster.exists)) return null;
+  return buildAthleteProfile(null,code,roster);
 }
 function saveProfileCache(code,profile){try{localStorage.setItem('dp_profile_'+code,JSON.stringify(profile));}catch(e){}}
 async function doLogin(code){
