@@ -198,6 +198,10 @@ function pickEx(exName,chosen){
     if(s){
       var splitKey=GYM_KEYS.find(function(k){return((s.name||'').indexOf(k)>=0);})||'Upper A';
       refreshExerciseStat(i,ei,chosen);
+      // Recompute the overload decision for the chosen variant so the chip, why line,
+      // ladder, tip, SUGGESTED pill and set placeholders all match this exercise's own
+      // history instead of the one it was swapped from.
+      try{repaintOverload(i,ei);}catch(e){}
       try{refreshStrengthFeedback(i,splitKey);}catch(e){}
       try{markInlinePbs(i,splitKey);}catch(e){}
     }

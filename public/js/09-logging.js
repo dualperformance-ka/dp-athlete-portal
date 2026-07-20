@@ -213,9 +213,10 @@ function detectExercisePBs(exName,sets,stored){
   if(firstEver) return hits; // first-ever log seeds history silently
   var loadW=stored.load?pbNum(stored.load.weight):null;
   var minLoad=loadW!=null?loadW*0.6:0;
-  // LOAD
+  // LOAD — a heavier weight is a PB at ANY rep count. Rep cap does NOT apply here:
+  // lifting more than the old best load is unambiguously a load PB even for 13+ reps.
   if(loadW!=null){var best=null;
-    clean.forEach(function(s){if(s.reps>PB_REP_CAP) return;if(s.weight<minLoad&&s.rpe==null) return;if(s.weight>loadW){if(!best||s.weight>best.weight) best=s;}});
+    clean.forEach(function(s){if(s.weight<minLoad&&s.rpe==null) return;if(s.weight>loadW){if(!best||s.weight>best.weight) best=s;}});
     if(best) hits.push({type:'load',badge:'LOAD PB',exercise:exName,set:best.set,value:best.weight,unit:'kg',previous:loadW,delta:'+'+pbRound1(best.weight-loadW)+'kg'});
   }
   // REP
@@ -280,12 +281,26 @@ function markInlinePbs(i,splitKey){
       if(r<=PB_REP_CAP) vol+=w*r; // volume counts every set ≤ cap (no min-load guard, matches stored)
       if(!hasHistory) return;
       if(w<minLoad&&rpe==null) return; // below 60% of stored load (and no RPE logged) → ineligible
-      if(loadW!=null&&r<=PB_REP_CAP&&w>loadW){if(!bestLoad||w>bestLoad.w) bestLoad={row:row,w:w};}
+      if(loadW!=null&&w>loadW){if(!bestLoad||w>bestLoad.w) bestLoad={row:row,w:w};}
       if(rW!=null&&r<=PB_REP_CAP&&w>=rW&&r>rR){if(!bestRep||r>bestRep.r) bestRep={row:row,r:r};}
       if(stored.e1rm&&r<=10){var e=pbE1rm(w,r);if(e!=null&&e>stored.e1rm.value){if(!bestE||e>bestE.e) bestE={row:row,e:e};}}
     });
     var volEl=document.getElementById('vol_'+i+'_'+ei);
     if(volEl){var isVolPB=hasHistory&&stored.volume&&vol>stored.volume.value;volEl.className='ex-stat ex-stat-vol'+(isVolPB?' pb':'');volEl.innerHTML=(isVolPB?'<svg class="icon"><use href="#i-trophy"/></svg> ':'')+'Vol '+Math.round(vol).toLocaleString()+'kg';if(isVolPB) total++;}
+    // Live header PB / e1RM: when a heavier set (or stronger e1RM) is entered, the
+    // header record updates instantly so the athlete SEES the new PB. Falls back to
+    // the stored value the moment the entry drops below it again.
+    var _trophy='<svg class="icon"><use href="#i-trophy"/></svg> ';
+    var pbHeadEl=document.querySelector('#exstat_'+i+'_'+ei+' .ex-stat-pb');
+    if(pbHeadEl&&loadW!=null){
+      if(bestLoad){pbHeadEl.innerHTML=_trophy+'PB '+pbRound1(bestLoad.w)+'kg';pbHeadEl.classList.add('is-live-pb');}
+      else{pbHeadEl.innerHTML=_trophy+'PB '+pbRound1(loadW)+'kg';pbHeadEl.classList.remove('is-live-pb');}
+    }
+    var e1HeadEl=document.querySelector('#exstat_'+i+'_'+ei+' .ex-stat-e1rm');
+    if(e1HeadEl&&stored.e1rm){
+      if(bestE){e1HeadEl.innerHTML='e1RM '+pbRound1(bestE.e)+'kg';e1HeadEl.classList.add('is-live-pb');}
+      else{e1HeadEl.innerHTML='e1RM '+pbRound1(stored.e1rm.value)+'kg';e1HeadEl.classList.remove('is-live-pb');}
+    }
     var plateEl=document.getElementById('plate_'+i+'_'+ei);
     if(plateEl&&maxW>0) plateEl.innerHTML=platesHtml(maxW);
     var rowsToMark=[];

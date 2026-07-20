@@ -909,7 +909,10 @@ function getProgressionFeedback(ex,prevEffort,currentEffort){
   var prevTotal=prevWorking.reduce(function(a,s){return a+_effReps(s);},0);
   var allAtTop=currentWorking.length&&currentWorking.every(function(s){return _effReps(s)>=topRep;});
   if(allAtTop) return{tone:'ok',text:'Increase load next time'};
-  if(prevLoad!=null&&currentLoad!=null&&currentLoad>prevLoad&&currentTotal>0) return{tone:'ok',text:'Load PB'};
+  // Athlete jumped ABOVE last session's load. Recognise the load PB AND tell them how
+  // to adjust: at a heavier weight, the job is now to build reps back up to the top of
+  // the range before the next bump (double progression).
+  if(prevLoad!=null&&currentLoad!=null&&currentLoad>prevLoad&&currentTotal>0) return{tone:'ok',text:'Weight up · build to '+topRep+' reps'};
   if(prevWorking.length){
     if(currentLoad===prevLoad&&currentTotal>prevTotal) return{tone:'ok',text:'Rep PB +'+(currentTotal-prevTotal)};
     if(currentLoad===prevLoad&&currentTotal===prevTotal) return{tone:'dim',text:'Matched last effort'};
@@ -988,6 +991,55 @@ function computeOverload(ex,prevEffort,resolvedName,history){
   r.ladder=_ovLadder([['Own reps','active'],['Add load','upcoming'],['New base','upcoming']]);
   r.tip=_ovTip('Same weight today. Squeeze one more rep per set. Hit '+top+' on every set to earn a load bump.');
   return r;
+}
+// Single source of truth for the SUGGESTED pill so it can never contradict the chip.
+// Derives the number straight from the overload engine's decision:
+//   progress_load -> show the bumped weight   ("SUGGESTED: Xkg")
+//   stalled       -> show the deload target   ("RESET TO: Xkg")
+//   hold          -> hide it: same weight, add a rep. A separate "+2.5%" number here
+//                    only confused athletes ("add a rep" vs "go up to 26kg").
+function ovSuggested(_ov){
+  var m=String(_ov&&_ov.chipText||'').match(/([\d.]+)\s*kg/i);
+  if(!m) return {show:false,text:''};
+  var kg=parseFloat(m[1]);
+  if(_ov.chipCls==='go') return {show:true,text:'SUGGESTED: '+kg+'kg'};
+  if(_ov.chipCls==='warn') return {show:true,text:'RESET TO: '+kg+'kg'};
+  return {show:false,text:''};
+}
+// Repaint every overload-driven element for one exercise slot from the CURRENTLY
+// chosen variant's own history: chip, why line, ladder, tip, SUGGESTED pill and the
+// set-input placeholders. Called after a variant swap so nothing is left showing the
+// previous exercise's numbers.
+function repaintOverload(i,ei){
+  var s=sessions[i];if(!s) return;
+  var splitKey=GYM_KEYS.find(function(k){return((s.name||'').indexOf(k)>=0);})||'Upper A';
+  var ex=getSplit(splitKey)[ei];if(!ex) return;
+  var resolvedEx=exPicks[ex.exercise]||ex.exercise;
+  var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
+  var _ov=computeOverload(ex,prevEffort,resolvedEx,getExerciseHistory(s.id,resolvedEx));
+  var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
+  if(!card) return;
+  card.classList.remove('exc-go');
+  if(String(_ov.stateCls||'').trim()) card.classList.add(String(_ov.stateCls).trim());
+  var chip=card.querySelector('.exc-chip');
+  if(chip){chip.className='exc-chip '+_ov.chipCls;chip.innerHTML=(_ov.arrow?'<span class="exc-ar">'+_ov.arrow+'</span> ':'')+esc(_ov.chipText);}
+  var why=card.querySelector('.exc-why');
+  if(why){why.className='exc-why '+_ov.whyCls;why.textContent=_ov.why;}
+  var oldLadder=card.querySelector('.exc-ladder');
+  if(_ov.ladder){if(oldLadder) oldLadder.outerHTML=_ov.ladder;else{var b=card.querySelector('.exc-body');if(b) b.insertAdjacentHTML('afterbegin',_ov.ladder);}}
+  else if(oldLadder){oldLadder.remove();}
+  var oldTip=card.querySelector('.exc-tip');
+  if(oldTip&&_ov.tip) oldTip.outerHTML=_ov.tip;
+  var sugEl=document.getElementById('sug_'+i+'_'+ei);var sg=ovSuggested(_ov);
+  if(sugEl){sugEl.style.display=sg.show?'inline-block':'none';sugEl.textContent=sg.text;}
+  var nSets=parseInt(ex.sets)||2;
+  for(var si=0;si<nSets;si++){
+    var ps=prevEffort&&prevEffort[si]?prevEffort[si]:null;
+    var wEl=document.getElementById('w_'+i+'_'+ei+'_'+si);if(wEl) wEl.placeholder=(ps&&ps.weight)?ps.weight:'—';
+    var rEl=document.getElementById('r_'+i+'_'+ei+'_'+si);if(rEl) rEl.placeholder=(ps&&ps.reps)?ps.reps:'—';
+    var rLEl=document.getElementById('rL_'+i+'_'+ei+'_'+si);if(rLEl) rLEl.placeholder=(ps&&ps.repsLeft)?ps.repsLeft:'L';
+    var rREl=document.getElementById('rR_'+i+'_'+ei+'_'+si);if(rREl) rREl.placeholder=(ps&&ps.repsRight)?ps.repsRight:'R';
+  }
 }
 function _ovLadder(steps){var h='<div class="exc-ladder">';steps.forEach(function(s){h+='<div class="exc-rung '+s[1]+'">'+(s[1].indexOf('done')>-1?'<span class="exc-rk">✓</span>':'')+'<span class="exc-rt">'+s[0]+'</span></div>';});return h+'</div>';}
 function _ovTip(t){return '<div class="exc-tip"><span class="exc-tip-i">☀</span><span>'+t+'</span></div>';}
@@ -1248,7 +1300,8 @@ function buildBody(s,i,type){
         h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center">';
         if(prevEffort){var prevStr=formatSetSummary(prevEffort);h+='<div id="prev_'+i+'_'+ei+'" class="prev-effort has-last">LAST: '+esc(prevStr)+'</div>';}
         else{h+='<div id="prev_'+i+'_'+ei+'" class="prev-effort">TARGET: '+esc(ex.repRange||ex.reps)+'</div>';}
-        if(prevEffort){var prevLoads=prevEffort.map(function(p){return parseFloat(p.weight);}).filter(function(n){return !isNaN(n)&&n>0;});if(prevLoads.length){var suggested=Math.round((Math.max.apply(null,prevLoads)*1.025)*2)/2;h+='<div class="suggested-load">SUGGESTED: '+suggested+'kg</div>';}}
+        var _sg=ovSuggested(_ov);
+        h+='<div id="sug_'+i+'_'+ei+'" class="suggested-load" style="display:'+(_sg.show?'inline-block':'none')+'">'+esc(_sg.text)+'</div>';
         h+='<div id="curr_'+i+'_'+ei+'" class="today-effort"></div>';
         h+='<div id="prog_'+i+'_'+ei+'" style="font-family:var(--mono);font-size:9px;color:var(--dim);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 8px;display:inline-block">'+esc(ex.repRange?'Target '+ex.repRange:'Build this session')+'</div>';
         h+='</div></div>';
