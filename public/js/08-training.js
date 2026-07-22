@@ -144,7 +144,14 @@ function renderCal(ws){
       html+='</div>';
     }
   }
-  var el=document.getElementById('calEl');if(el){el.innerHTML=html;el.style.display='block';}
+  // #calEl (Today's-Plan week list) and #weeklyCalEl (Weekly Plan) render the
+  // same markup, which duplicates every sc_i/scb_i/tick_i id. On desktop BOTH
+  // are in the DOM at once, so getElementById would resolve weekly clicks to the
+  // hidden Today-side copy and nothing opens/logs. Desktop uses #weeklyCalEl for
+  // the week and #todayEl for today, so leave #calEl empty there to keep ids
+  // unique. Mobile is untouched: it uses #calEl and never shows #weeklyCalEl.
+  var _isDesktopWk = window.matchMedia && window.matchMedia('(min-width:900px)').matches;
+  var el=document.getElementById('calEl');if(el){el.innerHTML=_isDesktopWk?'':html;el.style.display='block';}
   var wel=document.getElementById('weeklyCalEl');if(wel){wel.innerHTML=html;wel.style.display='block';}
   if(typeof applyTrainingView==='function')applyTrainingView();
 }
