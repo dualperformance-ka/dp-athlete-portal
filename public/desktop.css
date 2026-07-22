@@ -1,0 +1,309 @@
+/* =========================================================================
+   desktop.css — single authoritative desktop layer for the DP Athlete Portal
+   -------------------------------------------------------------------------
+   Loaded AFTER styles.css so it is the last word on desktop layout. Every
+   rule lives inside @media(min-width:900px) (or a wider tier), so nothing
+   here can affect mobile or the 761-899 tablet bridge. This file supersedes
+   the older scattered min-width:900px blocks in styles.css; once verified,
+   those can be deleted safely (they only ever affected >=900px too).
+
+   Design intent: a premium desktop "command centre" — persistent left rail
+   as the complete nav, a compact operational hero, a two-pane Today
+   workspace, a real weekly board, and centred desktop session/overlay work.
+   Dark premium language + baby-blue (--run) accent preserved throughout.
+   ========================================================================= */
+
+/* New desktop-rail-only elements: hidden everywhere by default (so the
+   tablet 761-899 horizontal tab bar and mobile are unaffected), revealed
+   only inside the desktop rail below. */
+.rail-only,.rail-group-label{display:none}
+
+@media (min-width:900px){
+
+  :root{
+    --railw:248px;
+    --content-max:1320px;
+    --shellpad:max(28px,calc((100vw - var(--railw) - var(--content-max))/2));
+    --dgap:22px;
+    --r-card:16px;
+    --r-sm:12px;
+    --r-lg:18px;
+  }
+
+  /* ===================================================================== */
+  /* 1 · LEFT RAIL — the complete desktop navigation                       */
+  /* ===================================================================== */
+  .tabs{
+    width:var(--railw);
+    padding:118px 14px 16px;
+    gap:3px;
+    border-right:1px solid var(--border);
+    overflow-x:hidden;
+  }
+  .tab{
+    min-height:44px;padding:11px 14px;border-radius:12px;
+    font-size:13px;line-height:1.2;letter-spacing:0;text-transform:none;
+    transition:background .15s ease,color .15s ease,box-shadow .15s ease;
+  }
+  .tabs .tab::before{width:18px;height:18px;flex-basis:18px;margin-right:11px}
+  .tab:hover{background:rgba(146,210,237,.06)}
+  .tab.active{box-shadow:inset 3px 0 0 var(--run),inset 0 0 0 1px rgba(146,210,237,.15)}
+  .tab:focus-visible{outline:2px solid var(--run);outline-offset:-2px}
+
+  /* Group labels + secondary nav items live only in the desktop rail. */
+  .rail-only{display:flex}
+  .rail-group-label{
+    display:block;margin:14px 6px 5px;font-family:var(--mono);
+    font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+  }
+  .rail-group-label:first-of-type{margin-top:2px}
+  /* Secondary rail tabs have no icon glyph; keep the icon slot as invisible
+     spacing so their labels line up with the primary (icon'd) tabs. */
+  .tab.rail-only::before{visibility:hidden}
+
+  /* Rail footer utilities (kept compact; primary utilities remain in the
+     header toolbar — this is a secondary, always-reachable copy). */
+  .rail-spacer{flex:1 1 auto;min-height:12px}
+
+  /* Quick logging docked into the rail foot instead of floating over content. */
+  .quicklog-strip{
+    left:0;right:auto;bottom:0;width:var(--railw);
+    transform:none;border-radius:0;border:0;border-top:1px solid var(--border);
+    border-right:1px solid var(--border);
+    grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px;
+    background:linear-gradient(180deg,rgba(8,19,26,.9),rgba(4,10,14,.95));
+    backdrop-filter:blur(18px);box-shadow:none;z-index:141;
+  }
+
+  /* ===================================================================== */
+  /* 2 · HEADER — compact contextual toolbar (not a second nav)            */
+  /* ===================================================================== */
+  header{
+    height:60px;padding:0 var(--shellpad);justify-content:space-between;
+    background:rgba(6,16,22,.78);border-bottom:1px solid var(--border);
+    backdrop-filter:blur(24px) saturate(135%);
+  }
+  header .logo{display:none}
+  .portal-context{display:flex;flex-direction:column;justify-content:center}
+  .portal-context-kicker{font-size:9px}
+  .portal-context strong{font-size:15px}
+  .header-actions{gap:8px;align-items:center}
+  .header-actions .hicon{min-height:34px;padding:7px 12px;font-size:12px}
+  .save-state-pill{min-height:30px;padding:5px 10px;background:rgba(255,255,255,.03)}
+  /* Goals / Guide / Contact now live in the rail — drop them from the header. */
+  .header-actions #goalsBtn,
+  .header-actions .hicon-desktop{display:none}
+
+  /* ===================================================================== */
+  /* 3 · COMPACT COMMAND HERO  (~210px, operational not landing-page)      */
+  /* ===================================================================== */
+  .top-shell{margin-left:var(--railw);padding:22px var(--shellpad) 16px;background:transparent;border-bottom:0}
+  .top-shell>.hero{margin:0 auto;padding:0;max-width:var(--content-max);background:transparent}
+
+  .hero-shell{
+    grid-template-columns:minmax(0,1fr) minmax(300px,340px);
+    gap:16px;align-items:stretch;
+  }
+  .hero-main,.hero-side{min-height:0;padding:18px 22px;border-radius:var(--r-lg)}
+  .hero-main{display:flex;flex-direction:column;justify-content:center;gap:11px}
+  .hero-main::before{left:22px;right:22px}
+  .hi{display:none}
+  .hero-name-row{align-items:center;margin:0;gap:14px}
+  .hn{font-size:clamp(30px,3vw,40px);line-height:.95;max-width:none;letter-spacing:-.03em}
+  .hero-week{min-width:92px;padding:9px 13px;text-align:left;border-radius:12px;background:rgba(255,255,255,.04)}
+  .hero-week-label{font-size:8px}
+  .hero-week-num{font-size:22px;margin-top:1px}
+  .hero-support{
+    max-width:none;font-size:12.5px;line-height:1.4;color:var(--muted);
+    display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;margin:0;
+  }
+  .hero-bottom{display:block;margin:0}
+  .hpills{margin-bottom:9px}
+  .hero-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .hero-stat{padding:10px 12px;min-height:0;background:rgba(255,255,255,.035);border-radius:12px}
+  .hero-stat-label{min-height:0;font-size:8px;letter-spacing:.07em;margin-bottom:5px}
+  .hero-stat-value{font-size:20px}
+  .hero-stat-note{margin-top:4px;font-size:8px;line-height:1.2}
+  .hero-readiness-wrap{flex-direction:row;align-items:center;gap:8px}
+  .hero-readiness-ring{width:38px;height:38px;flex:0 0 38px}
+  .hero-readiness-ring .hero-stat-value{font-size:13px}
+
+  /* Weekly output condensed into two slim rows inside the side card. */
+  .hero-side{padding:16px 18px}
+  .hero-side-label{margin-bottom:12px;font-size:9px}
+  .week-rings{grid-template-columns:1fr;gap:9px}
+  .ring-item{min-height:0;padding:11px 13px;border-radius:13px;background:rgba(255,255,255,.03)}
+  .ring-wrap,.ring-svg{width:48px;height:48px}
+  .ring-val{font-size:18px}
+  .ring-sub{font-size:10px}
+
+  /* Nudges: compact auto-fit row under the hero. */
+  .top-shell-priority{
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;
+    max-width:var(--content-max);margin:12px auto 0;
+  }
+  .top-shell-priority .nudge-strip{padding:13px 15px;border-radius:14px;min-width:0}
+
+  /* ===================================================================== */
+  /* 4 · TODAY'S PLAN — two-pane desktop workspace (main 8 / rail 4)       */
+  /*     Placed via explicit grid cells over the existing flat DOM so the  */
+  /*     mobile order is never reordered.                                  */
+  /* ===================================================================== */
+  .tab-content{padding:26px var(--shellpad) 130px}
+  .tab-content.active>*{max-width:var(--content-max);margin-left:auto;margin-right:auto}
+  #tab-training.active,#tab-weekly.active{max-width:none}
+  #tab-training .todaywrap{max-width:var(--content-max);margin:0 auto;position:static;max-height:none;overflow:visible}
+
+  #tab-training .todaypanel{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(300px,360px);
+    grid-template-rows:auto auto 1fr;
+    column-gap:24px;row-gap:16px;align-items:start;
+    padding:24px;border-radius:var(--r-card);filter:none;
+  }
+  #tab-training .todayeyebrow{grid-column:1;grid-row:1;margin:0;font-size:10px}
+  #tab-training .todayhead{grid-column:1;grid-row:2;margin:0}
+  #tab-training .todaylist{grid-column:1;grid-row:3;gap:12px}
+  #tab-training .coach-moment{grid-column:2;grid-row:1;padding:16px;margin:0;border-radius:var(--r-sm);background:rgba(146,210,237,.05);border:1px solid var(--border)}
+  #tab-training .insight-rail{grid-column:2;grid-row:2;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
+  #tab-training .command-status-grid{grid-column:2;grid-row:3;grid-template-columns:1fr;gap:10px;margin:0;align-self:start}
+  #tab-training .command-status.next-session{grid-column:auto}
+  #tab-training .command-status{min-height:0;padding:14px}
+
+  .todaytitle{font-size:30px;line-height:1.02;max-width:20ch}
+  .today-subtitle{font-size:14px;max-width:52ch}
+  .insight-card{min-height:0;padding:13px}
+
+  /* Session rows: balanced, scannable, obvious primary action. */
+  #tab-training .todayitem{padding:16px 18px;border-radius:var(--r-sm)}
+  #tab-training .todaytop{display:flex;align-items:flex-start;gap:14px}
+  #tab-training .today-action.primary{width:auto!important;min-width:190px;align-self:flex-start}
+
+  /* Empty / rest state shouldn't stretch the whole grid. */
+  #tab-training .todayempty{grid-column:1/-1}
+
+  /* ===================================================================== */
+  /* 5 · WEEKLY PLAN — desktop planning workspace                          */
+  /*     900-1179: comfortable two-column agenda                          */
+  /*     1180+   : seven-day week board                                    */
+  /* ===================================================================== */
+  #tab-weekly>#weeklyCalEl{max-width:var(--content-max);margin:0 auto}
+  #tab-weekly .dg{
+    border:1px solid var(--border);border-radius:var(--r-card);
+    padding:14px 16px;margin:0;background:var(--surface);
+  }
+  #tab-weekly .dgh.today{box-shadow:inset 3px 0 0 var(--run)}
+  #tab-weekly .dgname{font-size:15px}
+  /* Keep heavy logging forms out of the day columns — open work in the
+     focus overlay (existing behaviour) rather than expanding inline. */
+
+  #weeklyCalEl{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px;align-items:start;
+  }
+
+  /* ===================================================================== */
+  /* 6 · DESKTOP SESSION OVERLAY + no floating controls                    */
+  /* ===================================================================== */
+  .wa-fab{display:none!important}   /* Contact lives in the rail on desktop */
+
+  .focus-overlay{
+    inset:0;flex-direction:column;align-items:center;justify-content:center;
+    padding:32px;background:rgba(3,9,13,.64);backdrop-filter:blur(8px) saturate(120%);
+  }
+  .focus-overlay-bar,
+  .focus-overlay-scroll,
+  .focus-overlay-foot{width:min(1120px,100%);margin:0 auto;background:var(--surface)}
+  .focus-overlay-bar{
+    border:1px solid var(--border);border-bottom:0;border-radius:var(--r-card) var(--r-card) 0 0;
+    padding:16px 22px;position:sticky;top:0;
+  }
+  .focus-overlay-scroll{
+    border-left:1px solid var(--border);border-right:1px solid var(--border);
+    max-height:calc(100vh - 250px);padding:22px 24px;
+  }
+  .focus-overlay-foot{
+    border:1px solid var(--border);border-top:0;border-radius:0 0 var(--r-card) var(--r-card);
+    padding:14px 24px;
+  }
+  .focus-overlay-title strong{font-size:20px}
+  .focus-overlay-bar .focus-overlay-close:focus-visible,
+  .focus-overlay-foot button:focus-visible{outline:2px solid var(--run);outline-offset:2px}
+
+  /* ===================================================================== */
+  /* 7 · SECONDARY PAGES                                                    */
+  /* ===================================================================== */
+
+  /* Progress — named regions: trend + headline metrics get priority. */
+  #tab-progress.active{max-width:none}
+  #tab-progress>*{max-width:1160px;margin-left:auto;margin-right:auto}
+  #tab-progress>.progress-stats{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+  #tab-progress .progress-photos,
+  #tab-progress .progress-entries{border-radius:var(--r-card)}
+
+  /* Nutrition — macros in one row; content in balanced columns. */
+  #tab-nutrition.active{max-width:none}
+  #tab-nutrition>*{max-width:1160px;margin-left:auto;margin-right:auto}
+  .macro-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+  #nutContent{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 26px;align-items:start}
+  #nutContent>.macro-grid,#nutContent>.cnote{grid-column:1/-1}
+  #nutContent p,#nutContent li{max-width:66ch}
+
+  /* Goals — structured two-column form, readable inputs, sticky save. */
+  #tab-goals.active{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 28px;
+    align-items:start;max-width:1120px;
+  }
+  #tab-goals>.stitle,#tab-goals>.goals-hero,#tab-goals>.goals-overview{grid-column:1/-1}
+  #tab-goals input[type=text],#tab-goals input[type=number],#tab-goals textarea,#tab-goals select{max-width:640px}
+  #tab-goals>.savebtn{
+    grid-column:1/-1;position:sticky;bottom:18px;z-index:5;
+    width:auto;min-width:220px;justify-self:end;box-shadow:0 12px 30px rgba(0,0,0,.35);
+  }
+
+  /* Check-in — keep the strong sticky-rail + wizard; refine widths only. */
+  #tab-checkin.active{grid-template-columns:minmax(300px,340px) minmax(0,1fr);max-width:1160px;gap:30px}
+  #tab-checkin .ci-main{max-width:680px}
+  #tab-checkin .ci-field input,#tab-checkin .ci-field textarea{max-width:100%}
+
+  /* Guide + Contact — card grids, no oversized empty canvas. */
+  #tab-handbook.active,#tab-comms.active{max-width:none}
+  #tab-handbook>*{max-width:1160px;margin-left:auto;margin-right:auto}
+  #tab-comms>*{max-width:900px;margin-left:auto;margin-right:auto}
+  .hb-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+  /* ===================================================================== */
+  /* 8 · VISUAL SYSTEM — density, radii, hover/focus, consistent corners   */
+  /* ===================================================================== */
+  .tab-content{--card-radius:var(--r-card)}
+  a:focus-visible,button:focus-visible,
+  input:focus-visible,select:focus-visible,textarea:focus-visible,
+  [tabindex]:focus-visible,[role=button]:focus-visible{
+    outline:2px solid var(--run);outline-offset:2px;border-radius:6px;
+  }
+  .hicon:hover,.today-action:hover,.savebtn:hover{filter:brightness(1.06)}
+  .todayitem,.insight-card,.command-status,.nudge-strip,.dg{transition:border-color .15s ease,transform .15s ease}
+}
+
+/* ---------- 5b · Seven-day week board at wide desktop ---------------- */
+@media (min-width:1180px){
+  #weeklyCalEl{grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+  #tab-weekly .dg{padding:12px 12px 14px}
+  #tab-weekly .dgname{font-size:13px}
+  #tab-weekly .dgdate{font-size:10px}
+  /* Session chips inside a day column stay compact; deep logging opens in
+     the focus overlay rather than expanding the narrow column. */
+  #tab-weekly .dg .sc{font-size:12px}
+}
+
+/* ---------- 9 · Reduced motion (desktop scope) ----------------------- */
+@media (min-width:900px) and (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
+
+/* ---------- 9b · Restrained desktop login (lower priority) ----------- */
+@media (min-width:1100px){
+  #loginScreen .login-col{
+    left:50%;transform:translate(-50%,-50%);
+  }
+}

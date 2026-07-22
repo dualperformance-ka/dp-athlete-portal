@@ -13,6 +13,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
 <link rel="stylesheet" href="/styles.css?v=68">
+<link rel="stylesheet" href="/desktop.css?v=1">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
@@ -309,11 +310,16 @@
   </div>
 
   <div class="tabs" role="tablist" aria-label="Portal sections">
+    <div class="rail-group-label rail-only">Sections</div>
     <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="training" onclick="switchTab('training')">Today's Plan</button>
     <button class="tab desktop-weekly-tab" type="button" role="tab" aria-selected="false" data-tab="weekly" onclick="switchTab('weekly')">Weekly Plan</button>
     <button class="tab" type="button" role="tab" aria-selected="false" data-tab="nutrition" onclick="switchTab('nutrition')">Nutrition</button>
     <button class="tab" type="button" role="tab" aria-selected="false" data-tab="checkin" onclick="switchTab('checkin')">Weekly Check-in<span class="tab-dot" id="tabDotCheckin"></span></button>
     <button class="tab" type="button" role="tab" aria-selected="false" data-tab="progress" onclick="switchTab('progress')">Progress<span class="tab-dot" id="tabDotProgress"></span></button>
+    <div class="rail-group-label rail-only">More</div>
+    <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="goals" onclick="switchTab('goals')">Goals<span class="tab-dot" id="tabDotGoalsRail" style="display:none"></span></button>
+    <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="handbook" onclick="switchTab('handbook')">Athlete Guide</button>
+    <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="comms" onclick="switchTab('comms')">Contact Coaches</button>
   </div>
 
   <!-- TRAINING -->
