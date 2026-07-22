@@ -105,6 +105,17 @@
   .tsingle{font-size:13px;color:var(--text);background:#0b1420;border:1px solid var(--border2);border-radius:8px;padding:10px 12px}
   .next-reason{margin-top:11px;display:flex;gap:8px;font-size:11.5px;color:var(--muted);line-height:1.5}
   .next-reason .ri{color:var(--yellow);flex-shrink:0;margin-top:1px}
+  .ns-mile{display:flex;align-items:center;margin-top:12px}
+  .ns-mnode{display:flex;flex-direction:column;align-items:center;gap:3px;opacity:.4;flex-shrink:0;transition:opacity .2s}
+  .ns-mnode .ns-me{font-size:14px;line-height:1;filter:grayscale(1)}
+  .ns-mnode .ns-ml{font-size:8px;letter-spacing:.02em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+  .ns-mnode.on{opacity:1}
+  .ns-mnode.on .ns-me{filter:none}
+  .ns-mnode.on .ns-ml{color:var(--muted)}
+  .ns-mnode.cur .ns-ml{color:var(--text);font-weight:700}
+  .ns-mnode.cur{transform:scale(1.06)}
+  .ns-mbar{flex:1;height:2px;background:var(--border2);margin:0 4px 11px;border-radius:2px;transition:background .2s}
+  .ns-mbar.on{background:var(--babyblue)}
 
   .sub{margin-top:13px}
   .sub-hd{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
@@ -244,8 +255,8 @@ function computeNextSession(pres,effort,opts){
     }
     var next=roundHalf(load+step);if(next<=load) next=load+step;
     return {tone:'green',status:'Ready to Increase',action:'Increase to '+fmt(next),short:'Increase to '+fmt(next),weightKg:next,arrow:'↗',
-      target:filled(wantSets,range.low),targetNote:null,
-      reason:exceeded?'You exceeded your prescribed rep range last workout. Time to add load.':'You reached the top of your prescribed rep range on every set.'};
+      target:filled(wantSets,range.low),targetNote:null,milestone:mileStage(reps,range.top,wantSets),
+      reason:exceeded?'Progression unlocked. You blew past the range, so the load climbs to '+fmt(next)+' next session.':'Progression unlocked. You earned the jump to '+fmt(next)+' next session.'};
   }
   if(opts.stalled&&load!=null){
     var deload=roundHalf(load*0.9);
@@ -269,10 +280,24 @@ function computeNextSession(pres,effort,opts){
   }
   var lastTotal=reps.reduce(function(a,b){return a+b;},0);
   return {tone:'yellow',status:'Beat Last Week',action:'Stay at '+fmt(load),short:'Stay at '+fmt(load),weightKg:load,arrow:'→',
-    target:tgt,targetNote:null,
+    target:tgt,targetNote:null,milestone:mileStage(reps,range.top,wantSets),
     reason:'Add one rep before the weight goes up. Beat '+lastTotal+' total reps to keep climbing toward '+range.top+'.'};
 }
 function filled(n,v){var a=[];for(var i=0;i<n;i++)a.push(v);return a;}
+function mileStage(reps,top,wantSets){
+  var topped=reps.filter(function(v){return v>=top;}).length, has=reps.length>0, s;
+  if(!has) s=0; else if(topped>=wantSets) s=4; else if(topped===wantSets-1) s=2; else s=1;
+  return {stage:s};
+}
+function mileHTML(m){
+  if(!m||m.stage<=0) return '';
+  var nodes=[['🟡','One more rep'],['🟡','One more set'],['🟢','Unlocked'],['🚀','Increase next']];
+  var h='<div class="ns-mile">';
+  nodes.forEach(function(n,ix){var on=ix<m.stage,cur=ix===m.stage-1;
+    h+='<div class="ns-mnode'+(on?' on':'')+(cur?' cur':'')+'"><span class="ns-me">'+n[0]+'</span><span class="ns-ml">'+n[1]+'</span></div>';
+    if(ix<nodes.length-1) h+='<span class="ns-mbar'+(ix<m.stage-1?' on':'')+'"></span>';});
+  return h+'</div>';
+}
 function fmt(kg){if(kg==null)return '--';var n=Math.round(kg*100)/100;return (Number.isInteger(n)?String(n):n.toFixed(1))+'kg';}
 function fmtBare(kg){if(kg==null)return '--';var n=Math.round(kg*100)/100;return Number.isInteger(n)?String(n):n.toFixed(1);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -326,8 +351,10 @@ function renderExercise(mount,model){
     } else if(rec.targetNote){
       targetHTML='<div class="next-target"><div class="tlabel">Target</div><div class="tsingle">'+esc(rec.targetNote)+'</div></div>';
     }
-    var reasonHTML=rec.reason?'<div class="next-reason"><span class="ri">☀</span><span>'+esc(rec.reason)+'</span></div>':'';
-    var next='<div class="next"><div class="next-hd">📈 Next Session</div><div class="next-action">'+esc(rec.action)+'</div>'+targetHTML+reasonHTML+'</div>';
+    var mileHtml=rec.milestone?mileHTML(rec.milestone):'';
+    var ri=(rec.milestone&&rec.milestone.stage>=4)?'🚀':(rec.tone==='red'?'⚠':'☀');
+    var reasonHTML=rec.reason?'<div class="next-reason"><span class="ri">'+ri+'</span><span>'+esc(rec.reason)+'</span></div>':'';
+    var next='<div class="next"><div class="next-hd">📈 Next Session</div><div class="next-action">'+esc(rec.action)+'</div>'+targetHTML+mileHtml+reasonHTML+'</div>';
 
     var prevRows=(model.previous||[]).filter(hasData).map(function(s,ix){
       var top=parseRange(pres.repRange).top;var r=effReps(s);var hit=(r!=null&&r>=top);

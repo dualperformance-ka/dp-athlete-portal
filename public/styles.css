@@ -4430,3 +4430,47 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .ns-tnote{font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border-mid,rgba(255,255,255,.16));border-radius:8px;padding:10px 12px}
 .ns-reason{margin-top:11px;display:flex;gap:8px;font-size:11.5px;color:var(--muted);line-height:1.5}
 .ns-reason .ns-ri{color:var(--nsy);flex-shrink:0;margin-top:1px}
+
+/* Live progression milestone ladder (v58) */
+.ns-mile{display:flex;align-items:center;margin-top:12px}
+.ns-mnode{display:flex;flex-direction:column;align-items:center;gap:3px;opacity:.4;flex-shrink:0;transition:opacity .2s}
+.ns-mnode .ns-me{font-size:14px;line-height:1;filter:grayscale(1)}
+.ns-mnode .ns-ml{font-size:8px;letter-spacing:.02em;text-transform:uppercase;color:var(--dim);text-align:center;white-space:nowrap}
+.ns-mnode.on{opacity:1}
+.ns-mnode.on .ns-me{filter:none}
+.ns-mnode.on .ns-ml{color:var(--muted)}
+.ns-mnode.cur .ns-ml{color:var(--text);font-weight:700}
+.ns-mnode.cur{transform:scale(1.06)}
+.ns-mbar{flex:1;height:2px;background:var(--border-mid,rgba(255,255,255,.16));margin:0 4px;margin-bottom:11px;border-radius:2px;transition:background .2s}
+.ns-mbar.on{background:var(--run,#92d2ed)}
+
+/* ===================================================================== */
+/* Compact mobile home — Option B: two daily sessions as slim full-width  */
+/* rows (icon dot + title + one-line summary + Open), instead of tall     */
+/* detail cards. Keeps a 2-session day short; 1 session spans full width. */
+/* ===================================================================== */
+@media(max-width:760px){
+  body.mobile-portal-home #todayEl .todaylist{display:flex;flex-direction:column;gap:7px;margin-top:0}
+  body.mobile-portal-home #todayEl .todayitem{padding:11px 12px;border-radius:13px}
+  body.mobile-portal-home #todayEl .todaytop{display:flex;align-items:center;gap:10px}
+  body.mobile-portal-home #todayEl .todaydot{width:9px;height:9px;flex-shrink:0;margin:0}
+  body.mobile-portal-home #todayEl .todaymain{
+    flex:1;min-width:0;display:grid;grid-template-columns:1fr auto;
+    grid-template-areas:'name btn' 'meta btn';align-items:center;column-gap:10px;row-gap:2px;
+  }
+  body.mobile-portal-home #todayEl .todayname{
+    grid-area:name;font-size:16px;line-height:1.05;margin:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  body.mobile-portal-home #todayEl .todaymeta{
+    grid-area:meta;margin-top:0;font-size:9px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  /* The rich brief (target, why, chips) lives one tap away, inside the session. */
+  body.mobile-portal-home #todayEl .todaytarget{display:none!important}
+  body.mobile-portal-home #todayEl .today-action{
+    grid-area:btn;width:auto!important;margin:0!important;
+    min-height:34px;padding:8px 12px;font-size:11px;white-space:nowrap;border-radius:10px;
+  }
+  body.mobile-portal-home #todayEl .today-action .icon{width:12px;height:12px}
+}

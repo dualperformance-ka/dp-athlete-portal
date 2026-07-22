@@ -988,13 +988,13 @@ function computeOverload(ex,effort,resolvedName,history){
   if(maxLoad!=null&&allTop){
     if(step===0){ // bodyweight: push reps past the range instead of adding load
       return {tone:'green',status:'Ready to Increase',action:'Add reps beyond '+top,weightKg:maxLoad,arrow:'↗',
-        target:_nsFilled(wantSets,top+1),targetNote:null,
-        reason:exceeded?'You went past the top of your rep range.':'You reached the top of your rep range on every set.'};
+        target:_nsFilled(wantSets,top+1),targetNote:null,milestone:_nsMilestone(reps,top,wantSets),
+        reason:'Progression unlocked. Push reps past '+top+' next session.'};
     }
     var next=Math.round((maxLoad+step)*2)/2; if(next<=maxLoad) next=maxLoad+step;
     return {tone:'green',status:'Ready to Increase',action:'Increase to '+_nsKg(next),weightKg:next,arrow:'↗',
-      target:_nsFilled(wantSets,low),targetNote:null,
-      reason:exceeded?'You exceeded your prescribed rep range last workout. Time to add load.':'You reached the top of your prescribed rep range on every working set.'};
+      target:_nsFilled(wantSets,low),targetNote:null,milestone:_nsMilestone(reps,top,wantSets),
+      reason:exceeded?'Progression unlocked. You blew past the range, so the load climbs to '+_nsKg(next)+' next session.':'Progression unlocked. You earned the jump to '+_nsKg(next)+' next session.'};
   }
 
   // 2. Stall: 3+ sessions stuck at the same load, none topped, no rep gain -> deload.
@@ -1035,7 +1035,7 @@ function computeOverload(ex,effort,resolvedName,history){
   for(var m2=0;m2<tgt.length;m2++){if(tgt[m2]<top){tgt[m2]=tgt[m2]+1;break;}}
   var lastTotal=reps.reduce(function(a,b){return a+b;},0);
   return {tone:'yellow',status:'Beat Last Week',action:'Stay at '+_nsKg(maxLoad),weightKg:maxLoad,arrow:'→',
-    target:tgt,targetNote:null,
+    target:tgt,targetNote:null,milestone:_nsMilestone(reps,top,wantSets),
     reason:'Hit one extra rep before the weight goes up. Beat '+lastTotal+' total reps to climb toward '+top+'.'};
 }
 function _nsKg(kg){if(kg==null)return '--';var n=Math.round(kg*100)/100;return (Number.isInteger(n)?String(n):n.toFixed(1))+'kg';}
@@ -1071,6 +1071,29 @@ function _ovTip(t){return '<div class="exc-tip"><span class="exc-tip-i">☀</spa
 function _nsChip(rec){
   return '<div class="ns-chip ns-t-'+rec.tone+'">'+(rec.arrow?'<span class="ns-ar">'+rec.arrow+'</span>':'')+(rec.weightKg==null?'Base':_nsBare(rec.weightKg)+'kg')+'</div>';
 }
+// Live progression milestone: how close the athlete is to earning the load bump.
+// Recalculates from whatever is currently entered, so it climbs as they log.
+function _nsMilestone(reps,top,wantSets){
+  var topped=reps.filter(function(v){return v>=top;}).length;
+  var hasData=reps.length>0;
+  var stage;
+  if(!hasData) stage=0;
+  else if(topped>=wantSets) stage=4;              // every working set at the top -> unlocked
+  else if(topped===wantSets-1) stage=2;           // one set left to top out
+  else stage=1;                                    // has data, building reps
+  return {stage:stage,topped:topped,wantSets:wantSets};
+}
+function _nsMileHTML(m){
+  if(!m||m.stage<=0) return '';
+  var nodes=[['🟡','One more rep'],['🟡','One more set'],['🟢','Unlocked'],['🚀','Increase next']];
+  var h='<div class="ns-mile" data-stage="'+m.stage+'">';
+  nodes.forEach(function(n,ix){
+    var on=ix<m.stage, cur=ix===m.stage-1;
+    h+='<div class="ns-mnode'+(on?' on':'')+(cur?' cur':'')+'"><span class="ns-me">'+n[0]+'</span><span class="ns-ml">'+n[1]+'</span></div>';
+    if(ix<nodes.length-1) h+='<span class="ns-mbar'+(ix<m.stage-1?' on':'')+'"></span>';
+  });
+  return h+'</div>';
+}
 function _nsBody(rec){
   var t='';
   if(rec.target&&rec.target.length){
@@ -1079,11 +1102,13 @@ function _nsBody(rec){
   } else if(rec.targetNote){
     t='<div class="ns-target"><div class="ns-tl">Target</div><div class="ns-tnote">'+esc(rec.targetNote)+'</div></div>';
   }
-  var reason=rec.reason?'<div class="ns-reason"><span class="ns-ri">☀</span><span>'+esc(rec.reason)+'</span></div>':'';
+  var mile=rec.milestone?_nsMileHTML(rec.milestone):'';
+  var ri=(rec.milestone&&rec.milestone.stage>=4)?'🚀':(rec.tone==='red'?'⚠':'☀');
+  var reason=rec.reason?'<div class="ns-reason"><span class="ns-ri">'+ri+'</span><span>'+esc(rec.reason)+'</span></div>':'';
   return '<div class="ns-block ns-t-'+rec.tone+'">'+
     '<div class="ns-status"><span class="ns-dot"></span>'+esc(rec.status)+'</div>'+
     '<div class="ns-hd">📈 Next Session</div>'+
-    '<div class="ns-action">'+esc(rec.action)+'</div>'+t+reason+'</div>';
+    '<div class="ns-action">'+esc(rec.action)+'</div>'+t+mile+reason+'</div>';
 }
 // Collapsed subtitle driven by live state: done -> today's numbers, in progress
 // -> set count, not started -> the single recommended action.

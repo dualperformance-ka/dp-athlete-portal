@@ -46,8 +46,13 @@ function showRunSaved(i,d){
 }
 var _draftGymTimer=null;
 function draftGym(i,splitKey){
+  // Instant coaching feedback: recompute the recommendation, milestone, PBs,
+  // volume and e1RM straight from the DOM on every keystroke (no wait for save).
+  try{refreshStrengthFeedback(i,splitKey);}catch(e){}
+  try{markInlinePbs(i,splitKey);}catch(e){}
   refreshStrengthExerciseStates(i);
   setGymSubmissionStatus(i,'draft');
+  // Persisting to storage stays debounced so we are not writing on every keypress.
   if(_draftGymTimer) clearTimeout(_draftGymTimer);
   _draftGymTimer=setTimeout(function(){persistGymDraft(i,splitKey);},250);
 }
