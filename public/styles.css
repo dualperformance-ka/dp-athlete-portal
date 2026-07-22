@@ -4359,3 +4359,74 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
     font-size:12px!important;line-height:1.34;
   }
 }
+
+/* ===================================================================== */
+/* Next Session redesign — single source of truth for progression (v57)  */
+/* One recommendation per exercise: state icon + action + weight chip,    */
+/* expanded Next Session block. No competing messages.                    */
+/* ===================================================================== */
+.exc{--nsg:#22c55e;--nsy:#e0b64d;--nsb:#7aa7d6;--nsr:#e5678a;--nsbb:var(--run,#92d2ed)}
+
+/* collapsed-row state icon */
+.exc-summary{display:flex;align-items:center;gap:11px}
+.ns-ic{width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ns-ic.done{background:var(--nsg);color:#04120b;font-size:12px;font-weight:800}
+.ns-ic.prog{border:2px solid var(--nsbb);position:relative}
+.ns-ic.prog::before{content:"";position:absolute;width:20px;height:20px;border-radius:50%;border:2px solid var(--nsbb);animation:nsPulse 1.4s ease-out infinite}
+.ns-ic.prog::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--nsbb)}
+@keyframes nsPulse{0%{transform:scale(.7);opacity:.9}80%{transform:scale(1.7);opacity:0}100%{opacity:0}}
+.ns-ic.todo{width:11px;height:11px;border:2.5px solid var(--nsb);background:transparent;margin:0 4px}
+.exc.ns-t-green .ns-ic.todo{border-color:var(--nsg)}
+.exc.ns-t-yellow .ns-ic.todo{border-color:var(--nsy)}
+.exc.ns-t-blue .ns-ic.todo{border-color:var(--nsb)}
+.exc.ns-t-red .ns-ic.todo{border-color:var(--nsr)}
+
+/* collapsed subtitle */
+.ns-sub{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ns-tag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;margin-right:7px;vertical-align:1px}
+.ns-tag.done{background:var(--nsg);color:#04120b}
+.ns-tag.prog{background:var(--nsbb);color:#051820}
+.ns-sum{font-family:var(--mono);color:var(--dim)}
+.ns-todo{color:var(--muted)}
+
+/* weight chip in the collapsed row */
+.ns-chip{flex-shrink:0;display:flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums;font-size:14px;font-weight:700;border-radius:9px;padding:6px 10px;border:1px solid var(--border-mid,rgba(255,255,255,.16));background:var(--surface2)}
+.ns-chip .ns-ar{font-size:13px}
+.ns-chip.ns-t-green{color:var(--nsg);border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.1)}
+.ns-chip.ns-t-yellow{color:var(--nsy);border-color:rgba(224,182,77,.4);background:rgba(224,182,77,.1)}
+.ns-chip.ns-t-blue{color:var(--nsb);border-color:rgba(122,167,214,.4);background:rgba(122,167,214,.1)}
+.ns-chip.ns-t-red{color:var(--nsr);border-color:rgba(229,103,138,.4);background:rgba(229,103,138,.1)}
+
+/* card state accents */
+.exc.ns-t-green{border-left:3px solid var(--nsg)}
+.exc.ns-t-yellow{border-left:3px solid var(--nsy)}
+.exc.ns-t-blue{border-left:3px solid var(--nsb)}
+.exc.ns-t-red{border-left:3px solid var(--nsr)}
+.exc.ns-logged{border-left:3px solid var(--nsg);background-image:linear-gradient(90deg,rgba(34,197,94,.14),rgba(34,197,94,0))}
+.exc.ns-inprogress{border-left:3px solid var(--nsbb);background-image:linear-gradient(90deg,rgba(146,210,237,.13),rgba(146,210,237,0))}
+
+/* Next Session block */
+.ns-block{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:13px 14px;margin-bottom:12px}
+.ns-status{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;border-radius:999px;padding:5px 11px;border:1px solid;margin-bottom:11px}
+.ns-status .ns-dot{width:7px;height:7px;border-radius:50%}
+.ns-block.ns-t-green .ns-status{color:var(--nsg);background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.35)}
+.ns-block.ns-t-green .ns-dot{background:var(--nsg)}
+.ns-block.ns-t-yellow .ns-status{color:var(--nsy);background:rgba(224,182,77,.1);border-color:rgba(224,182,77,.35)}
+.ns-block.ns-t-yellow .ns-dot{background:var(--nsy)}
+.ns-block.ns-t-blue .ns-status{color:var(--nsb);background:rgba(122,167,214,.1);border-color:rgba(122,167,214,.35)}
+.ns-block.ns-t-blue .ns-dot{background:var(--nsb)}
+.ns-block.ns-t-red .ns-status{color:var(--nsr);background:rgba(229,103,138,.1);border-color:rgba(229,103,138,.35)}
+.ns-block.ns-t-red .ns-dot{background:var(--nsr)}
+.ns-hd{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.ns-action{font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.2;color:var(--text)}
+.ns-block.ns-t-green .ns-action{color:var(--nsg)}
+.ns-block.ns-t-red .ns-action{color:var(--nsr)}
+.ns-target{margin-top:11px}
+.ns-tl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+.ns-tgrid{display:flex;gap:6px}
+.ns-trep{flex:1;text-align:center;background:var(--surface);border:1px solid var(--border-mid,rgba(255,255,255,.16));border-radius:8px;padding:8px 4px}
+.ns-tn{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;color:var(--text)}
+.ns-ts{font-size:8.5px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;margin-top:4px}
+.ns-tnote{font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border-mid,rgba(255,255,255,.16));border-radius:8px;padding:10px 12px}
+.ns-reason{margin-top:11px;display:flex;gap:8px;font-size:11.5px;color:var(--muted);line-height:1.5}
+.ns-reason .ns-ri{color:var(--nsy);flex-shrink:0;margin-top:1px}
