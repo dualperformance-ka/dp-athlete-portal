@@ -261,7 +261,7 @@ function markInlinePbs(i,splitKey){
     if(!container) return;
     // Clear any previous marks (so PBs disappear live when a value drops below)
     container.querySelectorAll('.setrow,.setrow-single').forEach(function(row){
-      row.classList.remove('has-pb');
+      row.classList.remove('has-pb');row.classList.remove('has-pb-vol');
       var b=row.querySelector('.pb-badge');if(b) b.remove();
       var t=row.querySelector('button[id^="st_"]');
       if(t){t.classList.remove('pb-on');
@@ -311,10 +311,17 @@ function markInlinePbs(i,splitKey){
     var rowsToMark=[];
     [bestLoad,bestRep,bestE].forEach(function(b){if(b){total++;if(rowsToMark.indexOf(b.row)<0) rowsToMark.push(b.row);}});
     rowsToMark.forEach(function(row){
-      row.classList.add('has-pb');
+      // Colour by PB type so weight PBs never read the same as volume/rep PBs.
+      // Weight/strength family (heaviest load, or a new estimated 1RM) = purple.
+      // Volume family (more reps at the same weight = more total work) = green.
+      var isWeight=(bestLoad&&bestLoad.row===row)||(bestE&&bestE.row===row);
+      var col=isWeight?'var(--pb)':'var(--vpb)';
+      row.classList.add(isWeight?'has-pb':'has-pb-vol');
       var t=row.querySelector('button[id^="st_"]');
-      if(t){t.classList.add('pb-on');t.style.background='var(--pb)';t.style.borderColor='var(--pb)';}
-      var badge=document.createElement('div');badge.className='pb-badge';badge.innerHTML='<svg class="icon"><use href="#i-trophy"/></svg> NEW PB';
+      if(t){t.classList.add('pb-on');t.style.background=col;t.style.borderColor=col;}
+      var badge=document.createElement('div');
+      badge.className='pb-badge'+(isWeight?'':' pb-badge-vol');
+      badge.innerHTML='<svg class="icon"><use href="#i-trophy"/></svg> '+(isWeight?'WEIGHT PB':'VOL PB');
       row.appendChild(badge);
     });
   });
