@@ -156,6 +156,7 @@ window.addEventListener('message',function(e){
 });
 
 function switchTab(tab){
+  document.body.setAttribute('data-active-tab',tab); // desktop: hero shows on Today only
   document.querySelectorAll('.tab').forEach(function(t){var active=t.dataset.tab===tab;t.classList.toggle('active',active);t.setAttribute('aria-selected',active?'true':'false');});
   document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+tab);});
   document.querySelectorAll('[data-portal-dest]').forEach(function(item){item.classList.toggle('active',item.dataset.portalDest===tab);});

@@ -743,11 +743,17 @@ function renderTodaySection(){
   syncHeroShell(insights,todaySessions);
   var title=todaySessions.length?'Today\'s command center':'Recovery command center';
   var subtitle=todaySessions.length?'See the brief, execute cleanly, and log what you actually complete.':'No session scheduled today. Use the space to recover well and stay ahead of the week.';
-  var html='<div class="todaypanel"><div class="today-mobile-heading"><span>Today&rsquo;s session</span><small>'+esc(label)+'</small></div><div class="todayeyebrow">Today plan</div><div class="todayhead"><div><div class="todaytitle">'+title+'</div><div class="today-subtitle">'+subtitle+'</div></div><div class="todaydate">'+esc(label)+'</div></div>';
+  // Wrappers keep the mobile linear order identical (head, context, sessions)
+  // while letting desktop.css place them as two independent-height columns.
+  var html='<div class="todaypanel"><div class="today-mobile-heading"><span>Today&rsquo;s session</span><small>'+esc(label)+'</small></div>';
+  html+='<div class="today-head-wrap"><div class="todayeyebrow">Today plan</div><div class="todayhead"><div><div class="todaytitle">'+title+'</div><div class="today-subtitle">'+subtitle+'</div></div><div class="todaydate">'+esc(label)+'</div></div></div>';
+  html+='<div class="today-context">';
   html+=renderCoachMoment(todaySessions);
   html+=renderInsightRail(insights);
   html+=renderCommandStatus(insights);
   if(insights.planned>0&&insights.completed>=insights.planned){html+='<div class="milestone-celebration"><svg class="icon"><use href="#i-trophy"/></svg><div><strong>Week complete</strong><span>You showed up for every planned session. That consistency compounds.</span></div></div>';}
+  html+='</div>';
+  html+='<div class="today-sessions">';
   if(!todaySessions.length){
     html+='<div class="todayempty">No session scheduled today. Recover well and check ahead.</div>';
   }else{
@@ -823,6 +829,7 @@ function renderTodaySection(){
     });
     html+='</div>';
   }
+  html+='</div>';
   html+='</div>';
   el.innerHTML=html;
   el.style.display='block';

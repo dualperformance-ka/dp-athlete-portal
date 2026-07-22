@@ -154,19 +154,25 @@
   #tab-training.active,#tab-weekly.active{max-width:none}
   #tab-training .todaywrap{max-width:var(--content-max);margin:0 auto;position:static;max-height:none;overflow:visible}
 
+  /* Two independent-height columns via named areas. The context rail is a
+     single grid item spanning both rows, so the left column (head + sessions)
+     never gets stretched to match it — no dead vertical gaps. */
   #tab-training .todaypanel{
     display:grid;
     grid-template-columns:minmax(0,1fr) minmax(300px,360px);
-    grid-template-rows:auto auto 1fr;
+    grid-template-areas:'head rail' 'sessions rail';
     column-gap:24px;row-gap:16px;align-items:start;
     padding:24px;border-radius:var(--r-card);filter:none;
   }
-  #tab-training .todayeyebrow{grid-column:1;grid-row:1;margin:0;font-size:10px}
-  #tab-training .todayhead{grid-column:1;grid-row:2;margin:0}
-  #tab-training .todaylist{grid-column:1;grid-row:3;gap:12px}
-  #tab-training .coach-moment{grid-column:2;grid-row:1;padding:16px;margin:0;border-radius:var(--r-sm);background:rgba(146,210,237,.05);border:1px solid var(--border)}
-  #tab-training .insight-rail{grid-column:2;grid-row:2;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
-  #tab-training .command-status-grid{grid-column:2;grid-row:3;grid-template-columns:1fr;gap:10px;margin:0;align-self:start}
+  #tab-training .today-head-wrap{grid-area:head;min-width:0}
+  #tab-training .today-sessions{grid-area:sessions;min-width:0}
+  #tab-training .today-context{grid-area:rail;display:flex;flex-direction:column;gap:12px;min-width:0}
+  #tab-training .todayeyebrow{margin:0 0 8px;font-size:10px}
+  #tab-training .todayhead{margin:0}
+  #tab-training .todaylist{gap:12px}
+  #tab-training .coach-moment{padding:16px;margin:0;border-radius:var(--r-sm);background:rgba(146,210,237,.05);border:1px solid var(--border)}
+  #tab-training .insight-rail{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
+  #tab-training .command-status-grid{grid-template-columns:1fr;gap:10px;margin:0}
   #tab-training .command-status.next-session{grid-column:auto}
   #tab-training .command-status{min-height:0;padding:14px}
 
@@ -179,8 +185,11 @@
   #tab-training .todaytop{display:flex;align-items:flex-start;gap:14px}
   #tab-training .today-action.primary{width:auto!important;min-width:190px;align-self:flex-start}
 
-  /* Empty / rest state shouldn't stretch the whole grid. */
-  #tab-training .todayempty{grid-column:1/-1}
+  /* Command hero + nudges belong to Today only — hide them on other desktop
+     tabs so Check-in, Goals, Nutrition and Progress start with their own
+     content instead of a redundant summary. */
+  body[data-active-tab]:not([data-active-tab="training"]) .top-shell,
+  body[data-active-tab]:not([data-active-tab="training"]) .top-shell-priority{display:none}
 
   /* ===================================================================== */
   /* 5 · WEEKLY PLAN — desktop planning workspace                          */
@@ -256,9 +265,10 @@
   }
   #tab-goals>.stitle,#tab-goals>.goals-hero,#tab-goals>.goals-overview{grid-column:1/-1}
   #tab-goals input[type=text],#tab-goals input[type=number],#tab-goals textarea,#tab-goals select{max-width:640px}
-  #tab-goals>.savebtn{
+  #tab-goals .savebtn,#goalsSaveBtn{
     grid-column:1/-1;position:sticky;bottom:18px;z-index:5;
-    width:auto;min-width:220px;justify-self:end;box-shadow:0 12px 30px rgba(0,0,0,.35);
+    width:fit-content;min-width:200px;margin-left:auto;
+    box-shadow:0 12px 30px rgba(0,0,0,.35);
   }
 
   /* Check-in — keep the strong sticky-rail + wizard; refine widths only. */
