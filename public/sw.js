@@ -1,14 +1,14 @@
-const CACHE_NAME = 'dp-athlete-v71'; // v71: strength draft/completion state clarity
+const CACHE_NAME = 'dp-athlete-v72'; // v72: split-squat left/right logging
 const APP_SHELL = [
   '/index.html', '/styles.css?v=61', '/config.js',
-  '/js/01-core.js?v=53',
-  '/js/02-login-goals.js?v=53',
+  '/js/01-core.js?v=54',
+  '/js/02-login-goals.js?v=54',
   '/js/03-nav-nudges.js?v=55',
   '/js/04-checkin.js?v=53',
   '/js/05-handbook.js?v=53',
   '/js/06-nutrition.js?v=53',
   '/js/07-progress.js?v=54',
-  '/js/08-training.js?v=54',
+  '/js/08-training.js?v=61',
   '/js/09-logging.js?v=54',
   '/js/10-boot.js?v=53',
   '/login.js?v=47', '/icons.css?v=1',

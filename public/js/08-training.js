@@ -1389,7 +1389,7 @@ function buildBody(s,i,type){
         var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
         savedEx=displaySavedStrengthSets(s.id,savedEx,prevEffort);
         var stored=pbComputeStored(resolvedEx,s.id);
-        var isSingleLeg=resolvedEx.toLowerCase().indexOf('single leg')>=0;
+        var isSingleLeg=usesLeftRightReps(resolvedEx);
         var initVol=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight),r=parseInt(sv.reps,10);if(!isNaN(w)&&w>0&&!isNaN(r)&&r>0&&r<=PB_REP_CAP) initVol+=w*r;});
         var isVolPB=!!(stored.volume&&initVol>stored.volume.value);
         var isBarbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust/i.test(resolvedEx)&&!/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/i.test(resolvedEx);
@@ -1437,7 +1437,7 @@ function buildBody(s,i,type){
           });
           h+='</div>';
         }
-        var isSingleLeg=resolvedEx.toLowerCase().indexOf('single leg')>=0;
+        var isSingleLeg=usesLeftRightReps(resolvedEx);
         if(isSingleLeg){
           h+='<div class="slbls-single"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl">✓</div></div>';
           h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';

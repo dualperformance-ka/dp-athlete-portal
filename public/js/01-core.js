@@ -543,6 +543,9 @@ async function fetchRunLibrary(){
 }
 
 // ── SESSION TYPE ──────────────────────────────────────────────────────────────
+function usesLeftRightReps(exerciseName){
+  return /(?:single[\s-]?leg|split squat)/i.test(String(exerciseName||''));
+}
 function getType(s){
   var t=(s.sessionType||'').toLowerCase(),n=(s.name||'').toLowerCase();
   if(t==='note'||t==='notes'||t==='general'||t==='discovery'||t==='custom')return 'note';

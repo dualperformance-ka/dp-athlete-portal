@@ -170,7 +170,7 @@ function refreshExerciseStat(i,ei,resolvedEx){
   var statEl=document.getElementById('exstat_'+i+'_'+ei);if(!statEl) return;
   var s=sessions[i];if(!s) return;
   var stored=pbComputeStored(resolvedEx,s.id);
-  var isSingleLeg=resolvedEx.toLowerCase().indexOf('single leg')>=0;
+  var isSingleLeg=usesLeftRightReps(resolvedEx);
   var sh='';
   if(stored.load) sh+='<div class="ex-stat ex-stat-pb"><svg class="icon"><use href="#i-trophy"/></svg> PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
   if(!isSingleLeg&&stored.volume) sh+='<div class="ex-stat ex-stat-vol-pb"><svg class="icon"><use href="#i-trophy"/></svg> Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
@@ -234,4 +234,3 @@ async function saveGoals(){
   showToast(coachResult.queued?'Goals saved - coach dashboard sync pending':'Goals saved ✓');
   setTimeout(function(){btn.textContent='Save Goals';btn.classList.remove('saved');btn.disabled=false;},2500);
 }
-
