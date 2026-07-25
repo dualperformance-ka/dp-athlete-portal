@@ -350,6 +350,7 @@ async function saveGym(i,splitKey){
   stampSessionSubmitted(s.id);
   var gymStatusResult=await markSessionDone(i);
   refreshStrengthFeedback(i,splitKey);
+  refreshStrengthExerciseStates(i);
   try{markInlinePbs(i,splitKey);}catch(e){}
   var gymQueued=gymCoachResults.some(function(r){return r&&r.queued;})||(gymStatusResult&&gymStatusResult.queued);
   showToast(gymQueued?'Session submitted - coach dashboard sync pending':(pbHits.length?(pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session submitted ✓'));

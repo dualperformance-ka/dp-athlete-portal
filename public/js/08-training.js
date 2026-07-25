@@ -1157,9 +1157,19 @@ function strengthExerciseIsComplete(card){
   }
   return true;
 }
+function strengthExerciseWasSubmitted(card){
+  if(!card) return false;
+  var i=parseInt(card.getAttribute('data-session-index'),10);
+  var s=!isNaN(i)&&sessions[i];
+  return !!(s&&isSessionLogged(s.id));
+}
 function refreshStrengthExerciseState(card){
   if(!card) return;
-  var hasData=strengthExerciseHasData(card),complete=strengthExerciseIsComplete(card);
+  var hasData=strengthExerciseHasData(card);
+  // Saving a session is the athlete's explicit completion action. A submitted
+  // exercise with logged work must therefore render as Done even when they did
+  // fewer than the programmed sets or did not tick every individual set.
+  var complete=strengthExerciseIsComplete(card)||(hasData&&strengthExerciseWasSubmitted(card));
   card.classList.toggle('has-entry',hasData);
   card.classList.toggle('exercise-complete',complete);
   // Collapsed-row state: done -> today's numbers, in progress -> set count,
@@ -1395,7 +1405,8 @@ function buildBody(s,i,type){
         var isBarbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust/i.test(resolvedEx)&&!/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/i.test(resolvedEx);
         var _ov=computeOverload(ex,prevEffort,resolvedEx,getExerciseHistory(s.id,resolvedEx));
         var hasExerciseData=!!savedEx.length;
-        var exerciseIsComplete=hasExerciseData&&savedEx.length>=sets&&savedEx.slice(0,sets).every(function(set){return !!set.done;});
+        var sessionSubmitted=isSessionLogged(s.id);
+        var exerciseIsComplete=hasExerciseData&&(sessionSubmitted||(savedEx.length>=sets&&savedEx.slice(0,sets).every(function(set){return !!set.done;})));
         var _nsState=exerciseIsComplete?'done':(hasExerciseData?'prog':'todo');
         var _nsDone=0,_nsParts=[],_nsTopW=null;
         (savedEx||[]).slice(0,sets).forEach(function(sv){
