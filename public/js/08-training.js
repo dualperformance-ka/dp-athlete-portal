@@ -76,6 +76,7 @@ function showNoplan(){
   setDisplay('calEl','none');setDisplay('weeklyCalEl','none');
 }
 function showLoadError(){
+  if(typeof renderWeeklyKmCard==='function') renderWeeklyKmCard('weeklyKmCard',null);
   var el=document.getElementById('loadErrEl');if(el)el.style.display='block';
   var wel=document.getElementById('weeklyLoadErrEl');if(wel)wel.style.display='block';
   var tEl=document.getElementById('todayEl');if(tEl)tEl.style.display='none';
@@ -153,7 +154,66 @@ function renderCal(ws){
   var _isDesktopWk = window.matchMedia && window.matchMedia('(min-width:900px)').matches;
   var el=document.getElementById('calEl');if(el){el.innerHTML=_isDesktopWk?'':html;el.style.display='block';}
   var wel=document.getElementById('weeklyCalEl');if(wel){wel.innerHTML=html;wel.style.display='block';}
+  renderWeeklyPlanKmCard();
   if(typeof applyTrainingView==='function')applyTrainingView();
+}
+// ── WEEKLY PLAN KM TARGET ─────────────────────────────────────────────────────
+// Distance written into a session title, e.g. "Easy Run — 12km". Interval names
+// like "5x1km Threshold" or "3km pace" are NOT weekly distance, so skip those.
+function titleKmFromName(name){
+  var m=String(name||'').match(/(?:^|[^0-9xX×])(\d+(?:\.\d+)?)\s*km\b(?!\s*(?:pace|reps?|repeats?))/i);
+  return m?parseFloat(m[1]):0;
+}
+// Planned distance for one run: coach override first, then the library's
+// distance field. Ignores duration-style values ("45 min") and implausible
+// parses so a bad field can't inflate the week's target.
+function plannedRunKm(s){
+  if(getType(s)!=='run') return 0;
+  var ov=_sessionOverrides[s.id]||{};
+  var resolved=resolveRunDisplay(s),meta=(resolved&&resolved.meta)||{};
+  var raw=(ov.distance_km!=null&&ov.distance_km!=='')?ov.distance_km:(meta.distance||'');
+  var str=String(raw).replace(',','.').trim();
+  if(!str||/min|hour|hr\b|sec/i.test(str)) return 0;
+  var m=str.match(/(\d+(?:\.\d+)?)/);
+  var v=m?parseFloat(m[1]):0;
+  return (isNaN(v)||v<=0||v>200)?0:v;
+}
+// Target = coach's weekly total if declared, else the sum of planned run
+// distances in the loaded week. Completed follows the same source order as the
+// home tracker: Strava → submitted logs → this device's drafts.
+function computeWeeklyPlanKm(){
+  var sum=0,declared=0;
+  (sessions||[]).forEach(function(s){
+    var name=String(s.name||'');
+    if(String(s.sessionType||'')==='Weekly KM Total'||/km total/i.test(name)){
+      var m=name.match(/(\d+(?:\.\d+)?)\s*km/i);
+      if(m) declared=Math.max(declared,parseFloat(m[1]));
+      return;
+    }
+    var d=plannedRunKm(s);
+    if(!d) d=getType(s)==='run'?titleKmFromName(name):0;
+    if(d>0) sum+=d;
+  });
+  var target=Math.round(Math.max(sum,declared)*10)/10;
+  return target>0?target:null;
+}
+async function renderWeeklyPlanKmCard(){
+  var label=trainingWeekDisplayLabel();
+  // Both tabs on the same week → reuse the nutrition numbers so the portal never
+  // shows two different targets for one week.
+  if(nutWeekOffset===weekOffset&&currentWeekKmData&&currentWeekKmData.target!=null){
+    renderWeeklyKmCard('weeklyKmCard',{target:currentWeekKmData.target,completed:currentWeekKmData.completed,source:currentWeekKmData.source,weekLabel:label});
+    return;
+  }
+  var target=computeWeeklyPlanKm();
+  if(target==null){renderWeeklyKmCard('weeklyKmCard',null);return;}
+  var localCompleted=deriveCompletedKmFromSessions(sessions),completed=localCompleted,source='plan';
+  try{
+    var sr=window._stravaLoadPromise?await window._stravaLoadPromise:null;
+    if(sr&&sr.connected){completed=deriveCompletedKmFromStrava(sr.activities,weekOffset);source='strava';}
+    else if(localCompleted>0){source='portal';}
+  }catch(e){if(localCompleted>0) source='portal';}
+  renderWeeklyKmCard('weeklyKmCard',{target:target,completed:completed,source:source,weekLabel:label});
 }
 function selectWeekDay(di,trigger){
   if(isMobileTrainingCalendar()){
