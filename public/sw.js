@@ -1,14 +1,14 @@
-const CACHE_NAME = 'dp-athlete-v73'; // v73: weekly km target card
+const CACHE_NAME = 'dp-athlete-v74'; // v74: weekly km target card
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=69', '/config.js',
+  '/index.html', '/styles.css?v=70', '/config.js',
   '/js/01-core.js?v=54',
   '/js/02-login-goals.js?v=54',
-  '/js/03-nav-nudges.js?v=55',
+  '/js/03-nav-nudges.js?v=57',
   '/js/04-checkin.js?v=53',
   '/js/05-handbook.js?v=53',
-  '/js/06-nutrition.js?v=54',
+  '/js/06-nutrition.js?v=55',
   '/js/07-progress.js?v=54',
-  '/js/08-training.js?v=63',
+  '/js/08-training.js?v=64',
   '/js/09-logging.js?v=54',
   '/js/10-boot.js?v=53',
   '/login.js?v=47', '/icons.css?v=1',
