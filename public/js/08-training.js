@@ -76,7 +76,7 @@ function showNoplan(){
   setDisplay('calEl','none');setDisplay('weeklyCalEl','none');
 }
 function showLoadError(){
-  if(typeof renderWeeklyKmCard==='function') renderWeeklyKmCard('weeklyKmCard',null);
+  if(typeof paintWeeklyKmCards==='function') paintWeeklyKmCards(null);
   var el=document.getElementById('loadErrEl');if(el)el.style.display='block';
   var wel=document.getElementById('weeklyLoadErrEl');if(wel)wel.style.display='block';
   var tEl=document.getElementById('todayEl');if(tEl)tEl.style.display='none';
@@ -197,23 +197,31 @@ function computeWeeklyPlanKm(){
   var target=Math.round(Math.max(sum,declared)*10)/10;
   return target>0?target:null;
 }
+// Desktop reads the week from the Weekly Plan tab, mobile from the plan view
+// inside Training — render both mounts and let applyTrainingView() decide which
+// one is on screen.
+function paintWeeklyKmCards(data){
+  renderWeeklyKmCard('weeklyKmCard',data);
+  renderWeeklyKmCard('trainingKmCard',data);
+  if(typeof applyTrainingView==='function') applyTrainingView();
+}
 async function renderWeeklyPlanKmCard(){
   var label=trainingWeekDisplayLabel();
   // Both tabs on the same week → reuse the nutrition numbers so the portal never
   // shows two different targets for one week.
   if(nutWeekOffset===weekOffset&&currentWeekKmData&&currentWeekKmData.target!=null){
-    renderWeeklyKmCard('weeklyKmCard',{target:currentWeekKmData.target,completed:currentWeekKmData.completed,source:currentWeekKmData.source,weekLabel:label});
+    paintWeeklyKmCards({target:currentWeekKmData.target,completed:currentWeekKmData.completed,source:currentWeekKmData.source,weekLabel:label});
     return;
   }
   var target=computeWeeklyPlanKm();
-  if(target==null){renderWeeklyKmCard('weeklyKmCard',null);return;}
+  if(target==null){paintWeeklyKmCards(null);return;}
   var localCompleted=deriveCompletedKmFromSessions(sessions),completed=localCompleted,source='plan';
   try{
     var sr=window._stravaLoadPromise?await window._stravaLoadPromise:null;
     if(sr&&sr.connected){completed=deriveCompletedKmFromStrava(sr.activities,weekOffset);source='strava';}
     else if(localCompleted>0){source='portal';}
   }catch(e){if(localCompleted>0) source='portal';}
-  renderWeeklyKmCard('weeklyKmCard',{target:target,completed:completed,source:source,weekLabel:label});
+  paintWeeklyKmCards({target:target,completed:completed,source:source,weekLabel:label});
 }
 function selectWeekDay(di,trigger){
   if(isMobileTrainingCalendar()){
