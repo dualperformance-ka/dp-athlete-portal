@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=68">
+<link rel="stylesheet" href="/styles.css?v=69">
 <link rel="stylesheet" href="/desktop.css?v=2">
 <link rel="stylesheet" href="/icons.css?v=1">
 
@@ -366,6 +366,7 @@
       <div class="load-error-sub">Looks like a connection problem — your plan is still there.</div>
       <button class="load-error-btn" onclick="loadWeek()"><svg class="icon" style="width:13px;height:13px"><use href="#i-refresh"/></svg> Retry</button>
     </div>
+    <div class="card wkm-card" id="weeklyKmCard" style="display:none"></div>
     <div id="weeklyCalEl" class="weeklyplan-wrap" style="display:none"></div>
     <div class="noplan" id="weeklyNoplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
   </div>
@@ -508,6 +509,7 @@
         <div class="mc fat"><div class="mv" id="nutFat">—</div><div class="ml">Fat g</div></div>
         <div class="mc fibre" style="grid-column:1/-1"><div class="mv" id="nutFibre" style="font-size:28px">—</div><div class="ml">Fibre g (target)</div></div>
       </div>
+      <div class="card wkm-card" id="nutKmCard" style="display:none"></div>
       <div class="card nutrition-card nutrition-priorities">
         <div class="card-title">Priority Order</div>
         <div class="priority-list">
@@ -1125,9 +1127,9 @@
 <script src="js/03-nav-nudges.js?v=56"></script>
 <script src="js/04-checkin.js?v=53"></script>
 <script src="js/05-handbook.js?v=53"></script>
-<script src="js/06-nutrition.js?v=53"></script>
+<script src="js/06-nutrition.js?v=54"></script>
 <script src="js/07-progress.js?v=54"></script>
-<script src="js/08-training.js?v=62"></script>
+<script src="js/08-training.js?v=63"></script>
 <script src="js/09-logging.js?v=57"></script>
 <script src="js/10-boot.js?v=53"></script>
 </body>
