@@ -4508,3 +4508,54 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   border-color:#0d9488;background:#c7f0ea;color:#0f3d38;-webkit-text-fill-color:#0f3d38;
   box-shadow:inset 0 0 13px rgba(13,148,136,.5),0 0 10px rgba(13,148,136,.4);
 }
+
+/* ── WEEKLY KM TARGET CARD ─────────────────────────────────────────────────── */
+/* Shared card: top of the Weekly Plan tab and under the Nutrition macros. */
+.wkm-card{
+  /* Hidden state comes from the inline style attribute so the renderer can show
+     the card by setting display:block — a display:none rule here would win. */
+  position:relative;overflow:hidden;
+  border-color:var(--run-border);
+  background:linear-gradient(150deg,var(--run-bg),rgba(255,255,255,.015));
+}
+.wkm-card .wkm-head{display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:11px}
+.wkm-card .wkm-ico{
+  width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--run-border);
+  border-radius:12px;background:var(--run-bg-strong,var(--run-bg))
+}
+.wkm-card .wkm-ico .icon{width:17px;height:17px;color:var(--run-strong)}
+.wkm-card .wkm-headtext{display:flex;flex-direction:column;gap:3px;min-width:0}
+.wkm-card .wkm-kicker{
+  font-family:var(--body);font-size:11px;font-weight:600;line-height:1.15;letter-spacing:-.01em;
+  color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.wkm-card .wkm-figure{display:flex;align-items:baseline;gap:5px}
+.wkm-card .wkm-figure strong{
+  font-family:var(--body);font-size:26px;font-weight:720;line-height:1;letter-spacing:-.045em;color:var(--text)
+}
+.wkm-card .wkm-figure small{font-size:12px;font-weight:600;color:var(--muted)}
+.wkm-card .wkm-pct{
+  font-family:var(--mono);font-size:12px;font-weight:600;line-height:1;color:var(--run-strong);
+  padding:5px 8px;border:1px solid var(--run-border);border-radius:999px;background:var(--run-bg);white-space:nowrap
+}
+.wkm-card .wkm-track{height:6px;margin-top:13px;border-radius:999px;background:rgba(255,255,255,.09);overflow:hidden}
+.wkm-card .wkm-track span{display:block;width:0;height:100%;border-radius:inherit;background:var(--run);transition:width .5s ease}
+.wkm-card .wkm-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;
+  font-family:var(--body);font-size:12px;color:var(--dim)
+}
+.wkm-card .wkm-src{white-space:nowrap}
+.wkm-card.wkm-done{border-color:var(--ok-border);background:linear-gradient(150deg,var(--ok-bg),rgba(255,255,255,.015))}
+.wkm-card.wkm-done .wkm-ico{border-color:var(--ok-border);background:var(--ok-bg)}
+.wkm-card.wkm-done .wkm-ico .icon,.wkm-card.wkm-done .wkm-pct{color:var(--ok)}
+.wkm-card.wkm-done .wkm-pct{border-color:var(--ok-border);background:var(--ok-bg)}
+.wkm-card.wkm-done .wkm-track span{background:var(--ok)}
+.outdoor-mode .wkm-card{background:linear-gradient(150deg,var(--run-bg),#fff);border-color:var(--run-border)}
+.outdoor-mode .wkm-card .wkm-track{background:rgba(7,17,22,.1)}
+.outdoor-mode .wkm-card.wkm-done{background:linear-gradient(150deg,var(--ok-bg),#fff)}
+@media(max-width:400px){
+  .wkm-card .wkm-head{grid-template-columns:34px minmax(0,1fr) auto;gap:9px}
+  .wkm-card .wkm-ico{width:34px;height:34px;border-radius:11px}
+  .wkm-card .wkm-figure strong{font-size:23px}
+  .wkm-card .wkm-foot{font-size:11px}
+}
