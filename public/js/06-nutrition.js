@@ -66,6 +66,47 @@ function renderKmTracker(kmData){
   bar.style.display='';
   buildKmGauge(pct);
 }
+// ── WEEKLY KM TARGET CARD ─────────────────────────────────────────────────────
+// Same numbers as the home-screen km tracker, rendered as a standalone card so
+// the weekly running target is visible where athletes actually plan and fuel:
+// top of the Weekly Plan tab and under the Nutrition macros.
+// data = {target, completed, source, weekLabel}
+function fmtKmVal(n){
+  n=Number(n);
+  if(isNaN(n)) return '0';
+  return (Math.round(n*10)/10).toFixed(1).replace(/\.0$/,'');
+}
+var WKM_SOURCE_LABEL={strava:'Synced from Strava',portal:'From your logged sessions',local:'From your logged sessions',plan:'From your planned sessions'};
+function weeklyKmCardHtml(data){
+  var target=Number(data.target),done=Number(data.completed||0);
+  if(isNaN(done)||done<0) done=0;
+  var pct=Math.min(100,Math.round(done/target*100));
+  var left=Math.round(Math.max(0,target-done)*10)/10;
+  var hit=done>=target;
+  var srcLabel=WKM_SOURCE_LABEL[data.source]||'';
+  var footLeft=hit?'Target hit — nice work':(done>0?fmtKmVal(left)+' km to go':'Nothing logged yet this week');
+  return '<div class="wkm-head">'
+    +'<span class="wkm-ico"><svg class="icon"><use href="#i-shoe"/></svg></span>'
+    +'<span class="wkm-headtext">'
+      +'<span class="wkm-kicker">Weekly km target'+(data.weekLabel?' · '+esc(data.weekLabel):'')+'</span>'
+      +'<span class="wkm-figure"><strong>'+fmtKmVal(done)+'</strong><small>/ '+fmtKmVal(target)+' km</small></span>'
+    +'</span>'
+    +'<span class="wkm-pct">'+pct+'%</span>'
+  +'</div>'
+  +'<div class="wkm-track" role="progressbar" aria-label="Weekly running volume" aria-valuemin="0" aria-valuenow="'+fmtKmVal(done)+'" aria-valuemax="'+fmtKmVal(target)+'"><span style="width:'+pct+'%"></span></div>'
+  +'<div class="wkm-foot"><span>'+footLeft+'</span>'+(srcLabel?'<span class="wkm-src">'+srcLabel+'</span>':'')+'</div>';
+}
+// Renders into #id, or hides it when there's no usable target for the week.
+function renderWeeklyKmCard(id,data){
+  var el=document.getElementById(id);
+  if(!el) return;
+  var target=data&&data.target!=null?Number(data.target):NaN;
+  if(!data||isNaN(target)||target<=0){el.style.display='none';el.innerHTML='';return;}
+  var done=Number(data.completed||0);
+  el.innerHTML=weeklyKmCardHtml(data);
+  el.classList.toggle('wkm-done',!isNaN(done)&&done>=target);
+  el.style.display='block';
+}
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 
 async function loadNutrition(){
@@ -105,6 +146,9 @@ async function loadNutrition(){
   if(!row){
     document.getElementById('nutNoplan').style.display='block';
     document.getElementById('kmBar').style.display='none';
+    renderWeeklyKmCard('nutKmCard',null);
+    // No nutrition row still leaves a planned-session km target for the week list.
+    if(typeof renderWeeklyPlanKmCard==='function') renderWeeklyPlanKmCard();
     return;
   }
 
@@ -146,7 +190,8 @@ async function loadNutrition(){
 
   // Weekly KM: manual target wins; otherwise auto-sum this week's planned
   // session distances (with "Weekly KM Total: 65km" rows as a floor).
-  var kmTarget=row.weekly_km_target!=null?Number(row.weekly_km_target):null;
+  var manualKmTarget=row.weekly_km_target!=null;
+  var kmTarget=manualKmTarget?Number(row.weekly_km_target):null;
   if(kmTarget==null&&sbClient){
     try{
       var ps=await sbClient.from('planned_sessions')
@@ -174,6 +219,13 @@ async function loadNutrition(){
       }
     }catch(e){}
   }
+  // No coach target: the Weekly Plan sum resolves library distances too, so it
+  // reads distances this query misses. Take the higher of the two when both tabs
+  // sit on the same week — one week must never show two different targets.
+  if(!manualKmTarget&&nutWeekOffset===weekOffset&&typeof computeWeeklyPlanKm==='function'){
+    var planTarget=computeWeeklyPlanKm();
+    if(planTarget!=null&&(kmTarget==null||planTarget>kmTarget)) kmTarget=planTarget;
+  }
   var nutritionCompleted=row.completed_km!=null?Number(row.completed_km):0;
   var trackerCompleted=await trackerPromise;
   var localCompleted=deriveCompletedKmFromSessions(sessions);
@@ -196,6 +248,9 @@ async function loadNutrition(){
   }else{
     document.getElementById('kmBar').style.display='none';
   }
+  renderWeeklyKmCard('nutKmCard',{target:kmTarget,completed:kmCompleted,source:currentWeekKmData.source,weekLabel:document.getElementById('nutWLabel').textContent});
+  // The Weekly Plan card shares this data whenever both tabs sit on the same week.
+  if(typeof renderWeeklyPlanKmCard==='function') renderWeeklyPlanKmCard();
 
   document.getElementById('nutContent').style.display='block';
   if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();
