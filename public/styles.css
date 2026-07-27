@@ -1784,6 +1784,10 @@ body.focus-session-open{overflow:hidden}
 
 @media(max-width:760px){
   .save-state-pill{position:fixed;top:62px;right:10px;z-index:135;background:rgba(10,13,16,.88);backdrop-filter:blur(12px)}
+  /* Successful sync is the quiet default. Only active syncing or an offline
+     warning should interrupt the athlete on a small screen. */
+  .save-state-pill.saved{opacity:0;pointer-events:none}
+  .save-state-pill.saving,.save-state-pill.offline{opacity:1;pointer-events:auto}
   .outdoor-mode .save-state-pill{background:rgba(255,255,255,.94)}
   .command-status-grid{grid-template-columns:1fr 1fr}.command-status.next-session{grid-column:1/-1}
   .focus-session-open>.quicklog-strip,.focus-session-open .mobile-nav,.focus-session-open .wa-fab{display:none!important}
@@ -3087,6 +3091,8 @@ body.day-plan-open{overflow:hidden}
 .outdoor-mode .day-plan-close{background:#fff;border-color:var(--border)}
 
 @media(max-width:760px){
+  body.mobile-training-calendar{height:100dvh;overflow:hidden}
+  body.mobile-training-calendar #portalScreen{height:100dvh;min-height:0;overflow:hidden}
   body.mobile-training-calendar .top-shell{display:none}
   body.mobile-training-calendar .wbar{display:none}
   body.mobile-training-calendar #tab-training.active{
@@ -3119,13 +3125,13 @@ body.day-plan-open{overflow:hidden}
   }
   .mobile-week-day{
     position:relative;display:grid;grid-template-columns:48px minmax(0,1fr) 20px;align-items:center;gap:10px;
-    flex:0 0 auto;min-width:0;min-height:76px;padding:8px 5px 8px 2px;border:0;border-bottom:1px solid rgba(255,255,255,.065);
+    flex:0 0 auto;min-width:0;min-height:68px;padding:6px 5px 6px 2px;border:0;border-bottom:1px solid rgba(255,255,255,.065);
     background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer;
   }
   .mobile-week-day:last-child{border-bottom:0}
   .mobile-week-day:focus-visible{z-index:2;outline:2px solid var(--run);outline-offset:-2px}
   .mobile-week-day.selected{background:rgba(146,210,237,.055)}
-  .mobile-week-day.multi-session{align-items:start;padding-top:10px;padding-bottom:10px}
+  .mobile-week-day.multi-session{align-items:start;padding-top:8px;padding-bottom:8px}
   .mobile-week-day.multi-session .mobile-week-date,.mobile-week-day.multi-session .mobile-week-status{margin-top:3px}
   .mobile-week-day.today{
     background:linear-gradient(90deg,rgba(146,210,237,.16),rgba(146,210,237,.025) 62%,transparent);
@@ -3238,6 +3244,7 @@ body.day-plan-open{overflow:hidden}
   .month-calendar-actions button{height:31px;min-width:31px}
   .month-calendar-actions .month-today-btn{padding:0 7px;font-size:9px}
   .mobile-week-day{grid-template-columns:43px minmax(0,1fr) 17px;gap:7px;padding-top:5px;padding-bottom:5px}
+  .mobile-week-day.multi-session{padding-top:7px;padding-bottom:7px}
   .mobile-week-date strong{width:27px;height:27px;font-size:15px}
   .mobile-week-session{padding:5px 7px}
   .mobile-week-session strong{font-size:10px}

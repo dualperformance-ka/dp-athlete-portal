@@ -6,6 +6,8 @@ const root = new URL('..', import.meta.url).pathname;
 const publicDir = join(root, 'public');
 const index = readFileSync(join(publicDir, 'index.html'), 'utf8');
 const worker = readFileSync(join(publicDir, 'sw.js'), 'utf8');
+const styles = readFileSync(join(publicDir, 'styles.css'), 'utf8');
+const nutrition = readFileSync(join(publicDir, 'js', '06-nutrition.js'), 'utf8');
 const vercel = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8'));
 const failures = [];
 
@@ -61,6 +63,15 @@ if (/id="(?:trainingKmCard|weeklyKmCard)"/.test(index)) {
 }
 for (const id of ['trainingVolumeStrip', 'weeklyVolumeStrip']) {
   if (!index.includes(`id="${id}"`)) failures.push(`Training volume strip mount is missing: ${id}`);
+}
+if (!index.includes('class="save-state-pill saved"')) {
+  failures.push('Mobile sync confirmation should start in its quiet saved state');
+}
+if (!styles.includes('.save-state-pill.saved{opacity:0;pointer-events:none}')) {
+  failures.push('Successful mobile sync status should not float over portal content');
+}
+if (nutrition.includes('dp_vstrip_open') || !nutrition.includes('var open=!collapsible;')) {
+  failures.push('Training volume should render collapsed by default');
 }
 
 const globalHeaders = (vercel.headers || []).find((entry) => entry.source === '/(.*)');

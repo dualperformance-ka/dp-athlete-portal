@@ -1,12 +1,12 @@
-const CACHE_NAME = 'dp-athlete-v82'; // v82: streamlined training header
+const CACHE_NAME = 'dp-athlete-v83'; // v83: compact single-screen training plan
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=81', '/desktop.css?v=2', '/config.js',
+  '/index.html', '/styles.css?v=83', '/desktop.css?v=2', '/config.js',
   '/js/01-core.js?v=80',
   '/js/02-login-goals.js?v=80',
-  '/js/03-nav-nudges.js?v=82',
+  '/js/03-nav-nudges.js?v=83',
   '/js/04-checkin.js?v=80',
   '/js/05-handbook.js?v=80',
-  '/js/06-nutrition.js?v=82',
+  '/js/06-nutrition.js?v=83',
   '/js/07-progress.js?v=80',
   '/js/08-training.js?v=82',
   '/js/09-logging.js?v=80',

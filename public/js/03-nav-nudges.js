@@ -256,6 +256,7 @@ function goTrainingPlan(){
   trainingView='plan';
   var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
   switchTab(isDesktop?'weekly':'training');setMobileNav('training');
+  if(typeof collapseTrainingVolumeStrips==='function')collapseTrainingVolumeStrips();
   applyTrainingView();
   window.scrollTo({top:0,behavior:'smooth'});
 }

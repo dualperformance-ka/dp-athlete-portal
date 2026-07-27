@@ -117,18 +117,21 @@ function jumpToProgrammeWeek(wk,mode){
   var el=document.getElementById(mode==='nutrition'?'nutKmCard':(document.getElementById('trainingVolumeStrip')&&document.getElementById('trainingVolumeStrip').offsetParent?'trainingVolumeStrip':'weeklyVolumeStrip'));
   if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'center'});
 }
-// Collapsible on the Weekly Plan, where the week list is the point of the page
-// and two full-height cards pushed it off screen. Choice is remembered.
-var VSTRIP_OPEN_KEY='dp_vstrip_open';
-function volumeStripIsOpen(){
-  try{return localStorage.getItem(VSTRIP_OPEN_KEY)==='1';}catch(e){return false;}
+// Collapsible on Training, where the week list is the point of the page.
+// It starts closed every time the athlete opens Training, then expands on tap.
+function collapseTrainingVolumeStrips(){
+  ['trainingVolumeStrip','weeklyVolumeStrip'].forEach(function(id){
+    var card=document.getElementById(id);if(!card)return;
+    card.classList.remove('is-open');
+    var toggle=card.querySelector('.vstrip-toggle');
+    if(toggle)toggle.setAttribute('aria-expanded','false');
+  });
 }
 function toggleVolumeStrip(btn){
   var card=btn&&btn.closest?btn.closest('.vstrip-card'):null;
   if(!card) return;
   var open=card.classList.toggle('is-open');
   btn.setAttribute('aria-expanded',open?'true':'false');
-  try{localStorage.setItem(VSTRIP_OPEN_KEY,open?'1':'0');}catch(e){}
   if(open){
     var cur=card.querySelector('.vstrip-week.is-current'),sc=card.querySelector('.vstrip-scroll');
     if(cur&&sc) sc.scrollLeft=Math.max(0,cur.offsetLeft-sc.clientWidth/2+cur.offsetWidth/2);
@@ -189,7 +192,7 @@ async function renderVolumeStrip(id,mode){
   if(!html){el.style.display='none';el.innerHTML='';return;}
   el.innerHTML=html;
   el.classList.toggle('is-collapsible',collapsible);
-  var open=!collapsible||volumeStripIsOpen();
+  var open=!collapsible;
   el.classList.toggle('is-open',open);
   var tog=el.querySelector('.vstrip-toggle');
   if(tog) tog.setAttribute('aria-expanded',open?'true':'false');
