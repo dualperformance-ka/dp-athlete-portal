@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
@@ -83,6 +84,62 @@ for (const directive of ["object-src 'none'", "frame-ancestors 'none'", "base-ur
 for (const name of ['ingest.js', 'my-logs.js', 'progress-photos.js', 'reminders.js', 'strava.js', 'write.js']) {
   const source = readFileSync(join(root, 'api', name), 'utf8');
   if (!source.includes('getRequestAthlete')) failures.push(`Protected API lost its athlete auth boundary: api/${name}`);
+}
+
+// Stylesheet integrity. An unbalanced /* ... */ silently swallows every rule
+// after it — the file still "loads", the page just quietly loses its styling
+// from that point down. Cheap to check, expensive to debug.
+for (const name of ['styles.css', 'desktop.css', 'icons.css']) {
+  const source = readFileSync(join(root, 'public', name), 'utf8');
+  const opens = (source.match(/\/\*/g) || []).length;
+  const closes = (source.match(/\*\//g) || []).length;
+  if (opens !== closes) {
+    failures.push(`${name} has an unbalanced comment (${opens} "/*" vs ${closes} "*/"). Everything after the orphan is swallowed by the CSS parser.`);
+  }
+  // Brace balance, ignoring anything inside comments or quoted strings.
+  const stripped = source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''");
+  let depth = 0;
+  for (const ch of stripped) {
+    if (ch === '{') depth++;
+    else if (ch === '}') depth--;
+    if (depth < 0) break;
+  }
+  if (depth !== 0) failures.push(`${name} has unbalanced braces (depth ${depth} at end of file).`);
+}
+
+// Cache busting. The service worker is network-first for CSS/JS, but the
+// browser and the CDN both key on the full URL — shipping edited CSS behind an
+// unchanged ?v= means athletes keep the old stylesheet. Two checks:
+//   1. index.html and sw.js must agree on every version.
+//   2. an asset whose contents changed must have had its version bumped,
+//      verified against the content hashes in scripts/asset-versions.json.
+// Run `node scripts/check-portal.mjs --update-versions` after a deliberate bump.
+const shellVersions = [...index.matchAll(/(?:href|src)="\/?((?:js\/)?[\w.-]+\.(?:css|js))\?v=(\d+)"/g)];
+for (const [, asset, version] of shellVersions) {
+  if (!worker.includes(`${asset}?v=${version}`) && !worker.includes(`/${asset}?v=${version}`)) {
+    failures.push(`Asset version drift: index.html requests ${asset}?v=${version} but the service worker shell does not list it. Bump both together.`);
+  }
+}
+
+const manifestPath = join(root, 'scripts', 'asset-versions.json');
+const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
+const observed = {};
+for (const [, asset, version] of shellVersions) {
+  const filePath = join(publicDir, asset);
+  if (!existsSync(filePath)) continue;
+  const sha = createHash('sha1').update(readFileSync(filePath)).digest('hex').slice(0, 12);
+  observed[asset] = { version: Number(version), sha };
+  const previous = manifest[asset];
+  if (previous && previous.sha !== sha && previous.version === Number(version)) {
+    failures.push(`${asset} changed but is still served as ?v=${version}. Browsers and the CDN key on the URL, so athletes will keep the old file — bump the version in index.html and sw.js, then run: node scripts/check-portal.mjs --update-versions`);
+  }
+}
+if (process.argv.includes('--update-versions')) {
+  writeFileSync(manifestPath, JSON.stringify(observed, null, 2) + '\n');
+  console.log(`Recorded versions for ${Object.keys(observed).length} shell assets.`);
 }
 
 if (failures.length) {

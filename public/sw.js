@@ -1,15 +1,15 @@
-const CACHE_NAME = 'dp-athlete-v83'; // v83: compact single-screen training plan
+const CACHE_NAME = 'dp-athlete-v84'; // v84: cleaned production asset set
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=83', '/desktop.css?v=2', '/config.js',
+  '/index.html', '/styles.css?v=84', '/desktop.css?v=3', '/config.js',
   '/js/01-core.js?v=80',
-  '/js/02-login-goals.js?v=80',
+  '/js/02-login-goals.js?v=84',
   '/js/03-nav-nudges.js?v=83',
-  '/js/04-checkin.js?v=80',
+  '/js/04-checkin.js?v=84',
   '/js/05-handbook.js?v=80',
   '/js/06-nutrition.js?v=83',
   '/js/07-progress.js?v=80',
-  '/js/08-training.js?v=82',
-  '/js/09-logging.js?v=80',
+  '/js/08-training.js?v=84',
+  '/js/09-logging.js?v=84',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=80',
   '/login.js?v=47', '/icons.css?v=1',

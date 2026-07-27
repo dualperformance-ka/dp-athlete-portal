@@ -2030,7 +2030,7 @@ body.focus-session-open{overflow:hidden}
 /* Chart/progress card wrappers missed the outdoor surface overrides */
 .outdoor-mode .progress-card,.outdoor-mode .progress-panel,.outdoor-mode .weight-trend,.outdoor-mode .weight-trend-card{background:#fff!important;border-color:rgba(7,17,22,.13)!important;box-shadow:0 14px 30px rgba(30,55,67,.08)!important;color:var(--text)}
 
-/* 
+/* ── WEEKLY RINGS (running km + gym) ────────────────────────────────────── */
 
 /* KM gauge — ticked instrument arc */
 .gauge-tick{stroke:rgba(255,255,255,.13);stroke-width:2.4;stroke-linecap:round;fill:none;transition:stroke .4s ease,filter .4s ease}
@@ -2831,19 +2831,19 @@ html:not(.outdoor-mode) #portalScreen{
   .hero-bottom{display:block;margin-top:14px}
   .hpills{margin-bottom:10px}
   .hp{padding:6px 10px;font-size:10px}
-  .hero-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
-  .hero-stat{min-width:0;padding:10px 9px;border-radius:13px}
-  .hero-stat-label{font-size:8px;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  
+  
+  
   .hero-stat-value{font-size:20px;margin-top:4px}
 
-  .hero-side{padding:16px 18px}
-  .hero-side-label{margin-bottom:10px}
-  .week-rings{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-  .ring-item{padding:10px;gap:9px;border-radius:14px}
-  .ring-wrap,.ring-svg{width:48px;height:48px}
-  .ring-icon{width:15px;height:15px}
-  .ring-val{font-size:16px}
-  .ring-sub{white-space:normal;line-height:1.2}
+  
+  
+  
+  
+  
+  
+  
+  
 
   .top-shell-priority{gap:8px;margin-top:8px}
   .top-shell-priority .nudge-strip{padding:12px 13px;border-radius:15px}
@@ -2892,10 +2892,10 @@ html:not(.outdoor-mode) #portalScreen{
   .save-state-pill b{display:none}
   .hn{font-size:37px}
   .hero-main{padding:18px}
-  
+  .hero-stat{padding:9px 7px}
   .hero-stat-value{font-size:18px}
-  
-  
+  .week-rings{grid-template-columns:1fr}
+  .ring-item{min-height:62px}
   .insight-rail{grid-template-columns:1fr}
 }
 
@@ -4236,10 +4236,7 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   html.outdoor-mode body.mobile-portal-home #todayEl .todaytarget{
     background:rgba(8,127,174,.055)!important;border-color:rgba(8,127,174,.13)!important;
   }
-  html.outdoor-mode body.mobile-portal-home .ring-item{
-    background:#fff!important;border-color:rgba(7,17,22,.065)!important;
-    box-shadow:0 7px 18px rgba(30,55,67,.055)!important;
-  }
+  
 
   html.outdoor-mode body.mobile-progress-tab #tab-progress .progress-intro,
   html.outdoor-mode body.mobile-checkin-tab #tab-checkin .page-intro,

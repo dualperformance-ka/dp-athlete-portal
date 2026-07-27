@@ -10,6 +10,9 @@ A private athlete portal for delivering training, nutrition, progress tracking, 
 
 In your Vercel project, go to Settings > Environment Variables and add:
 
+Use `.env.example` as the complete key checklist. Keep real values in Vercel or
+an ignored local `.env` file; never commit them.
+
 - `SUPABASE_URL`: Supabase project URL
 - `SUPABASE_SERVICE_KEY`: Supabase service role key, server-side only
 - `PORTAL_SESSION_SECRET`: random secret of at least 32 characters used to sign expiring access-code sessions

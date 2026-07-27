@@ -1,0 +1,62 @@
+{
+  "styles.css": {
+    "version": 84,
+    "sha": "bb4bd51d126d"
+  },
+  "desktop.css": {
+    "version": 3,
+    "sha": "40303edeca73"
+  },
+  "icons.css": {
+    "version": 1,
+    "sha": "7bc36ae4236c"
+  },
+  "login.js": {
+    "version": 47,
+    "sha": "c8d6e79467a0"
+  },
+  "js/01-core.js": {
+    "version": 80,
+    "sha": "c354a8314d57"
+  },
+  "js/02-login-goals.js": {
+    "version": 84,
+    "sha": "26a2e850d71d"
+  },
+  "js/03-nav-nudges.js": {
+    "version": 83,
+    "sha": "a7e5aa0dc863"
+  },
+  "js/04-checkin.js": {
+    "version": 84,
+    "sha": "6eefd327f174"
+  },
+  "js/05-handbook.js": {
+    "version": 80,
+    "sha": "26d32cea6da5"
+  },
+  "js/06-nutrition.js": {
+    "version": 83,
+    "sha": "97f31aba34f2"
+  },
+  "js/07-progress.js": {
+    "version": 80,
+    "sha": "4ef4f10cb447"
+  },
+  "js/08-training.js": {
+    "version": 84,
+    "sha": "03b894e8e9c5"
+  },
+  "js/09-logging.js": {
+    "version": 84,
+    "sha": "85b1525bce84"
+  },
+  "accessibility.js": {
+    "version": 1,
+    "sha": "3e9bf44307a4"
+  },
+  "js/10-boot.js": {
+    "version": 80,
+    "sha": "3c0faa0af0a7"
+  }
+}

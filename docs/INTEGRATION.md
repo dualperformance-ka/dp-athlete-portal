@@ -1,6 +1,6 @@
 # DP strength tracker - progressive overload build
 
-Three files, no external dependencies. Everything reads the data the portal
+Four files, no external dependencies. Everything reads the data the portal
 already has (the `Exercise Log` strings and the split `repRange` / `workingSets`),
 so nothing new needs to be stored.
 
@@ -8,6 +8,8 @@ so nothing new needs to be stored.
 
 - `progressive-overload.js` - the engine. Reads history, returns a decision per
   exercise (target weight/reps + a `status`, `lever`, `headline`, `coaching`).
+- `overload-adapter.js` - maps the portal's existing strength logs and session
+  dates into the history shape expected by the engine.
 - `dp-strength-card.js` - the UI. Renders each exercise as a compact row that
   expands into the coaching card, wired to the engine's output.
 - `dp-strength-demo.html` - a self-contained, interactive mobile demo. Open it on
