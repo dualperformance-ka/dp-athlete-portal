@@ -56,6 +56,12 @@ if (apiFunctions.length > 12) failures.push(`Vercel function limit exceeded: ${a
 
 if (!index.includes('accessibility.js?v=1')) failures.push('Accessibility runtime is not loaded');
 if (!index.includes('aria-label="Previous training week"')) failures.push('Calendar controls need accessible names');
+if (/id="(?:trainingKmCard|weeklyKmCard)"/.test(index)) {
+  failures.push('The duplicate weekly target card has returned to the Training schedule');
+}
+for (const id of ['trainingVolumeStrip', 'weeklyVolumeStrip']) {
+  if (!index.includes(`id="${id}"`)) failures.push(`Training volume strip mount is missing: ${id}`);
+}
 
 const globalHeaders = (vercel.headers || []).find((entry) => entry.source === '/(.*)');
 const csp = globalHeaders?.headers?.find((header) => header.key === 'Content-Security-Policy')?.value || '';

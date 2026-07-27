@@ -67,9 +67,8 @@ function renderKmTracker(kmData){
   buildKmGauge(pct);
 }
 // ── WEEKLY KM TARGET CARD ─────────────────────────────────────────────────────
-// Same numbers as the home-screen km tracker, rendered as a standalone card so
-// the weekly running target is visible where athletes actually plan and fuel:
-// top of the Weekly Plan tab and under the Nutrition macros.
+// Same numbers as the home-screen km tracker, rendered as a standalone card
+// under the Nutrition macros. Training keeps the lighter Volume by week strip.
 // data = {target, completed, source, weekLabel}
 function fmtKmVal(n){
   n=Number(n);
@@ -115,7 +114,7 @@ function jumpToProgrammeWeek(wk,mode){
   var base=baseProgrammeWeek();
   if(mode==='nutrition'){nutWeekOffset=wk-base;loadNutrition();}
   else{weekOffset=wk-base;loadWeek();}
-  var el=document.getElementById(mode==='nutrition'?'nutKmCard':(document.getElementById('trainingKmCard')&&document.getElementById('trainingKmCard').offsetParent?'trainingKmCard':'weeklyKmCard'));
+  var el=document.getElementById(mode==='nutrition'?'nutKmCard':(document.getElementById('trainingVolumeStrip')&&document.getElementById('trainingVolumeStrip').offsetParent?'trainingVolumeStrip':'weeklyVolumeStrip'));
   if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'center'});
 }
 // Collapsible on the Weekly Plan, where the week list is the point of the page
@@ -241,7 +240,7 @@ async function loadNutrition(){
     document.getElementById('kmBar').style.display='none';
     renderWeeklyKmCard('nutKmCard',null);
     // No nutrition row still leaves a planned-session km target for the week list.
-    if(typeof renderWeeklyPlanKmCard==='function') renderWeeklyPlanKmCard();
+    if(typeof renderTrainingVolumeStrips==='function') renderTrainingVolumeStrips();
     return;
   }
 
@@ -339,8 +338,8 @@ async function loadNutrition(){
   }
   renderWeeklyKmCard('nutKmCard',{target:kmTarget,completed:kmCompleted,source:currentWeekKmData.source,weekLabel:document.getElementById('nutWLabel').textContent});
   renderVolumeStrip('nutVolumeStrip','nutrition');
-  // The Weekly Plan card shares this data whenever both tabs sit on the same week.
-  if(typeof renderWeeklyPlanKmCard==='function') renderWeeklyPlanKmCard();
+  // Keep the programme volume strip current when the selected week changes.
+  if(typeof renderTrainingVolumeStrips==='function') renderTrainingVolumeStrips();
 
   document.getElementById('nutContent').style.display='block';
   if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();

@@ -79,7 +79,10 @@ function showNoplan(){
   setDisplay('calEl','none');setDisplay('weeklyCalEl','none');
 }
 function showLoadError(){
-  if(typeof paintWeeklyKmCards==='function') paintWeeklyKmCards(null);
+  ['trainingVolumeStrip','weeklyVolumeStrip'].forEach(function(id){
+    var strip=document.getElementById(id);
+    if(strip){strip.style.display='none';strip.innerHTML='';}
+  });
   var el=document.getElementById('loadErrEl');if(el)el.style.display='block';
   var wel=document.getElementById('weeklyLoadErrEl');if(wel)wel.style.display='block';
   var tEl=document.getElementById('todayEl');if(tEl)tEl.style.display='none';
@@ -110,14 +113,16 @@ function renderCal(ws){
       var rawDaySessions=allSessions.filter(function(s){return s.date===miso;}),hasRecoveryOnly=rawDaySessions.length>0&&rawDaySessions.every(isCalendarPlaceholder);
       var daySessions=sortSessionsForDisplay(rawDaySessions.filter(function(s){return !isCalendarPlaceholder(s);}));
       var dayDone=daySessions.length>0&&daySessions.every(sessionDone),dayMissed=daySessions.length>0&&miso<todayISO&&!dayDone,labels='';
-      daySessions.slice(0,2).forEach(function(s,si){
-        var timing=daySessions.length>1?(si===0?'AM':'PM'):'';
-        labels+='<span class="mobile-week-session '+getType(s)+(s.rescheduled?' rescheduled':'')+'">'+(timing?'<b class="mobile-week-time">'+timing+'</b>':'')+'<span><strong>'+esc(s.name||monthSessionLabel(s))+'</strong><small>'+esc(monthSessionDetail(s))+'</small></span>'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session">★</i>':'')+'</span>';
+      daySessions.forEach(function(s,si){
+        // Only label an AM/PM double when there are exactly two sessions.
+        // Three-plus sessions have no reliable time data, so show every card
+        // without inventing a schedule order.
+        var timing=daySessions.length===2?(si===0?'AM':'PM'):'';
+        labels+='<span class="mobile-week-session '+getType(s)+(timing?' has-time':'')+(s.rescheduled?' rescheduled':'')+'">'+(timing?'<b class="mobile-week-time">'+timing+'</b>':'')+'<span><strong>'+esc(s.name||monthSessionLabel(s))+'</strong><small>'+esc(monthSessionDetail(s))+'</small></span>'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session">★</i>':'')+'</span>';
       });
-      if(daySessions.length>2)labels+='<span class="mobile-week-more">+'+(daySessions.length-2)+' more</span>';
       if(!daySessions.length)labels='<span class="mobile-week-rest">'+(hasRecoveryOnly?'Recovery day':'No session planned')+'</span>';
       var aria=cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+', '+(daySessions.length?(daySessions.length+' session'+(daySessions.length===1?'':'s')+': '+daySessions.map(function(s){return s.name||wgShortLabel(s);}).join(', ')):'no sessions');
-      html+='<button type="button" role="gridcell" class="mobile-week-day'+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'"'+(isToday?' aria-current="date"':'')+' onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(aria)+'"><span class="mobile-week-date"><small>'+cellDate.toLocaleDateString('en-AU',{weekday:'short'})+'</small><strong>'+cellDate.getDate()+'</strong>'+(isToday?'<em>Today</em>':'')+'</span><span class="mobile-week-sessions">'+labels+'</span><span class="mobile-week-status">'+(dayDone?'✓':dayMissed?'!':'›')+'</span></button>';
+      html+='<button type="button" role="gridcell" class="mobile-week-day'+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(daySessions.length>1?' multi-session':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'"'+(isToday?' aria-current="date"':'')+' onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(aria)+'"><span class="mobile-week-date"><small>'+cellDate.toLocaleDateString('en-AU',{weekday:'short'})+'</small><strong>'+cellDate.getDate()+'</strong>'+(isToday?'<em>Today</em>':'')+'</span><span class="mobile-week-sessions">'+labels+'</span><span class="mobile-week-status">'+(dayDone?'✓':dayMissed?'!':'›')+'</span></button>';
     }
     html+='</div>';
   }else{
@@ -157,7 +162,7 @@ function renderCal(ws){
   var _isDesktopWk = window.matchMedia && window.matchMedia('(min-width:900px)').matches;
   var el=document.getElementById('calEl');if(el){el.innerHTML=_isDesktopWk?'':html;el.style.display='block';}
   var wel=document.getElementById('weeklyCalEl');if(wel){wel.innerHTML=html;wel.style.display='block';}
-  renderWeeklyPlanKmCard();
+  renderTrainingVolumeStrips();
   if(typeof applyTrainingView==='function')applyTrainingView();
 }
 // ── WEEKLY PLAN KM TARGET ─────────────────────────────────────────────────────
@@ -192,32 +197,12 @@ function computeWeeklyPlanKm(){
   return target>0?target:null;
 }
 // Desktop reads the week from the Weekly Plan tab, mobile from the plan view
-// inside Training — render both mounts and let applyTrainingView() decide which
-// one is on screen.
-function paintWeeklyKmCards(data){
-  renderWeeklyKmCard('weeklyKmCard',data);
-  renderWeeklyKmCard('trainingKmCard',data);
+// inside Training. The full km target already lives on Home; Training keeps
+// only the lighter programme-volume overview.
+function renderTrainingVolumeStrips(){
   renderVolumeStrip('weeklyVolumeStrip','training');
   renderVolumeStrip('trainingVolumeStrip','training');
   if(typeof applyTrainingView==='function') applyTrainingView();
-}
-async function renderWeeklyPlanKmCard(){
-  var label=trainingWeekDisplayLabel();
-  // Both tabs on the same week → reuse the nutrition numbers so the portal never
-  // shows two different targets for one week.
-  if(nutWeekOffset===weekOffset&&currentWeekKmData&&currentWeekKmData.target!=null){
-    paintWeeklyKmCards({target:currentWeekKmData.target,completed:currentWeekKmData.completed,source:currentWeekKmData.source,weekLabel:label});
-    return;
-  }
-  var target=computeWeeklyPlanKm();
-  if(target==null){paintWeeklyKmCards(null);return;}
-  var localCompleted=deriveCompletedKmFromSessions(sessions),completed=localCompleted,source='plan';
-  try{
-    var sr=window._stravaLoadPromise?await window._stravaLoadPromise:null;
-    if(sr&&sr.connected){completed=deriveCompletedKmFromStrava(sr.activities,weekOffset);source='strava';}
-    else if(localCompleted>0){source='portal';}
-  }catch(e){if(localCompleted>0) source='portal';}
-  paintWeeklyKmCards({target:target,completed:completed,source:source,weekLabel:label});
 }
 function selectWeekDay(di,trigger){
   if(isMobileTrainingCalendar()){

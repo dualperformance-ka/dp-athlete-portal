@@ -212,9 +212,8 @@ function applyTrainingView(){
   var c=document.getElementById('calEl');
   var wc=document.getElementById('weeklyCalEl');
   var wb=document.getElementById('wbar');
-  // Weekly km card + volume strip: they sit with #calEl on mobile, and with
-  // #weeklyCalEl on desktop, so they follow the plan view's visibility.
-  var kc=document.getElementById('trainingKmCard');
+  // The volume strip sits with #calEl on mobile and #weeklyCalEl on desktop,
+  // so it follows the plan view's visibility.
   var vs=document.getElementById('trainingVolumeStrip');
   var trainingTab=document.getElementById('tab-training');
   var weeklyTab=document.getElementById('tab-weekly');
@@ -228,14 +227,12 @@ function applyTrainingView(){
     if(c&&c.innerHTML)c.style.display='none';
     if(wc&&wc.innerHTML)wc.style.display=weeklyActive?'block':'none';
     if(wb)wb.style.display=weeklyActive?'':'none';
-    if(kc)kc.style.display='none';
     if(vs)vs.style.display='none';
     return;
   }
   if(!trainingTab||!trainingTab.classList.contains('active'))return;
   if(t&&t.innerHTML)t.style.display=(trainingView==='plan')?'none':'block';
   if(c&&c.innerHTML)c.style.display=(trainingView==='home')?'none':'block';
-  if(kc&&kc.innerHTML)kc.style.display=(trainingView==='home')?'none':'block';
   if(vs&&vs.innerHTML)vs.style.display=(trainingView==='home')?'none':'block';
   if(wc&&wc.innerHTML)wc.style.display='none';
   if(wb)wb.style.display=(trainingView==='home')?'none':'';
