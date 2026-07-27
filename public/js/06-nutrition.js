@@ -118,7 +118,24 @@ function jumpToProgrammeWeek(wk,mode){
   var el=document.getElementById(mode==='nutrition'?'nutKmCard':(document.getElementById('trainingKmCard')&&document.getElementById('trainingKmCard').offsetParent?'trainingKmCard':'weeklyKmCard'));
   if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'center'});
 }
-function volumeStripHtml(data,mode){
+// Collapsible on the Weekly Plan, where the week list is the point of the page
+// and two full-height cards pushed it off screen. Choice is remembered.
+var VSTRIP_OPEN_KEY='dp_vstrip_open';
+function volumeStripIsOpen(){
+  try{return localStorage.getItem(VSTRIP_OPEN_KEY)==='1';}catch(e){return false;}
+}
+function toggleVolumeStrip(btn){
+  var card=btn&&btn.closest?btn.closest('.vstrip-card'):null;
+  if(!card) return;
+  var open=card.classList.toggle('is-open');
+  btn.setAttribute('aria-expanded',open?'true':'false');
+  try{localStorage.setItem(VSTRIP_OPEN_KEY,open?'1':'0');}catch(e){}
+  if(open){
+    var cur=card.querySelector('.vstrip-week.is-current'),sc=card.querySelector('.vstrip-scroll');
+    if(cur&&sc) sc.scrollLeft=Math.max(0,cur.offsetLeft-sc.clientWidth/2+cur.offsetWidth/2);
+  }
+}
+function volumeStripHtml(data,mode,collapsible){
   var weeks=(data&&data.weeks)||[];
   var withPlan=weeks.filter(function(w){return w.planned;});
   if(!withPlan.length) return '';
@@ -132,35 +149,57 @@ function volumeStripHtml(data,mode){
     var ph=w.planned?Math.max(6,Math.round(w.planned/max*100)):0;
     var ah=(w.actual!=null&&w.actual>0)?Math.max(4,Math.round(Math.min(w.actual,max)/max*100)):0;
     var cls='vstrip-week'+(w.isCurrent?' is-current':'')+(w.isPast?' is-past':'')+(w.isFuture?' is-future':'');
+    if(!w.planned) cls+=' is-empty';
     if(w.actual!=null&&w.planned&&w.actual>=w.planned) cls+=' is-hit';
     var aria='Week '+w.week+(w.planned?', '+fmtKmVal(w.planned)+' km planned':', no target')
       +(w.actual!=null?', '+fmtKmVal(w.actual)+' km run':'');
     bars+='<button type="button" class="'+cls+'" onclick="jumpToProgrammeWeek('+w.week+',\''+mode+'\')" aria-label="'+esc(aria)+'">'
       +'<span class="vstrip-bar">'+(ph?'<i style="height:'+ph+'%"></i>':'')+(ah?'<b style="height:'+ah+'%"></b>':'')+'</span>'
-      +'<span class="vstrip-km">'+(w.planned?fmtKmVal(w.planned):'—')+'</span>'
+      // No target for this week reads as broken with a dash, so leave it blank.
+      +'<span class="vstrip-km">'+(w.planned?fmtKmVal(w.planned):'')+'</span>'
       +'<span class="vstrip-wk">W'+w.week+'</span>'
     +'</button>';
   });
-  return '<div class="vstrip-head">'
-      +'<span class="vstrip-title">Volume by week</span>'
-      +'<span class="vstrip-legend"><span><i class="key-planned"></i>planned</span><span><i class="key-actual"></i>run</span></span>'
-    +'</div>'
-    +'<div class="vstrip-scroll">'+bars+'</div>'
-    +'<div class="vstrip-foot"><span>Peak · Week '+peak.week+' at '+fmtKmVal(peak.planned)+' km</span><span>'+totalPlanned+' km planned across the block</span></div>';
+  var summary='Peak W'+peak.week+' · '+fmtKmVal(peak.planned)+' km';
+  var head=collapsible
+    ? '<button type="button" class="vstrip-head vstrip-toggle" onclick="toggleVolumeStrip(this)" aria-expanded="false">'
+        +'<span class="vstrip-title">Volume by week</span>'
+        +'<span class="vstrip-sum">'+summary+'</span>'
+        +'<svg class="icon vstrip-chev"><use href="#i-chevron-left"/></svg>'
+      +'</button>'
+    : '<div class="vstrip-head">'
+        +'<span class="vstrip-title">Volume by week</span>'
+        +'<span class="vstrip-legend"><span><i class="key-planned"></i>planned</span><span><i class="key-actual"></i>run</span></span>'
+      +'</div>';
+  return head
+    +'<div class="vstrip-body">'
+      +(collapsible?'<div class="vstrip-legend vstrip-legend-row"><span><i class="key-planned"></i>planned</span><span><i class="key-actual"></i>run</span></div>':'')
+      +'<div class="vstrip-scroll">'+bars+'</div>'
+      +'<div class="vstrip-foot"><span>Peak · Week '+peak.week+' at '+fmtKmVal(peak.planned)+' km</span><span>'+totalPlanned+' km planned across the block</span></div>'
+    +'</div>';
 }
 // mode drives what a week tap navigates: 'training' or 'nutrition'.
+// Training mounts collapse by default; Nutrition keeps it open next to the macros.
 async function renderVolumeStrip(id,mode){
   var el=document.getElementById(id);
   if(!el) return;
   var data=null;
   try{data=await loadProgrammeVolume();}catch(e){}
-  var html=data?volumeStripHtml(data,mode):'';
+  var collapsible=mode!=='nutrition';
+  var html=data?volumeStripHtml(data,mode,collapsible):'';
   if(!html){el.style.display='none';el.innerHTML='';return;}
   el.innerHTML=html;
+  el.classList.toggle('is-collapsible',collapsible);
+  var open=!collapsible||volumeStripIsOpen();
+  el.classList.toggle('is-open',open);
+  var tog=el.querySelector('.vstrip-toggle');
+  if(tog) tog.setAttribute('aria-expanded',open?'true':'false');
   el.style.display='block';
   // Keep the current week in view without yanking the page around.
-  var cur=el.querySelector('.vstrip-week.is-current'),scroller=el.querySelector('.vstrip-scroll');
-  if(cur&&scroller) scroller.scrollLeft=Math.max(0,cur.offsetLeft-scroller.clientWidth/2+cur.offsetWidth/2);
+  if(open){
+    var cur=el.querySelector('.vstrip-week.is-current'),scroller=el.querySelector('.vstrip-scroll');
+    if(cur&&scroller) scroller.scrollLeft=Math.max(0,cur.offsetLeft-scroller.clientWidth/2+cur.offsetWidth/2);
+  }
 }
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 

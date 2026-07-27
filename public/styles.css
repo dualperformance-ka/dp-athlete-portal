@@ -4629,3 +4629,30 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   margin-top:6px;font-family:var(--body);font-size:11px;line-height:1.4;color:var(--dim)
 }
 .outdoor-mode .ns-live{border-top-color:var(--border)}
+
+/* ── VOLUME STRIP: COLLAPSED STATE (Weekly Plan) ───────────────────────────── */
+/* The week list is the point of that page, so the block history folds away to a
+   single summary row and remembers whichever way the athlete leaves it. */
+.vstrip-card.is-collapsible{padding:0}
+.vstrip-card.is-collapsible .vstrip-body{display:none;padding:0 16px 14px}
+.vstrip-card.is-collapsible.is-open .vstrip-body{display:block}
+.vstrip-toggle{
+  display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;
+  border:0;border-radius:inherit;background:transparent;cursor:pointer;
+  font:inherit;color:inherit;text-align:left;
+}
+.vstrip-toggle .vstrip-title{flex:1;min-width:0}
+.vstrip-sum{
+  font-family:var(--body);font-size:11.5px;color:var(--dim);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis
+}
+.vstrip-chev{
+  width:15px;height:15px;flex-shrink:0;color:var(--dim);
+  transform:rotate(-90deg);transition:transform .2s ease
+}
+.is-open .vstrip-chev{transform:rotate(90deg)}
+.vstrip-legend-row{justify-content:flex-end;margin-bottom:8px}
+.vstrip-card.is-collapsible .vstrip-foot{margin-top:6px}
+/* Weeks with no target yet: keep the column for alignment, drop the empty track. */
+.vstrip-week.is-empty .vstrip-bar{background:transparent;border:1px dashed var(--border)}
+.vstrip-week.is-empty .vstrip-km{min-height:11px}
