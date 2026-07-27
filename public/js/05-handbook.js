@@ -52,6 +52,109 @@ function getWeekDateRangeFromOffset(offset){
   var e=new Date(m.getFullYear(),m.getMonth(),m.getDate()+6);
   return {start:m,end:e,startISO:localISO(m),endISO:localISO(e)};
 }
+// ── PROGRAMME VOLUME (km per week, whole programme) ───────────────────────────
+// The week the athlete is actually in, captured on the first load at offset 0 so
+// paging through weeks can't shift what "this week" means.
+var _baseProgrammeWeek=null;
+function baseProgrammeWeek(){
+  return _baseProgrammeWeek!=null?_baseProgrammeWeek:getCurrentProgrammeWeek();
+}
+// Distance written into a session title, e.g. "Easy Run — 12km". Interval names
+// like "5x1km Threshold" or "3km pace" are NOT weekly distance, so skip those.
+function titleKmFromName(name){
+  var m=String(name||'').match(/(?:^|[^0-9xX×])(\d+(?:\.\d+)?)\s*km\b(?!\s*(?:pace|reps?|repeats?))/i);
+  return m?parseFloat(m[1]):0;
+}
+// Sanity filter shared by every distance parse: no durations, no absurd values.
+function safeKm(raw){
+  var str=String(raw==null?'':raw).replace(',','.').trim();
+  if(!str||/min|hour|hr\b|sec/i.test(str)) return 0;
+  var m=str.match(/(\d+(?:\.\d+)?)/);
+  var v=m?parseFloat(m[1]):0;
+  return (isNaN(v)||v<=0||v>200)?0:v;
+}
+// Planned km for one raw planned_sessions row: explicit distance, then the
+// library entry it points at, then the title.
+function plannedKmFromRow(r){
+  var d=safeKm(r&&r.distance_km);
+  if(d) return d;
+  var lib=r&&r.library_id&&((typeof runLibraryById!=='undefined'&&runLibraryById[r.library_id])||(typeof RUNNING_LIBRARY_BY_ID!=='undefined'&&RUNNING_LIBRARY_BY_ID[r.library_id]));
+  d=safeKm(lib&&lib.distance);
+  if(d) return d;
+  return titleKmFromName(r&&r.title);
+}
+var _programmeVolume=null,_programmeVolumePromise=null;
+function invalidateProgrammeVolume(){_programmeVolume=null;_programmeVolumePromise=null;}
+// One pass over the whole programme: planned km per week (coach target wins,
+// else the sum of that week's planned runs) and actual km per week from Strava.
+// Weeks before the athlete's Strava history start report actual=null ("no data")
+// rather than a misleading 0.
+async function loadProgrammeVolume(force){
+  if(force) invalidateProgrammeVolume();
+  if(_programmeVolume) return _programmeVolume;
+  if(_programmeVolumePromise) return _programmeVolumePromise;
+  _programmeVolumePromise=(async function(){
+    var code=(athlete&&athlete.code||'').toUpperCase().trim();
+    var planned={},manual={};
+    if(sbClient&&code){
+      try{
+        var res=await Promise.all([
+          sbClient.from('planned_sessions').select('week_label,distance_km,title,session_type,library_id').eq('athlete_code',code),
+          sbClient.from('nutrition_plans').select('week_label,weekly_km_target').eq('athlete_code',code)
+        ]);
+        (res[0].data||[]).forEach(function(r){
+          var m=String(r.week_label||'').match(/\d+/);
+          if(!m) return;
+          var wk=parseInt(m[0],10);
+          planned[wk]=planned[wk]||{sum:0,declared:0};
+          var title=String(r.title||'');
+          if(String(r.session_type||'')==='Weekly KM Total'||/km total/i.test(title)){
+            var dm=title.match(/(\d+(?:\.\d+)?)\s*km/i);
+            if(dm) planned[wk].declared=Math.max(planned[wk].declared,parseFloat(dm[1]));
+            return;
+          }
+          planned[wk].sum+=plannedKmFromRow(r);
+        });
+        (res[1].data||[]).forEach(function(r){
+          var m=String(r.week_label||'').match(/\d+/);
+          if(m&&r.weekly_km_target!=null) manual[parseInt(m[0],10)]=Number(r.weekly_km_target);
+        });
+      }catch(e){console.warn('Programme volume load failed',e);}
+    }
+    var strava=null;
+    try{strava=window._stravaLoadPromise?await window._stravaLoadPromise:null;}catch(e){}
+    var hasStrava=!!(strava&&strava.connected),activities=(strava&&strava.activities)||[];
+    // Oldest Strava run: anything before it is "unknown", not zero.
+    var firstStravaISO=null;
+    if(hasStrava){
+      activities.forEach(function(a){
+        if(String((a.sport_type||a.type)||'').toLowerCase().indexOf('run')<0) return;
+        var d=String(a.start_date_local||a.start_date||'').slice(0,10);
+        if(d&&(!firstStravaISO||d<firstStravaISO)) firstStravaISO=d;
+      });
+    }
+    var base=baseProgrammeWeek(),total=Math.max(programmeWeeks||12,base),weeks=[];
+    for(var wk=1;wk<=total;wk++){
+      var p=planned[wk]||{sum:0,declared:0};
+      var auto=Math.round(Math.max(p.sum,p.declared)*10)/10;
+      // Coach's weekly_km_target is the intent and always wins — same rule the
+      // current-week card uses, so the strip can never disagree with it.
+      var target=manual[wk]!=null?manual[wk]:(auto>0?auto:null);
+      var range=getWeekDateRangeFromOffset(wk-base);
+      var actual=null;
+      if(hasStrava&&firstStravaISO&&range.endISO>=firstStravaISO&&range.startISO<=localISO(new Date())){
+        actual=deriveCompletedKmFromStrava(activities,wk-base);
+      }
+      weeks.push({week:wk,label:'Week '+wk,planned:(target!=null&&target>0)?Math.round(target*10)/10:null,
+        actual:actual,isCurrent:wk===base,isPast:wk<base,isFuture:wk>base,
+        startISO:range.startISO,endISO:range.endISO});
+    }
+    _programmeVolume={weeks:weeks,base:base,source:hasStrava?'strava':'plan',hasActual:hasStrava};
+    return _programmeVolume;
+  })();
+  try{return await _programmeVolumePromise;}
+  finally{_programmeVolumePromise=null;}
+}
 function deriveCompletedKmFromSessions(sessionList){
   return (sessionList||[]).filter(function(s){return getType(s)==='run';}).reduce(function(sum,s){
     var sessionLog=logs[s.id]||{};

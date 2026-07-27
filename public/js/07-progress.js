@@ -130,8 +130,72 @@ function renderWeightChart(entries,targetWeight){
 }
 
 
+// ── RUNNING VOLUME CHART ──────────────────────────────────────────────────────
+// Same data as the weekly volume strip, drawn full-width: a planned column per
+// programme week with actual km filled over it. Built as inline SVG to match
+// renderWeightChart() rather than pulling in a chart library.
+async function renderVolumeChart(){
+  var card=document.getElementById('pgVolumeCard'),el=document.getElementById('pgVolumeChart');
+  if(!card||!el) return;
+  var data=null;
+  try{data=await loadProgrammeVolume();}catch(e){}
+  var weeks=(data&&data.weeks)||[];
+  var planned=weeks.filter(function(w){return w.planned;});
+  if(!planned.length){card.style.display='none';return;}
+  var max=0;
+  weeks.forEach(function(w){max=Math.max(max,w.planned||0,w.actual||0);});
+  if(max<=0){card.style.display='none';return;}
+  // Show the card before measuring: a hidden element has no width, and the chart
+  // stretches to fill wide cards while staying scrollable on narrow phones.
+  card.style.display='';
+  var natural=Math.max(320,weeks.length*46);
+  var width=Math.max(natural,el.clientWidth||0),height=210,padB=30,padT=14,plot=height-padB-padT;
+  var slot=width/weeks.length,barW=Math.min(26,slot*0.56);
+  var grid='',bars='',labels='';
+  [0,0.5,1].forEach(function(f){
+    var y=padT+plot*(1-f);
+    grid+='<line x1="0" y1="'+y.toFixed(1)+'" x2="'+width+'" y2="'+y.toFixed(1)+'" stroke="var(--border)" stroke-width="1"/>';
+    grid+='<text x="2" y="'+(y-4).toFixed(1)+'" fill="var(--dim)" font-size="9" font-family="var(--body)">'+Math.round(max*f)+'</text>';
+  });
+  weeks.forEach(function(w,i){
+    var cx=slot*i+slot/2,x=cx-barW/2;
+    if(w.planned){
+      var ph=Math.max(2,w.planned/max*plot),py=padT+plot-ph;
+      bars+='<rect x="'+x.toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+ph.toFixed(1)+'" rx="3" fill="var(--run-bg-strong,var(--run-bg))" stroke="var(--run-border)" stroke-width="1"/>';
+    }
+    if(w.actual!=null&&w.actual>0){
+      var ah=Math.max(2,Math.min(w.actual,max)/max*plot),ay=padT+plot-ah;
+      var hit=w.planned&&w.actual>=w.planned;
+      bars+='<rect x="'+(x+barW*0.18).toFixed(1)+'" y="'+ay.toFixed(1)+'" width="'+(barW*0.64).toFixed(1)+'" height="'+ah.toFixed(1)+'" rx="3" fill="'+(hit?'var(--ok)':'var(--run)')+'"/>';
+    }
+    if(w.isCurrent){
+      bars+='<rect x="'+(x-3).toFixed(1)+'" y="'+padT+'" width="'+(barW+6).toFixed(1)+'" height="'+plot+'" rx="5" fill="none" stroke="var(--run)" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>';
+    }
+    var show=weeks.length<=14||w.week%2===1||w.isCurrent;
+    if(show) labels+='<text x="'+cx.toFixed(1)+'" y="'+(height-12)+'" text-anchor="middle" fill="'+(w.isCurrent?'var(--run-strong)':'var(--dim)')+'" font-size="10" font-weight="'+(w.isCurrent?'700':'500')+'" font-family="var(--body)">'+w.week+'</text>';
+  });
+  el.innerHTML='<div class="pgvol-scroll"><svg viewBox="0 0 '+width+' '+height+'" width="'+width+'" height="'+height+'" role="img" aria-label="Planned and completed running kilometres by programme week">'
+    +grid+bars+labels
+    +'<text x="'+(width/2)+'" y="'+(height-1)+'" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--body)">Programme week</text></svg></div>';
+  var peak=planned.reduce(function(a,b){return b.planned>a.planned?b:a;});
+  var avg=planned.reduce(function(t,w){return t+w.planned;},0)/planned.length;
+  var done=weeks.reduce(function(t,w){return t+(w.actual||0);},0);
+  var set=function(id,val){var n=document.getElementById(id);if(n)n.textContent=val;};
+  set('pgVolPeak','W'+peak.week+' · '+fmtKmVal(peak.planned)+'km');
+  set('pgVolAvg',fmtKmVal(avg)+'km');
+  set('pgVolDone',data.hasActual?fmtKmVal(done)+'km':'—');
+}
+// Redraw on resize/rotate so the bars keep filling the card width.
+var _volResizeTimer=null;
+window.addEventListener('resize',function(){
+  var card=document.getElementById('pgVolumeCard');
+  if(!card||card.style.display==='none')return;
+  clearTimeout(_volResizeTimer);
+  _volResizeTimer=setTimeout(function(){renderVolumeChart();},200);
+});
 async function loadProgress(){
   renderPhotoGrid();
+  renderVolumeChart();
   var savedGoals=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
   var portalStartWeight=savedGoals.startWeight||savedGoals.weight||athlete.startWeight||'';
   var progressWeek=getCurrentProgrammeWeek();

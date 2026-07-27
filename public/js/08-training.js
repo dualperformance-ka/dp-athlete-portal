@@ -43,6 +43,9 @@ async function loadWeek(){
   mapped.forEach(function(s){if(reschedules[s.id]){s.date=reschedules[s.id];s.rescheduled=true;}});
   allSessions=mapped;
   sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
+  // Pin "this week" from the unpaged load so the volume strip's current-week
+  // marker doesn't move when the athlete pages through weeks.
+  if(weekOffset===0) _baseProgrammeWeek=getCurrentProgrammeWeek();
   if(weekOffset===0) initPhotoNudge();
   renderTodaySection();
   var wkS=sessions.find(function(s){return s.week;});
@@ -158,12 +161,8 @@ function renderCal(ws){
   if(typeof applyTrainingView==='function')applyTrainingView();
 }
 // ── WEEKLY PLAN KM TARGET ─────────────────────────────────────────────────────
-// Distance written into a session title, e.g. "Easy Run — 12km". Interval names
-// like "5x1km Threshold" or "3km pace" are NOT weekly distance, so skip those.
-function titleKmFromName(name){
-  var m=String(name||'').match(/(?:^|[^0-9xX×])(\d+(?:\.\d+)?)\s*km\b(?!\s*(?:pace|reps?|repeats?))/i);
-  return m?parseFloat(m[1]):0;
-}
+// titleKmFromName() and safeKm() live in 05-handbook.js alongside the rest of
+// the km helpers, so the strip, the chart and this card all parse identically.
 // Planned distance for one run: coach override first, then the library's
 // distance field. Ignores duration-style values ("45 min") and implausible
 // parses so a bad field can't inflate the week's target.
@@ -171,12 +170,7 @@ function plannedRunKm(s){
   if(getType(s)!=='run') return 0;
   var ov=_sessionOverrides[s.id]||{};
   var resolved=resolveRunDisplay(s),meta=(resolved&&resolved.meta)||{};
-  var raw=(ov.distance_km!=null&&ov.distance_km!=='')?ov.distance_km:(meta.distance||'');
-  var str=String(raw).replace(',','.').trim();
-  if(!str||/min|hour|hr\b|sec/i.test(str)) return 0;
-  var m=str.match(/(\d+(?:\.\d+)?)/);
-  var v=m?parseFloat(m[1]):0;
-  return (isNaN(v)||v<=0||v>200)?0:v;
+  return safeKm((ov.distance_km!=null&&ov.distance_km!=='')?ov.distance_km:(meta.distance||''));
 }
 // Target = coach's weekly total if declared, else the sum of planned run
 // distances in the loaded week. Completed follows the same source order as the
@@ -203,6 +197,8 @@ function computeWeeklyPlanKm(){
 function paintWeeklyKmCards(data){
   renderWeeklyKmCard('weeklyKmCard',data);
   renderWeeklyKmCard('trainingKmCard',data);
+  renderVolumeStrip('weeklyVolumeStrip','training');
+  renderVolumeStrip('trainingVolumeStrip','training');
   if(typeof applyTrainingView==='function') applyTrainingView();
 }
 async function renderWeeklyPlanKmCard(){
@@ -941,7 +937,10 @@ function getExerciseHistory(sessionId,exerciseName){
   out.sort(function(a,b){if(a.date&&b.date) return a.date<b.date?1:(a.date>b.date?-1:0);if(a.date&&!b.date) return -1;if(!a.date&&b.date) return 1;return 0;});
   return out;
 }
-function getWorkingSlice(ex,arr){arr=(arr||[]).filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!==''));});var workingSets=parseInt(ex.workingSets||ex.sets||arr.length||0)||0;if(!workingSets||arr.length<=workingSets) return arr;return arr.slice(arr.length-workingSets);}
+// Working sets = the last N sets that were actually completed. A set counts as
+// completed once it has reps: a weight typed into an empty row is a set still in
+// progress, and letting it hold a slot pushed real sets out of the assessment.
+function getWorkingSlice(ex,arr){arr=(arr||[]).filter(function(x){return x&&((x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});var workingSets=parseInt(ex.workingSets||ex.sets||arr.length||0)||0;if(!workingSets||arr.length<=workingSets) return arr;return arr.slice(arr.length-workingSets);}
 function formatSetSummary(arr){arr=(arr||[]).filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});if(!arr.length) return '';return arr.map(function(ps){var reps=ps.reps?(' × '+ps.reps):(ps.repsLeft||ps.repsRight?(' × L '+(ps.repsLeft||'—')+' / R '+(ps.repsRight||'—')):'');return(ps.weight?ps.weight+'kg':'—')+reps;}).join(' | ');}
 function setVal(v){return String(v==null?'':v).trim();}
 function sameStrengthEffort(a,b){
@@ -967,18 +966,92 @@ function getNumeric(v){var n=parseFloat(v);return isNaN(n)?null:n;}
 // Effective reps for a set: bilateral uses `reps`, unilateral (single-leg/arm)
 // stores `repsLeft`/`repsRight` — use the weaker side so both sides must earn the
 // progression. Without this, single-leg sets read as 0 reps and never progress load.
-function _effReps(s){if(!s) return 0;var l=parseInt(s.repsLeft,10),r=parseInt(s.repsRight,10);if(!isNaN(l)||!isNaN(r)) return Math.min(isNaN(l)?Infinity:l,isNaN(r)?Infinity:r);return parseInt(s.reps,10)||0;}
-// Equipment-aware load increment (kg to add). Keeps bumps sane per equipment
-// instead of a flat percentage that adds trivial amounts on light/machine lifts.
-function _ovStep(name,load){var n=String(name||'').toLowerCase();
+// Effective reps for a set. Returns null when the set carries no rep data at all
+// (a weight typed with the reps box still empty) so the engine can ignore it
+// instead of reading it as 0 reps and calling a deload the athlete never earned.
+function _effReps(s){
+  if(!s) return null;
+  var l=parseInt(s.repsLeft,10),r=parseInt(s.repsRight,10);
+  if(!isNaN(l)||!isNaN(r)) return Math.min(isNaN(l)?Infinity:l,isNaN(r)?Infinity:r);
+  var v=parseInt(s.reps,10);
+  return isNaN(v)?null:v;
+}
+// Name-based guess at the load increment. Only ever a fallback now: it can't know
+// what's actually on the rack, so anything it returns is marked approximate and
+// the athlete is told to round to their equipment.
+function _ovGuessStep(name,load){var n=String(name||'').toLowerCase();
   if(/bodyweight|push[- ]?up|pull[- ]?up|chin[- ]?up|\bdip\b|plank/.test(n)) return 0;
-  if(/lateral raise|face pull|rear delt|reverse fly|\bfly\b|\bcurl\b|tricep|pushdown|calf|cuff|rotator/.test(n)) return 1;
+  if(/lateral raise|face pull|rear delt|reverse fly|\bfly\b|\bcurl\b|tricep|pushdown|calf|cuff|rotator/.test(n)) return 2.5;
   var barbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust|\bpress\b/.test(n);
   var notBar=/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/.test(n);
   if(barbell&&!notBar) return 2.5;
-  if(/dumbbell|\bdb\b|goblet|kettlebell/.test(n)) return 2;
-  if(/machine|cable|smith|leg press|pulldown|pec deck|extension|hamstring curl|leg curl/.test(n)) return 2.5;
-  return Math.max(1,Math.round(load*0.025*2)/2);}
+  if(/dumbbell|\bdb\b|goblet|kettlebell/.test(n)) return 2.5;
+  if(/machine|cable|smith|leg press|pulldown|pec de|extension|hamstring curl|leg curl|\brow\b/.test(n)) return 5;
+  return Math.max(2.5,Math.round(load*0.025*2)/2);}
+// ── REAL WEIGHT INCREMENTS ────────────────────────────────────────────────────
+// The portal already stores every weight an athlete has logged for an exercise,
+// so the equipment tells us its own step: sort the distinct loads, take the
+// smallest gap between them. 49/54/59 on a cable stack gives 5kg, and it
+// self-corrects when they move gym. Needs 2+ distinct loads to be trustworthy;
+// until then we flag the name-based guess as approximate.
+function _ovLearnStep(history,ex){
+  var loads={};
+  (history||[]).forEach(function(h){
+    var w=getWorkingSlice(ex,h.sets||h);
+    w.forEach(function(s){
+      var v=parseFloat(s.weight);
+      if(!isNaN(v)&&v>0) loads[Math.round(v*100)/100]=1;
+    });
+  });
+  var vals=Object.keys(loads).map(parseFloat).sort(function(a,b){return a-b;});
+  if(vals.length<2) return null;
+  // Take the most common gap, not the smallest: one typo or one odd micro-plate
+  // session shouldn't redefine the machine's step. Ties go to the smaller gap.
+  var freq={},gaps=[];
+  for(var i=1;i<vals.length;i++){
+    var d=Math.round((vals[i]-vals[i-1])*100)/100;
+    if(d<0.5||d>25) continue;   // noise below, deload-sized jumps above
+    freq[d]=(freq[d]||0)+1;gaps.push(d);
+  }
+  if(!gaps.length) return null;
+  var step=null,bestN=0;
+  Object.keys(freq).map(parseFloat).sort(function(a,b){return a-b;}).forEach(function(d){
+    if(freq[d]>bestN){bestN=freq[d];step=d;}
+  });
+  if(step==null) return null;
+  return {step:step,exact:true,rungs:vals};
+}
+// The next weight that actually exists above `load`. Uses the learned ladder when
+// the athlete has been on this exercise before, otherwise the guess.
+function _ovStepInfo(name,load,history,ex){
+  var learned=_ovLearnStep(history,ex);
+  var guess=_ovGuessStep(name,load||0);
+  if(guess===0) return {step:0,exact:true,next:load};             // bodyweight
+  if(learned){
+    // A rung above the current load beats arithmetic: it's a weight they've
+    // physically used on this machine.
+    var above=null;
+    for(var i=0;i<learned.rungs.length;i++){
+      if(learned.rungs[i]>load+0.01){above=learned.rungs[i];break;}
+    }
+    var next=above!=null?above:Math.round((load+learned.step)*100)/100;
+    return {step:Math.round((next-load)*100)/100,exact:true,next:next};
+  }
+  return {step:guess,exact:false,next:Math.round((load+guess)*2)/2};
+}
+// Kept for callers that only want the number.
+function _ovStep(name,load,history,ex){return _ovStepInfo(name,load,history,ex).step;}
+// Nearest weight they've actually used at or below `target` — for deloads, so we
+// never send them to a weight the machine can't make.
+function _ovRungAtOrBelow(target,history,ex){
+  var learned=_ovLearnStep(history,ex);
+  if(learned){
+    var best=null;
+    learned.rungs.forEach(function(v){if(v<=target+0.01&&(best==null||v>best)) best=v;});
+    if(best!=null) return best;
+  }
+  return Math.round(target*2)/2;
+}
 function getProgressionFeedback(ex,prevEffort,currentEffort){
   var prevWorking=getWorkingSlice(ex,prevEffort||[]);var currentWorking=getWorkingSlice(ex,currentEffort||[]);
   if(!currentWorking.length) return{tone:'dim',text:(ex.repRange?'Target '+ex.repRange:'Build this session')};
@@ -987,9 +1060,9 @@ function getProgressionFeedback(ex,prevEffort,currentEffort){
   var prevWeights=prevWorking.map(function(s){return getNumeric(s.weight);}).filter(function(v){return v!=null;});
   var currentLoad=currentWeights.length?Math.max.apply(null,currentWeights):null;
   var prevLoad=prevWeights.length?Math.max.apply(null,prevWeights):null;
-  var currentTotal=currentWorking.reduce(function(a,s){return a+_effReps(s);},0);
-  var prevTotal=prevWorking.reduce(function(a,s){return a+_effReps(s);},0);
-  var allAtTop=currentWorking.length&&currentWorking.every(function(s){return _effReps(s)>=topRep;});
+  var currentTotal=currentWorking.reduce(function(a,s){var v=_effReps(s);return a+(v==null||v===Infinity?0:v);},0);
+  var prevTotal=prevWorking.reduce(function(a,s){var v=_effReps(s);return a+(v==null||v===Infinity?0:v);},0);
+  var allAtTop=currentWorking.length&&currentWorking.every(function(s){var v=_effReps(s);return v!=null&&v!==Infinity&&v>=topRep;});
   if(allAtTop) return{tone:'ok',text:'Increase load next time'};
   // Athlete jumped ABOVE last session's load. Recognise the load PB AND tell them how
   // to adjust: at a heavier weight, the job is now to build reps back up to the top of
@@ -1014,8 +1087,12 @@ function refreshStrengthFeedback(i,splitKey){
     if(!currentEffort.length&&logs[s.id]&&logs[s.id][resolvedEx]) currentEffort=displaySavedStrengthSets(s.id,logs[s.id][resolvedEx],prevEffort);
     // Single source of truth: evaluate today's entry when present (forward-looking),
     // otherwise last session. One recommendation, no competing messages.
-    var hasCurrent=currentEffort&&currentEffort.filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));}).length;
-    var rec=computeOverload(ex,hasCurrent?currentEffort:prevEffort,resolvedEx,getExerciseHistory(s.id,resolvedEx));
+    // The Next Session verdict is always read from the LAST completed session, so
+    // it holds still while the athlete logs. Recomputing it from half-entered sets
+    // made the card contradict itself mid-workout (and read warm-ups as working
+    // sets). Today's entries drive the live progress line underneath instead.
+    var rec=computeOverload(ex,prevEffort,resolvedEx,getExerciseHistory(s.id,resolvedEx));
+    rec.live=_nsLiveProgress(ex,currentEffort,rec);
     var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
     if(card){
       card.setAttribute('data-ns-action',rec.action);card.setAttribute('data-ns-tone',rec.tone);
@@ -1060,11 +1137,18 @@ function computeOverload(ex,effort,resolvedName,history){
       reason:'First working session. Form comes first, numbers after.'};
   }
 
-  var completedAll=working.length>=wantSets;
+  // Only sets that carry reps count as completed work. A weight typed with the
+  // reps box left empty is an unfinished set, not a zero-rep one.
+  var completedAll=reps.length>=wantSets;
   var allTop=reps.length>=wantSets&&reps.every(function(v){return v>=top;});
   var exceeded=reps.length>=wantSets&&reps.every(function(v){return v>top;});
-  var wellBelow=reps.some(function(v){return v<low-2;});
-  var step=_ovStep(name,maxLoad||0);
+  var wellBelow=reps.length>=wantSets&&reps.some(function(v){return v<low-2;});
+  var info=_ovStepInfo(name,maxLoad||0,history,ex);
+  var step=info.step;
+  // Ramped sets (47 / 54 / 61 up the working sets) aren't a single load, so
+  // "stay at 61kg" would read as a flat prescription. Speak about the top set.
+  var distinct={};loads.forEach(function(v){distinct[v]=1;});
+  var ramped=Object.keys(distinct).length>1;
 
   // 1. Every working set at/over the top of the range -> add load.
   if(maxLoad!=null&&allTop){
@@ -1073,10 +1157,15 @@ function computeOverload(ex,effort,resolvedName,history){
         target:_nsFilled(wantSets,top+1),targetNote:null,milestone:_nsMilestone(reps,top,wantSets),
         reason:'Progression unlocked. Push reps past '+top+' next session.'};
     }
-    var next=Math.round((maxLoad+step)*2)/2; if(next<=maxLoad) next=maxLoad+step;
-    return {tone:'green',status:'Ready to Increase',action:'Increase to '+_nsKg(next),weightKg:next,arrow:'↗',
+    var next=info.next; if(next<=maxLoad) next=Math.round((maxLoad+step)*2)/2;
+    // approx = we're guessing the equipment's step because there isn't enough
+    // logged history yet. Say so rather than sending them after a weight that
+    // may not exist on their rack.
+    var approx=!info.exact;
+    return {tone:'green',status:'Ready to Increase',action:(ramped?'Top set to ':(approx?'Increase to about ':'Increase to '))+_nsKg(next),weightKg:next,arrow:'↗',approx:approx,
       target:_nsFilled(wantSets,low),targetNote:null,milestone:_nsMilestone(reps,top,wantSets),
-      reason:exceeded?'Progression unlocked. You blew past the range, so the load climbs to '+_nsKg(next)+' next session.':'Progression unlocked. You earned the jump to '+_nsKg(next)+' next session.'};
+      reason:(exceeded?'Progression unlocked. You blew past the range, so the load climbs next session.':'Progression unlocked. You earned the jump next session.')
+        +(approx?' Round to the next weight your equipment actually has.':'')};
   }
 
   // 2. Stall: 3+ sessions stuck at the same load, none topped, no rep gain -> deload.
@@ -1090,8 +1179,10 @@ function computeOverload(ex,effort,resolvedName,history){
     var sameLoad=recent.every(function(x){return x.ml!=null&&x.ml===recent[0].ml;});
     var noneTopped=recent.every(function(x){return !x.topped;});
     var noGain=recent[0].tot<=recent[2].tot;
-    if(sameLoad&&noneTopped&&noGain){
-      var deload=Math.round((recent[0].ml*0.9)*2)/2;
+    // Already backed off? Then the advice has been taken; don't keep repeating it.
+    var alreadyDeloaded=maxLoad!=null&&maxLoad<recent[0].ml;
+    if(sameLoad&&noneTopped&&noGain&&!alreadyDeloaded){
+      var deload=_ovRungAtOrBelow(recent[0].ml*0.9,history,ex);
       return {tone:'red',status:'Rebuild Technique',action:'Reduce to '+_nsKg(deload),weightKg:deload,arrow:'↻',
         target:_nsFilled(wantSets,low),targetNote:null,
         reason:'Stuck at '+_nsKg(recent[0].ml)+' for several sessions. Back off, sharpen form, then climb again with momentum.'};
@@ -1105,20 +1196,21 @@ function computeOverload(ex,effort,resolvedName,history){
       reason:'You fell short of '+low+' reps. Own this weight before adding more.'};
   }
 
-  // 4. Sets not all completed yet -> maintain, finish the work.
+  // 4. Last session didn't finish the prescribed working sets -> finish them first.
   if(!completedAll){
     return {tone:'blue',status:'Maintain Weight',action:'Keep '+(maxLoad!=null?_nsKg(maxLoad):'this weight'),weightKg:maxLoad,arrow:'→',
-      target:null,targetNote:'Complete all '+wantSets+' prescribed sets before progressing.',reason:null};
+      target:_nsFilled(wantSets,Math.max(low,reps.length?Math.max.apply(null,reps):low)),targetNote:null,
+      reason:'Only '+reps.length+' of '+wantSets+' working sets logged last time. Complete all '+wantSets+' before the weight moves.'};
   }
 
-  // 5. In range, not topped -> hold and beat last week (+1 total rep).
+  // 5. In range, not topped -> hold and beat last session (+1 total rep).
   var tgt=[];
   for(var k=0;k<wantSets;k++){var b=reps[k]!=null?reps[k]:(reps.length?reps[reps.length-1]:low);tgt.push(Math.min(top,b));}
   for(var m2=0;m2<tgt.length;m2++){if(tgt[m2]<top){tgt[m2]=tgt[m2]+1;break;}}
   var lastTotal=reps.reduce(function(a,b){return a+b;},0);
-  return {tone:'yellow',status:'Beat Last Week',action:'Stay at '+_nsKg(maxLoad),weightKg:maxLoad,arrow:'→',
-    target:tgt,targetNote:null,milestone:_nsMilestone(reps,top,wantSets),
-    reason:'Hit one extra rep before the weight goes up. Beat '+lastTotal+' total reps to climb toward '+top+'.'};
+  return {tone:'yellow',status:'Beat Last Week',action:(ramped?'Top set stays at ':'Stay at ')+_nsKg(maxLoad),weightKg:maxLoad,arrow:'→',
+    target:tgt,targetNote:null,milestone:_nsMilestone(reps,top,wantSets),beatTotal:lastTotal,
+    reason:'Hit one extra rep before the weight goes up. Last session was '+lastTotal+' total reps across '+reps.length+' working sets. Beat it.'};
 }
 function _nsKg(kg){if(kg==null)return '--';var n=Math.round(kg*100)/100;return (Number.isInteger(n)?String(n):n.toFixed(1))+'kg';}
 function _nsBare(kg){if(kg==null)return '--';var n=Math.round(kg*100)/100;return Number.isInteger(n)?String(n):n.toFixed(1);}
@@ -1157,12 +1249,12 @@ function _nsChip(rec){
 // Recalculates from whatever is currently entered, so it climbs as they log.
 function _nsMilestone(reps,top,wantSets){
   var topped=reps.filter(function(v){return v>=top;}).length;
-  var hasData=reps.length>0;
+  if(!reps.length) return {stage:0,topped:0,wantSets:wantSets};
   var stage;
-  if(!hasData) stage=0;
-  else if(topped>=wantSets) stage=4;              // every working set at the top -> unlocked
-  else if(topped===wantSets-1) stage=2;           // one set left to top out
-  else stage=1;                                    // has data, building reps
+  if(topped>=wantSets) stage=4;                          // every set topped -> unlocked
+  else if(wantSets>1&&topped===wantSets-1) stage=3;      // last set to go
+  else if(topped>0) stage=2;                             // first set topped
+  else stage=1;                                          // building reps
   return {stage:stage,topped:topped,wantSets:wantSets};
 }
 function _nsMileHTML(m){
@@ -1176,6 +1268,34 @@ function _nsMileHTML(m){
   });
   return h+'</div>';
 }
+// Live progress for the session in front of them, computed from what's entered
+// right now. Separate from the (frozen) Next Session verdict so one never
+// rewrites the other. Returns null until they've logged a set with reps.
+function _nsLiveProgress(ex,currentEffort,rec){
+  var top=getTopRep(ex)||0;
+  var wantSets=parseInt(ex.workingSets||ex.sets,10)||3;
+  var working=getWorkingSlice(ex,currentEffort||[]);
+  var reps=working.map(_effReps).filter(function(v){return v!=null&&v!==Infinity;});
+  if(!reps.length) return null;
+  var total=reps.reduce(function(a,b){return a+b;},0);
+  var topped=reps.filter(function(v){return v>=top;}).length;
+  var beat=rec&&rec.beatTotal!=null?rec.beatTotal:null;
+  var msg;
+  if(reps.length<wantSets){
+    msg=reps.length+' of '+wantSets+' working sets in · '+total+' reps so far';
+  }else if(topped>=wantSets){
+    msg='All '+wantSets+' sets at '+top+' reps · load goes up next session';
+  }else if(beat!=null&&total>beat){
+    msg=total+' reps · '+(total-beat)+' up on last session';
+  }else if(beat!=null&&total===beat){
+    msg=total+' reps · level with last session, one more to beat it';
+  }else if(beat!=null){
+    msg=total+' reps · '+(beat-total+1)+' more to beat last session';
+  }else{
+    msg=total+' reps logged across '+reps.length+' sets';
+  }
+  return {msg:msg,ahead:(beat!=null&&total>beat)||topped>=wantSets};
+}
 function _nsBody(rec){
   var t='';
   if(rec.target&&rec.target.length){
@@ -1187,10 +1307,14 @@ function _nsBody(rec){
   var mile=rec.milestone?_nsMileHTML(rec.milestone):'';
   var ri=(rec.milestone&&rec.milestone.stage>=4)?'🚀':(rec.tone==='red'?'⚠':'☀');
   var reason=rec.reason?'<div class="ns-reason"><span class="ns-ri">'+ri+'</span><span>'+esc(rec.reason)+'</span></div>':'';
+  // Today's running total, shown under the frozen verdict.
+  var live=rec.live?'<div class="ns-live'+(rec.live.ahead?' ahead':'')+'"><span class="ns-live-k">Today</span><span>'+esc(rec.live.msg)+'</span></div>':'';
+  // Approximate load bump: the equipment's real step isn't known yet.
+  var approx=rec.approx?'<div class="ns-approx">Estimated jump — round to the next weight your equipment actually has.</div>':'';
   return '<div class="ns-block ns-t-'+rec.tone+'">'+
     '<div class="ns-status"><span class="ns-dot"></span>'+esc(rec.status)+'</div>'+
     '<div class="ns-hd">📈 Next Session</div>'+
-    '<div class="ns-action">'+esc(rec.action)+'</div>'+t+mile+reason+'</div>';
+    '<div class="ns-action">'+esc(rec.action)+'</div>'+approx+t+mile+reason+live+'</div>';
 }
 // Collapsed subtitle driven by live state: done -> today's numbers, in progress
 // -> set count, not started -> the single recommended action.

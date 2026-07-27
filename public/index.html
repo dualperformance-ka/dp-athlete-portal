@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=70">
+<link rel="stylesheet" href="/styles.css?v=72">
 <link rel="stylesheet" href="/desktop.css?v=2">
 <link rel="stylesheet" href="/icons.css?v=1">
 
@@ -350,6 +350,7 @@
     <!-- Mobile shows the week list inside Training (plan view), so the km card
          needs a mount here too — #weeklyKmCard only ever renders on desktop. -->
     <div class="card wkm-card" id="trainingKmCard" style="display:none"></div>
+    <div class="card vstrip-card" id="trainingVolumeStrip" style="display:none"></div>
     <div id="calEl" class="weeklyplan-wrap" style="display:none"></div>
     <div class="noplan" id="noplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
   </div>
@@ -370,6 +371,7 @@
       <button class="load-error-btn" onclick="loadWeek()"><svg class="icon" style="width:13px;height:13px"><use href="#i-refresh"/></svg> Retry</button>
     </div>
     <div class="card wkm-card" id="weeklyKmCard" style="display:none"></div>
+    <div class="card vstrip-card" id="weeklyVolumeStrip" style="display:none"></div>
     <div id="weeklyCalEl" class="weeklyplan-wrap" style="display:none"></div>
     <div class="noplan" id="weeklyNoplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
   </div>
@@ -513,6 +515,7 @@
         <div class="mc fibre" style="grid-column:1/-1"><div class="mv" id="nutFibre" style="font-size:28px">—</div><div class="ml">Fibre g (target)</div></div>
       </div>
       <div class="card wkm-card" id="nutKmCard" style="display:none"></div>
+      <div class="card vstrip-card" id="nutVolumeStrip" style="display:none"></div>
       <div class="card nutrition-card nutrition-priorities">
         <div class="card-title">Priority Order</div>
         <div class="priority-list">
@@ -774,6 +777,21 @@
           <div class="pstat"><div class="pstat-val" id="pgWeeklyRate">—</div><div class="pstat-lbl">Avg / week</div></div>
           <div class="pstat"><div class="pstat-val" id="pgToTarget">—</div><div class="pstat-lbl">To target</div></div>
         </div>
+      </div>
+    </section>
+    <section class="card progress-card progress-volume-card" id="pgVolumeCard" style="display:none">
+      <div class="progress-section-head">
+        <div>
+          <div class="card-title">Running volume</div>
+          <div class="progress-section-copy">Planned km each week, and what you actually ran.</div>
+        </div>
+        <span class="progress-section-icon"><svg class="icon"><use href="#i-run"/></svg></span>
+      </div>
+      <div id="pgVolumeChart"></div>
+      <div class="progress-stats" id="pgVolumeStats">
+        <div class="pstat"><div class="pstat-val" id="pgVolPeak">—</div><div class="pstat-lbl">Peak week</div></div>
+        <div class="pstat"><div class="pstat-val" id="pgVolAvg">—</div><div class="pstat-lbl">Avg / week</div></div>
+        <div class="pstat"><div class="pstat-val" id="pgVolDone">—</div><div class="pstat-lbl">Run so far</div></div>
       </div>
     </section>
     <section class="card progress-card progress-photo-card">
@@ -1127,12 +1145,12 @@
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=54"></script>
 <script src="js/02-login-goals.js?v=54"></script>
-<script src="js/03-nav-nudges.js?v=57"></script>
+<script src="js/03-nav-nudges.js?v=58"></script>
 <script src="js/04-checkin.js?v=53"></script>
-<script src="js/05-handbook.js?v=53"></script>
-<script src="js/06-nutrition.js?v=55"></script>
-<script src="js/07-progress.js?v=54"></script>
-<script src="js/08-training.js?v=64"></script>
+<script src="js/05-handbook.js?v=54"></script>
+<script src="js/06-nutrition.js?v=56"></script>
+<script src="js/07-progress.js?v=55"></script>
+<script src="js/08-training.js?v=66"></script>
 <script src="js/09-logging.js?v=57"></script>
 <script src="js/10-boot.js?v=53"></script>
 </body>

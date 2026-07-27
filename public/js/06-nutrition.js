@@ -107,6 +107,61 @@ function renderWeeklyKmCard(id,data){
   el.classList.toggle('wkm-done',!isNaN(done)&&done>=target);
   el.style.display='block';
 }
+// ── PROGRAMME VOLUME STRIP ────────────────────────────────────────────────────
+// Every week of the programme as a mini bar: planned km as the column, actual km
+// filled in over it. Tapping a week jumps the tab to it. Used under the km card
+// on Weekly Plan and Nutrition; the Progress tab renders the same data larger.
+function jumpToProgrammeWeek(wk,mode){
+  var base=baseProgrammeWeek();
+  if(mode==='nutrition'){nutWeekOffset=wk-base;loadNutrition();}
+  else{weekOffset=wk-base;loadWeek();}
+  var el=document.getElementById(mode==='nutrition'?'nutKmCard':(document.getElementById('trainingKmCard')&&document.getElementById('trainingKmCard').offsetParent?'trainingKmCard':'weeklyKmCard'));
+  if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function volumeStripHtml(data,mode){
+  var weeks=(data&&data.weeks)||[];
+  var withPlan=weeks.filter(function(w){return w.planned;});
+  if(!withPlan.length) return '';
+  var max=0;
+  weeks.forEach(function(w){max=Math.max(max,w.planned||0,w.actual||0);});
+  if(max<=0) return '';
+  var peak=withPlan.reduce(function(a,b){return (b.planned>a.planned)?b:a;});
+  var totalPlanned=Math.round(withPlan.reduce(function(t,w){return t+w.planned;},0));
+  var bars='';
+  weeks.forEach(function(w){
+    var ph=w.planned?Math.max(6,Math.round(w.planned/max*100)):0;
+    var ah=(w.actual!=null&&w.actual>0)?Math.max(4,Math.round(Math.min(w.actual,max)/max*100)):0;
+    var cls='vstrip-week'+(w.isCurrent?' is-current':'')+(w.isPast?' is-past':'')+(w.isFuture?' is-future':'');
+    if(w.actual!=null&&w.planned&&w.actual>=w.planned) cls+=' is-hit';
+    var aria='Week '+w.week+(w.planned?', '+fmtKmVal(w.planned)+' km planned':', no target')
+      +(w.actual!=null?', '+fmtKmVal(w.actual)+' km run':'');
+    bars+='<button type="button" class="'+cls+'" onclick="jumpToProgrammeWeek('+w.week+',\''+mode+'\')" aria-label="'+esc(aria)+'">'
+      +'<span class="vstrip-bar">'+(ph?'<i style="height:'+ph+'%"></i>':'')+(ah?'<b style="height:'+ah+'%"></b>':'')+'</span>'
+      +'<span class="vstrip-km">'+(w.planned?fmtKmVal(w.planned):'—')+'</span>'
+      +'<span class="vstrip-wk">W'+w.week+'</span>'
+    +'</button>';
+  });
+  return '<div class="vstrip-head">'
+      +'<span class="vstrip-title">Volume by week</span>'
+      +'<span class="vstrip-legend"><span><i class="key-planned"></i>planned</span><span><i class="key-actual"></i>run</span></span>'
+    +'</div>'
+    +'<div class="vstrip-scroll">'+bars+'</div>'
+    +'<div class="vstrip-foot"><span>Peak · Week '+peak.week+' at '+fmtKmVal(peak.planned)+' km</span><span>'+totalPlanned+' km planned across the block</span></div>';
+}
+// mode drives what a week tap navigates: 'training' or 'nutrition'.
+async function renderVolumeStrip(id,mode){
+  var el=document.getElementById(id);
+  if(!el) return;
+  var data=null;
+  try{data=await loadProgrammeVolume();}catch(e){}
+  var html=data?volumeStripHtml(data,mode):'';
+  if(!html){el.style.display='none';el.innerHTML='';return;}
+  el.innerHTML=html;
+  el.style.display='block';
+  // Keep the current week in view without yanking the page around.
+  var cur=el.querySelector('.vstrip-week.is-current'),scroller=el.querySelector('.vstrip-scroll');
+  if(cur&&scroller) scroller.scrollLeft=Math.max(0,cur.offsetLeft-scroller.clientWidth/2+cur.offsetWidth/2);
+}
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 
 async function loadNutrition(){
@@ -249,6 +304,7 @@ async function loadNutrition(){
     document.getElementById('kmBar').style.display='none';
   }
   renderWeeklyKmCard('nutKmCard',{target:kmTarget,completed:kmCompleted,source:currentWeekKmData.source,weekLabel:document.getElementById('nutWLabel').textContent});
+  renderVolumeStrip('nutVolumeStrip','nutrition');
   // The Weekly Plan card shares this data whenever both tabs sit on the same week.
   if(typeof renderWeeklyPlanKmCard==='function') renderWeeklyPlanKmCard();
 
