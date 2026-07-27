@@ -76,11 +76,13 @@ function initPhotoNudge(){
   if(!nudge) return;
   var week=getCurrentProgrammeWeek();
   var photos=JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');
-  var hasPhotos=photos['week'+week]&&Object.keys(photos['week'+week]).length>0;
-  nudge.style.display=hasPhotos?'none':'';
+  var angleKeys=['front','side','back','front_flexed','back_flexed'];
+  var weekPhotos=photos['week'+week]||{};
+  var complete=angleKeys.every(function(key){return !!weekPhotos[key];});
+  nudge.style.display=complete?'none':'';
   var dot=document.getElementById('tabDotProgress');
-  if(dot) dot.classList.toggle('visible',!hasPhotos);
-  var mobileDot=document.getElementById('mobileProgressDot');if(mobileDot)mobileDot.classList.toggle('visible',!hasPhotos);
+  if(dot) dot.classList.toggle('visible',!complete);
+  var mobileDot=document.getElementById('mobileProgressDot');if(mobileDot)mobileDot.classList.toggle('visible',!complete);
 }
 function hidePhotoNudge(){
   var nudge=document.getElementById('photoNudge');

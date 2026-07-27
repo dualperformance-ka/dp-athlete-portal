@@ -74,6 +74,20 @@ if (!styles.includes('.save-state-pill.saved{opacity:0;pointer-events:none}')) {
 if (nutrition.includes('dp_vstrip_open') || !nutrition.includes('var open=!collapsible;')) {
   failures.push('Training volume should render collapsed by default');
 }
+const progressPhotoIndex = index.indexOf('class="card progress-card progress-photo-card progress-photo-priority"');
+const progressBaselineIndex = index.indexOf('class="progress-baseline"');
+const progressTrendIndex = index.indexOf('class="card progress-card progress-trend-card"');
+if (progressPhotoIndex < 0 || progressBaselineIndex < 0 || progressTrendIndex < 0 ||
+    !(progressPhotoIndex < progressBaselineIndex && progressBaselineIndex < progressTrendIndex)) {
+  failures.push('Mobile Progress hierarchy must lead with current-week photos, then baseline and weight trend');
+}
+for (const id of ['photoCurrentAction', 'photoAngleStatuses', 'photoModalProgressFill', 'photoNextBtn', 'photoHistoryDetails']) {
+  if (!index.includes(`id="${id}"`)) failures.push(`Adaptive progress photo control is missing: ${id}`);
+}
+if (!index.includes('progress-collapsible-card" id="pgVolumeCard"') ||
+    !index.includes('id="pgWeightHistoryCard"')) {
+  failures.push('Secondary Progress sections must remain available as mobile collapsible cards');
+}
 
 const globalHeaders = (vercel.headers || []).find((entry) => entry.source === '/(.*)');
 const csp = globalHeaders?.headers?.find((header) => header.key === 'Content-Security-Policy')?.value || '';

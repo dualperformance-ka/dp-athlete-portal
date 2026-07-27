@@ -1,27 +1,56 @@
 // ── PHOTO UPLOAD ──────────────────────────────────────────────────────────────
-var currentPhotoWeek=null,currentAngle=null;
+var currentPhotoWeek=null,currentAngle=null,photoModalNextAngle=null;
 var ANGLES=['Front','Side','Back','Front Flexed','Back Flexed'];
 function getPhotos(){return JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');}
-function savePhotos(photos){localStorage.setItem('dp_photos_'+athlete.code,JSON.stringify(photos));hidePhotoNudge();}
+function savePhotos(photos){localStorage.setItem('dp_photos_'+athlete.code,JSON.stringify(photos));if(typeof initPhotoNudge==='function')initPhotoNudge();}
+function photoAngleKey(angle){return angle.toLowerCase().replace(/\s/g,'_');}
+function completedPhotoAngles(weekPhotos){
+  weekPhotos=weekPhotos||{};
+  return ANGLES.filter(function(angle){return !!weekPhotos[photoAngleKey(angle)];});
+}
+function photoWeekLabel(week){return week===0?'Discovery Week':'Week '+week;}
 function renderPhotoGrid(){
   var grid=document.getElementById('photoGrid');if(!grid) return;
   var photos=getPhotos(),html='';
   var curWeek=getCurrentProgrammeWeek();
-  for(var w=0;w<=programmeWeeks;w++){
-    var wLabel=w===0?'Discovery Week':'Week '+w;
-    var weekPhotos=photos['week'+w]||{};var count=Object.keys(weekPhotos).length;var firstUrl=count?weekPhotos[Object.keys(weekPhotos)[0]]:'';
-    var isCurrent=w===curWeek;
-    html+='<button type="button" class="photo-cell'+(count?' has-photo':'')+(isCurrent?' current-week':'')+'" onclick="openPhotoModal('+w+')" aria-label="Open '+wLabel+' progress photos">';
-    if(isCurrent) html+='<div class="current-week-badge">Now</div>';
+  var currentPhotos=photos['week'+curWeek]||{};
+  var completed=completedPhotoAngles(currentPhotos),currentCount=completed.length;
+  var action=document.getElementById('photoCurrentAction');
+  var title=document.getElementById('photoCurrentTitle');
+  var status=document.getElementById('photoCurrentStatus');
+  var countEl=document.getElementById('photoCurrentCount');
+  var fill=document.getElementById('photoCurrentProgressFill');
+  var statuses=document.getElementById('photoAngleStatuses');
+  var cta=document.getElementById('photoCurrentCta');
+  if(action){
+    action.classList.toggle('is-complete',currentCount===ANGLES.length);
+    action.classList.toggle('is-started',currentCount>0&&currentCount<ANGLES.length);
+    action.setAttribute('aria-label',(currentCount===ANGLES.length?'View':'Add')+' '+photoWeekLabel(curWeek)+' progress photos, '+currentCount+' of '+ANGLES.length+' angles complete');
+  }
+  if(title)title.textContent=photoWeekLabel(curWeek)+' photos';
+  if(status)status.textContent=currentCount===ANGLES.length?'All five angles are ready to compare.':currentCount?'Keep going — '+(ANGLES.length-currentCount)+' angle'+(ANGLES.length-currentCount===1?'':'s')+' remaining.':'Build a clearer visual record in about two minutes.';
+  if(countEl)countEl.textContent=currentCount+'/'+ANGLES.length;
+  if(fill)fill.style.width=(currentCount/ANGLES.length*100)+'%';
+  if(statuses)statuses.innerHTML=ANGLES.map(function(angle){
+    var done=completed.indexOf(angle)!==-1;
+    return '<span class="'+(done?'is-done':'')+'" title="'+esc(angle)+'"><i></i>'+esc(angle.replace(' Flexed',' flex'))+'</span>';
+  }).join('');
+  if(cta)cta.innerHTML=(currentCount===ANGLES.length?'View this week':currentCount?'Continue photos':'Add progress photos')+' <span aria-hidden="true">›</span>';
+
+  var savedWeeks=0;
+  for(var w=0;w<curWeek;w++){
+    var wLabel=photoWeekLabel(w);
+    var weekPhotos=photos['week'+w]||{},weekCompleted=completedPhotoAngles(weekPhotos),count=weekCompleted.length;
+    var firstUrl=count?weekPhotos[photoAngleKey(weekCompleted[0])]:'';
+    if(count)savedWeeks++;
+    html+='<button type="button" class="photo-cell'+(count?' has-photo':'')+'" onclick="openPhotoModal('+w+')" aria-label="Open '+wLabel+' progress photos, '+count+' of '+ANGLES.length+' angles complete">';
     if(firstUrl){html+='<img src="'+firstUrl+'" alt="'+wLabel+'" onerror="pgImgDead(this)" /><div class="photo-count">'+count+'/5</div><div class="photo-overlay">'+wLabel+'</div>';}
     else{html+='<div class="photo-add">+</div><div class="photo-label">'+wLabel+'</div>';}
     html+='</button>';
   }
-  grid.innerHTML=html;
-  if(window.matchMedia&&window.matchMedia('(max-width:760px)').matches){
-    var current=grid.querySelector('.photo-cell.current-week');
-    if(current)requestAnimationFrame(function(){grid.scrollLeft=Math.max(0,current.offsetLeft-(grid.clientWidth-current.clientWidth)/2);});
-  }
+  grid.innerHTML=html||'<div class="photo-history-empty">Your previous photo check-ins will collect here.</div>';
+  var historyCount=document.getElementById('photoHistoryCount');
+  if(historyCount)historyCount.textContent=savedWeeks?savedWeeks+' saved':'None yet';
 }
 // A dead image URL (e.g. asset renamed in Cloudinary) falls back to the empty
 // "+" cell instead of a broken-image icon — the athlete can just re-upload.
@@ -37,29 +66,46 @@ function angleImgDead(img){
   slot.classList.remove('has-photo');
   slot.innerHTML='<div class="aslot-add">+</div><div class="aslot-label">'+esc(angle)+'</div>';
   slot.onclick=function(){triggerAngleUpload(angle);};
+  slot.setAttribute('role','button');slot.setAttribute('tabindex','0');slot.setAttribute('aria-label','Add '+angle+' progress photo');
+  slot.onkeydown=function(event){if(event.key==='Enter'||event.key===' '){event.preventDefault();triggerAngleUpload(angle);}};
 }
-function openPhotoModal(week){currentPhotoWeek=week;document.getElementById('photoModalTitle').textContent=(week===0?'Discovery Week':'Week '+week)+' Photos';renderAngleGrid(week);document.getElementById('photoModal').classList.add('open');document.body.style.overflow='hidden';}
+function openCurrentPhotoWeek(){openPhotoModal(getCurrentProgrammeWeek());}
+function openPhotoModal(week){currentPhotoWeek=week;document.getElementById('photoModalTitle').textContent=photoWeekLabel(week)+' Photos';renderAngleGrid(week);document.getElementById('photoModal').classList.add('open');document.body.style.overflow='hidden';}
 function closePhotoModal(e){if(e&&e.target!==document.getElementById('photoModal')&&!e.target.classList.contains('photo-modal-close')) return;document.getElementById('photoModal').classList.remove('open');document.body.style.overflow='';renderPhotoGrid();}
 function renderAngleGrid(week){
-  var photos=getPhotos(),weekPhotos=photos['week'+week]||{},html='';
+  var photos=getPhotos(),weekPhotos=photos['week'+week]||{},html='',completed=completedPhotoAngles(weekPhotos);
+  photoModalNextAngle=ANGLES.find(function(angle){return completed.indexOf(angle)===-1;})||null;
   ANGLES.forEach(function(angle){
-    var key=angle.toLowerCase().replace(/\s/g,'_');var url=weekPhotos[key]||'';
-    html+='<div class="angle-slot'+(url?' has-photo':'')+'" id="aslot_'+key+'"'+(url?'':' onclick="triggerAngleUpload(\''+angle+'\')"')+'>';
+    var key=photoAngleKey(angle);var url=weekPhotos[key]||'',isNext=!url&&angle===photoModalNextAngle;
+    if(url)html+='<div class="angle-slot has-photo" id="aslot_'+key+'">';
+    else html+='<button type="button" class="angle-slot'+(isNext?' next-angle':'')+'" id="aslot_'+key+'" onclick="triggerAngleUpload(\''+angle+'\')" aria-label="Add '+esc(angle)+' progress photo">';
     if(url){html+='<img src="'+url+'" alt="'+esc(angle)+' progress photo" onerror="angleImgDead(this)" /><div class="aslot-overlay">'+angle+'</div><button aria-label="Remove '+esc(angle)+' progress photo" onclick="deleteAnglePhoto(\''+angle+'\')" style="position:absolute;top:6px;right:6px;z-index:3;background:rgba(0,0,0,.6);border:none;border-radius:50%;width:26px;height:26px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>';}
     else{html+='<div class="aslot-add">+</div><div class="aslot-label">'+angle+'</div>';}
-    html+='</div>';
+    html+=url?'</div>':'</button>';
   });
   document.getElementById('angleGrid').innerHTML=html;
+  var progress=document.getElementById('photoModalProgress');
+  var next=document.getElementById('photoModalNext');
+  var fill=document.getElementById('photoModalProgressFill');
+  var btn=document.getElementById('photoNextBtn');
+  if(progress)progress.textContent=completed.length+' of '+ANGLES.length+' complete';
+  if(fill)fill.style.width=(completed.length/ANGLES.length*100)+'%';
+  if(next)next.textContent=photoModalNextAngle?'Next: '+photoModalNextAngle:'Check-in complete';
+  if(btn){
+    btn.hidden=!photoModalNextAngle;
+    btn.textContent=photoModalNextAngle?'Add '+photoModalNextAngle+' photo':'';
+  }
 }
+function uploadNextPhotoAngle(){if(photoModalNextAngle)triggerAngleUpload(photoModalNextAngle);}
 async function deleteAnglePhoto(angle){
   if(!confirm('Remove '+angle+' photo for Week '+currentPhotoWeek+'?')) return;
-  var key=angle.toLowerCase().replace(/\s/g,'_');var photos=getPhotos();
+  var key=photoAngleKey(angle);var photos=getPhotos();
   try{
     var response=await fetch('/api/progress-photos',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'delete',week:currentPhotoWeek,slot:key})});
     var result=await response.json().catch(function(){return{};});
     if(!response.ok||result.deleted===false)throw new Error(result.error||'Delete failed');
   }catch(e){showToast('Could not remove the cloud photo — try again','error');return;}
-  if(photos['week'+currentPhotoWeek]){delete photos['week'+currentPhotoWeek][key];if(!Object.keys(photos['week'+currentPhotoWeek]).length) delete photos['week'+currentPhotoWeek];savePhotos(photos);renderAngleGrid(currentPhotoWeek);showToast(angle+' photo removed');}
+  if(photos['week'+currentPhotoWeek]){delete photos['week'+currentPhotoWeek][key];if(!Object.keys(photos['week'+currentPhotoWeek]).length) delete photos['week'+currentPhotoWeek];savePhotos(photos);renderAngleGrid(currentPhotoWeek);renderPhotoGrid();showToast(angle+' photo removed');}
 }
 function triggerAngleUpload(angle){currentAngle=angle;document.getElementById('angleInput').click();}
 function prepareProgressImage(file){
@@ -85,7 +131,7 @@ function prepareProgressImage(file){
 }
 async function handleAngleUpload(input){
   if(!input.files||!input.files[0]) return;
-  var file=input.files[0],week=currentPhotoWeek,angle=currentAngle,key=angle.toLowerCase().replace(/\s/g,'_');
+  var file=input.files[0],week=currentPhotoWeek,angle=currentAngle,key=photoAngleKey(angle);
   var slot=document.getElementById('aslot_'+key);if(slot) slot.classList.add('uploading');
   try{
     var imageData=await prepareProgressImage(file);
@@ -98,7 +144,7 @@ async function handleAngleUpload(input){
         try{await portalStateWrite('photos',photos);}
         catch(e){console.warn('Photo cloud sync failed:',e);}
       }
-      renderAngleGrid(week);showToast(angle+' uploaded ✓');initPhotoNudge();
+      renderAngleGrid(week);renderPhotoGrid();showToast(angle+' uploaded ✓');initPhotoNudge();
     }
     else{showToast(data.error||'Upload failed — try again','error');}
   }catch(e){showToast(e.message||'Upload failed — check your connection and try again','error');}
@@ -200,6 +246,22 @@ async function renderVolumeChart(){
   set('pgVolAvg',fmtKmVal(avg)+'km');
   set('pgVolDone',data.hasActual?fmtKmVal(done)+'km':'—');
 }
+function toggleProgressCard(id,button){
+  if(!window.matchMedia||!window.matchMedia('(max-width:760px)').matches)return;
+  var card=document.getElementById(id);if(!card)return;
+  var open=!card.classList.contains('is-open');
+  card.classList.toggle('is-open',open);
+  if(button)button.setAttribute('aria-expanded',open?'true':'false');
+  if(open&&id==='pgVolumeCard')requestAnimationFrame(function(){renderVolumeChart();});
+}
+function syncProgressCards(){
+  var mobile=window.matchMedia&&window.matchMedia('(max-width:760px)').matches;
+  document.querySelectorAll('#tab-progress .progress-collapsible-card').forEach(function(card){
+    card.classList.toggle('is-open',!mobile);
+    var button=card.querySelector('.progress-collapse-toggle');
+    if(button)button.setAttribute('aria-expanded',mobile?'false':'true');
+  });
+}
 // Redraw on resize/rotate so the bars keep filling the card width.
 var _volResizeTimer=null;
 window.addEventListener('resize',function(){
@@ -209,6 +271,7 @@ window.addEventListener('resize',function(){
   _volResizeTimer=setTimeout(function(){renderVolumeChart();},200);
 });
 async function loadProgress(){
+  syncProgressCards();
   renderPhotoGrid();
   renderVolumeChart();
   var savedGoals=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');

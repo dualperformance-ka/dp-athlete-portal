@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=84">
+<link rel="stylesheet" href="/styles.css?v=85">
 <link rel="stylesheet" href="/desktop.css?v=3">
 <link rel="stylesheet" href="/icons.css?v=1">
 
@@ -27,6 +27,7 @@
     <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3 8.5A2 2 0 0 1 5 6.5h2.4l1.4-2.3h6.4l1.4 2.3H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5z"/><circle cx="12" cy="13" r="3.4"/></symbol>
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><polyline points="9 5 16 12 9 19"/></symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><polyline points="15 5 8 12 15 19"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><polyline points="5 9 12 16 19 9"/></symbol>
     <symbol id="i-arrow-right" viewBox="0 0 24 24"><line x1="4.5" y1="12" x2="19.5" y2="12"/><polyline points="13.5 6 19.5 12 13.5 18"/></symbol>
     <symbol id="i-arrow-left" viewBox="0 0 24 24"><line x1="19.5" y1="12" x2="4.5" y2="12"/><polyline points="10.5 6 4.5 12 10.5 18"/></symbol>
     <symbol id="i-arrow-down" viewBox="0 0 24 24"><line x1="12" y1="4.5" x2="12" y2="19.5"/><polyline points="6 13.5 12 19.5 18 13.5"/></symbol>
@@ -739,7 +740,38 @@
         </div>
       </div>
     </div>
-    <div class="stitle">Progress</div>
+    <section class="card progress-card progress-photo-card progress-photo-priority" aria-labelledby="progressPhotosTitle">
+      <div class="progress-section-head">
+        <div>
+          <div class="card-title" id="progressPhotosTitle">Progress photos</div>
+          <div class="progress-section-copy">A consistent five-angle check-in for this week.</div>
+        </div>
+        <span class="progress-section-icon"><svg class="icon"><use href="#i-camera"/></svg></span>
+      </div>
+      <button type="button" class="photo-current-action" id="photoCurrentAction" onclick="openCurrentPhotoWeek()">
+        <span class="photo-current-top">
+          <span class="photo-current-copy">
+            <span class="photo-current-eyebrow">Current check-in</span>
+            <strong id="photoCurrentTitle">Week — photos</strong>
+            <span id="photoCurrentStatus">Preparing your photo check-in…</span>
+          </span>
+          <span class="photo-current-count" id="photoCurrentCount">0/5</span>
+        </span>
+        <span class="photo-current-progress" aria-hidden="true"><span id="photoCurrentProgressFill"></span></span>
+        <span class="photo-angle-statuses" id="photoAngleStatuses" aria-hidden="true"></span>
+        <span class="photo-current-cta" id="photoCurrentCta">Add progress photos <span aria-hidden="true">›</span></span>
+      </button>
+      <details class="photo-history-details" id="photoHistoryDetails">
+        <summary>
+          <span>Previous photo check-ins</span>
+          <span class="photo-history-meta"><span id="photoHistoryCount">None yet</span><svg class="icon"><use href="#i-chevron-down"/></svg></span>
+        </summary>
+        <div class="photo-history-body">
+          <div class="photo-grid" id="photoGrid"></div>
+          <div class="progress-photo-hint">Tap a previous week to view or update its angles.</div>
+        </div>
+      </details>
+    </section>
     <div class="progress-baseline">
       <div class="progress-baseline-item">
         <span>Starting weight</span>
@@ -771,43 +803,42 @@
         </div>
       </div>
     </section>
-    <section class="card progress-card progress-volume-card" id="pgVolumeCard" style="display:none">
-      <div class="progress-section-head">
+    <section class="card progress-card progress-volume-card progress-collapsible-card" id="pgVolumeCard" style="display:none">
+      <button type="button" class="progress-section-head progress-collapse-toggle" aria-expanded="false" onclick="toggleProgressCard('pgVolumeCard',this)">
         <div>
           <div class="card-title">Running volume</div>
           <div class="progress-section-copy">Planned km each week, and what you actually ran.</div>
         </div>
-        <span class="progress-section-icon"><svg class="icon"><use href="#i-run"/></svg></span>
-      </div>
-      <div id="pgVolumeChart"></div>
-      <div class="progress-stats" id="pgVolumeStats">
-        <div class="pstat"><div class="pstat-val" id="pgVolPeak">—</div><div class="pstat-lbl">Peak week</div></div>
-        <div class="pstat"><div class="pstat-val" id="pgVolAvg">—</div><div class="pstat-lbl">Avg / week</div></div>
-        <div class="pstat"><div class="pstat-val" id="pgVolDone">—</div><div class="pstat-lbl">Run so far</div></div>
-      </div>
-    </section>
-    <section class="card progress-card progress-photo-card">
-      <div class="progress-section-head">
-        <div>
-          <div class="card-title">Progress photos</div>
-          <div class="progress-section-copy">Same light, time and angles each week.</div>
+        <span class="progress-collapse-icons">
+          <span class="progress-section-icon"><svg class="icon"><use href="#i-run"/></svg></span>
+          <svg class="icon progress-collapse-chevron"><use href="#i-chevron-down"/></svg>
+        </span>
+      </button>
+      <div class="progress-collapsible-body">
+        <div id="pgVolumeChart"></div>
+        <div class="progress-stats" id="pgVolumeStats">
+          <div class="pstat"><div class="pstat-val" id="pgVolPeak">—</div><div class="pstat-lbl">Peak week</div></div>
+          <div class="pstat"><div class="pstat-val" id="pgVolAvg">—</div><div class="pstat-lbl">Avg / week</div></div>
+          <div class="pstat"><div class="pstat-val" id="pgVolDone">—</div><div class="pstat-lbl">Run so far</div></div>
         </div>
-        <span class="progress-section-icon"><svg class="icon"><use href="#i-camera"/></svg></span>
       </div>
-      <div class="photo-grid" id="photoGrid"></div>
-      <div class="progress-photo-hint">Swipe through your programme · tap a week to add photos</div>
     </section>
-    <section class="card progress-card progress-log-card">
-      <div class="progress-section-head">
+    <section class="card progress-card progress-log-card progress-collapsible-card" id="pgWeightHistoryCard">
+      <button type="button" class="progress-section-head progress-collapse-toggle" aria-expanded="false" onclick="toggleProgressCard('pgWeightHistoryCard',this)">
         <div>
           <div class="card-title">Weight history</div>
           <div class="progress-section-copy">Your latest entries, newest first.</div>
         </div>
-        <span class="progress-section-icon"><svg class="icon"><use href="#i-calendar"/></svg></span>
+        <span class="progress-collapse-icons">
+          <span class="progress-section-icon"><svg class="icon"><use href="#i-calendar"/></svg></span>
+          <svg class="icon progress-collapse-chevron"><use href="#i-chevron-down"/></svg>
+        </span>
+      </button>
+      <div class="progress-collapsible-body">
+        <div class="loading" id="pgLoadingEl" style="padding:24px"><div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div><div class="ltxt">Loading...</div></div>
+        <div id="pgWeightLog" style="display:none"></div>
+        <div id="pgNoData" class="progress-empty" style="display:none">Your weigh-ins will appear here</div>
       </div>
-      <div class="loading" id="pgLoadingEl" style="padding:24px"><div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div><div class="ltxt">Loading...</div></div>
-      <div id="pgWeightLog" style="display:none"></div>
-      <div id="pgNoData" class="progress-empty" style="display:none">Your weigh-ins will appear here</div>
     </section>
   </div>
 
@@ -1138,8 +1169,16 @@
       <div class="photo-modal-title" id="photoModalTitle">Week 1 Photos</div>
       <button class="photo-modal-close" onclick="closePhotoModal()" aria-label="Close progress photos">×</button>
     </div>
-    <div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:14px;letter-spacing:.04em">TAP EACH ANGLE TO UPLOAD · SAME TIME · SAME LIGHTING</div>
+    <div class="photo-modal-guide">
+      <div>
+        <span id="photoModalProgress">0 of 5 complete</span>
+        <strong id="photoModalNext">Next: Front</strong>
+      </div>
+      <div class="photo-modal-progress" aria-hidden="true"><span id="photoModalProgressFill"></span></div>
+      <p>Use the same lighting, distance and time of day for a cleaner comparison.</p>
+    </div>
     <div class="angle-grid" id="angleGrid"></div>
+    <button type="button" class="photo-next-btn" id="photoNextBtn" onclick="uploadNextPhotoAngle()">Add Front photo</button>
     <input type="file" id="angleInput" accept="image/*" style="display:none" onchange="handleAngleUpload(this)" />
   </div>
 </div>
@@ -1148,11 +1187,11 @@
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=80"></script>
 <script src="js/02-login-goals.js?v=84"></script>
-<script src="js/03-nav-nudges.js?v=83"></script>
+<script src="js/03-nav-nudges.js?v=85"></script>
 <script src="js/04-checkin.js?v=84"></script>
 <script src="js/05-handbook.js?v=80"></script>
 <script src="js/06-nutrition.js?v=83"></script>
-<script src="js/07-progress.js?v=80"></script>
+<script src="js/07-progress.js?v=85"></script>
 <script src="js/08-training.js?v=84"></script>
 <script src="js/09-logging.js?v=84"></script>
 <script src="accessibility.js?v=1"></script>

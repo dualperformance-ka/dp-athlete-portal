@@ -4742,3 +4742,174 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
     box-shadow:none
   }
 }
+
+/* ── Adaptive Progress experience ───────────────────────────────────────
+   The current photo check-in is the primary action. Historical photos,
+   running volume and the raw weight log stay available without competing
+   with the current-week decision. */
+.progress-photo-priority{
+  border-color:rgba(146,210,237,.2)!important;
+  background:
+    radial-gradient(circle at 100% 0%,rgba(146,210,237,.075),transparent 38%),
+    linear-gradient(155deg,rgba(16,27,34,.96),rgba(7,16,22,.94))!important;
+}
+.photo-current-action{
+  display:block;width:100%;padding:16px;border:1px solid rgba(146,210,237,.24);
+  border-radius:15px;background:linear-gradient(145deg,rgba(146,210,237,.09),rgba(146,210,237,.025));
+  color:var(--text);font:inherit;text-align:left;cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  transition:border-color .18s,background .18s,transform .15s;
+}
+.photo-current-action:hover{border-color:rgba(146,210,237,.44);background:linear-gradient(145deg,rgba(146,210,237,.13),rgba(146,210,237,.04))}
+.photo-current-action:active{transform:scale(.992)}
+.photo-current-action.is-complete{
+  border-color:rgba(77,201,139,.28);
+  background:linear-gradient(145deg,rgba(77,201,139,.09),rgba(77,201,139,.02));
+}
+.photo-current-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.photo-current-copy,.photo-current-copy span,.photo-current-copy strong{display:block}
+.photo-current-eyebrow{
+  margin-bottom:5px;font-size:9px;font-weight:650;line-height:1.2;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--run);
+}
+.photo-current-copy strong{font-size:20px;font-weight:720;line-height:1.1;letter-spacing:-.035em;color:var(--text)}
+.photo-current-copy>span:last-child{margin-top:5px;font-size:11px;line-height:1.4;color:var(--muted)}
+.photo-current-count{
+  flex:0 0 auto;min-width:51px;padding:9px 10px;border:1px solid var(--run-border);
+  border-radius:999px;background:var(--run-bg);font-size:13px;font-weight:750;
+  line-height:1;text-align:center;color:var(--run);
+}
+.photo-current-action.is-complete .photo-current-count{border-color:rgba(77,201,139,.28);background:rgba(77,201,139,.09);color:var(--ok)}
+.photo-current-progress{
+  display:block;height:5px;margin-top:14px;overflow:hidden;border-radius:999px;
+  background:rgba(255,255,255,.075);
+}
+.photo-current-progress>span{
+  display:block;width:0;height:100%;border-radius:inherit;
+  background:linear-gradient(90deg,var(--run),#a9e0f5);transition:width .25s ease;
+}
+.photo-current-action.is-complete .photo-current-progress>span{background:var(--ok)}
+.photo-angle-statuses{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-top:12px}
+.photo-angle-statuses>span{
+  display:flex;min-width:0;align-items:center;gap:5px;font-size:8px;line-height:1.15;
+  white-space:nowrap;color:var(--dim);overflow:hidden;text-overflow:ellipsis;
+}
+.photo-angle-statuses i{
+  display:block;flex:0 0 7px;width:7px;height:7px;border:1px solid var(--border-mid);
+  border-radius:50%;background:transparent;
+}
+.photo-angle-statuses .is-done{color:var(--muted)}
+.photo-angle-statuses .is-done i{border-color:var(--run);background:var(--run);box-shadow:0 0 0 3px rgba(146,210,237,.08)}
+.photo-current-action.is-complete .photo-angle-statuses .is-done i{border-color:var(--ok);background:var(--ok);box-shadow:0 0 0 3px rgba(77,201,139,.08)}
+.photo-current-cta{
+  display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;
+  border-top:1px solid var(--border);font-size:12px;font-weight:700;color:var(--run);
+}
+.photo-current-cta>span{font-size:20px;font-weight:400;line-height:.7}
+.photo-current-action.is-complete .photo-current-cta{color:var(--ok)}
+.photo-history-details{margin-top:13px;border-top:1px solid var(--border)}
+.photo-history-details summary{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:46px;
+  list-style:none;cursor:pointer;font-size:11px;font-weight:650;color:var(--muted);
+}
+.photo-history-details summary::-webkit-details-marker{display:none}
+.photo-history-meta{display:flex;align-items:center;gap:9px;font-size:9px;font-weight:550;color:var(--dim)}
+.photo-history-meta .icon{width:14px;height:14px;transition:transform .18s}
+.photo-history-details[open] .photo-history-meta .icon{transform:rotate(180deg)}
+.photo-history-body{padding-top:3px}
+.photo-history-empty{
+  grid-column:1/-1;padding:18px 12px;border:1px dashed var(--border);border-radius:12px;
+  font-size:10px;line-height:1.45;text-align:center;color:var(--dim);
+}
+.progress-collapse-toggle{
+  width:100%;padding:0;border:0;background:none;color:inherit;text-align:left;
+  font:inherit;cursor:default;
+}
+.progress-collapse-icons{display:flex;align-items:center;gap:8px}
+.progress-collapse-chevron{display:none;width:16px;height:16px;color:var(--dim);transition:transform .18s}
+.progress-collapsible-body{display:block}
+
+/* The photo sheet works like a short guided checklist, with one clear next step. */
+.photo-modal-inner{max-width:680px}
+.photo-modal-guide{
+  margin-bottom:14px;padding:13px 14px;border:1px solid var(--border);border-radius:13px;
+  background:var(--surface);
+}
+.photo-modal-guide>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.photo-modal-guide span{font-size:10px;font-weight:600;color:var(--muted)}
+.photo-modal-guide strong{font-size:11px;font-weight:700;color:var(--run)}
+.photo-modal-guide p{margin:9px 0 0;font-size:10px;line-height:1.4;color:var(--dim)}
+.photo-modal-progress{height:4px;margin-top:10px;overflow:hidden;border-radius:999px;background:var(--border)}
+.photo-modal-progress span{display:block;width:0;height:100%;border-radius:inherit;background:var(--run);transition:width .25s}
+.angle-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.angle-slot{border-radius:12px;color:inherit;font:inherit;padding:0;-webkit-appearance:none;appearance:none}
+.angle-slot.next-angle{
+  border-style:solid;border-color:var(--run);
+  background:linear-gradient(145deg,rgba(146,210,237,.1),rgba(146,210,237,.025));
+  box-shadow:0 0 0 3px rgba(146,210,237,.08);
+}
+.photo-next-btn{
+  display:block;width:100%;min-height:48px;margin-top:14px;padding:12px 16px;border:0;
+  border-radius:12px;background:var(--run);font-family:var(--body);font-size:13px;
+  font-weight:750;color:#061117;cursor:pointer;box-shadow:0 10px 24px rgba(8,127,174,.16);
+}
+.photo-next-btn[hidden]{display:none}
+
+html.outdoor-mode .progress-photo-priority{
+  border-color:rgba(8,127,174,.16)!important;
+  background:
+    radial-gradient(circle at 100% 0%,rgba(8,127,174,.075),transparent 40%),
+    linear-gradient(155deg,#fff,#f7fafb)!important;
+}
+html.outdoor-mode .photo-current-action{
+  border-color:rgba(8,127,174,.19);background:linear-gradient(145deg,rgba(8,127,174,.07),rgba(8,127,174,.015));
+  box-shadow:inset 0 1px 0 #fff;
+}
+html.outdoor-mode .photo-current-progress{background:rgba(7,17,22,.09)}
+html.outdoor-mode .photo-modal-guide{background:rgba(7,17,22,.025)}
+html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
+
+@media(max-width:760px){
+  body.mobile-progress-tab #tab-progress .progress-intro{padding:14px 15px}
+  body.mobile-progress-tab #tab-progress .page-copy{display:none}
+  body.mobile-progress-tab #tab-progress .progress-card{padding:13px 14px}
+  body.mobile-progress-tab .progress-photo-card{padding-right:14px!important}
+  body.mobile-progress-tab .progress-photo-card .progress-section-head{padding-right:0}
+  body.mobile-progress-tab .progress-photo-priority{margin-top:0}
+  body.mobile-progress-tab .photo-current-action{padding:14px;border-radius:14px}
+  body.mobile-progress-tab .photo-current-copy strong{font-size:18px}
+  body.mobile-progress-tab .photo-current-copy>span:last-child{font-size:10px}
+  body.mobile-progress-tab .photo-current-count{min-width:48px;padding:8px 9px;font-size:12px}
+  body.mobile-progress-tab .photo-angle-statuses{gap:5px}
+  body.mobile-progress-tab .photo-angle-statuses>span{
+    display:block;text-align:center;font-size:0;overflow:visible;
+  }
+  body.mobile-progress-tab .photo-angle-statuses i{margin:0 auto;width:8px;height:8px}
+  body.mobile-progress-tab .photo-current-cta{margin-top:12px;padding-top:11px}
+  body.mobile-progress-tab .photo-history-details summary{min-height:42px}
+  body.mobile-progress-tab .photo-history-body{margin-right:-14px}
+  body.mobile-progress-tab .photo-history-body .photo-grid{
+    padding-right:14px;grid-auto-columns:88px;
+  }
+  body.mobile-progress-tab .photo-history-body .photo-cell{width:88px}
+  body.mobile-progress-tab .photo-history-body .progress-photo-hint{padding-right:14px}
+
+  body.mobile-progress-tab .progress-collapse-toggle{margin:0;cursor:pointer}
+  body.mobile-progress-tab .progress-collapse-icons .progress-section-icon{display:none}
+  body.mobile-progress-tab .progress-collapse-chevron{display:block}
+  body.mobile-progress-tab .progress-collapsible-card .progress-section-head{margin-bottom:0}
+  body.mobile-progress-tab .progress-collapsible-card .progress-collapsible-body{display:none;padding-top:11px}
+  body.mobile-progress-tab .progress-collapsible-card.is-open .progress-collapsible-body{display:block}
+  body.mobile-progress-tab .progress-collapsible-card.is-open .progress-collapse-chevron{transform:rotate(180deg)}
+  body.mobile-progress-tab .progress-collapsible-card .progress-section-copy{max-width:260px}
+
+  .photo-modal-inner{padding:18px 14px calc(22px + env(safe-area-inset-bottom));max-height:92vh;border-radius:22px 22px 0 0}
+  .photo-modal-header{margin-bottom:12px}
+  .photo-modal-title{font-family:var(--body);font-size:20px;text-transform:none;letter-spacing:-.03em}
+  .photo-modal-guide{margin-bottom:12px;padding:12px}
+  .angle-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+  .angle-slot{aspect-ratio:.78;border-radius:11px}
+  .angle-slot .aslot-label{padding:0 4px;font-family:var(--body);font-size:8px;letter-spacing:0;text-transform:none}
+  .angle-slot .aslot-overlay{font-family:var(--body);font-size:8px;letter-spacing:0;text-transform:none}
+  .photo-next-btn{position:sticky;bottom:0;z-index:5;margin-top:12px}
+}
