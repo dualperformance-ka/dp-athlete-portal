@@ -389,3 +389,34 @@ document.addEventListener('DOMContentLoaded',function(){
 document.addEventListener('input',function(e){
   if(e.target&&e.target.type==='range')e.target.classList.remove('sl-untouched');
 },true);
+
+// ── QUICK LOG DOCK STATE ──────────────────────────────────────────────────────
+// Body and nutrition are daily actions, so the dock stays pinned. To keep the
+// home screen down to a single accent, only the next unlogged segment is
+// filled — anything already logged today drops to a quiet done state.
+function quickLogDoneToday(kind){
+  try{
+    if(!window.athlete||!athlete.code) return false;
+    var key='dp_daily_'+(kind==='body'?'body':'nut')+'_'+athlete.code+'_'+todayISO2();
+    return !!localStorage.getItem(key);
+  }catch(e){return false;}
+}
+function syncQuickLogDock(){
+  var body=document.getElementById('qlDockBody');
+  var nut=document.getElementById('qlDockNut');
+  if(!body||!nut) return;
+  var bodyDone=quickLogDoneToday('body');
+  var nutDone=quickLogDoneToday('nut');
+  body.classList.toggle('is-done',bodyDone);
+  nut.classList.toggle('is-done',nutDone);
+  // Exactly one segment may be filled. Body leads because readiness shapes
+  // how the session should be executed.
+  var nextUp=bodyDone?(nutDone?null:'nut'):'body';
+  body.classList.toggle('is-next',nextUp==='body');
+  nut.classList.toggle('is-next',nextUp==='nut');
+  var strip=document.getElementById('quicklogStrip');
+  if(strip) strip.classList.toggle('all-logged',bodyDone&&nutDone);
+  body.setAttribute('aria-label',bodyDone?'Daily body log, already logged today':'Daily body log, not logged yet today');
+  nut.setAttribute('aria-label',nutDone?'Daily nutrition log, already logged today':'Daily nutrition log, not logged yet today');
+}
+document.addEventListener('DOMContentLoaded',function(){try{syncQuickLogDock();}catch(e){}});

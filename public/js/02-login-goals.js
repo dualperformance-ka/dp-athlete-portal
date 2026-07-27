@@ -97,6 +97,7 @@ async function doLogin(code){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('portalScreen').style.display='block';
   document.getElementById('quicklogStrip').style.display='flex';
+  try{syncQuickLogDock();}catch(e){}
   document.getElementById('heroName').textContent=athlete.name;
   populateStatic();
   retryPendingCoachWrites(true);

@@ -180,65 +180,60 @@
         <div class="hero-bottom">
           <div class="hpills">
             <a id="dp-strava-btn" href="#" target="_blank" rel="noopener" class="hp" style="display:none;color:rgba(255,255,255,.9)"></a>
-          </div>
-          <div class="hero-stat-grid" aria-label="This week at a glance">
-            <button class="hero-stat hero-stat-action hero-stat-progress" id="heroComplianceCard" type="button" onclick="openWeeklySummary()" aria-label="Open weekly completion summary">
-              <div class="hero-stat-label">Week progress</div>
-              <div class="hero-stat-row"><div class="hero-stat-value" id="heroStatCompliance">—</div><span class="hero-stat-chevron" aria-hidden="true">›</span></div>
-              <div class="hero-progress-track" aria-hidden="true"><span id="heroStatComplianceBar"></span></div>
-              <div class="hero-stat-note" id="heroStatComplianceNote">Week in progress</div>
-            </button>
-            <button class="hero-stat hero-stat-action hero-stat-readiness" id="heroReadinessCard" type="button" onclick="openQuickLog('body')" aria-label="Open readiness check-in">
-              <div class="hero-stat-label">Readiness</div>
-              <div class="hero-readiness-wrap">
-                <div class="hero-readiness-ring" id="heroReadinessRing" style="--value:0"><span class="hero-stat-value" id="heroStatReadiness">—</span></div>
-                <div class="hero-stat-note" id="heroStatReadinessNote">Log body check</div>
-              </div>
-            </button>
-            <button class="hero-stat hero-stat-action hero-stat-pbs" id="heroPbsCard" type="button" onclick="openPbHistory()" aria-label="Open personal best history">
-              <div class="hero-stat-label">PB tracking</div>
-              <div class="hero-stat-row"><div class="hero-pb-value"><svg class="icon" aria-hidden="true"><use href="#i-trophy"/></svg><span class="hero-stat-value" id="heroStatPbs">—</span></div><span class="hero-stat-chevron" aria-hidden="true">›</span></div>
-              <div class="hero-stat-note">Open all PBs</div>
+            <button class="readiness-chip" id="heroReadinessCard" type="button" onclick="openQuickLog('body')" aria-label="Open readiness check-in">
+              <span class="hero-readiness-ring" id="heroReadinessRing" style="--value:0"><span class="hero-stat-value" id="heroStatReadiness">—</span></span>
+              <span class="readiness-chip-text">
+                <span class="readiness-chip-label">Readiness</span>
+                <span class="hero-stat-note" id="heroStatReadinessNote">Log body check</span>
+              </span>
             </button>
           </div>
-        </div>
-      </div>
-      <div class="hero-side">
-        <div class="hero-output-heading">
-          <div class="hero-side-label">Weekly output</div>
-          <span class="hero-output-week" id="heroOutputWeek">This week</span>
-        </div>
-        <div class="week-rings">
-          <div id="kmBar" class="ring-item" style="display:none">
-            <div class="ring-wrap">
-              <svg class="ring-svg gauge-svg" id="kmGauge" viewBox="0 0 72 72"></svg>
-              <svg class="icon ring-icon"><use href="#i-shoe"/></svg>
+          <!-- WEEK METRICS — one block, four numbers, each read as done/target.
+               Replaces the old three stat cards plus the separate weekly
+               output panel. IDs are unchanged so the render functions in
+               08-training.js, 06-nutrition.js and 04-checkin.js still bind. -->
+          <div class="hero-metric-grid" aria-label="This week at a glance">
+            <button class="metric-cell metric-cell-action" id="heroComplianceCard" type="button" onclick="openWeeklySummary()" aria-label="Open weekly completion summary">
+              <span class="metric-head">
+                <span class="metric-label">Sessions</span>
+                <span class="metric-val" id="heroStatCompliance">—</span>
+              </span>
+              <span class="metric-track" aria-hidden="true"><span id="heroStatComplianceBar"></span></span>
+              <span class="metric-note" id="heroStatComplianceNote">Week in progress</span>
+            </button>
+            <div id="kmBar" class="metric-cell" style="display:none">
+              <span class="metric-head">
+                <span class="metric-label">Distance</span>
+                <span class="metric-val"><span id="kmDoneVal">0</span><small>/<span id="kmTargetVal">—</span> km</small></span>
+              </span>
+              <span class="metric-track" id="kmProgress" role="progressbar" aria-label="Weekly running volume" aria-valuemin="0" aria-valuenow="0"><span id="kmProgressFill"></span></span>
+              <span class="metric-note" id="kmSrcStrava" style="display:none"><svg width="9" height="9" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg> Strava</span>
             </div>
-            <div class="ring-text">
-              <div class="ring-kicker">Running volume</div>
-              <div class="ring-val"><span id="kmDoneVal">0</span><small>km</small></div>
-              <div class="ring-sub"><span id="kmTargetVal">—</span> km target</div>
-              <div class="ring-progress" id="kmProgress" role="progressbar" aria-label="Weekly running volume" aria-valuemin="0" aria-valuenow="0"><span id="kmProgressFill"></span></div>
-              <div class="ring-src" id="kmSrcStrava" style="display:none"><svg width="9" height="9" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg> Strava</div>
+            <div id="gymBar" class="metric-cell" style="display:none">
+              <span class="metric-head">
+                <span class="metric-label">Strength</span>
+                <span class="metric-val"><span id="gymDoneVal">0</span><small>/<span id="gymTargetVal">—</span></small></span>
+              </span>
+              <span class="metric-track" id="gymProgress" role="progressbar" aria-label="Weekly strength sessions" aria-valuemin="0" aria-valuenow="0"><span id="gymProgressFill"></span></span>
+              <span class="metric-note">Planned this week</span>
             </div>
-          </div>
-          <div id="gymBar" class="ring-item" style="display:none">
-            <div class="ring-wrap">
-              <svg class="ring-svg gauge-svg" id="gymGauge" viewBox="0 0 72 72"></svg>
-              <svg class="icon ring-icon"><use href="#i-barbell"/></svg>
-            </div>
-            <div class="ring-text">
-              <div class="ring-kicker">Strength sessions</div>
-              <div class="ring-val"><span id="gymDoneVal">0</span></div>
-              <div class="ring-sub"><span id="gymTargetVal">—</span> planned this week</div>
-              <div class="ring-progress strength" id="gymProgress" role="progressbar" aria-label="Weekly strength sessions" aria-valuemin="0" aria-valuenow="0"><span id="gymProgressFill"></span></div>
-            </div>
+            <button class="metric-cell metric-cell-action" id="heroPbsCard" type="button" onclick="openPbHistory()" aria-label="Open personal best history">
+              <span class="metric-head">
+                <span class="metric-label">Personal bests</span>
+                <span class="metric-val" id="heroStatPbs">—</span>
+              </span>
+              <span class="metric-track metric-track-empty" aria-hidden="true"></span>
+              <span class="metric-note">Open all PBs<span class="metric-week" id="heroOutputWeek"></span></span>
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="top-shell-priority">
+    <!-- THIS WEEK — the three weekly nudges share one card instead of each
+         owning a full-width strip. Rows collapse out individually as they
+         are completed; the card hides itself when all rows are gone. -->
+    <div class="top-shell-priority week-card">
       <!-- STRAVA CONNECTED BANNER -->
       <div id="strava-ack-banner" style="display:none;margin:0;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:12px 16px;align-items:center;gap:12px;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="#22c55e" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg>
@@ -846,10 +841,21 @@
     </div>
   </div>
 
-  <!-- QUICK LOG STRIP -->
+  <!-- QUICK LOG DOCK — pinned because both are daily actions. Only the next
+       thing you have not logged is filled; once logged a segment drops to a
+       quiet done state so exactly one accent shows at a time. State is set
+       by syncQuickLogDock() in 09-logging.js. -->
   <div class="quicklog-strip" id="quicklogStrip">
-    <button class="quicklog-btn ql-body" onclick="openQuickLog('body')"><svg class="icon"><use href="#i-bars"/></svg> Daily Body Log</button>
-    <button class="quicklog-btn ql-nut" onclick="openQuickLog('nut')"><svg class="icon"><use href="#i-utensils"/></svg> Daily Nutrition Log</button>
+    <button class="quicklog-btn ql-body" id="qlDockBody" onclick="openQuickLog('body')" aria-label="Daily body log">
+      <svg class="icon ql-icon-todo" aria-hidden="true"><use href="#i-bars"/></svg>
+      <svg class="icon ql-icon-done" aria-hidden="true"><use href="#i-check"/></svg>
+      <span>Body</span>
+    </button>
+    <button class="quicklog-btn ql-nut" id="qlDockNut" onclick="openQuickLog('nut')" aria-label="Daily nutrition log">
+      <svg class="icon ql-icon-todo" aria-hidden="true"><use href="#i-utensils"/></svg>
+      <svg class="icon ql-icon-done" aria-hidden="true"><use href="#i-check"/></svg>
+      <span>Nutrition</span>
+    </button>
   </div>
 
   <!-- QUICK LOG BODY MODAL -->

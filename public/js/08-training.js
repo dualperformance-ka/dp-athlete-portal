@@ -764,13 +764,25 @@ function syncHeroShell(insights,todaySessions){
       support.textContent='Recovery day. Stay ahead of the week, lock in the admin that matters, and be ready for the next key session.';
     }
   }
+  // Sessions reads as done/planned like distance and strength do, so the four
+  // week metrics share one grammar instead of mixing a percentage in.
   var compliance=document.getElementById('heroStatCompliance');
-  if(compliance) compliance.textContent=(insights&&insights.compliance!=null)?(insights.compliance+'%'):'—';
+  if(compliance){
+    if(insights&&insights.planned){
+      compliance.textContent='';
+      compliance.appendChild(document.createTextNode(String(Number(insights.completed)||0)));
+      var _cSmall=document.createElement('small');
+      _cSmall.textContent='/'+(Number(insights.planned)||0);
+      compliance.appendChild(_cSmall);
+    }else{
+      compliance.textContent='—';
+    }
+  }
   var complianceBar=document.getElementById('heroStatComplianceBar');
   if(complianceBar)complianceBar.style.width=((insights&&insights.compliance)||0)+'%';
   var complianceNote=document.getElementById('heroStatComplianceNote');
   if(complianceNote){
-    complianceNote.textContent=insights&&insights.planned?(insights.completed+'/'+insights.planned+' complete · '+(insights.completed>=insights.planned?'week done':'underway')):'No sessions planned';
+    complianceNote.textContent=insights&&insights.planned?(insights.completed>=insights.planned?'Week done':'Underway'):'None planned';
   }
   var complianceCard=document.getElementById('heroComplianceCard');
   if(complianceCard&&insights)complianceCard.setAttribute('aria-label','Open weekly completion summary. '+insights.completed+' of '+insights.planned+' planned sessions complete.');

@@ -324,6 +324,7 @@ async function submitQuickBody(){
     sleep:document.getElementById('qlbSleep').value,energy:document.getElementById('qlbEnergy').value,
     stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,pain:pain,painLocation:painLocation,coachAlert:Number(pain)>=5,notes:notes};
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
+  try{syncQuickLogDock();}catch(e){}
   var bodyResult=await coachWrite(DAILY_BODY_WEBHOOK,payload);
   closeQuickLog('body');
   showToast(bodyResult.queued?'Body logged - coach dashboard sync pending':'Body logged ✓');
@@ -350,6 +351,7 @@ async function submitQuickNut(){
     if(_v!==''&&_v!=null) payload[_f[0]]=_v;
   });
   localStorage.setItem('dp_daily_nut_'+athlete.code+'_'+nutDate,JSON.stringify(payload));
+  try{syncQuickLogDock();}catch(e){}
   var nutResult=await coachWrite(DAILY_NUT_WEBHOOK,payload);
   closeQuickLog('nut');
   showToast(nutResult.queued?'Nutrition logged - coach dashboard sync pending':'Nutrition logged ✓');

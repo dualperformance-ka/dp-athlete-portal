@@ -4674,3 +4674,154 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   HOME DENSITY PASS
+   Same features, less furniture. Three principles:
+   1. One level of card nesting. Space separates groups, padding does not.
+   2. One filled accent element on screen at a time.
+   3. Every week metric reads as done/target with a hairline bar.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* The hero is a single column now that weekly output folded into the grid. */
+.hero-shell{grid-template-columns:1fr}
+
+/* ── Readiness chip ────────────────────────────────────────────────────
+   Readiness is an action, not a number, so it sits with the pills rather
+   than taking a full cell in the metric grid. */
+.hpills{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.readiness-chip{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:4px 12px 4px 4px;border:1px solid var(--run-border);border-radius:999px;
+  background:var(--run-bg);cursor:pointer;font-family:var(--body);line-height:1
+}
+.readiness-chip:active{background:var(--run-bg-strong)}
+.readiness-chip .hero-readiness-ring{width:26px;height:26px;flex:0 0 26px;margin:0}
+.readiness-chip .hero-stat-value{font-size:11px;font-weight:800}
+.readiness-chip-text{display:flex;flex-direction:column;gap:1px;text-align:left;min-width:0}
+.readiness-chip-label{
+  font-family:var(--mono);font-size:7.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim)
+}
+.readiness-chip .hero-stat-note{
+  margin:0;font-family:var(--body);font-size:11px;font-weight:600;
+  color:var(--run);letter-spacing:0;text-transform:none;white-space:nowrap
+}
+
+/* ── Week metric grid ──────────────────────────────────────────────────
+   Four numbers, no card chrome. Tabular figures so values do not jitter
+   as they update. */
+.hero-metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 18px}
+.metric-cell{
+  display:flex;flex-direction:column;gap:6px;min-width:0;
+  margin:0;padding:0;border:0;background:none;text-align:left;
+  font-family:var(--body);color:inherit
+}
+.metric-cell-action{cursor:pointer;-webkit-appearance:none;appearance:none}
+.metric-cell-action:active{opacity:.65}
+.metric-cell-action:focus-visible{outline:2px solid var(--run);outline-offset:4px;border-radius:4px}
+.metric-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
+.metric-label{
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.metric-val{
+  font-family:var(--display);font-size:20px;font-weight:800;line-height:1;
+  color:var(--text);white-space:nowrap;
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1
+}
+.metric-val small{
+  font-family:var(--mono);font-size:9.5px;font-weight:400;letter-spacing:.02em;
+  color:var(--dim);margin-left:1px
+}
+.metric-track{display:block;height:3px;border-radius:2px;background:rgba(255,255,255,.09);overflow:hidden}
+.metric-track>span{
+  display:block;height:100%;width:0;border-radius:2px;background:var(--run);
+  transition:width .55s cubic-bezier(.2,.7,.2,1)
+}
+.metric-track-empty{background:transparent}
+.metric-cell.km-hit .metric-track>span{background:var(--ok)}
+.metric-note{
+  display:flex;align-items:center;gap:4px;min-height:10px;
+  font-family:var(--mono);font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim)
+}
+.metric-week{color:rgba(255,255,255,.26);margin-left:auto}
+
+@media(min-width:900px){
+  .hero-metric-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 24px}
+  .metric-val{font-size:24px}
+  .metric-label{font-size:9px}
+}
+
+/* ── This week card ────────────────────────────────────────────────────
+   Mobile only. The call, check-in and photo nudges share one card of
+   compact rows instead of three full-bleed strips. Desktop keeps its
+   three-column layout, where the strips have room to breathe. */
+@media(max-width:760px){
+  .week-card{
+    margin-top:8px;padding:0 2px;gap:0;
+    border:1px solid var(--border);border-radius:16px;background:rgba(255,255,255,.022)
+  }
+  .week-card:empty{display:none}
+  .week-card>.nudge-strip{
+    background:none;border:0;border-top:1px solid var(--border);border-radius:0;
+    padding:0 11px;box-shadow:none;cursor:pointer
+  }
+  .week-card>.nudge-strip:first-of-type{border-top:0}
+  .week-card>.nudge-strip .nudge-strip-inner{min-height:42px;gap:11px;max-width:none}
+  .week-card>.nudge-strip .nudge-strip-title{
+    font-family:var(--body);font-size:13.5px;font-weight:600;
+    text-transform:none;letter-spacing:0;color:var(--text)
+  }
+  .week-card>.nudge-strip .nudge-strip-sub{display:none}
+  .week-card>.nudge-strip .nudge-strip-icon{
+    width:20px;height:20px;flex:0 0 20px;
+    background:none;border:0;box-shadow:none;color:var(--dim)
+  }
+  .week-card>.nudge-strip .nudge-strip-icon .icon{width:17px;height:17px}
+  .week-card>.nudge-strip .nudge-strip-arr{color:var(--dim);opacity:.7}
+  /* A due item gets a dot, not a second filled button. */
+  .week-card>#checkinNudge .nudge-strip-arr::before{
+    content:"";width:6px;height:6px;border-radius:50%;background:var(--run);
+    display:inline-block;margin-right:9px;vertical-align:middle
+  }
+  .outdoor-mode .week-card{background:rgba(255,255,255,.6);border-color:rgba(7,17,22,.1)}
+  .outdoor-mode .week-card>.nudge-strip{border-top-color:rgba(7,17,22,.1)}
+  .outdoor-mode .week-card>.nudge-strip .nudge-strip-title{color:#071015}
+}
+
+/* ── Daily log dock ────────────────────────────────────────────────────
+   Pinned because both are daily. Only the next unlogged segment is
+   filled; a completed segment drops to a quiet done state. */
+.quicklog-btn .ql-icon-done{display:none}
+.quicklog-btn.is-done .ql-icon-todo{display:none}
+.quicklog-btn.is-done .ql-icon-done{display:inline-block}
+.quicklog-btn.is-done{background:transparent;border-color:transparent;color:var(--ok);opacity:.85}
+.quicklog-btn.is-next{background:var(--run);border-color:var(--run);color:#071015;font-weight:800}
+.quicklog-btn.is-next .icon{color:#071015}
+.quicklog-strip.all-logged{opacity:.72}
+.outdoor-mode .quicklog-btn.is-next{background:#1f7fa6;border-color:#1f7fa6;color:#fff}
+.outdoor-mode .quicklog-btn.is-next .icon{color:#fff}
+.outdoor-mode .quicklog-btn.is-done{color:#12794a}
+
+/* ── Outdoor (light) mode parity ───────────────────────────────────────── */
+.outdoor-mode .metric-track{background:rgba(7,17,22,.1)}
+.outdoor-mode .metric-val{color:#071015}
+.outdoor-mode .metric-label,.outdoor-mode .metric-note{color:rgba(7,17,22,.55)}
+.outdoor-mode .metric-week{color:rgba(7,17,22,.35)}
+.outdoor-mode .readiness-chip-label{color:rgba(7,17,22,.55)}
+
+/* ── Mobile home: flatten nesting, spend the accent once ──────────────── */
+@media(max-width:760px){
+  body.mobile-portal-home .hero-main{padding:13px 14px 12px;border-radius:18px}
+  body.mobile-portal-home .hero-bottom{gap:11px;margin-top:8px}
+  body.mobile-portal-home .hpills{margin-bottom:0}
+  body.mobile-portal-home .hero-metric-grid{gap:11px 16px}
+  body.mobile-portal-home .metric-val{font-size:18px}
+  /* Today's card carries the only filled button on the screen, so the
+     surrounding panels drop their competing fills and heavy borders. */
+  body.mobile-portal-home #todayEl .todaypanel{
+    border:1px solid var(--border);
+    box-shadow:none
+  }
+}
