@@ -1,7 +1,7 @@
 /**
- * GET /api/strava?code={athleteCode}
+ * GET /api/strava
  *
- * Returns recent Strava activities for an athlete.
+ * Returns recent Strava activities for the authenticated athlete.
  * Tokens are stored in Supabase athlete_data table.
  *
  * Response shapes:
@@ -15,6 +15,9 @@
  *   STRAVA_CLIENT_SECRET — Strava app client secret
  *   PORTAL_URL           — full URL of this deployment, e.g. https://dp-athlete-portal.vercel.app
  */
+import { getRequestAthlete } from './_lib/auth.js';
+import { createPortalSession, verifyPortalSession } from './_lib/legacy-session.js';
+import { allowPortalRequest } from './_lib/http.js';
 
 const STRAVA_API  = 'https://www.strava.com/api/v3';
 const STRAVA_AUTH = 'https://www.strava.com/oauth/token';
@@ -22,17 +25,6 @@ const STRAVA_AUTH = 'https://www.strava.com/oauth/token';
 function portalUrl() {
   return process.env.PORTAL_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
-}
-
-function setCors(req, res) {
-  const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-  const origin  = req.headers.origin;
-  if (!allowed.length || (origin && allowed.includes(origin))) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 // ── Supabase helpers ──────────────────────────────────────────────────────────
@@ -113,13 +105,13 @@ async function fetchActivities(accessToken, perPage = 100) {
 
 export default async function handler(req, res) {
   if (req.query && req.query.mode === 'callback') return handleCallback(req, res);
-  setCors(req, res);
+  if (!allowPortalRequest(req, res, 'GET, OPTIONS')) return;
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Support both ?code= (new) and ?athlete= (legacy) params
-  const athleteCode = ((req.query.code || req.query.athlete) || '').trim().toUpperCase();
-  if (!athleteCode) return res.status(400).json({ error: 'code param required' });
+  const identity = await getRequestAthlete(req);
+  if (!identity) return res.status(401).json({ error: 'invalid_session' });
+  const athleteCode = String(identity.athlete.code).toUpperCase();
 
   if (!process.env.STRAVA_CLIENT_ID || !process.env.STRAVA_CLIENT_SECRET) {
     return res.status(500).json({ error: 'Strava credentials not configured' });
@@ -136,7 +128,7 @@ export default async function handler(req, res) {
         `&response_type=code` +
         `&redirect_uri=${encodeURIComponent(portalUrl() + '/api/strava-callback')}` +
         `&scope=activity:read_all` +
-        `&state=${encodeURIComponent(athleteCode)}`;
+        `&state=${encodeURIComponent(createPortalSession(athleteCode, { purpose: 'strava', ttlSeconds: 10 * 60 }))}`;
 
       return res.status(200).json({ connected: false, connectUrl });
     }
@@ -256,6 +248,7 @@ function successPage(athleteCode) {
 }
 
 function errorPage(message) {
+  const safeMessage = escapeHtml(message);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -277,11 +270,21 @@ function errorPage(message) {
 <div class="card">
   <h1>Connection Failed</h1>
   <p>Something went wrong connecting your Strava account.</p>
-  <p><code>${message}</code></p>
+  <p><code>${safeMessage}</code></p>
   <p>Contact your coach to get a new connect link.</p>
 </div>
 </body>
 </html>`;
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .slice(0, 500);
 }
 
 async function handleCallback(req, res) {
@@ -299,7 +302,12 @@ async function handleCallback(req, res) {
     return res.status(400).send(errorPage('Missing code or athlete identifier'));
   }
 
-  const athleteCode = decodeURIComponent(state).toUpperCase();
+  const verifiedState = verifyPortalSession(decodeURIComponent(state), 'strava');
+  if (!verifiedState) {
+    res.setHeader('Content-Type', 'text/html');
+    return res.status(400).send(errorPage('The connection link expired. Start again from the portal.'));
+  }
+  const athleteCode = verifiedState.code;
 
   if (!process.env.STRAVA_CLIENT_ID || !process.env.STRAVA_CLIENT_SECRET) {
     res.setHeader('Content-Type', 'text/html');

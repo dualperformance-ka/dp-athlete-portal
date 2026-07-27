@@ -1,19 +1,16 @@
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 // Public client configuration. These values are visible in the browser by design:
 // - Supabase anon/publishable keys rely on RLS policies for access control.
-// - Cloudinary unsigned upload presets must be locked down in Cloudinary.
 // Keep write-capable secrets in Vercel env vars only (SUPABASE_SERVICE_KEY,
 // CLOUDINARY_API_SECRET). The Notion integration was removed on 2026-07-20 —
 // Supabase is the single source of truth for all portal data.
-// All portal writes go to a single Vercel serverless function, /api/ingest,
-// which persists straight to the structured Supabase tables (routed by payload.type).
+// Portal state, structured submissions, and progress media all pass through
+// authenticated same-origin server routes.
 const WEBHOOK = '/api/ingest';
 const CHECKIN_WEBHOOK = '/api/ingest';
 const DAILY_BODY_WEBHOOK = '/api/ingest';
 const DAILY_NUT_WEBHOOK = '/api/ingest';
 const GOALS_WEBHOOK = '/api/ingest';
-const CLOUDINARY_CLOUD = 'dtkpg96ci';
-const CLOUDINARY_PRESET = 'dp_progress';
 const SUPABASE_URL = 'https://rugdupplsswxmpoudhpv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_KJU_GYqUOwthiLo5WQjfog_MLaVKw5R';
 // Web Push (public VAPID key — the private key lives in Vercel env vars only)

@@ -7,6 +7,39 @@
   ],
   "headers": [
     {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com; connect-src 'self' https://rugdupplsswxmpoudhpv.supabase.co wss://rugdupplsswxmpoudhpv.supabase.co; frame-src https://api.leadconnectorhq.com https://*.leadconnectorhq.com https://*.msgsndr.com; worker-src 'self'; manifest-src 'self'; form-action 'self' https://www.strava.com; upgrade-insecure-requests"
+        }
+      ]
+    },
+    {
       "source": "/styles.css",
       "headers": [
         {
@@ -73,6 +106,10 @@
     {
       "source": "/api/strava-callback",
       "destination": "/api/strava?mode=callback"
+    },
+    {
+      "source": "/api/portal-data",
+      "destination": "/api/write?mode=portal"
     }
   ]
 }

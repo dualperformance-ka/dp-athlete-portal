@@ -4656,3 +4656,10 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 /* Weeks with no target yet: keep the column for alignment, drop the empty track. */
 .vstrip-week.is-empty .vstrip-bar{background:transparent;border:1px dashed var(--border)}
 .vstrip-week.is-empty .vstrip-km{min-height:11px}
+:root{scroll-behavior:smooth}
+.skip-link{position:fixed;left:12px;top:10px;z-index:9999;transform:translateY(-160%);padding:10px 14px;border-radius:8px;background:#92d2ed;color:#071015;font-weight:800;text-decoration:none;transition:transform .15s}
+.skip-link:focus{transform:translateY(0)}
+[role="button"]:focus-visible{outline:3px solid var(--run);outline-offset:3px}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}

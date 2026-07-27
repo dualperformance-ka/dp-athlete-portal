@@ -71,7 +71,7 @@ async function saveNote(i){
   var el=document.getElementById('nt_'+i);var noteText=el?el.value.trim():'';
   logs[s.id]={__notes:noteText};logs.__savedAt=Date.now();
   localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
-  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
+  try{await portalStateWrite('logs',logs);}catch(e){}
   var noteDate=s.date||new Date().toISOString().slice(0,10);
   var noteResult=await coachWrite(WEBHOOK,{
     name:athlete.name+' — '+(s.name||'Notes')+' — '+noteDate,
@@ -96,13 +96,12 @@ var sessionLoggedCache={};
 async function markSessionLogged(sessionId){
   var key='session_'+athlete.code+'_'+sessionId;
   sessionLoggedCache[key]=true;
-  if(sbClient){try{await sbClient.from('session_logs').upsert({athlete_code:athlete.code,session_key:key,logged_at:new Date().toISOString()},{onConflict:'athlete_code,session_key'});}catch(e){console.warn('session_logs upsert failed:',e);}}
+  try{await portalRequest('session-log-write',{sessionKey:key});}catch(e){console.warn('session log sync failed:',e);}
 }
 async function loadSessionLogs(){
-  if(!sbClient) return;
   try{
-    var res=await sbClient.from('session_logs').select('session_key').eq('athlete_code',athlete.code);
-    if(res.data){res.data.forEach(function(r){sessionLoggedCache[r.session_key]=true;});}
+    var res=await portalRequest('session-logs-read');
+    if(res.rows){res.rows.forEach(function(r){sessionLoggedCache[r.session_key]=true;});}
   }catch(e){console.warn('session_logs load failed:',e);}
 }
 function isSessionLogged(sessionId){
@@ -132,7 +131,7 @@ async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
   var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
   logs[s.id]=d;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
-  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
+  try{await portalStateWrite('logs',logs);}catch(e){}
   var runDateEl=document.getElementById('run_date_'+i);var runDate=runDateEl&&runDateEl.value?runDateEl.value:(s.date||new Date().toISOString().slice(0,10));
   var runCoachResult=await coachWrite(WEBHOOK,{name:athlete.name+' — '+s.name+' — '+runDate,session:s.name,type:'Run',distanceKm:d.distance,durationMin:d.duration,pace:d.pace,rpe:d.rpe,feel:d.feel,exerciseLog:'Distance: '+d.distance+'km | Duration: '+d.duration+'min | Pace: '+d.pace+' | RPE: '+d.rpe+'/10 | Feel: '+d.feel,notes:d.notes,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:runDate,submittedAt:new Date().toISOString()});
   await markSessionLogged(s.id);
@@ -335,7 +334,7 @@ async function saveGym(i,splitKey){
   var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
   if(gymNotes) log.__notes=gymNotes;
   logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
-  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'logs',value:logs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){}}
+  try{await portalStateWrite('logs',logs);}catch(e){}
   var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:(s.date||new Date().toISOString().slice(0,10));
   var pbHits=[];try{pbHits=detectSessionPBs(s.id,log);}catch(e){console.warn('PB detection failed:',e);}
   function setSummary(st,si){

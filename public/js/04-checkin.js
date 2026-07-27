@@ -129,12 +129,9 @@ async function submitCheckin(){
     testimonial:document.getElementById('ciTestimonial').value||''};
   var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
   localStorage.setItem('dp_'+sbCiKey,JSON.stringify(payload));
-  if(sbClient&&athlete&&athlete.code){
+  if(_authToken&&athlete&&athlete.code){
     try{
-      sbClient.from('athlete_data').upsert(
-        {athlete_code:athlete.code,key:sbCiKey,value:payload,updated_at:new Date().toISOString()},
-        {onConflict:'athlete_code,key'}
-      ).then(function(){},function(err){console.warn('Checkin sync failed:',err);});
+      portalStateWrite(sbCiKey,payload).catch(function(err){console.warn('Checkin sync failed:',err);});
     }catch(e){console.warn('Checkin sync failed:',e);}
   }
   try{

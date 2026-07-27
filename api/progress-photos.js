@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import { getRequestAthlete } from './_lib/auth.js';
+import { allowPortalRequest, safeError } from './_lib/http.js';
 
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 const ALLOWED_SLOTS = new Set(['front', 'side', 'back', 'front_flexed', 'back_flexed']);
@@ -184,12 +186,41 @@ async function uploadPhoto(config, payload) {
   return normalizeResource(data);
 }
 
+async function deletePhoto(config, payload) {
+  const athlete = cleanSlug(payload.athleteCode);
+  if (!athlete) throw new Error('athleteCode is required');
+  const week = cleanWeek(payload.week);
+  const slot = cleanSlot(payload.slot);
+  const publicId = `dp_progress/${athlete}/${week}/${athlete}_${week}_${slot}`;
+  const timestamp = Math.floor(Date.now() / 1000);
+  const params = { public_id: publicId, timestamp };
+  const form = new FormData();
+  form.set('public_id', publicId);
+  form.set('timestamp', String(timestamp));
+  form.set('api_key', config.apiKey);
+  form.set('signature', signParams(params, config.apiSecret));
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/destroy`, {
+    method: 'POST',
+    body: form,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data?.error?.message || 'Unable to delete Cloudinary photo');
+  return { deleted: data.result === 'ok' || data.result === 'not found', result: data.result };
+}
+
 export default async function handler(req, res) {
+  if (!allowPortalRequest(req, res, 'POST, OPTIONS')) return;
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
 
   try {
+    const identity = await getRequestAthlete(req);
+    if (!identity) return send(res, 401, { error: 'invalid_session' });
     const config = parseCloudinaryUrl();
-    const body = req.body || {};
+    const body = {
+      ...(req.body || {}),
+      athleteCode: String(identity.athlete.code).toLowerCase(),
+    };
     const action = String(body.action || 'list');
     const candidates = athleteCandidates(body);
 
@@ -203,8 +234,13 @@ export default async function handler(req, res) {
       return send(res, 201, { photo: await uploadPhoto(config, body) });
     }
 
+    if (action === 'delete') {
+      return send(res, 200, await deletePhoto(config, body));
+    }
+
     return send(res, 400, { error: 'Unknown action' });
   } catch (error) {
-    return send(res, 500, { error: error.message });
+    const safe = safeError(error, 'Progress photo request failed');
+    return send(res, safe.status, { error: safe.message });
   }
 }

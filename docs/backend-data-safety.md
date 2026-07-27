@@ -4,11 +4,12 @@ The athlete portal uses a Supabase-only save path. The Notion sync (mirror
 endpoint + retry outbox) was removed on 2026-07-20 — Supabase is now the single
 source of truth for every piece of portal data.
 
-1. Browser saves immediately to local storage and the Supabase `athlete_data` compatibility table.
-2. Browser sends every coach-facing write to `/api/ingest`.
-3. `/api/ingest` writes structured data straight into the Supabase source-of-truth tables.
-4. On a weekly check-in, `/api/ingest` also adds the `checkin_done` GHL tag (best-effort, never blocks the write).
-5. If the Supabase write itself fails, the browser keeps the payload in its own local retry queue and replays it to `/api/ingest` when back online.
+1. Browser saves immediately to local storage.
+2. Authenticated compatibility state syncs through `/api/portal-data`; the browser never queries Supabase tables directly.
+3. Browser sends every coach-facing structured write to authenticated `/api/ingest`.
+4. Both routes derive `athlete_code` from the verified session and ignore any client-supplied athlete identity.
+5. On a weekly check-in, `/api/ingest` also adds the `checkin_done` GHL tag (best-effort, never blocks the write).
+6. If the Supabase write itself fails, the browser keeps the payload in its own local retry queue and replays it to `/api/ingest` when back online.
 
 There is no external mirror and no `coach_write_outbox` queue in the write path.
 
@@ -17,10 +18,16 @@ There is no external mirror and no `coach_write_outbox` queue in the write path.
 ```text
 SUPABASE_URL=
 SUPABASE_SERVICE_KEY=
+PORTAL_SESSION_SECRET=
+ALLOWED_ORIGINS=
+REMINDERS_CRON_SECRET=
+NOTIFY_SECRET=
 GHL_API_KEY=        # optional — enables the weekly check-in GHL tag
 ```
 
-`SUPABASE_SERVICE_KEY` must only exist server-side in Vercel environment variables. Do not expose it in `public/index.html`. `NOTION_TOKEN` and `CRON_SECRET` are no longer used and can be deleted from the Vercel project.
+`SUPABASE_SERVICE_KEY`, `PORTAL_SESSION_SECRET`, cron secrets, notification
+secrets, Cloudinary secrets, and VAPID private keys must only exist server-side.
+`NOTION_TOKEN` is no longer used.
 
 ## Database Setup
 
@@ -30,7 +37,7 @@ Apply:
 supabase/migrations/202606240001_structured_athlete_ingest.sql
 ```
 
-The migration creates:
+The structured-ingest migration creates:
 
 - `athlete_data`
 - `session_logs`
@@ -40,7 +47,12 @@ The migration creates:
 - `daily_nutrition_logs`
 - `training_session_logs`
 
-RLS is enabled on every table. The structured source-of-truth tables revoke `anon` / `authenticated` access and are written by serverless functions with the service role key. The compatibility tables `athlete_data` and `session_logs` keep limited `select`, `insert`, and `update` access for the browser because the portal syncs drafts, photos, completion markers, Strava tokens, and exercise picks directly from the client. Athletes read their own structured logs back through `/api/my-logs` (service key, scoped to their code).
+RLS is enabled on every table. Portal v80 removes all direct browser database
+access. After v80 and the coach dashboard's equivalent server gateway are live,
+apply `20260727085203_lock_down_portal_rls.sql` to remove the remaining legacy
+anonymous policies and grants, revoke browser access to administrative
+`SECURITY DEFINER` RPCs, and make `notify_status` security-invoker. Do not apply
+that lockdown before both clients are released.
 
 The legacy `coach_write_outbox` table is no longer written to and can be dropped once any remaining rows have been reviewed.
 

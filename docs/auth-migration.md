@@ -11,8 +11,8 @@ auth.users.id  ─→  athletes.auth_user_id  ─→  athletes.code  ─→  eve
 
 `athletes.code` remains the permanent business key for `athlete_data`,
 `session_logs`, `daily_body_logs`, `daily_nutrition_logs`, `weekly_checkins`,
-`training_session_logs`, `push_subscriptions`, `ghl_map`, the Notion mirrors
-and every sync job. Email auth is only a new way to *prove* who you are; it
+`training_session_logs`, `push_subscriptions`, `ghl_map`, and every sync job.
+Email auth is only a new way to *prove* who you are; it
 resolves (server-side, in `/api/auth-athlete`) to the athlete's existing code,
 and the portal then boots through the exact same `doLogin(code)` pipeline as a
 code login. Codes are never regenerated, reassigned or invalidated. No new
@@ -26,8 +26,8 @@ athlete rows are ever created by the auth flow.
 | `EMAIL_AUTH_UI` const | `public/config.js` | Shows/hides the "Sign in with email" toggle on the login screen. |
 | `athletes.auth_mode` column | Supabase, per athlete | `'code'` (default) = legacy only. `'both'` = email enabled, code still works (use during migration). `'email'` = migrated (code login still physically works until global retirement — this value is bookkeeping + future enforcement). |
 
-Deploying this code with `EMAIL_AUTH_ENABLED` unset and `EMAIL_AUTH_UI=false`
-is a **zero-behaviour-change deploy**.
+Access-code login now creates a server-signed, expiring portal session. Email
+OTP and code login therefore share the same authenticated data boundary.
 
 ## One-time setup
 
@@ -91,11 +91,11 @@ have them sign in again (and delete the stale auth user in Supabase if unused).
 | 6 | Expired/garbage OTP entered | "Code expired/didn't match" + Resend (30 s cooldown) → new code works. |
 | 7 | Session expired / revoked while app open | Friendly return to email panel: "session expired — send a new code", email prefilled. |
 | 8 | Logout | Back to login, Supabase session ended, remembered email/method cleared. |
-| 9 | Cross-athlete access: signed-in athlete A calls `/api/my-logs?code=B` with their token | Returns **A's** logs (identity from session, query param ignored). Same for `/api/ingest`//`/api/write` payload spoofing — write lands under A's code. |
+| 9 | Cross-athlete access: signed-in athlete A calls `/api/my-logs?code=B` with their token | Returns **A's** logs (identity from session, query param ignored). Same for `/api/ingest` and `/api/portal-data` payload spoofing — writes land under A's code. |
 | 10 | Direct Supabase REST with A's session token querying `athlete_data` for B's code | Empty result (RLS: `athlete_code = current_athlete_code()`). |
 | 11 | Mixed rollout | One migrated + one legacy athlete simultaneously; both fully functional. |
-| 12 | History continuity | Migrated athlete sees all pre-migration logs/goals/photos/check-ins; new writes appear in the coach dashboard and Notion under the same code; `sync-outbox` cron drains normally. |
-| 13 | Legacy `?code=` coach link | Still opens the portal directly (and is never misparsed by supabase-js — `detectSessionInUrl:false`). |
+| 12 | History continuity | Migrated athlete sees all pre-migration logs/goals/photos/check-ins; new writes appear in the coach dashboard under the same code. |
+| 13 | Legacy `?code=` coach link | Exchanges the code for a 24-hour signed portal session, then opens the portal. |
 | 14 | Paused/archived athlete via email | Paused screen / no access — same as code path. Archived athletes never resolve. |
 
 ## Verifying PWA persistence (test 4/5 details)
@@ -120,19 +120,19 @@ All of the following, sustained for at least a full check-in cycle:
    (or are consciously kept as a coach-only backdoor behind `ADMIN_KEY`).
 
 Retirement steps (a **separate, deliberate change** — not part of this rollout):
-hide the code panel in `index.html`, reject `?action=validate` code logins for
-`auth_mode='email'` athletes in `/api/athletes`, drop the `?code=` boot path,
+hide the code panel in `index.html`, reject access-code session creation for
+`auth_mode='email'` athletes in `/api/auth-athlete`, drop the `?code=` boot path,
 and replace the permissive `anon` RLS policies on `athlete_data`/`session_logs`
 with authenticated-only. Keep `athletes.code` forever — it remains the join key
 for all history and sync even after nobody logs in with it.
 
-## Residual risks / follow-ups
+## Residual release step
 
-- The permissive `anon` RLS policies on `athlete_data`/`session_logs` are the
-  pre-existing design and must stay until every athlete is migrated; they are
-  the main reason to *finish* this migration rather than leave it half-done.
-- `/api/my-logs` and friends still accept bare `?code=` for legacy clients —
-  same exposure as today, removed at retirement.
+- The browser no longer needs permissive anonymous RLS. Apply
+  `20260727085203_lock_down_portal_rls.sql` only after portal v80 and any coach
+  dashboard browser queries have been migrated to server gateways.
+- `/api/my-logs`, `/api/ingest`, progress photos, reminders, Strava, and portal
+  state all require a valid email JWT or signed access-code session.
 - OTP email deliverability: set up custom SMTP + branded template before wide
   rollout.
 - Supabase Auth rate limits: coordinate bulk migration waves so a team-wide

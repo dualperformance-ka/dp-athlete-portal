@@ -10,7 +10,8 @@
 // GET /auth/v1/user, which checks signature, expiry and revocation for us.
 
 import { select, patch } from './supabase-rest.js';
-import { normCode } from './roster.js';
+import { getRosterAthlete, isBlockedRow, normCode } from './roster.js';
+import { verifyPortalSession } from './legacy-session.js';
 
 export function emailAuthEnabled() {
   // Global rollout switch. Default OFF so deploying this code changes nothing
@@ -93,8 +94,7 @@ export async function resolveAthleteForUser(user) {
 }
 
 // One-call helper for endpoints: Authorization header → { user, athlete }.
-// Null when there is no/invalid token or no linked athlete. Never throws, so
-// legacy (token-less) requests fall through to existing behaviour untouched.
+// Null when there is no/invalid token or no linked athlete. Never throws.
 export async function getAuthedAthlete(req) {
   try {
     const token = bearerToken(req);
@@ -105,6 +105,37 @@ export async function getAuthedAthlete(req) {
     return athlete ? { user, athlete } : null;
   } catch (e) {
     console.warn('[auth] athlete resolution failed:', e && e.message);
+    return null;
+  }
+}
+
+// Resolve either supported portal credential:
+// - Supabase Auth access token created by the email OTP flow.
+// - A short-lived, server-signed legacy session created after a code login.
+//
+// Bare athlete codes are never accepted as authorization. Every protected
+// endpoint calls this helper and derives the athlete code server-side.
+export async function getRequestAthlete(req) {
+  try {
+    const token = bearerToken(req);
+    if (!token) return null;
+
+    const legacy = verifyPortalSession(token, 'portal');
+    if (legacy) {
+      const athlete = await getRosterAthlete(legacy.code);
+      if (!athlete || isBlockedRow(athlete)) return null;
+      return {
+        user: null,
+        athlete,
+        method: 'legacy',
+        expiresAt: legacy.exp,
+      };
+    }
+
+    const authed = await getAuthedAthlete(req);
+    return authed ? { ...authed, method: 'email' } : null;
+  } catch (e) {
+    console.warn('[auth] request athlete resolution failed:', e && e.message);
     return null;
   }
 }

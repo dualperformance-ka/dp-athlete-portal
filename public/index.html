@@ -12,12 +12,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=73">
+<link rel="stylesheet" href="/styles.css?v=80">
 <link rel="stylesheet" href="/desktop.css?v=2">
 <link rel="stylesheet" href="/icons.css?v=1">
 
 </head>
 <body>
+<a class="skip-link" href="#portalScreen">Skip to portal content</a>
 <!-- DP ICON SPRITE — paste this block once, directly after <body> in index/premium.html -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <defs>
@@ -142,7 +143,7 @@
 
 
 <!-- PORTAL -->
-<div id="portalScreen" style="display:none">
+<div id="portalScreen" role="main" tabindex="-1" style="display:none">
 
   <header>
     <div class="logo">
@@ -154,7 +155,7 @@
       <strong id="portalSectionLabel">Today&rsquo;s Plan</strong>
     </div>
     <div class="header-actions">
-      <div class="save-state-pill" id="saveStatePill" aria-live="polite"><span></span><b>Saved</b></div>
+      <div class="save-state-pill" id="saveStatePill" aria-live="polite"><span></span><b>Synced with coach</b></div>
       <button class="hicon theme-toggle hicon-accent" id="refreshBtn" type="button" onclick="hardRefreshPortal()" title="Refresh portal" aria-label="Refresh portal"><svg class="icon"><use href="#i-refresh"/></svg><span class="theme-toggle-label">Refresh</span></button>
       <button class="hicon theme-toggle hicon-accent" id="themeToggle" type="button" onclick="toggleOutdoorMode()" title="Switch to outdoor mode" aria-label="Switch to outdoor mode" aria-pressed="false"><svg class="icon"><use href="#i-sparkle"/></svg><span class="theme-toggle-label">Outdoor</span></button>
       <button class="hicon hicon-goals" id="goalsBtn" data-portal-dest="goals" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
@@ -303,8 +304,8 @@
       <div class="wlabel" id="wlabel"></div>
     </div>
     <div class="wnav">
-      <button class="warr" onclick="shiftWeek(-1)"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
-      <button class="warr" onclick="shiftWeek(1)"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
+      <button class="warr" onclick="shiftWeek(-1)" aria-label="Previous training week"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+      <button class="warr" onclick="shiftWeek(1)" aria-label="Next training week"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
       <button class="wtoday" onclick="goToday()">This week</button>
     </div>
   </div>
@@ -494,8 +495,8 @@
     </div>
     <div class="nut-wbar">
       <div class="wnav">
-        <button class="warr nut-arr" onclick="shiftNutWeek(-1)"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
-        <button class="warr nut-arr" onclick="shiftNutWeek(1)"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
+        <button class="warr nut-arr" onclick="shiftNutWeek(-1)" aria-label="Previous nutrition week"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+        <button class="warr nut-arr" onclick="shiftNutWeek(1)" aria-label="Next nutrition week"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
         <button class="wtoday nut-arr" onclick="goNutToday()">Current</button>
       </div>
       <div class="nut-wlabel" id="nutWLabel">—</div>
@@ -1075,7 +1076,7 @@
   </nav>
 
   <div class="more-menu" id="moreMenu" aria-hidden="true" onclick="if(event.target===this)toggleMoreMenu(false)">
-    <div class="more-menu-sheet" role="dialog" aria-modal="true" aria-labelledby="moreMenuTitle">
+    <div class="more-menu-sheet">
       <div class="more-menu-handle"></div>
       <div class="more-menu-head"><div><div class="more-menu-kicker">Dual Performance</div><div class="more-menu-title" id="moreMenuTitle">More</div></div><button class="more-menu-close" onclick="toggleMoreMenu(false)" aria-label="Close menu">×</button></div>
       <div class="more-menu-section-label">Plan and support</div>
@@ -1143,15 +1144,16 @@
 
 <script src="config.js"></script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=54"></script>
-<script src="js/02-login-goals.js?v=54"></script>
-<script src="js/03-nav-nudges.js?v=58"></script>
-<script src="js/04-checkin.js?v=53"></script>
-<script src="js/05-handbook.js?v=54"></script>
-<script src="js/06-nutrition.js?v=57"></script>
-<script src="js/07-progress.js?v=55"></script>
-<script src="js/08-training.js?v=66"></script>
-<script src="js/09-logging.js?v=57"></script>
-<script src="js/10-boot.js?v=53"></script>
+<script src="js/01-core.js?v=80"></script>
+<script src="js/02-login-goals.js?v=80"></script>
+<script src="js/03-nav-nudges.js?v=80"></script>
+<script src="js/04-checkin.js?v=80"></script>
+<script src="js/05-handbook.js?v=80"></script>
+<script src="js/06-nutrition.js?v=80"></script>
+<script src="js/07-progress.js?v=80"></script>
+<script src="js/08-training.js?v=80"></script>
+<script src="js/09-logging.js?v=80"></script>
+<script src="accessibility.js?v=1"></script>
+<script src="js/10-boot.js?v=80"></script>
 </body>
 </html>

@@ -15,6 +15,7 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_KEY   -> already configured
 
 import webpush from 'web-push';
+import crypto from 'node:crypto';
 import { select, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
 
 const MAX_TITLE = 80;
@@ -24,7 +25,13 @@ function send(res, status, payload) {
   return res.status(status).json(payload);
 }
 
-async function requireSecret(req) {
+function equalSecret(a, b) {
+  const left = Buffer.from(String(a || ''));
+  const right = Buffer.from(String(b || ''));
+  return left.length > 0 && left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function requireSecret(req) {
   const header = req.headers.authorization || '';
   const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
   const alt = String(req.headers['x-notify-secret'] || '').trim();
@@ -32,44 +39,13 @@ async function requireSecret(req) {
 
   const error = new Error('Unauthorized');
   error.status = 401;
-  if (!presented) {
-    console.log('[notify-auth] no bearer/x-notify-secret header arrived');
+  const configured = String(process.env.NOTIFY_SECRET || '').trim();
+  if (!configured) {
+    error.status = 503;
+    error.message = 'Notification service is not configured';
     throw error;
   }
-
-  // Fast path: exact match against this project's own secrets.
-  const local = [process.env.NOTIFY_SECRET, process.env.SUPABASE_SERVICE_KEY]
-    .map((s) => String(s || '').trim())
-    .filter(Boolean);
-  if (local.includes(presented)) return;
-
-  // Robust path: the dashboard may hold a DIFFERENT (but equally valid)
-  // service key for the same Supabase project. Verify by capability instead
-  // of string equality: only a service-level key can read rows from the
-  // RLS-locked athletes table (anon keys get an empty array, invalid keys 401).
-  try {
-    const url = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
-    const r = await fetch(`${url}/rest/v1/athletes?select=code&limit=1`, {
-      headers: { apikey: presented, Authorization: `Bearer ${presented}` },
-    });
-    const body = await r.text();
-    let rows = null;
-    try { rows = JSON.parse(body); } catch (_) { /* not json */ }
-    if (r.ok && Array.isArray(rows) && rows.length > 0) return; // proven service key
-
-    console.log('[notify-auth] probe failed', JSON.stringify({
-      presentedLen: presented.length,
-      presentedPrefix: presented.slice(0, 10),
-      localSecretLens: local.map((s) => s.length),
-      supabaseUrlSet: Boolean(process.env.SUPABASE_URL),
-      probeStatus: r.status,
-      probeBody: String(body).slice(0, 200),
-    }));
-  } catch (probeError) {
-    console.log('[notify-auth] probe threw', String(probeError && probeError.message || probeError).slice(0, 200));
-  }
-
-  throw error;
+  if (!equalSecret(presented, configured)) throw error;
 }
 
 function configureVapid() {
@@ -102,7 +78,7 @@ async function loadSubscriptions(code) {
 export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'Method not allowed' });
-    await requireSecret(req);
+    requireSecret(req);
 
     const code = String(req.body?.code || '').trim().toUpperCase();
     const title = String(req.body?.title || '').trim().slice(0, MAX_TITLE) || 'Message from your coach';
@@ -162,6 +138,9 @@ export default async function handler(req, res) {
 
     return send(res, 200, { ok: sent > 0, sent, athletes: reached.size, devices: subs.length, removed, failed });
   } catch (error) {
-    return send(res, error.status || 500, { ok: false, error: String(error.message || error).slice(0, 500) });
+    return send(res, error.status || 500, {
+      ok: false,
+      error: error.status && error.status < 500 ? String(error.message || error) : 'Notification service unavailable',
+    });
   }
 }

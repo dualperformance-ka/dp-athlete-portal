@@ -12,15 +12,22 @@
 //
 //   GET (default, Authorization: Bearer <supabase access token>)
 //     Verifies the session server-side, resolves (and on first sign-in links)
-//     the auth user to their EXISTING athlete row, and returns the same shape
-//     as /api/athletes?action=validate so the portal boots through the exact
-//     same pipeline as a code login → identical UI + full data continuity.
+//     the auth user to their EXISTING athlete row, and returns the profile
+//     shape used by the shared portal boot pipeline.
 //     Never creates athlete rows; never changes `code`.
 //
 // Env: SUPABASE_URL, SUPABASE_SERVICE_KEY (existing), EMAIL_AUTH_ENABLED (new).
 
 import { select } from './_lib/supabase-rest.js';
-import { bearerToken, getUserFromToken, resolveAthleteForUser, emailAuthEnabled, emailIlikePattern } from './_lib/auth.js';
+import {
+  getRequestAthlete,
+  emailAuthEnabled,
+  emailIlikePattern,
+} from './_lib/auth.js';
+import { getRosterAthlete, isBlockedRow, normCode } from './_lib/roster.js';
+import { createPortalSession } from './_lib/legacy-session.js';
+import { assertLoginAllowed, recordLoginAttempt } from './_lib/login-rate-limit.js';
+import { allowPortalRequest, safeError } from './_lib/http.js';
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
@@ -32,6 +39,7 @@ function cleanEmail(v) {
 }
 
 async function handleEligibility(req) {
+  await assertLoginAllowed(req);
   const enabled = emailAuthEnabled();
   const email = cleanEmail(req.query && req.query.email);
   if (!enabled || !email) return { ok: true, enabled, eligible: false, active: false };
@@ -43,22 +51,14 @@ async function handleEligibility(req) {
     limit: 1,
   });
   const row = (rows || [])[0];
+  await recordLoginAttempt(req, !!row);
   return { ok: true, enabled, eligible: !!row, active: !!row && row.active === true };
 }
 
 async function handleMe(req) {
-  const token = bearerToken(req);
-  if (!token) return { status: 401, body: { ok: false, error: 'Missing bearer token' } };
-  const user = await getUserFromToken(token);
-  if (!user) return { status: 401, body: { ok: false, error: 'Invalid or expired session' } };
-
-  const athlete = await resolveAthleteForUser(user);
-  if (!athlete) {
-    // Valid auth user but no enrolled athlete row — coach hasn't set the
-    // email on the roster (or set auth_mode). Tell the client plainly so the
-    // login UI can show a friendly "check with your coach" message.
-    return { status: 403, body: { ok: false, error: 'no_linked_athlete' } };
-  }
+  const resolved = await getRequestAthlete(req);
+  if (!resolved) return { status: 401, body: { ok: false, error: 'invalid_session' } };
+  const athlete = resolved.athlete;
   return {
     status: 200,
     body: {
@@ -71,29 +71,71 @@ async function handleMe(req) {
       race_target: athlete.race_target,
       email: athlete.email,
       auth_mode: athlete.auth_mode,
+      auth_method: resolved.method,
+    },
+  };
+}
+
+async function handleLegacyLogin(req) {
+  await assertLoginAllowed(req);
+  const code = normCode(req.body && req.body.code);
+  const athlete = code ? await getRosterAthlete(code) : null;
+
+  if (!athlete) {
+    await recordLoginAttempt(req, false);
+    return { status: 401, body: { ok: false, error: 'invalid_credentials' } };
+  }
+  if (isBlockedRow(athlete)) {
+    await recordLoginAttempt(req, true);
+    return {
+      status: 403,
+      body: { ok: false, error: 'access_paused', name: athlete.name || '' },
+    };
+  }
+
+  await recordLoginAttempt(req, true);
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      exists: true,
+      active: true,
+      code: athlete.code,
+      name: athlete.name,
+      start_date: athlete.start_date,
+      race_target: athlete.race_target,
+      auth_method: 'legacy',
+      access_token: createPortalSession(athlete.code),
+      expires_in: 24 * 60 * 60,
     },
   };
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Cache-Control', 'no-store');
+  if (!allowPortalRequest(req, res)) return;
 
   if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'GET') return send(res, 405, { ok: false, error: 'Method not allowed' });
 
   try {
-    const action = String((req.query && req.query.action) || 'me');
-    if (action === 'eligibility') return send(res, 200, await handleEligibility(req));
-    if (action === 'me') {
+    if (req.method === 'POST') {
+      const action = String((req.body && req.body.action) || 'legacy-login');
+      if (action !== 'legacy-login') return send(res, 400, { ok: false, error: 'unknown_action' });
+      const { status, body } = await handleLegacyLogin(req);
+      return send(res, status, body);
+    }
+
+    if (req.method === 'GET') {
+      const action = String((req.query && req.query.action) || 'me');
+      if (action === 'eligibility') return send(res, 200, await handleEligibility(req));
+      if (action !== 'me') return send(res, 400, { ok: false, error: 'unknown_action' });
       const { status, body } = await handleMe(req);
       return send(res, status, body);
     }
-    return send(res, 400, { ok: false, error: `Unknown action: ${action}` });
+
+    return send(res, 405, { ok: false, error: 'method_not_allowed' });
   } catch (err) {
     console.error('[auth-athlete]', err && err.message);
-    return send(res, 502, { ok: false, error: err.message || 'Request failed' });
+    const safe = safeError(err, 'Authentication is temporarily unavailable');
+    return send(res, safe.status, { ok: false, error: safe.message });
   }
 }

@@ -13,7 +13,12 @@ async function bootPortal(){
     var _emailToggle=document.getElementById('loginMethodToggle');
     if(_emailToggle)_emailToggle.style.display='';
   }
-  if(urlCode){doLogin(urlCode);return;} // legacy coach link — unchanged
+  if(urlCode){
+    _authToken=null;
+    localStorage.removeItem('dp_legacy_session');
+    doLogin(sanitizeCode(urlCode));
+    return;
+  }
   // Fast path: no persisted auth session in storage → skip loading supabase-js
   // before boot, so legacy athletes start exactly as fast as before.
   var hasStoredSession=false;
@@ -35,6 +40,13 @@ async function bootPortal(){
       // email — fall through so a legacy saved code (if any) still works.
     }
   }catch(e){console.warn('Auth boot failed, falling back to legacy login',e);}
+  var legacyToken=localStorage.getItem('dp_legacy_session');
+  if(legacyToken){
+    _authToken=legacyToken;
+    var legacyMe=await resolveAuthedAthlete();
+    if(legacyMe&&legacyMe.ok&&legacyMe.code){doLogin(legacyMe.code);return;}
+    _authToken=null;localStorage.removeItem('dp_legacy_session');
+  }
   var savedCode=localStorage.getItem('dp_auth_code');
   if(savedCode){doLogin(savedCode);return;}
   document.getElementById('loginScreen').style.display='block';
@@ -89,16 +101,15 @@ async function loadRunningLibrary() {
       }
     } catch(e){}
 
-    if(!sbClient) return;
-    console.log('Loading Running Library from Supabase...');
-    var res = await sbClient.from('session_library').select('*').eq('archived', false);
-    if (res.error || !res.data) { console.warn('Session library load failed', res.error); return; }
-    processLibraryRows(res.data);
+    console.log('Loading Running Library...');
+    var res = await portalRequest('session-library');
+    if (!res.rows) { console.warn('Session library load failed'); return; }
+    processLibraryRows(res.rows);
     // Cache the processed data
     try {
       localStorage.setItem(RUN_LIB_CACHE_KEY, JSON.stringify({ts:Date.now(), byId:RUNNING_LIBRARY_BY_ID}));
     } catch(e){}
-    console.log('Running Library loaded from Supabase:', res.data.length, 'workouts');
+    console.log('Running Library loaded:', res.rows.length, 'workouts');
   } catch (error) {
     console.error('Failed to load Running Library:', error);
   }
@@ -328,28 +339,25 @@ window.closeEnhancedModal = closeEnhancedModal;
       + '&response_type=code'
       + '&redirect_uri=' + encodeURIComponent(window.location.origin + '/api/strava-callback')
       + '&scope=activity:read_all'
-      + '&state=' + encodeURIComponent(code);
+      + '&state=' + encodeURIComponent('');
 
     btn.href = connectUrl;
     btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg> Connect Strava';
     btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#fc4c02;color:#fff;border-color:#fc4c02;box-shadow:0 0 12px rgba(252,76,2,.6);text-decoration:none;font-weight:700;';
 
     try {
-      var res  = await fetch('/api/strava?athlete=' + encodeURIComponent(code));
+      var res  = await fetch('/api/strava',{headers:authHeaders({}),cache:'no-store'});
       var data = await res.json();
+      if(data.authorizeUrl)btn.href=data.authorizeUrl;
       if (data.connected) {
         btn.innerHTML = '✓ Strava';
         btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:rgba(74,222,128,.9);border-color:rgba(74,222,128,.35);box-shadow:none;text-decoration:none;pointer-events:none;';
-        // Check if athlete has acknowledged the connection (cross-device via Supabase)
+        // Check if the athlete has acknowledged the connection.
         window._stravaAthCode = code;
-        if (sbClient) {
+        if (_authToken) {
           try {
-            var { data: ackRow } = await sbClient
-              .from('athlete_data')
-              .select('value')
-              .eq('athlete_code', code)
-              .eq('key', 'strava_ack')
-              .maybeSingle();
+            var state = await portalRequest('state-read');
+            var ackRow = (state.rows||[]).find(function(row){return row.key==='strava_ack';});
             if (!ackRow || !ackRow.value || !ackRow.value.acked) {
               var banner = document.getElementById('strava-ack-banner');
               if (banner) banner.style.display = 'flex';
@@ -370,14 +378,9 @@ window.closeEnhancedModal = closeEnhancedModal;
 window.acknowledgeStrava = async function() {
   var banner = document.getElementById('strava-ack-banner');
   if (banner) banner.style.display = 'none';
-  if (sbClient && window._stravaAthCode) {
+  if (_authToken && window._stravaAthCode) {
     try {
-      await sbClient.from('athlete_data').upsert({
-        athlete_code: window._stravaAthCode,
-        key: 'strava_ack',
-        value: { acked: true, acked_at: new Date().toISOString() },
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'athlete_code,key' });
+      await portalStateWrite('strava_ack',{ acked: true, acked_at: new Date().toISOString() });
     } catch(e) { console.warn('Strava ack save failed', e); }
   }
 };
@@ -430,7 +433,7 @@ async function syncPushSubscription(){
     var sub=await reg.pushManager.getSubscription();
     if(!anyOn){
       if(sub){
-        try{await fetch('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'unsubscribe',endpoint:sub.endpoint})});}catch(e){}
+        try{await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'unsubscribe',endpoint:sub.endpoint})});}catch(e){}
         try{await sub.unsubscribe();}catch(e){}
       }
       setPushStatus('off',false);
@@ -438,7 +441,7 @@ async function syncPushSubscription(){
     }
     if(!('Notification'in window)||Notification.permission!=='granted'){setPushStatus('waiting for permission — toggle a reminder and tap Allow',false);return;}
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(VAPID_PUBLIC_KEY)});
-    var resp=await fetch('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',code:athlete.code,subscription:sub.toJSON(),prefs:prefs,userAgent:navigator.userAgent,timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone||'')})});
+    var resp=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'subscribe',subscription:sub.toJSON(),prefs:prefs,userAgent:navigator.userAgent,timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone||'')})});
     var data=await resp.json().catch(function(){return{};});
     if(resp.ok&&data.ok){setPushStatus('active on this device ✓',true);}
     else{setPushStatus('server rejected: '+(data.error||resp.status),false);}

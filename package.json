@@ -2,6 +2,10 @@
   "name": "dp-athlete-portal",
   "private": true,
   "type": "module",
+  "scripts": {
+    "check": "node scripts/check-portal.mjs && node --test",
+    "test": "node --test"
+  },
   "dependencies": {
     "web-push": "^3.6.7"
   }

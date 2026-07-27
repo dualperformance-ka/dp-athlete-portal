@@ -6,14 +6,14 @@
 // 2026-07-20, so this endpoint now succeeds or fails purely on the Supabase write.
 //
 // Identity: the Supabase roster (public.athletes) is the sole source of identity.
-// A signed-in athlete's code comes from their session; legacy code-only requests
-// resolve their display name from the roster row.
+// Every athlete code comes from a verified email JWT or signed access-code
+// session; client-supplied identity is overwritten.
 //
 // Env required: SUPABASE_URL, SUPABASE_SERVICE_KEY.
 // Env required for GHL check-in tagging (best-effort): GHL_API_KEY.
 import { upsert } from './_lib/supabase-rest.js';
-import { getRosterAthlete, checkRosterAccess } from './_lib/roster.js';
-import { getAuthedAthlete, bearerToken } from './_lib/auth.js';
+import { getRequestAthlete } from './_lib/auth.js';
+import { allowPortalRequest } from './_lib/http.js';
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
@@ -50,21 +50,6 @@ function athleteCode(payload) {
 // athlete code so every row stays human-identifiable.
 function athleteName(payload) {
   return text(payload.athleteName, 180) || athleteCode(payload);
-}
-
-// Identity now comes only from the Supabase roster. If the code exists in the
-// roster, its canonical code + name win. Unknown codes (legacy) are kept as-is.
-async function resolveAthleteIdentity(payload) {
-  const rosterCode = text(payload.athleteCode, 120)?.toUpperCase();
-  if (!rosterCode) return payload;
-  let roster = null;
-  try { roster = await getRosterAthlete(rosterCode); } catch {}
-  if (!roster) return payload;
-  return {
-    ...payload,
-    athleteCode: String(roster.code).toUpperCase(),
-    athleteName: text(roster.name, 180) || String(roster.code),
-  };
 }
 
 function weekKey(payload) {
@@ -253,6 +238,7 @@ async function tagGhlCheckinDone(code) {
 }
 
 export default async function handler(req, res) {
+  if (!allowPortalRequest(req, res, 'POST, OPTIONS')) return;
   if (req.method === 'OPTIONS') return send(res, 204, {});
   if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'Method not allowed' });
 
@@ -261,34 +247,17 @@ export default async function handler(req, res) {
   // shape sent by older cached clients. targetUrl (the old Notion mirror target)
   // is ignored — everything is persisted to Supabase.
   let payload = body.payload || body;
-
-  // Email-auth path: a valid Supabase session token overrides any client-supplied
-  // identity — the athlete code is resolved server-side from the linked roster row,
-  // so a signed-in athlete can only ever write under their own code.
-  if (bearerToken(req)) {
-    const authed = await getAuthedAthlete(req);
-    if (!authed) return send(res, 401, { ok: false, stage: 'auth', error: 'Invalid session' });
-    payload = {
-      ...payload,
-      athleteCode: String(authed.athlete.code).toUpperCase(),
-      athleteName: text(payload.athleteName, 180) || authed.athlete.name,
-    };
-  }
-
-  if (!athleteCode(payload)) {
-    return send(res, 400, { ok: false, error: 'athleteCode is required' });
-  }
-
-  // Paused / archived athletes are blocked from writing fresh data.
-  const guard = await checkRosterAccess(athleteCode(payload));
-  if (guard.blocked) {
-    return send(res, 403, { ok: false, stage: 'access', error: 'access_paused' });
-  }
-
-  payload = await resolveAthleteIdentity(payload);
+  const identity = await getRequestAthlete(req);
+  if (!identity) return send(res, 401, { ok: false, stage: 'auth', error: 'invalid_session' });
+  payload = {
+    ...payload,
+    athleteCode: String(identity.athlete.code).toUpperCase(),
+    athleteName: identity.athlete.name || String(identity.athlete.code),
+  };
 
   try {
-    await persistStructured(payload);
+    const persisted = await persistStructured(payload);
+    if (!persisted) return send(res, 400, { ok: false, error: 'unsupported_write_type' });
   } catch (error) {
     return send(res, 502, { ok: false, stage: 'supabase', error: error.message });
   }

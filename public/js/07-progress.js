@@ -45,48 +45,63 @@ function renderAngleGrid(week){
   ANGLES.forEach(function(angle){
     var key=angle.toLowerCase().replace(/\s/g,'_');var url=weekPhotos[key]||'';
     html+='<div class="angle-slot'+(url?' has-photo':'')+'" id="aslot_'+key+'"'+(url?'':' onclick="triggerAngleUpload(\''+angle+'\')"')+'>';
-    if(url){html+='<img src="'+url+'" onerror="angleImgDead(this)" /><div class="aslot-overlay">'+angle+'</div><button onclick="deleteAnglePhoto(\''+angle+'\')" style="position:absolute;top:6px;right:6px;z-index:3;background:rgba(0,0,0,.6);border:none;border-radius:50%;width:26px;height:26px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>';}
+    if(url){html+='<img src="'+url+'" alt="'+esc(angle)+' progress photo" onerror="angleImgDead(this)" /><div class="aslot-overlay">'+angle+'</div><button aria-label="Remove '+esc(angle)+' progress photo" onclick="deleteAnglePhoto(\''+angle+'\')" style="position:absolute;top:6px;right:6px;z-index:3;background:rgba(0,0,0,.6);border:none;border-radius:50%;width:26px;height:26px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>';}
     else{html+='<div class="aslot-add">+</div><div class="aslot-label">'+angle+'</div>';}
     html+='</div>';
   });
   document.getElementById('angleGrid').innerHTML=html;
 }
-function deleteAnglePhoto(angle){
+async function deleteAnglePhoto(angle){
   if(!confirm('Remove '+angle+' photo for Week '+currentPhotoWeek+'?')) return;
   var key=angle.toLowerCase().replace(/\s/g,'_');var photos=getPhotos();
+  try{
+    var response=await fetch('/api/progress-photos',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'delete',week:currentPhotoWeek,slot:key})});
+    var result=await response.json().catch(function(){return{};});
+    if(!response.ok||result.deleted===false)throw new Error(result.error||'Delete failed');
+  }catch(e){showToast('Could not remove the cloud photo — try again','error');return;}
   if(photos['week'+currentPhotoWeek]){delete photos['week'+currentPhotoWeek][key];if(!Object.keys(photos['week'+currentPhotoWeek]).length) delete photos['week'+currentPhotoWeek];savePhotos(photos);renderAngleGrid(currentPhotoWeek);showToast(angle+' photo removed');}
 }
 function triggerAngleUpload(angle){currentAngle=angle;document.getElementById('angleInput').click();}
+function prepareProgressImage(file){
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onerror=function(){reject(new Error('Could not read image'));};
+    reader.onload=function(){
+      var img=new Image();
+      img.onerror=function(){reject(new Error('This image format is not supported'));};
+      img.onload=function(){
+        var max=1800,scale=Math.min(1,max/Math.max(img.width,img.height));
+        var canvas=document.createElement('canvas');
+        canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
+        var ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        var data=canvas.toDataURL('image/jpeg',.84);
+        if(data.length>4*1024*1024){reject(new Error('Image is too large after resizing'));return;}
+        resolve(data);
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 async function handleAngleUpload(input){
   if(!input.files||!input.files[0]) return;
   var file=input.files[0],week=currentPhotoWeek,angle=currentAngle,key=angle.toLowerCase().replace(/\s/g,'_');
   var slot=document.getElementById('aslot_'+key);if(slot) slot.classList.add('uploading');
-  // Folder is keyed by athlete CODE, never display name — names change in
-  // Notion ("Thomas" -> "Thomas Trinh") which forked the folder and broke
-  // stored URLs when assets were later tidied up in the Cloudinary console.
-  var safeName=(athlete.code||athlete.name||'unknown').toLowerCase().replace(/\s+/g,'_');
-  var fullPublicId='dp_progress/'+safeName+'/week'+week+'/'+safeName+'_week'+week+'_'+key;
-  var formData=new FormData();
-  formData.append('file',file);
-  formData.append('upload_preset',CLOUDINARY_PRESET);
-  formData.append('public_id',fullPublicId);
-  formData.append('context','athlete='+athlete.name+'|week=Week '+week+'|angle='+angle);
-  formData.append('tags','dp_progress,'+safeName+',week'+week);
   try{
-    var res=await fetch('https://api.cloudinary.com/v1_1/'+CLOUDINARY_CLOUD+'/image/upload',{method:'POST',body:formData});
+    var imageData=await prepareProgressImage(file);
+    var res=await fetch('/api/progress-photos',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'upload',week:week,slot:key,imageData:imageData})});
     var data=await res.json();
-    if(data.secure_url){
-      var photos=getPhotos();if(!photos['week'+week]) photos['week'+week]={};photos['week'+week][key]=data.secure_url;
+    if(res.ok&&data.photo&&data.photo.secureUrl){
+      var photos=getPhotos();if(!photos['week'+week]) photos['week'+week]={};photos['week'+week][key]=data.photo.secureUrl;
       savePhotos(photos);
-      // Explicit Supabase sync — don't rely solely on localStorage interceptor
-      if(sbClient&&athlete&&athlete.code){
-        try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'photos',value:photos,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}
+      if(_authToken&&athlete&&athlete.code){
+        try{await portalStateWrite('photos',photos);}
         catch(e){console.warn('Photo cloud sync failed:',e);}
       }
       renderAngleGrid(week);showToast(angle+' uploaded ✓');initPhotoNudge();
     }
-    else{showToast('Upload failed — try again','error');}
-  }catch(e){showToast('Upload failed — check your connection and try again','error');}
+    else{showToast(data.error||'Upload failed — try again','error');}
+  }catch(e){showToast(e.message||'Upload failed — check your connection and try again','error');}
   if(slot) slot.classList.remove('uploading');input.value='';
 }
 
@@ -214,8 +229,8 @@ async function loadProgress(){
   // source of truth; athlete_data fills any local-only gaps. The Notion read was
   // removed on 2026-07-20 — Supabase alone now backs the progress view.
   var sbEntries={};
-  var myLogsPromise=(athlete&&athlete.code)?fetch('/api/my-logs?code='+encodeURIComponent(athlete.code),{headers:authHeaders({})}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null);
-  var sbPromise=sbClient?sbClient.from('athlete_data').select('key,value').eq('athlete_code',athlete.code).like('key','daily_body_%').then(function(r){return r;},function(){return null;}):Promise.resolve(null);
+  var myLogsPromise=(athlete&&athlete.code)?portalRequest('body-logs').then(function(r){return {body:r.rows||[]};}).catch(function(){return null;}):Promise.resolve(null);
+  var sbPromise=_authToken?portalRequest('state-read').then(function(r){return {data:(r.rows||[]).filter(function(row){return String(row.key||'').indexOf('daily_body_')===0;})};}).catch(function(){return null;}):Promise.resolve(null);
   var both=await Promise.all([myLogsPromise,sbPromise]);
   var myRes=both[0],sbRes=both[1];
   try{

@@ -8,6 +8,8 @@
 //   LOCAL time matches: 5am for morning reminders, 5am–11:30pm for coach updates.
 import webpush from 'web-push';
 import { select, upsert, patch, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
+import { getRequestAthlete } from './_lib/auth.js';
+import { allowPortalRequest } from './_lib/http.js';
 
 const DONE_STATUS = /^(done|completed?|complete|skipped|missed)$/i;
 const DEFAULT_TZ = 'Australia/Adelaide';
@@ -159,12 +161,16 @@ function buildMessages(dueForAthlete, prefs, allowed, coachChanges) {
   return messages;
 }
 
-async function handleSubscribe(req, res) {
-  const { action, code, subscription, prefs, endpoint, userAgent, timezone } = req.body || {};
+async function handleSubscribe(req, res, identity) {
+  const { action, subscription, prefs, endpoint, userAgent, timezone } = req.body || {};
+  const code = String(identity.athlete.code).toUpperCase();
 
   if (action === 'unsubscribe') {
     if (!endpoint) return send(res, 400, { ok: false, error: 'endpoint required' });
-    await supabaseRequest(tablePath('push_subscriptions', { endpoint: `eq.${endpoint}` }), { method: 'DELETE' });
+    await supabaseRequest(tablePath('push_subscriptions', {
+      endpoint: `eq.${endpoint}`,
+      athlete_code: `eq.${code}`,
+    }), { method: 'DELETE' });
     return send(res, 200, { ok: true });
   }
 
@@ -174,11 +180,8 @@ async function handleSubscribe(req, res) {
     return send(res, 400, { ok: false, error: 'code and subscription required' });
   }
 
-  const athlete = await select('athletes', { code: `eq.${String(code).toUpperCase()}`, select: 'code' });
-  if (!athlete || !athlete.length) return send(res, 404, { ok: false, error: 'Unknown athlete code' });
-
   await upsert('push_subscriptions', {
-    athlete_code: athlete[0].code,
+    athlete_code: code,
     endpoint: subscription.endpoint,
     p256dh: keys.p256dh,
     auth: keys.auth,
@@ -191,9 +194,8 @@ async function handleSubscribe(req, res) {
   return send(res, 200, { ok: true });
 }
 
-async function handleDueCheck(req, res) {
-  const code = String(req.query.code || '').toUpperCase();
-  if (!code) return send(res, 400, { ok: false, error: 'code required' });
+async function handleDueCheck(req, res, identity) {
+  const code = String(identity.athlete.code).toUpperCase();
   const subs = await select('push_subscriptions', { athlete_code: `eq.${code}`, select: 'timezone', limit: '1' });
   const tz = safeTz(subs && subs[0] && subs[0].timezone);
   const due = await computeDue([code], localNow(tz));
@@ -204,11 +206,10 @@ async function handleDueCheck(req, res) {
 
 async function handleCronSend(req, res) {
   const secrets = [process.env.REMINDERS_CRON_SECRET, process.env.CRON_SECRET].filter(Boolean);
-  if (secrets.length) {
-    const header = req.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-    if (!secrets.includes(token)) return send(res, 401, { ok: false, error: 'Unauthorized' });
-  }
+  if (!secrets.length) return send(res, 503, { ok: false, error: 'Cron secret is not configured' });
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  if (!secrets.includes(token)) return send(res, 401, { ok: false, error: 'Unauthorized' });
 
   configureVapid();
   const subs = await select('push_subscriptions', { order: 'created_at.asc' });
@@ -282,9 +283,19 @@ async function handleCronSend(req, res) {
 }
 
 export default async function handler(req, res) {
+  if (!allowPortalRequest(req, res, 'GET, POST, OPTIONS')) return;
+  if (req.method === 'OPTIONS') return res.status(204).end();
   try {
-    if (req.method === 'POST') return await handleSubscribe(req, res);
-    if (req.method === 'GET' && req.query.code) return await handleDueCheck(req, res);
+    if (req.method === 'POST') {
+      const identity = await getRequestAthlete(req);
+      if (!identity) return send(res, 401, { ok: false, error: 'invalid_session' });
+      return await handleSubscribe(req, res, identity);
+    }
+    if (req.method === 'GET' && req.query.portal === '1') {
+      const identity = await getRequestAthlete(req);
+      if (!identity) return send(res, 401, { ok: false, error: 'invalid_session' });
+      return await handleDueCheck(req, res, identity);
+    }
     if (req.method === 'GET') return await handleCronSend(req, res);
     return send(res, 405, { ok: false, error: 'Method not allowed' });
   } catch (error) {

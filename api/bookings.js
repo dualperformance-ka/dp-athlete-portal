@@ -20,6 +20,7 @@
 
 import { select, patch } from './_lib/supabase-rest.js';
 import { storeCallBooked } from './_lib/booking.js';
+import crypto from 'node:crypto';
 
 const GHL_BASE = 'https://services.leadconnectorhq.com';
 const DEFAULT_CALENDAR = 'WRivrNxfNTVER2xMit1z';
@@ -40,7 +41,15 @@ function authorized(req, secrets) {
   const header = req.headers.authorization || '';
   const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
   const alt = String(req.headers['x-notify-secret'] || '').trim();
-  return secrets.filter(Boolean).some((s) => bearer === s || alt === s);
+  return secrets.filter(Boolean).some((secret) => {
+    const expected = Buffer.from(String(secret));
+    return [bearer, alt].some((value) => {
+      const received = Buffer.from(String(value || ''));
+      return received.length === expected.length
+        && received.length > 0
+        && crypto.timingSafeEqual(received, expected);
+    });
+  });
 }
 
 async function ghl(path, version) {

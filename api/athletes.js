@@ -23,12 +23,14 @@
 // Env: SUPABASE_URL, SUPABASE_SERVICE_KEY (already configured), ADMIN_KEY (new),
 //      PORTAL_URL (optional, defaults to the production portal).
 
+import crypto from 'crypto';
 import { select, insert, patch } from './_lib/supabase-rest.js';
 import { normCode } from './_lib/roster.js';
+import { allowPortalRequest } from './_lib/http.js';
 
 const PORTAL_URL = (process.env.PORTAL_URL || 'https://dp-athleteportal.vercel.app').replace(/\/+$/, '');
 
-const ROSTER_FIELDS = 'code,name,active,coach,start_date,race_target,ghl_contact_id,notes,created_at,archived_at';
+const ROSTER_FIELDS = 'code,name,active,coach,start_date,race_target,ghl_contact_id,notes,created_at,archived_at,email,auth_user_id,auth_mode,invited_at,email_verified_at';
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
@@ -52,8 +54,10 @@ function requireAdmin(req, res) {
     send(res, 500, { ok: false, error: 'ADMIN_KEY not configured' });
     return false;
   }
-  const supplied = req.headers['x-admin-key'];
-  if (!supplied || supplied !== configured) {
+  const supplied = String(req.headers['x-admin-key'] || '');
+  const left = Buffer.from(supplied);
+  const right = Buffer.from(String(configured));
+  if (!supplied || left.length !== right.length || !crypto.timingSafeEqual(left, right)) {
     send(res, 401, { ok: false, error: 'Invalid admin key' });
     return false;
   }
@@ -142,7 +146,10 @@ async function handleAdd(payload) {
   throw new Error('Insert failed');
 }
 
-const UPDATABLE = ['name', 'active', 'coach', 'start_date', 'race_target', 'notes', 'ghl_contact_id'];
+const UPDATABLE = [
+  'name', 'active', 'coach', 'start_date', 'race_target', 'notes',
+  'ghl_contact_id', 'email', 'auth_mode', 'invited_at',
+];
 
 async function handleUpdate(payload) {
   const code = normCode(payload.code);
@@ -161,6 +168,18 @@ async function handleUpdate(payload) {
       const name = text(fields.name, 120);
       if (!name) throw httpError(400, 'name cannot be empty');
       values.name = name;
+    } else if (key === 'email') {
+      const email = text(fields.email, 254);
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw httpError(400, 'email is invalid');
+      values.email = email ? email.toLowerCase() : null;
+    } else if (key === 'auth_mode') {
+      const mode = text(fields.auth_mode, 20);
+      if (!['code', 'both', 'email'].includes(mode)) throw httpError(400, 'auth_mode is invalid');
+      values.auth_mode = mode;
+    } else if (key === 'invited_at') {
+      const invite = text(fields.invited_at, 50);
+      if (invite && Number.isNaN(Date.parse(invite))) throw httpError(400, 'invited_at is invalid');
+      values.invited_at = invite ? new Date(invite).toISOString() : null;
     } else {
       values[key] = text(fields[key], key === 'notes' ? 2000 : 200);
     }
@@ -194,18 +213,20 @@ function httpError(status, message) {
 
 // ── Router ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key');
-  res.setHeader('Cache-Control', 'no-store');
+  if (!allowPortalRequest(req, res, 'GET, POST, OPTIONS', 'Content-Type, X-Admin-Key')) return;
 
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   try {
     if (req.method === 'GET') {
       const action = String(req.query?.action || 'roster');
-      if (action === 'roster') return send(res, 200, await handleRoster(req));
-      if (action === 'validate') return send(res, 200, await handleValidate(req));
+      if (action === 'validate') {
+        return send(res, 410, { ok: false, error: 'Use /api/auth-athlete for portal sign-in' });
+      }
+      if (action === 'roster') {
+        if (!requireAdmin(req, res)) return;
+        return send(res, 200, await handleRoster(req));
+      }
       return send(res, 400, { ok: false, error: `Unknown action: ${action}` });
     }
 

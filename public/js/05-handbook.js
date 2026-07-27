@@ -96,13 +96,10 @@ async function loadProgrammeVolume(force){
   _programmeVolumePromise=(async function(){
     var code=(athlete&&athlete.code||'').toUpperCase().trim();
     var planned={},manual={};
-    if(sbClient&&code){
+    if(_authToken&&code){
       try{
-        var res=await Promise.all([
-          sbClient.from('planned_sessions').select('week_label,distance_km,title,session_type,library_id').eq('athlete_code',code),
-          sbClient.from('nutrition_plans').select('week_label,weekly_km_target').eq('athlete_code',code)
-        ]);
-        (res[0].data||[]).forEach(function(r){
+        var res=await portalRequest('programme-data');
+        (res.planned||[]).forEach(function(r){
           var m=String(r.week_label||'').match(/\d+/);
           if(!m) return;
           var wk=parseInt(m[0],10);
@@ -115,7 +112,7 @@ async function loadProgrammeVolume(force){
           }
           planned[wk].sum+=plannedKmFromRow(r);
         });
-        (res[1].data||[]).forEach(function(r){
+        (res.nutrition||[]).forEach(function(r){
           var m=String(r.week_label||'').match(/\d+/);
           if(m&&r.weekly_km_target!=null) manual[parseInt(m[0],10)]=Number(r.weekly_km_target);
         });

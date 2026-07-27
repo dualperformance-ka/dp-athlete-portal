@@ -224,13 +224,12 @@ async function loadNutrition(){
   // Nutrition plans now live in Supabase (nutrition_plans) — single source of
   // truth shared with the coaches dashboard. One row per athlete per week.
   var row=null;
-  if(sbClient){
+  var nutritionPlanned=[];
+  if(_authToken){
     try{
-      var res=await sbClient.from('nutrition_plans').select('*')
-        .eq('athlete_code',(athlete.code||'').toUpperCase().trim())
-        .eq('week_label',weekLabel)
-        .maybeSingle();
-      if(!res.error) row=res.data;
+      var res=await portalRequest('nutrition-week',{weekLabel:weekLabel});
+      row=res.plan||null;
+      nutritionPlanned=res.planned||[];
     }catch(e){console.warn('nutrition_plans load failed',e);}
   }
 
@@ -286,15 +285,11 @@ async function loadNutrition(){
   // session distances (with "Weekly KM Total: 65km" rows as a floor).
   var manualKmTarget=row.weekly_km_target!=null;
   var kmTarget=manualKmTarget?Number(row.weekly_km_target):null;
-  if(kmTarget==null&&sbClient){
+  if(kmTarget==null&&nutritionPlanned.length){
     try{
-      var ps=await sbClient.from('planned_sessions')
-        .select('distance_km,title,session_type')
-        .eq('athlete_code',(athlete.code||'').toUpperCase().trim())
-        .eq('week_label',weekLabel);
-      if(!ps.error&&ps.data&&ps.data.length){
+      if(nutritionPlanned.length){
         var sum=0,declared=0;
-        ps.data.forEach(function(r2){
+        nutritionPlanned.forEach(function(r2){
           if(r2.session_type==='Weekly KM Total'||/km total/i.test(r2.title||'')){
             var m=(r2.title||'').match(/(\d+(?:\.\d+)?)\s*km/i);
             if(m) declared=Math.max(declared,parseFloat(m[1]));

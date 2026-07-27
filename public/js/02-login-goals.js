@@ -5,15 +5,29 @@ function login(){
   manualLoginIntent=true;
   doLogin(c);
 }
-// Roster validation — Supabase public.athletes via /api/athletes is the
-// single source of truth. Unknown codes are rejected; paused (active=false)
-// athletes get the paused-access screen. Profile fields come from the roster
-// and the athlete's own athlete_data (goals); there is no Notion read.
+// Authenticate through the server. Email sessions are resolved from their JWT;
+// access-code sessions exchange the code for a short-lived signed portal token.
 async function validateRosterCode(code){
   try{
-    var r=await fetch('/api/athletes?action=validate&code='+encodeURIComponent(code),{cache:'no-store'});
-    if(!r.ok) return null;
-    return await r.json();
+    var options={cache:'no-store'};
+    if(_authToken){
+      options.headers=authHeaders({});
+    }else{
+      options.method='POST';
+      options.headers={'Content-Type':'application/json'};
+      options.body=JSON.stringify({action:'legacy-login',code:code});
+    }
+    var r=await fetch('/api/auth-athlete',options);
+    var result={};try{result=await r.json();}catch(e){}
+    if(r.status===403)return {exists:true,active:false,name:result.name||''};
+    if(!r.ok)return null;
+    if(result.code&&String(result.code).toUpperCase()!==String(code).toUpperCase())return null;
+    if(result.access_token){
+      _authToken=result.access_token;
+      localStorage.setItem('dp_legacy_session',_authToken);
+      localStorage.setItem('dp_auth_method','code');
+    }
+    return result;
   }catch(e){return null;}
 }
 function showPausedScreen(name){
@@ -63,41 +77,18 @@ async function doLogin(code){
   function resetBtn(){btn.textContent='Enter Portal';btn.disabled=false;btn.classList.remove('loading');}
   var showWelcome=manualLoginIntent;
   manualLoginIntent=false;
-  // Start everything the login needs in parallel: Supabase library, roster
-  // validation, and (below) the Notion profile — instead of one after another.
-  var supabaseReady=ensureSupabaseClient();
-  var rosterPromise=validateRosterCode(code);
-  var cached=null;
-  if(!showWelcome){try{cached=JSON.parse(localStorage.getItem('dp_profile_'+code)||'null');}catch(e){}}
-  if(cached&&cached.code===code){
-    // Returning user: enter instantly on the cached profile. Roster status and
-    // a fresh profile are verified in the background.
-    athlete=cached;
-    rosterPromise.then(function(roster){
-      if(roster&&!roster.exists){logout();showLoginError('Access code not recognised');renderCode();return;}
-      if(roster&&roster.exists&&!roster.active){showPausedScreen(roster.name);return;}
-      fetchAthleteProfile(code,roster).then(function(fresh){
-        if(!fresh) return;
-        athlete=fresh;saveProfileCache(code,fresh);
-        var hn=document.getElementById('heroName');if(hn) hn.textContent=athlete.name;
-        populateStatic();
-      });
-    });
-  }else{
-    // 1) Roster check (source of truth). null = endpoint unreachable → legacy fallback.
-    var roster=await rosterPromise;
-    if(roster&&!roster.exists){resetBtn();showLoginError('Access code not recognised');renderCode();return;}
-    if(roster&&roster.exists&&!roster.active){resetBtn();showPausedScreen(roster.name);return;}
-    // 2) Notion profile enrichment.
-    var fresh=await fetchAthleteProfile(code,roster);
-    resetBtn();
-    if(!fresh){showLoginError('Access code not recognised');renderCode();return;}
-    if(showWelcome) showLoginSuccess(fresh.name);
-    athlete=fresh;saveProfileCache(code,fresh);
-  }
+  var roster=await validateRosterCode(code);
+  if(!roster){resetBtn();showLoginError('Access code not recognised or your session has expired');renderCode();return;}
+  if(roster.active===false){resetBtn();showPausedScreen(roster.name);return;}
+  var fresh=await fetchAthleteProfile(code,roster);
+  if(!fresh){resetBtn();showLoginError('Unable to load your athlete profile');renderCode();return;}
+  if(showWelcome)showLoginSuccess(fresh.name);
+  athlete=fresh;saveProfileCache(code,fresh);
   resetBtn();
   localStorage.setItem('dp_auth_code',code);
-  await supabaseReady;
+  // Supabase remains the identity provider for email OTP only; portal data
+  // always flows through the authenticated server gateway.
+  if(localStorage.getItem('dp_auth_method')==='email')await ensureSupabaseClient();
   await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);})(),loadSessionLogs()]);
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
@@ -181,7 +172,7 @@ function refreshExerciseStat(i,ei,resolvedEx){
 function pickEx(exName,chosen){
   exPicks[exName]=chosen;
   localStorage.setItem('dp_ex_picks_'+athlete.code,JSON.stringify(exPicks));
-  if(sbClient){try{sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'ex_picks',value:exPicks,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'}).then(function(){}).catch(function(){});}catch(e){}}
+  portalStateWrite('ex_picks',exPicks).catch(function(){});
   var safeKey=exName.replace(/[^a-z0-9]/gi,'_');
   document.querySelectorAll('[data-pg="'+safeKey+'"]').forEach(function(p){
     p.classList.toggle('active',p.dataset.pv===chosen);
@@ -220,8 +211,7 @@ async function saveGoals(){
     why:document.getElementById('gWhy').value.trim(),m4:document.getElementById('gM4').value.trim(),
     m8:document.getElementById('gM8').value.trim(),m12:document.getElementById('gM12').value.trim(),savedAt:new Date().toISOString()};
   localStorage.setItem('dp_goals_'+athlete.code,JSON.stringify(goals));
-  // Explicit Supabase upsert — don't rely solely on the monkey-patch
-  if(sbClient){try{await sbClient.from('athlete_data').upsert({athlete_code:athlete.code,key:'goals',value:goals,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});}catch(e){console.warn('Goals Supabase sync failed:',e);}}
+  try{await portalStateWrite('goals',goals);}catch(e){console.warn('Goals sync failed:',e);}
   athlete.startWeight=goals.startWeight||athlete.startWeight;
   var coachResult=await coachWrite(GOALS_WEBHOOK,Object.assign({type:'goals',athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,submittedAt:goals.savedAt},goals));
   btn.textContent='Saved ✓';btn.classList.add('saved');

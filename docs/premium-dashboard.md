@@ -1,92 +1,47 @@
-# Premium Dashboard Rollout
+# Premium Portal Operations
 
-This rollout added the product layer that makes the athlete portal feel like a coached service rather than a data viewer.
+The athlete portal is a coached command center rather than a passive data
+viewer. It includes today-first training, weekly output, readiness, body and
+nutrition logs, check-ins, progress photos, personal-best history, reminders,
+Strava, coach contact, and offline retry.
 
-## New Experience
+## Data flow
 
-The athlete portal now includes:
+- Local storage provides immediate drafts and offline continuity.
+- `/api/portal-data` handles authenticated state and programme reads.
+- `/api/ingest` writes structured goals, check-ins, body, nutrition, and
+  training logs to Supabase.
+- `/api/progress-photos` performs authenticated Cloudinary upload and deletion.
+- The coach dashboard reads the structured Supabase tables.
 
-- Today's training card
-- Weekly coach-focus area
-- Readiness score
-- Athlete body check-in
-- Stress, sleep, energy, soreness, motivation, and bodyweight logging
-- Post-session RPE
-- Pain/injury flag
-- Coach alert state
-- Local fallback saving when Notion is not configured
+The browser never receives a service-role or Cloudinary secret and never writes
+directly to a database table.
 
-## Files
+## Athlete access
 
-- `public/index.html`: athlete portal with the premium command-center flows integrated
-- `api/checkin.js`: writes athlete check-ins into the BODY check-in database
-- `vercel.json`: routes `/` to `index.html`
-
-## Vercel Environment Variables
-
-Add these before enabling Notion-backed check-ins:
-
-```text
-NOTION_TOKEN=your_rotated_notion_token
-ALLOWED_ORIGINS=https://your-portal-domain.vercel.app
-CHECKIN_DATABASE_ID=3405a96cc70b80a4b1b9cf5b9c236f18
-```
-
-## Notion BODY Check-In Database
-
-Connected database:
-
-```text
-Daily Athlete BODY Check-in: 3405a96cc70b80a4b1b9cf5b9c236f18
-Data source: collection://3405a96c-c70b-80e0-a288-000b432e6ffa
-```
-
-The portal now writes to these properties:
-
-| Portal field | Notion property | Type |
-| --- | --- | --- |
-| Athlete code | AthleteID | Text |
-| Athlete name/check-in title | Name | Title |
-| Submitted at | Date | Date |
-| Bodyweight | Weight | Number |
-| Sleep | Sleep Score | Number |
-| Energy | Energy | Number |
-| Stress | Stress | Number |
-| Soreness | Soreness | Number |
-| Session title | Session | Text |
-| Motivation | Motivation | Number |
-| Session RPE | RPE | Number |
-| Pain flag | Pain | Checkbox |
-| Notes | Notes | Text |
-| Coach alert | Coach Alert | Select: Normal, Watch, Coach Review |
-
-I extended the database with these premium fields:
-
-- `Session`
-- `Motivation`
-- `RPE`
-- `Pain`
-- `Coach Alert`
-
-## Activation
-
-The root athlete URL opens the portal:
+An access-code URL remains supported:
 
 ```text
 https://your-portal.vercel.app?code=ATHLETE_CODE
 ```
 
-The portal stores check-ins locally if `CHECKIN_DATABASE_ID` is not configured yet.
+The code is exchanged for a signed 24-hour session. Email OTP can be enabled
+per athlete; both methods resolve to the same permanent athlete code and
+history.
 
-## Coach Alert Logic
+## Recovery signal
 
-The check-in is marked `Coach Review` when the athlete flags pain or injury.
+The portal highlights low readiness, pain, high stress or soreness, missed
+logging, and incomplete weekly check-ins. Structured rows retain the raw
+payload so coach-side review logic can evolve without losing athlete context.
 
-It is marked `Watch` when:
+## Release gate
 
-- Energy is 3/10 or lower
-- Motivation is 3/10 or lower
-- Stress is 8/10 or higher
-- Soreness is 8/10 or higher
+Run:
 
-Otherwise it is marked `Normal`.
+```text
+npm run check
+```
+
+Then deploy portal v80 before applying
+`supabase/migrations/20260727085203_lock_down_portal_rls.sql`.

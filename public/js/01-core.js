@@ -3,16 +3,14 @@
 var SPLITS_BY_NAME={};
 function getSplit(key){return SPLITS_BY_NAME[key]||STR[key]||[];}
 async function loadWorkoutSplits(){
-  if(!sbClient) return;
   try{
-    var splitQuery=sbClient.from('workout_splits').select('name,athlete_code,exercises').eq('archived',false);
-    if(athlete&&athlete.code) splitQuery=splitQuery.or('athlete_code.is.null,athlete_code.eq.'+athlete.code);
-    var res=await splitQuery;
-    if(res.error||!res.data||!res.data.length) return;
+    var result=await portalRequest('workout-splits');
+    var rows=result.rows||[];
+    if(!rows.length)return;
     var map={};
     // global splits first, then athlete-specific variants override by name
-    res.data.forEach(function(r){ if(!r.athlete_code) map[r.name]=r.exercises||[]; });
-    res.data.forEach(function(r){ if(r.athlete_code&&athlete&&r.athlete_code===athlete.code) map[r.name]=r.exercises||[]; });
+    rows.forEach(function(r){ if(!r.athlete_code) map[r.name]=r.exercises||[]; });
+    rows.forEach(function(r){ if(r.athlete_code&&athlete&&r.athlete_code===athlete.code) map[r.name]=r.exercises||[]; });
     SPLITS_BY_NAME=map;
     var names=Object.keys(map);
     GYM_KEYS=names.concat(GYM_KEYS.filter(function(k){return names.indexOf(k)<0;}));
@@ -66,7 +64,9 @@ function initAuthStateListener(){
   if(_authListenerBound||!sbClient||!sbClient.auth)return;
   _authListenerBound=true;
   sbClient.auth.onAuthStateChange(function(event,session){
-    _authToken=(session&&session.access_token)||null;
+    var method=localStorage.getItem('dp_auth_method');
+    if(session&&session.access_token)_authToken=session.access_token;
+    else if(method==='email')_authToken=null;
     // Email-authed athletes get a visible logout (legacy keeps it coach-only
     // via the ?code= link — unchanged).
     if(_authToken){var lb=document.getElementById('logoutBtn');if(lb)lb.style.display='';}
@@ -88,6 +88,25 @@ function authHeaders(base){
   if(_authToken)h['Authorization']='Bearer '+_authToken;
   return h;
 }
+async function portalRequest(action,payload,options){
+  if(!_authToken)throw new Error('Your session has expired. Please sign in again.');
+  var body=Object.assign({action:action},payload||{});
+  var response=await fetch('/api/portal-data',{
+    method:'POST',
+    headers:authHeaders({'Content-Type':'application/json'}),
+    body:JSON.stringify(body),
+    cache:'no-store',
+    keepalive:!!(options&&options.keepalive)
+  });
+  var data={};
+  try{data=await response.json();}catch(e){}
+  if(response.status===401){handleAuthSessionLost();throw new Error('Your session has expired. Please sign in again.');}
+  if(!response.ok||data.ok===false)throw new Error(data.error||('Sync failed '+response.status));
+  return data;
+}
+function portalStateWrite(key,value,options){
+  return portalRequest('state-write',{key:key,value:value},options);
+}
 async function getAuthSession(){
   var client=await ensureSupabaseClient();
   if(!client||!client.auth)return null;
@@ -108,11 +127,16 @@ async function resolveAuthedAthlete(){
 async function authSignOut(){
   try{var client=await ensureSupabaseClient();if(client&&client.auth)await client.auth.signOut();}catch(e){}
   _authToken=null;
+  try{localStorage.removeItem('dp_legacy_session');}catch(e){}
 }
 function handleAuthSessionLost(){
+  var method=localStorage.getItem('dp_auth_method');
   logoutToLogin(true);
-  if(typeof showEmailLogin==='function'){
+  if(method==='email'&&typeof showEmailLogin==='function'){
     showEmailLogin(true,'Your session expired — enter your email and we’ll send a new code.');
+  }else{
+    if(typeof showEmailLogin==='function')showEmailLogin(false);
+    if(typeof showLoginError==='function')showLoginError('Your access session expired — enter your coach-issued code again.');
   }
 }
 
@@ -126,21 +150,18 @@ var _saveStateTimer=null;
 function setSaveState(state,label){
   var pill=document.getElementById('saveStatePill');if(!pill)return;
   pill.className='save-state-pill '+state;
-  var text=pill.querySelector('b');if(text)text.textContent=label||(state==='saving'?'Saving':state==='offline'?'Offline · will sync':'Saved');
+  var text=pill.querySelector('b');if(text)text.textContent=label||(state==='saving'?'Syncing with coach':state==='offline'?'Saved on device · will sync':'Synced with coach');
   if(_saveStateTimer)clearTimeout(_saveStateTimer);
   if(state==='saved')_saveStateTimer=setTimeout(function(){pill.classList.add('quiet');},2200);else pill.classList.remove('quiet');
 }
 function _flushSbKey(sbKey){
   if(_sbSyncTimers[sbKey]){clearTimeout(_sbSyncTimers[sbKey]);delete _sbSyncTimers[sbKey];}
   var p=_sbSyncPending[sbKey];
-  if(!p||!sbClient) return;
+  if(!p||!_authToken) return;
   delete _sbSyncPending[sbKey];
-  try{
-    sbClient.from('athlete_data').upsert(
-      {athlete_code:p.code,key:sbKey,value:p.value,updated_at:new Date().toISOString()},
-      {onConflict:'athlete_code,key'}
-    ).then(function(r){if(r&&r.error)setSaveState('offline','Will sync');else setSaveState('saved');},function(){setSaveState('offline','Will sync');});
-  }catch(e){setSaveState('offline','Will sync');}
+  portalStateWrite(sbKey,p.value,{keepalive:true})
+    .then(function(){setSaveState('saved');})
+    .catch(function(){_sbSyncPending[sbKey]=p;setSaveState('offline');});
 }
 function _flushAllSb(){Object.keys(_sbSyncPending).forEach(_flushSbKey);}
 function _scheduleSbSync(code,sbKey,parsed){
@@ -151,13 +172,13 @@ function _scheduleSbSync(code,sbKey,parsed){
 }
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')_flushAllSb();});
 window.addEventListener('pagehide',_flushAllSb);
-window.addEventListener('online',function(){setSaveState('saving','Syncing');_flushAllSb();retryPendingCoachWrites(true).then(function(){setSaveState('saved');});});
+window.addEventListener('online',function(){setSaveState('saving');_flushAllSb();retryPendingCoachWrites(true).then(function(){setSaveState('saved');});});
 window.addEventListener('offline',function(){setSaveState('offline');});
 (function(){
   var _orig=localStorage.setItem.bind(localStorage);
   localStorage.setItem=function(key,value){
     _orig(key,value);
-    if(_skipSbSync||!sbClient||!key.startsWith('dp_')) return;
+    if(_skipSbSync||!_authToken||!key.startsWith('dp_')) return;
     var code=(athlete&&athlete.code)||'';if(!code) return;
     var sbKey=null;
     if(key==='dp_goals_'+code) sbKey='goals';
@@ -192,13 +213,10 @@ function readPendingCoachWrites(code){
 async function persistPendingCoachWrites(list,code){
   code=code||currentWriteCode();
   try{localStorage.setItem(pendingCoachWritesKey(code),JSON.stringify(list));}catch(e){}
-  // Mirror the queue to Supabase only when we have a real code (athlete_data needs one).
-  if(sbClient&&code&&code!=='_unknown'){
+  // Mirror the retry queue to the authenticated server gateway.
+  if(_authToken&&code&&code!=='_unknown'){
     try{
-      await sbClient.from('athlete_data').upsert(
-        {athlete_code:code,key:'pending_writes',value:list,updated_at:new Date().toISOString()},
-        {onConflict:'athlete_code,key'}
-      );
+      await portalStateWrite('pending_writes',list);
     }catch(e){console.warn('Pending coach-write sync failed:',e);}
   }
 }
@@ -290,25 +308,10 @@ window.addEventListener('online',function(){retryPendingCoachWrites(false);});
 // Coach prescription overrides now live directly on planned_sessions rows in
 // Supabase — loadPlannedSessions() populates _sessionOverrides from each row.
 async function loadPlannedSessions(startISO,endISO){
-  if(!sbClient) return null;
   try{
-    var weekQuery=sbClient.from('planned_sessions').select('*')
-      .eq('athlete_code',athlete.code)
-      .gte('planned_date',startISO)
-      .lte('planned_date',endISO)
-      .order('planned_date',{ascending:true});
-    var nextQuery=sbClient.from('planned_sessions').select('*')
-      .eq('athlete_code',athlete.code)
-      .gt('planned_date',endISO)
-      .order('planned_date',{ascending:true})
-      .limit(1);
-    var queryResults=await Promise.all([weekQuery,nextQuery]);
-    var res=queryResults[0],nextRes=queryResults[1];
-    if(res.error||!res.data) return null;
-    var plannedRows=res.data.slice();
-    if(nextRes&&!nextRes.error&&nextRes.data&&nextRes.data.length){
-      nextRes.data.forEach(function(row){if(!plannedRows.some(function(existing){return existing.id===row.id;}))plannedRows.push(row);});
-    }
+    var result=await portalRequest('planned-sessions',{start:startISO,end:endISO});
+    var plannedRows=(result.rows||[]).slice();
+    if(result.next&&!plannedRows.some(function(existing){return existing.id===result.next.id;}))plannedRows.push(result.next);
     _sessionOverrides={};
     return plannedRows.map(function(r){
       var key=r.notion_page_id||r.id;
@@ -328,15 +331,15 @@ async function loadPlannedSessions(startISO,endISO){
 }
 
 async function loadCloudData(code){
-  if(!sbClient) return;
   _skipSbSync=true;
   programmeWeeks=12;
   try{
-    var res=await sbClient.from('athlete_data').select('key,value').eq('athlete_code',code);
-    if(res.error||!res.data||!res.data.length){_skipSbSync=false;return;}
+    var result=await portalRequest('state-read');
+    var rows=result.rows||[];
+    if(!rows.length){_skipSbSync=false;return;}
     // Build a set of keys that exist in Supabase
     var cloudKeys={};
-    res.data.forEach(function(row){cloudKeys[row.key]=row.value;});
+    rows.forEach(function(row){cloudKeys[row.key]=row.value;});
     // Programme length (set by coaches in the dashboard Nutrition tab)
     var pw=parseInt(cloudKeys['programme_weeks'],10);
     if(!isNaN(pw)&&pw>0&&pw<=52) programmeWeeks=pw;
@@ -345,7 +348,7 @@ async function loadCloudData(code){
     var startOverride=String(cloudKeys['start_date_override']||'').trim();
     if(/^\d{4}-\d{2}-\d{2}$/.test(startOverride)) athlete.startDate=startOverride;
     // Write cloud data to localStorage (cloud is authoritative)
-    res.data.forEach(function(row){
+    rows.forEach(function(row){
       var lsKey=null;
       // LOGS: never let an older cloud copy clobber a newer local draft.
       // (Athletes were losing in-progress gym/run data on reload because the
@@ -359,7 +362,7 @@ async function loadCloudData(code){
         var _localT=(_localLogs&&_localLogs.__savedAt)||0;
         if(_localLogs&&_localT>_cloudT){
           // Local draft is newer — keep it, and push it up so other devices catch up.
-          try{sbClient.from('athlete_data').upsert({athlete_code:code,key:'logs',value:_localLogs,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'}).then(function(){},function(){});}catch(e){}
+          portalStateWrite('logs',_localLogs).catch(function(){});
         }else if(_cloudLogs){
           localStorage.setItem('dp_logs_'+code,JSON.stringify(_cloudLogs));
         }
@@ -386,7 +389,7 @@ async function loadCloudData(code){
           var parsedPhotos=JSON.parse(localPhotos);
           if(Object.keys(parsedPhotos).length>0){
             _skipSbSync=false;
-            await sbClient.from('athlete_data').upsert({athlete_code:code,key:'photos',value:parsedPhotos,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});
+            await portalStateWrite('photos',parsedPhotos);
             _skipSbSync=true;
           }
         }catch(e){}
@@ -400,7 +403,7 @@ async function loadCloudData(code){
           var parsed=JSON.parse(localGoals);
           if(parsed.savedAt){
             _skipSbSync=false;
-            await sbClient.from('athlete_data').upsert({athlete_code:code,key:'goals',value:parsed,updated_at:new Date().toISOString()},{onConflict:'athlete_code,key'});
+            await portalStateWrite('goals',parsed);
             _skipSbSync=true;
           }
         }catch(e){}
@@ -417,12 +420,10 @@ async function loadStructuredBodyData(code){
   if(!code) return;
   var wasSkipping=_skipSbSync;
   try{
-    var response=await fetch('/api/my-logs?code='+encodeURIComponent(code),{cache:'no-store',headers:authHeaders({})});
-    if(!response.ok) return;
-    var result=await response.json();
-    if(!result||!Array.isArray(result.body)) return;
+    var result=await portalRequest('body-logs');
+    if(!result||!Array.isArray(result.rows)) return;
     _skipSbSync=true;
-    result.body.forEach(function(row){
+    result.rows.forEach(function(row){
       var logDate=String(row.log_date||'').slice(0,10);if(!logDate)return;
       var raw=row.raw_payload&&typeof row.raw_payload==='object'?row.raw_payload:{};
       var value=Object.assign({},raw,{
@@ -569,6 +570,7 @@ function sortSessionsForDisplay(list){
 // ("send a new code") is one tap; explicit logout clears everything.
 function logoutToLogin(preserveEmail){
   localStorage.removeItem('dp_auth_code');
+  localStorage.removeItem('dp_legacy_session');
   if(!preserveEmail){
     try{localStorage.removeItem('dp_auth_method');localStorage.removeItem('dp_auth_email');}catch(e){}
   }

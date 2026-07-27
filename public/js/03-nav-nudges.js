@@ -121,13 +121,10 @@ function dpMarkCallBooked(displayTime){
   localStorage.setItem(wkey,JSON.stringify(saveVal));
   renderBookingPrompts();
   setTimeout(function(){try{closeCallModal();}catch(ex){}},1500);
-  if(sbClient&&athlete&&athlete.code){
+  if(_authToken&&athlete&&athlete.code){
     var _wkpfx='dp_call_booked_'+athlete.code.toUpperCase()+'_';
     var sbKey='call_booked_'+wkey.slice(_wkpfx.length);
-    sbClient.from('athlete_data').upsert(
-      {athlete_code:athlete.code,key:sbKey,value:saveVal,updated_at:new Date().toISOString()},
-      {onConflict:'athlete_code,key'}
-    ).then(function(){},function(err){console.warn('Call booked sync failed:',err);});
+    portalStateWrite(sbKey,saveVal).catch(function(err){console.warn('Call booked sync failed:',err);});
   }
 }
 window.addEventListener('message',function(e){

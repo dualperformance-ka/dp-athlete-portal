@@ -17,21 +17,20 @@ export async function getRosterAthlete(code) {
   return (Array.isArray(rows) && rows[0]) || null;
 }
 
-// An athlete is blocked from writing fresh data when they are paused or archived.
-// Unknown codes are NOT blocked here (legacy codes may predate the roster) —
-// they keep flowing through the existing identity checks.
+// An athlete is blocked when they are paused or archived.
 export function isBlockedRow(row) {
   return !!row && (row.archived_at != null || row.active === false);
 }
 
-// Guard used by write endpoints. Returns { blocked, row }. Fails OPEN on
-// lookup errors so a transient Supabase hiccup never drops a submission.
+// Guard used by write endpoints. Identity checks fail closed: when the roster
+// cannot be reached, the client keeps its submission in the retry queue rather
+// than the server accepting an unverified write.
 export async function checkRosterAccess(code) {
   try {
     const row = await getRosterAthlete(code);
-    return { blocked: isBlockedRow(row), row };
+    return { blocked: !row || isBlockedRow(row), row, unavailable: false };
   } catch (e) {
-    console.warn('[roster] access check failed (failing open):', e && e.message);
-    return { blocked: false, row: null };
+    console.warn('[roster] access check failed:', e && e.message);
+    return { blocked: true, row: null, unavailable: true };
   }
 }
