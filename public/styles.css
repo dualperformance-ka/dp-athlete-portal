@@ -47,12 +47,10 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .hero-week-label{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em}
 .hero-week-num{font-family:var(--display);font-size:28px;font-weight:800;color:#92d2ed;line-height:1;white-space:nowrap}
 .hero-week-num.discovery{font-size:15px;line-height:1.05;text-transform:uppercase;letter-spacing:.03em}
-.hero-side-label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(146,210,237,.7);margin-bottom:12px}
+
 .hero-support{max-width:54ch;color:rgba(244,251,255,.72);font-size:14px;line-height:1.6}
 .hero-bottom{display:grid;gap:14px;margin-top:4px}
-.hero-stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.hero-stat{padding:12px 13px;border-radius:16px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03)}
-.hero-stat-label{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+
 .hero-stat-value{margin-top:6px;font-family:var(--body);font-size:22px;font-weight:600;letter-spacing:-.04em;color:var(--text)}
 .hpills{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:0}
 .hp{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.1);padding:5px 13px;border-radius:20px;flex-shrink:0;white-space:nowrap}
@@ -561,7 +559,6 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
   /* Login centered via flex on all sizes */
 }
 
-
 /* 2026 aesthetic refresh */
 html,body{background:radial-gradient(circle at top, rgba(146,210,237,.055), transparent 30%),var(--bg);color:var(--text)}
 header,.hero,.goals-prompt,.todaypanel,.comms-card,#loginScreen,.toast{background:linear-gradient(180deg, rgba(255,255,255,.015), rgba(255,255,255,0)), #090d10}
@@ -638,7 +635,6 @@ header{background:rgba(6,8,10,.92);backdrop-filter:blur(12px)}
   .todaytitle{font-size:28px}
 }
 
-
 /* v6 graph visibility tuning */
 .progress-spotlight,
 .graph-spotlight,
@@ -694,8 +690,6 @@ header{background:rgba(6,8,10,.92);backdrop-filter:blur(12px)}
 .weight-trend-card .recharts-area-area{
   fill-opacity: 0.12 !important;
 }
-
-
 
 /* v7 direct chart visibility fix */
 .progress-card canvas,
@@ -781,7 +775,6 @@ header{background:rgba(6,8,10,.92);backdrop-filter:blur(12px)}
 .weight-trend-card{
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03) !important;
 }
-
 
 /* v11 top stat chip readability */
 .header-chip,
@@ -2037,11 +2030,8 @@ body.focus-session-open{overflow:hidden}
 /* Chart/progress card wrappers missed the outdoor surface overrides */
 .outdoor-mode .progress-card,.outdoor-mode .progress-panel,.outdoor-mode .weight-trend,.outdoor-mode .weight-trend-card{background:#fff!important;border-color:rgba(7,17,22,.13)!important;box-shadow:0 14px 30px rgba(30,55,67,.08)!important;color:var(--text)}
 
-/* ── WEEKLY RINGS (running km + gym) ────────────────────────────────────── */
-.week-rings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:0;justify-content:center}
-.ring-item{flex:1;display:flex;align-items:center;justify-content:flex-start;gap:12px;min-width:0;padding:14px;border:1px solid rgba(255,255,255,.07);border-radius:16px;background:rgba(255,255,255,.025)}
-.ring-wrap{position:relative;width:58px;height:58px;flex-shrink:0}
-.ring-svg{width:58px;height:58px}
+/* 
+
 /* KM gauge — ticked instrument arc */
 .gauge-tick{stroke:rgba(255,255,255,.13);stroke-width:2.4;stroke-linecap:round;fill:none;transition:stroke .4s ease,filter .4s ease}
 .gauge-tick.lit{stroke:#92d2ed}
@@ -2050,12 +2040,7 @@ body.focus-session-open{overflow:hidden}
 /* Gym gauge — one segment per session */
 .gauge-seg{stroke:rgba(255,255,255,.12);stroke-width:5.5;stroke-linecap:round;fill:none;transition:stroke .45s ease,filter .45s ease}
 .gauge-seg.done{stroke:#e8e8e8}
-.ring-icon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;opacity:.85}
-.ring-text{min-width:0}
-.ring-val{font-family:var(--display);font-size:19px;font-weight:800;color:#fff;line-height:1.1;white-space:nowrap}
-#kmBar .ring-val span{color:#92d2ed}
-.ring-sub{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;white-space:nowrap}
-.ring-src{font-family:var(--mono);font-size:8px;color:rgba(255,255,255,.32);display:inline-flex;align-items:center;gap:4px;margin-top:4px}
+
 .km-hit .gauge-tick.lit{filter:drop-shadow(0 0 4px rgba(146,210,237,.6))}
 #gymBar.km-hit .gauge-seg.done{filter:drop-shadow(0 0 4px rgba(255,255,255,.45))}
 /* Outdoor mode */
@@ -2065,9 +2050,7 @@ body.focus-session-open{overflow:hidden}
 .outdoor-mode .gauge-tick.tgt.lit{stroke:var(--run-strong)!important;filter:none!important}
 .outdoor-mode .gauge-seg{stroke:var(--border-mid)!important}
 .outdoor-mode .gauge-seg.done{stroke:var(--strength)!important}
-.outdoor-mode .ring-val{color:var(--text)!important}
-.outdoor-mode #kmBar .ring-val span{color:var(--run)!important}
-.outdoor-mode .ring-sub,.outdoor-mode .ring-src{color:var(--dim)!important}
+
 .outdoor-mode .km-hit .gauge-tick.lit,.outdoor-mode #gymBar.km-hit .gauge-seg.done{filter:none!important}
 
 /* ── COMPACT CALL-CONFIRMED NUDGE ─────────────────────────────── */
@@ -2559,8 +2542,6 @@ html:not(.outdoor-mode) #photoNudge{
 }
 .outdoor-mode .hero-main::before{background:linear-gradient(90deg,transparent,var(--run),transparent)}
 .outdoor-mode .hero-week{background:rgba(7,17,22,.04)!important;border-color:var(--border)!important}
-.outdoor-mode .hero-side-label{color:rgba(7,17,22,.6)}
-.outdoor-mode .hero-stat{background:rgba(7,17,22,.035)!important;border-color:var(--border)!important}
 
 /* ── Light mode legibility: muted/dim sub-labels were sitting right at
    the 4.5:1 minimum and reading as "too light". Darken the tokens a step
@@ -2911,10 +2892,10 @@ html:not(.outdoor-mode) #portalScreen{
   .save-state-pill b{display:none}
   .hn{font-size:37px}
   .hero-main{padding:18px}
-  .hero-stat{padding:9px 7px}
+  
   .hero-stat-value{font-size:18px}
-  .week-rings{grid-template-columns:1fr}
-  .ring-item{min-height:62px}
+  
+  
   .insight-rail{grid-template-columns:1fr}
 }
 
@@ -2923,7 +2904,7 @@ html:not(.outdoor-mode) #portalScreen{
 .outdoor-mode .portal-context-kicker{color:var(--dim)}
 .outdoor-mode .hicon.active{color:var(--run-strong);border-color:var(--run-border);background:var(--run-bg)}
 .outdoor-mode .hero-support{color:var(--muted)}
-.outdoor-mode .hero-stat-label{color:var(--dim)}
+
 .outdoor-mode .hero-stat-value{color:var(--text)}
 .outdoor-mode .mobile-nav-item.active{background:var(--run-bg)}
 @media(min-width:900px){
@@ -2933,7 +2914,7 @@ html:not(.outdoor-mode) #portalScreen{
       linear-gradient(rgba(7,17,22,.09),rgba(7,17,22,.09)) 16px 98px/calc(100% - 32px) 1px no-repeat,
       linear-gradient(180deg,rgba(255,255,255,.98),rgba(244,248,250,.98));
   }
-  .outdoor-mode .ring-item,.outdoor-mode .hero-stat{background:rgba(7,17,22,.035);border-color:var(--border)}
+  
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -2944,19 +2925,9 @@ html:not(.outdoor-mode) #portalScreen{
 button.hero-stat{
   appearance:none;-webkit-appearance:none;width:100%;margin:0;font:inherit;color:inherit;text-align:left;
 }
-.hero-stat-action{position:relative;cursor:pointer;transition:transform .16s,border-color .16s,background .16s,box-shadow .16s}
-.hero-stat-action:hover{border-color:var(--border-strong);background:rgba(255,255,255,.05)}
-.hero-stat-action:active{transform:scale(.985)}
-.hero-stat-action:focus-visible{outline:3px solid var(--run);outline-offset:3px}
-.hero-stat-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
-.hero-stat-chevron{color:var(--dim);font-size:22px;line-height:1;transition:transform .16s,color .16s}
-.hero-stat-action:hover .hero-stat-chevron{color:var(--run);transform:translateX(2px)}
+
 .hero-stat-note{margin-top:7px;color:var(--dim);font-family:var(--mono);font-size:9px;line-height:1.35;letter-spacing:.015em}
 
-.hero-progress-track{height:5px;margin-top:8px;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.08)}
-.hero-progress-track span{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#5fb9dd,#92d2ed);box-shadow:0 0 12px rgba(146,210,237,.34);transition:width .4s ease}
-
-.hero-readiness-wrap{display:flex;align-items:center;gap:10px;margin-top:7px;min-width:0}
 .hero-readiness-ring{
   --value:0;width:48px;height:48px;flex:0 0 48px;border-radius:50%;display:grid;place-items:center;
   background:radial-gradient(circle closest-side,var(--surface) 69%,transparent 71%),conic-gradient(#73d1a7 calc(var(--value)*1%),rgba(255,255,255,.08) 0);
@@ -2965,17 +2936,14 @@ button.hero-stat{
 .hero-readiness-ring .hero-stat-value{margin:0;font-size:16px;letter-spacing:-.03em}
 .hero-readiness-wrap .hero-stat-note{margin:0;max-width:10ch}
 
-.hero-pb-value{display:flex;align-items:center;gap:7px;min-width:0}
 .hero-pb-value .icon{width:17px;height:17px;color:var(--pb)}
 .hero-pb-value .hero-stat-value{margin-top:0}
 
-.outdoor-mode .hero-stat-action:hover{background:rgba(7,17,22,.055)}
-.outdoor-mode .hero-progress-track{background:rgba(7,17,22,.09)}
 .outdoor-mode .hero-readiness-ring{background:radial-gradient(circle closest-side,#fff 69%,transparent 71%),conic-gradient(#23804b calc(var(--value)*1%),rgba(7,17,22,.1) 0)}
 
 @media(min-width:900px){
-  .hero-stat-action{min-height:126px;display:flex;flex-direction:column;justify-content:flex-start}
-  .hero-stat-action .hero-stat-row{margin-top:auto}
+  
+  
   .hero-stat-progress .hero-stat-value,.hero-stat-pbs .hero-stat-value{font-size:25px}
   .hero-readiness-ring{width:52px;height:52px;flex-basis:52px}
   .hero-readiness-ring .hero-stat-value{font-size:17px}
@@ -3018,7 +2986,7 @@ button.hero-stat{
   .wg-day{min-height:73px;padding-left:1px;padding-right:1px;border-radius:10px}
   .wg-name,.wg-lab{font-size:6.5px}
   .wg-date{font-size:14px}
-  .hero-stat-action{padding:9px 7px}
+  
   .hero-readiness-ring{width:40px;height:40px;flex-basis:40px}
   .hero-readiness-ring .hero-stat-value{font-size:14px}
 }
@@ -3294,19 +3262,19 @@ body.day-plan-open{overflow:hidden}
   body.mobile-portal-home .hero-bottom{margin-top:6px}
   body.mobile-portal-home .hpills{margin-bottom:7px}
   body.mobile-portal-home .hp{padding:4px 8px;font-size:8px}
-  body.mobile-portal-home .hero-stat-grid{gap:5px}
-  body.mobile-portal-home .hero-stat-action{min-height:68px;padding:7px;border-radius:11px}
-  body.mobile-portal-home .hero-stat-label{min-height:0;font-size:7px;letter-spacing:.08em}
+  
+  
+  
   body.mobile-portal-home .hero-stat-action .hero-stat-value{font-size:17px}
   body.mobile-portal-home .hero-stat-note{margin-top:4px;font-size:7px;line-height:1.2}
-  body.mobile-portal-home .hero-stat-chevron{font-size:20px}
-  body.mobile-portal-home .hero-progress-track{height:4px;margin-top:5px}
-  body.mobile-portal-home .hero-readiness-wrap{flex-direction:row;align-items:center;gap:5px}
+  
+  
+  
   body.mobile-portal-home .hero-readiness-ring{width:34px;height:34px;flex:0 0 34px}
   body.mobile-portal-home .hero-readiness-ring .hero-stat-value{font-size:12px}
-  body.mobile-portal-home .hero-pb-value{gap:4px}
+  
   body.mobile-portal-home .hero-pb-value .icon{width:12px;height:12px}
-  body.mobile-portal-home .hero-side{display:none}
+  
 
   body.mobile-portal-home #todayEl{display:block!important;max-width:none;margin:6px 0 0}
   body.mobile-portal-home #todayEl .todaypanel{
@@ -3393,61 +3361,18 @@ body.day-plan-open{overflow:hidden}
   border-radius:999px;background:var(--run-bg);font-family:var(--body);font-size:9px;font-weight:700;
   line-height:1;letter-spacing:0;text-transform:none;color:var(--run-strong);
 }
-.hero-output-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-.hero-output-heading .hero-side-label{margin-bottom:0}
-.hero-output-week{
-  display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border:1px solid var(--run-border);
-  border-radius:999px;background:var(--run-bg);font-size:10px;font-weight:700;line-height:1;color:var(--run-strong);
-}
-.week-rings{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.ring-item{
-  display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:11px;padding:13px;
-  border-color:var(--border);border-radius:16px;
-  background:linear-gradient(155deg,rgba(255,255,255,.05),rgba(255,255,255,.018));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
-}
-.ring-wrap{
-  width:42px;height:42px;display:grid;place-items:center;border:1px solid var(--run-border);
-  border-radius:13px;background:var(--run-bg);
-}
-#gymBar .ring-wrap{border-color:var(--strength-border);background:var(--strength-bg)}
-.ring-svg{display:none}
-.ring-icon{position:static;width:18px;height:18px;transform:none;color:var(--run-strong);opacity:1}
-#gymBar .ring-icon{color:var(--strength)}
-.ring-kicker{
-  font-family:var(--body);font-size:10px;font-weight:650;line-height:1.15;
-  letter-spacing:-.01em;color:var(--muted);
-}
-.ring-val{
-  display:flex;align-items:baseline;gap:4px;margin-top:3px;font-family:var(--body);font-size:23px;
-  font-weight:720;line-height:1;letter-spacing:-.045em;color:var(--text);
-}
-#kmBar .ring-val span{color:var(--text)}
-.ring-val small{font-size:11px;font-weight:600;letter-spacing:0;color:var(--muted)}
-.ring-sub{
-  margin-top:4px;font-family:var(--body);font-size:9px;font-weight:450;line-height:1.2;
-  letter-spacing:0;text-transform:none;color:var(--dim);
-}
-.ring-progress{height:4px;margin-top:8px;border-radius:999px;background:rgba(255,255,255,.075);overflow:hidden}
-.ring-progress span{display:block;width:0;height:100%;border-radius:inherit;background:var(--run);transition:width .45s ease}
-.ring-progress.strength span{background:rgba(243,251,255,.82)}
-.ring-src{margin-top:5px;font-family:var(--body);font-size:8px;letter-spacing:0;color:var(--dim)}
+
 .outdoor-mode .hero-output-week,.outdoor-mode .week-plan-number{color:var(--run-strong)}
-.outdoor-mode .ring-item{background:rgba(7,17,22,.035);border-color:var(--border);box-shadow:none}
-.outdoor-mode .ring-wrap{background:rgba(8,127,174,.08);border-color:rgba(8,127,174,.2)}
-.outdoor-mode #gymBar .ring-wrap{background:rgba(7,17,22,.045);border-color:var(--border)}
-.outdoor-mode .ring-progress{background:rgba(7,17,22,.09)}
-.outdoor-mode .ring-progress.strength span{background:rgba(7,17,22,.58)}
 
 @media(min-width:900px){
-  .hero-side{gap:0}
-  .week-rings{grid-template-columns:1fr;gap:10px}
-  .ring-item{grid-template-columns:50px minmax(0,1fr);padding:15px 16px}
-  .ring-wrap{width:50px;height:50px;border-radius:15px}
-  .ring-icon{width:20px;height:20px}
-  .ring-kicker{font-size:11px}
-  .ring-val{font-size:27px}
-  .ring-sub{font-size:10px}
+  
+  
+  
+  
+  
+  
+  
+  
 }
 
 @media(min-width:761px) and (max-width:899px){
@@ -3456,25 +3381,20 @@ body.day-plan-open{overflow:hidden}
 
 @media(max-width:760px){
   body.mobile-portal-home .hero-shell{gap:6px}
-  body.mobile-portal-home .hero-side{
-    display:block;padding:8px 11px 9px;border-radius:16px;
-    background:linear-gradient(155deg,rgba(16,27,34,.96),rgba(7,16,22,.96));
-  }
-  body.mobile-portal-home .hero-output-heading{margin-bottom:5px}
-  body.mobile-portal-home .hero-side-label{font-size:7px;letter-spacing:.12em}
-  body.mobile-portal-home .hero-output-week{min-height:19px;padding:0 7px;font-size:8px}
-  body.mobile-portal-home .week-rings{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
-  body.mobile-portal-home .ring-item{
-    grid-template-columns:29px minmax(0,1fr);gap:7px;min-height:54px;padding:6px 7px;border-radius:11px;
-  }
-  body.mobile-portal-home .ring-wrap{width:29px;height:29px;border-radius:9px}
-  body.mobile-portal-home .ring-icon{width:13px;height:13px}
-  body.mobile-portal-home .ring-kicker{font-size:7px}
-  body.mobile-portal-home .ring-val{margin-top:2px;font-size:16px}
-  body.mobile-portal-home .ring-val small{font-size:8px}
-  body.mobile-portal-home .ring-sub{margin-top:2px;font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  body.mobile-portal-home .ring-progress{height:3px;margin-top:5px}
-  body.mobile-portal-home .ring-src{display:none!important}
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 }
 
 /* Mobile glass header: full width at rest, inset and floating while scrolling. */

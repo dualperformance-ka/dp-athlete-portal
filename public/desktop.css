@@ -100,12 +100,15 @@
   .top-shell{margin-left:var(--railw);padding:22px var(--shellpad) 16px;background:transparent;border-bottom:0}
   .top-shell>.hero{margin:0 auto;padding:0;max-width:var(--content-max);background:transparent}
 
-  .hero-shell{
-    grid-template-columns:minmax(0,1fr) minmax(300px,340px);
-    gap:16px;align-items:stretch;
+  /* The weekly-output side card folded into the metric grid, so the hero is
+     a single panel. Identity sits left, the four week metrics sit right —
+     same ~210px height, no reserved column standing empty. */
+  .hero-shell{grid-template-columns:1fr;gap:16px;align-items:stretch}
+  .hero-main{
+    min-height:0;padding:18px 22px;border-radius:var(--r-lg);
+    display:grid;grid-template-columns:1fr;grid-auto-rows:min-content;
+    align-content:center;gap:11px;
   }
-  .hero-main,.hero-side{min-height:0;padding:18px 22px;border-radius:var(--r-lg)}
-  .hero-main{display:flex;flex-direction:column;justify-content:center;gap:11px}
   .hero-main::before{left:22px;right:22px}
   .hi{display:none}
   .hero-name-row{align-items:center;margin:0;gap:14px}
@@ -119,23 +122,11 @@
   }
   .hero-bottom{display:block;margin:0}
   .hpills{margin-bottom:9px}
-  .hero-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-  .hero-stat{padding:10px 12px;min-height:0;background:rgba(255,255,255,.035);border-radius:12px}
-  .hero-stat-label{min-height:0;font-size:8px;letter-spacing:.07em;margin-bottom:5px}
-  .hero-stat-value{font-size:20px}
-  .hero-stat-note{margin-top:4px;font-size:8px;line-height:1.2}
-  .hero-readiness-wrap{flex-direction:row;align-items:center;gap:8px}
-  .hero-readiness-ring{width:38px;height:38px;flex:0 0 38px}
-  .hero-readiness-ring .hero-stat-value{font-size:13px}
-
-  /* Weekly output condensed into two slim rows inside the side card. */
-  .hero-side{padding:16px 18px}
-  .hero-side-label{margin-bottom:12px;font-size:9px}
-  .week-rings{grid-template-columns:1fr;gap:9px}
-  .ring-item{min-height:0;padding:11px 13px;border-radius:13px;background:rgba(255,255,255,.03)}
-  .ring-wrap,.ring-svg{width:48px;height:48px}
-  .ring-val{font-size:18px}
-  .ring-sub{font-size:10px}
+  .hero-metric-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 22px}
+  .metric-val{font-size:22px}
+  .metric-label{font-size:8.5px}
+  .readiness-chip .hero-readiness-ring{width:30px;height:30px;flex:0 0 30px}
+  .readiness-chip .hero-stat-value{font-size:12px}
 
   /* Nudges: compact auto-fit row under the hero. */
   .top-shell-priority{
@@ -316,4 +307,38 @@
   #loginScreen .login-col{
     left:50%;transform:translate(-50%,-50%);
   }
+}
+
+/* =========================================================================
+   HOME DENSITY PASS — desktop hero
+   The weekly-output side card folded into the metric grid, so the hero is
+   one panel. From 1180px there is enough room to run it as two panes:
+   identity left, the four week metrics right. Below that it stacks, which
+   keeps the metric row readable rather than crushing four columns into a
+   narrow pane.
+   ========================================================================= */
+@media (min-width:1180px){
+  .hero-main{
+    grid-template-columns:minmax(0,.95fr) minmax(440px,1.05fr);
+    grid-template-rows:auto auto;
+    align-items:center;gap:8px 30px;
+  }
+  .hero-name-row{grid-column:1;grid-row:1;align-self:end}
+  .hero-support{grid-column:1;grid-row:2;align-self:start}
+  .hero-bottom{grid-column:2;grid-row:1/3}
+  .hero-metric-grid{gap:16px 26px}
+  .metric-val{font-size:24px}
+}
+
+/* Nudge rows keep their desktop card treatment, but the check-in row carries
+   the same due dot the mobile card uses so the two read as one system. */
+@media (min-width:900px){
+  .top-shell-priority>#checkinNudge .nudge-strip-arr::before{
+    content:"";width:6px;height:6px;border-radius:50%;background:var(--run);
+    display:inline-block;margin-right:9px;vertical-align:middle
+  }
+  /* The dock is a centred bar on desktop; its state classes come from
+     syncQuickLogDock() and need the same one-accent discipline. */
+  .quicklog-btn.is-next{background:var(--run);border-color:var(--run);color:#071015}
+  .quicklog-btn.is-done{background:transparent;border-color:transparent;color:var(--ok)}
 }
