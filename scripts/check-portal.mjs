@@ -88,6 +88,12 @@ if (!index.includes('progress-collapsible-card" id="pgVolumeCard"') ||
     !index.includes('id="pgWeightHistoryCard"')) {
   failures.push('Secondary Progress sections must remain available as mobile collapsible cards');
 }
+const training = readFileSync(join(publicDir, 'js', '08-training.js'), 'utf8');
+for (const marker of ['_rowIndex', 'working-set-note', 'ns-warmup-map', 'Today’s progression target', 'Final working set: stay at ']) {
+  if (!training.includes(marker) && !styles.includes(marker)) {
+    failures.push(`Live strength progression guidance is missing: ${marker}`);
+  }
+}
 
 const globalHeaders = (vercel.headers || []).find((entry) => entry.source === '/(.*)');
 const csp = globalHeaders?.headers?.find((header) => header.key === 'Content-Security-Policy')?.value || '';

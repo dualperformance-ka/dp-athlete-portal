@@ -4558,6 +4558,57 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 }
 .outdoor-mode .ns-live{border-top-color:var(--border)}
 
+/* ── WORKING-SET CLARITY + LIVE NEXT-SESSION COACHING ───────────────────────
+   Warm-ups remain visible in the logger but are explicitly separated from
+   the working sets that drive progression. */
+.ns-warmup-map{
+  margin-top:7px;font-family:var(--body);font-size:10px;line-height:1.4;color:var(--dim)
+}
+.working-set-note{
+  display:flex;align-items:center;gap:9px;margin:9px 0 10px;padding:9px 10px;
+  border:1px solid var(--run-border);border-radius:9px;background:var(--run-bg)
+}
+.working-set-note>span{
+  display:grid;place-items:center;flex:0 0 30px;width:30px;height:24px;border-radius:7px;
+  background:var(--surface);font-family:var(--mono);font-size:9px;font-weight:750;color:var(--run)
+}
+.working-set-note strong,.working-set-note small{display:block;font-family:var(--body)}
+.working-set-note strong{font-size:11px;line-height:1.2;color:var(--text)}
+.working-set-note small{margin-top:2px;font-size:9px;line-height:1.35;color:var(--muted)}
+.setrow.is-warmup,.setrow-single.is-warmup{opacity:.78}
+.setrow.is-warmup .snum,.setrow-single.is-warmup .snum{
+  font-size:8px!important;font-weight:750;letter-spacing:.02em;color:var(--run)
+}
+.setrow.is-warmup .sin,.setrow-single.is-warmup .sin,.setrow.is-warmup .rpe-in{
+  border-style:dashed;background:rgba(146,210,237,.025)
+}
+.ns-live-wrap{margin-top:11px;border-top:1px dashed var(--border)}
+.ns-live-wrap .ns-live{margin-top:0;padding-top:10px;border-top:0}
+.ns-live-prompt{
+  display:flex;align-items:flex-start;gap:8px;margin-top:8px;padding:9px 10px;
+  border:1px solid var(--border);border-radius:9px;background:var(--surface);
+  font-family:var(--body);font-size:11px;font-weight:650;line-height:1.4;color:var(--text)
+}
+.ns-live-prompt .icon{flex:0 0 14px;width:14px;height:14px;margin-top:1px;color:var(--run)}
+.ns-live-prompt.ns-t-green{
+  border-color:var(--ok-border);background:var(--ok-bg);color:var(--ok)
+}
+.ns-live-prompt.ns-t-green .icon{color:var(--ok)}
+.ns-live-prompt.ns-t-yellow{border-color:rgba(224,182,77,.3);background:rgba(224,182,77,.07);color:var(--nsy)}
+.ns-live-prompt.ns-t-yellow .icon{color:var(--nsy)}
+.ns-live-prompt.ns-t-red{border-color:rgba(229,103,138,.3);background:rgba(229,103,138,.07);color:var(--nsr)}
+.ns-live-prompt.ns-t-red .icon{color:var(--nsr)}
+.outdoor-mode .working-set-note{background:rgba(8,127,174,.045)}
+.outdoor-mode .working-set-note>span{background:#fff}
+.outdoor-mode .setrow.is-warmup .sin,.outdoor-mode .setrow-single.is-warmup .sin,.outdoor-mode .setrow.is-warmup .rpe-in{background:rgba(8,127,174,.025)}
+.outdoor-mode .ns-live-wrap{border-top-color:var(--border)}
+
+@media(max-width:760px){
+  .working-set-note{margin-top:8px;padding:8px 9px}
+  .working-set-note small{font-size:10px}
+  .ns-live-prompt{font-size:11.5px}
+}
+
 /* ── VOLUME STRIP: COLLAPSED STATE (Weekly Plan) ───────────────────────────── */
 /* The week list is the point of that page, so the block history folds away to a
    single summary row and remembers whichever way the athlete leaves it. */

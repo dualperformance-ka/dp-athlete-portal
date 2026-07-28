@@ -937,7 +937,21 @@ function getExerciseHistory(sessionId,exerciseName){
 // Working sets = the last N sets that were actually completed. A set counts as
 // completed once it has reps: a weight typed into an empty row is a set still in
 // progress, and letting it hold a slot pushed real sets out of the assessment.
-function getWorkingSlice(ex,arr){arr=(arr||[]).filter(function(x){return x&&((x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});var workingSets=parseInt(ex.workingSets||ex.sets||arr.length||0)||0;if(!workingSets||arr.length<=workingSets) return arr;return arr.slice(arr.length-workingSets);}
+function getWorkingSlice(ex,arr){
+  arr=(arr||[]).filter(function(x){return x&&((x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});
+  var workingSets=parseInt(ex.workingSets||ex.sets||arr.length||0)||0;
+  var warmupSets=parseInt(ex.warmupSets,10)||0;
+  // Live DOM entries carry their original row index, so a partly completed
+  // four-row exercise can never mistake row 1 (warm-up) for working set 1.
+  // Historical logs predate row indexes; for those, the established last-N
+  // fallback preserves compatibility with every existing athlete record.
+  var hasRowIndexes=arr.some(function(x){return x&&x._rowIndex!=null;});
+  if(hasRowIndexes&&warmupSets){
+    arr=arr.filter(function(x){return Number(x._rowIndex)>=warmupSets;});
+  }
+  if(!workingSets||arr.length<=workingSets) return arr;
+  return arr.slice(arr.length-workingSets);
+}
 function formatSetSummary(arr){arr=(arr||[]).filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});if(!arr.length) return '';return arr.map(function(ps){var reps=ps.reps?(' × '+ps.reps):(ps.repsLeft||ps.repsRight?(' × L '+(ps.repsLeft||'—')+' / R '+(ps.repsRight||'—')):'');return(ps.weight?ps.weight+'kg':'—')+reps;}).join(' | ');}
 function setVal(v){return String(v==null?'':v).trim();}
 function sameStrengthEffort(a,b){
@@ -1074,12 +1088,22 @@ function getProgressionFeedback(ex,prevEffort,currentEffort){
   return{tone:'dim',text:'Progress reps to '+topRep};
 }
 function getFeedbackStyle(tone){if(tone==='ok') return 'color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-border);';if(tone==='warn') return 'color:var(--run);background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.18);';return 'color:var(--dim);background:var(--surface);border:1px solid var(--border);';}
-function collectExerciseSets(i,ei){var c=document.getElementById('sets_'+i+'_'+ei),arr=[];if(!c) return arr;c.querySelectorAll('.setrow,.setrow-single').forEach(function(row){var wEl=row.querySelector('input[id^="w_"]');var rLEl=row.querySelector('input[id^="rL_"]');var rREl=row.querySelector('input[id^="rR_"]');var doneEl=row.querySelector('button[id^="st_"]');var w=wEl?wEl.value||'':'';var done=doneEl?doneEl.classList.contains('on'):false;if(rLEl&&rREl){var rL=rLEl.value||'';var rR=rREl.value||'';if(w||rL||rR||done) arr.push({weight:w,repsLeft:rL,repsRight:rR,done:done});}else{var rEl=row.querySelector('input[id^="r_"]');var rpeEl=row.querySelector('input[id^="rpe_"]');var r=rEl?rEl.value||'':'';var rpe=rpeEl?rpeEl.value||'':'';if(w||r||rpe||done) arr.push({weight:w,reps:r,rpe:rpe,done:done});}});return arr;}
+function collectExerciseSets(i,ei,trackRows){
+  var c=document.getElementById('sets_'+i+'_'+ei),arr=[];if(!c) return arr;
+  c.querySelectorAll('.setrow,.setrow-single').forEach(function(row,rowIndex){
+    var wEl=row.querySelector('input[id^="w_"]');var rLEl=row.querySelector('input[id^="rL_"]');var rREl=row.querySelector('input[id^="rR_"]');var doneEl=row.querySelector('button[id^="st_"]');
+    var w=wEl?wEl.value||'':'';var done=doneEl?doneEl.classList.contains('on'):false;var item=null;
+    if(rLEl&&rREl){var rL=rLEl.value||'';var rR=rREl.value||'';if(w||rL||rR||done)item={weight:w,repsLeft:rL,repsRight:rR,done:done};}
+    else{var rEl=row.querySelector('input[id^="r_"]');var rpeEl=row.querySelector('input[id^="rpe_"]');var r=rEl?rEl.value||'':'';var rpe=rpeEl?rpeEl.value||'':'';if(w||r||rpe||done)item={weight:w,reps:r,rpe:rpe,done:done};}
+    if(item){if(trackRows)item._rowIndex=rowIndex;arr.push(item);}
+  });
+  return arr;
+}
 function refreshStrengthFeedback(i,splitKey){
   var exercises=getSplit(splitKey);var s=sessions[i];
   exercises.forEach(function(ex,ei){
     var resolvedEx=exPicks[ex.exercise]||ex.exercise;
-    var currentEffort=collectExerciseSets(i,ei);
+    var currentEffort=collectExerciseSets(i,ei,true);
     var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
     if(!currentEffort.length&&logs[s.id]&&logs[s.id][resolvedEx]) currentEffort=displaySavedStrengthSets(s.id,logs[s.id][resolvedEx],prevEffort);
     // Single source of truth: evaluate today's entry when present (forward-looking),
@@ -1088,8 +1112,9 @@ function refreshStrengthFeedback(i,splitKey){
     // it holds still while the athlete logs. Recomputing it from half-entered sets
     // made the card contradict itself mid-workout (and read warm-ups as working
     // sets). Today's entries drive the live progress line underneath instead.
-    var rec=computeOverload(ex,prevEffort,resolvedEx,getExerciseHistory(s.id,resolvedEx));
-    rec.live=_nsLiveProgress(ex,currentEffort,rec);
+    var history=getExerciseHistory(s.id,resolvedEx);
+    var rec=_nsRecommendation(ex,prevEffort,resolvedEx,history);
+    rec.live=_nsLiveProgress(ex,currentEffort,rec,resolvedEx,history,prevEffort);
     var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
     if(card){
       card.setAttribute('data-ns-action',rec.action);card.setAttribute('data-ns-tone',rec.tone);
@@ -1209,6 +1234,12 @@ function computeOverload(ex,effort,resolvedName,history){
     target:tgt,targetNote:null,milestone:_nsMilestone(reps,top,wantSets),beatTotal:lastTotal,
     reason:'Hit one extra rep before the weight goes up. Last session was '+lastTotal+' total reps across '+reps.length+' working sets. Beat it.'};
 }
+function _nsRecommendation(ex,effort,resolvedName,history){
+  var rec=computeOverload(ex,effort,resolvedName,history);
+  rec.warmupSets=parseInt(ex.warmupSets,10)||0;
+  rec.wantSets=parseInt(ex.workingSets||ex.sets,10)||3;
+  return rec;
+}
 function _nsKg(kg){if(kg==null)return '--';var n=Math.round(kg*100)/100;return (Number.isInteger(n)?String(n):n.toFixed(1))+'kg';}
 function _nsBare(kg){if(kg==null)return '--';var n=Math.round(kg*100)/100;return Number.isInteger(n)?String(n):n.toFixed(1);}
 // Repaint the Next Session card for one exercise slot from the CURRENTLY chosen
@@ -1220,7 +1251,10 @@ function repaintOverload(i,ei){
   var ex=getSplit(splitKey)[ei];if(!ex) return;
   var resolvedEx=exPicks[ex.exercise]||ex.exercise;
   var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
-  var rec=computeOverload(ex,prevEffort,resolvedEx,getExerciseHistory(s.id,resolvedEx));
+  var history=getExerciseHistory(s.id,resolvedEx);
+  var rec=_nsRecommendation(ex,prevEffort,resolvedEx,history);
+  var currentEffort=collectExerciseSets(i,ei,true);
+  rec.live=_nsLiveProgress(ex,currentEffort,rec,resolvedEx,history,prevEffort);
   var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
   if(!card) return;
   card.setAttribute('data-ns-action',rec.action);card.setAttribute('data-ns-tone',rec.tone);
@@ -1268,7 +1302,7 @@ function _nsMileHTML(m){
 // Live progress for the session in front of them, computed from what's entered
 // right now. Separate from the (frozen) Next Session verdict so one never
 // rewrites the other. Returns null until they've logged a set with reps.
-function _nsLiveProgress(ex,currentEffort,rec){
+function _nsLiveProgress(ex,currentEffort,rec,resolvedName,history,previousEffort){
   var top=getTopRep(ex)||0;
   var wantSets=parseInt(ex.workingSets||ex.sets,10)||3;
   var working=getWorkingSlice(ex,currentEffort||[]);
@@ -1276,12 +1310,24 @@ function _nsLiveProgress(ex,currentEffort,rec){
   if(!reps.length) return null;
   var total=reps.reduce(function(a,b){return a+b;},0);
   var topped=reps.filter(function(v){return v>=top;}).length;
-  var beat=rec&&rec.beatTotal!=null?rec.beatTotal:null;
-  var msg;
+  var currentLoads=working.map(function(s){return parseFloat(s.weight);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var currentLoad=currentLoads.length?Math.max.apply(null,currentLoads):null;
+  var previousWorking=getWorkingSlice(ex,previousEffort||[]);
+  var previousReps=previousWorking.map(_effReps).filter(function(v){return v!=null&&v!==Infinity;});
+  var beat=previousReps.length?previousReps.reduce(function(a,b){return a+b;},0):null;
+  var previousLoads=previousWorking.map(function(s){return parseFloat(s.weight);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var previousLoad=previousLoads.length?Math.max.apply(null,previousLoads):null;
+  var complete=reps.length>=wantSets;
+  var msg,prompt=null,nextRec=null;
   if(reps.length<wantSets){
     msg=reps.length+' of '+wantSets+' working sets in · '+total+' reps so far';
-  }else if(topped>=wantSets){
-    msg='All '+wantSets+' sets at '+top+' reps · load goes up next session';
+    if(reps.length===wantSets-1&&topped===reps.length&&currentLoad!=null){
+      var info=_ovStepInfo(resolvedName||ex.exercise,currentLoad,history,ex);
+      var unlock=info.step===0?'more reps':_nsKg(info.next);
+      prompt='Final working set: stay at '+_nsKg(currentLoad)+' and aim for '+top+'. Hit it to unlock '+unlock+' next session.';
+    }
+  }else if(previousLoad!=null&&currentLoad!=null&&currentLoad>previousLoad){
+    msg=total+' reps at '+_nsKg(currentLoad)+' · heavier than last session';
   }else if(beat!=null&&total>beat){
     msg=total+' reps · '+(total-beat)+' up on last session';
   }else if(beat!=null&&total===beat){
@@ -1291,13 +1337,18 @@ function _nsLiveProgress(ex,currentEffort,rec){
   }else{
     msg=total+' reps logged across '+reps.length+' sets';
   }
-  return {msg:msg,ahead:(beat!=null&&total>beat)||topped>=wantSets};
+  if(complete){
+    nextRec=_nsRecommendation(ex,currentEffort,resolvedName,history);
+    prompt='Next session: '+nextRec.action;
+  }
+  return {msg:msg,prompt:prompt,ahead:(beat!=null&&total>beat)||topped>=wantSets,nextTone:nextRec?nextRec.tone:null};
 }
 function _nsBody(rec){
   var t='';
   if(rec.target&&rec.target.length){
-    t='<div class="ns-target"><div class="ns-tl">Target</div><div class="ns-tgrid">'+rec.target.map(function(v,ix){
-      return '<div class="ns-trep"><div class="ns-tn">'+v+'</div><div class="ns-ts">Set '+(ix+1)+'</div></div>';}).join('')+'</div></div>';
+    t='<div class="ns-target"><div class="ns-tl">Working-set target</div><div class="ns-tgrid">'+rec.target.map(function(v,ix){
+      return '<div class="ns-trep"><div class="ns-tn">'+v+'</div><div class="ns-ts">Work '+(ix+1)+'</div></div>';}).join('')+'</div>'+
+      (rec.warmupSets?'<div class="ns-warmup-map">Warm-up row is separate · working sets '+(rec.warmupSets+1)+'–'+(rec.warmupSets+rec.target.length)+' decide progression.</div>':'')+'</div>';
   } else if(rec.targetNote){
     t='<div class="ns-target"><div class="ns-tl">Target</div><div class="ns-tnote">'+esc(rec.targetNote)+'</div></div>';
   }
@@ -1305,12 +1356,13 @@ function _nsBody(rec){
   var ri=(rec.milestone&&rec.milestone.stage>=4)?'rocket':(rec.tone==='red'?'alert':'bulb');
   var reason=rec.reason?'<div class="ns-reason"><span class="ns-ri ov-node-ic"><svg class="icon"><use href="#i-'+ri+'"/></svg></span><span>'+esc(rec.reason)+'</span></div>':'';
   // Today's running total, shown under the frozen verdict.
-  var live=rec.live?'<div class="ns-live'+(rec.live.ahead?' ahead':'')+'"><span class="ns-live-k">Today</span><span>'+esc(rec.live.msg)+'</span></div>':'';
+  var live=rec.live?'<div class="ns-live-wrap"><div class="ns-live'+(rec.live.ahead?' ahead':'')+'"><span class="ns-live-k">Today</span><span>'+esc(rec.live.msg)+'</span></div>'+
+    (rec.live.prompt?'<div class="ns-live-prompt ns-t-'+(rec.live.nextTone||'blue')+'"><svg class="icon"><use href="#i-arrow-right"/></svg><span>'+esc(rec.live.prompt)+'</span></div>':'')+'</div>':'';
   // Approximate load bump: the equipment's real step isn't known yet.
   var approx=rec.approx?'<div class="ns-approx">Estimated jump — round to the next weight your equipment actually has.</div>':'';
   return '<div class="ns-block ns-t-'+rec.tone+'">'+
     '<div class="ns-status"><span class="ns-dot"></span>'+esc(rec.status)+'</div>'+
-    '<div class="ns-hd">'+'<svg class="icon"><use href="#i-trend-up"/></svg>'+'Next Session</div>'+
+    '<div class="ns-hd">'+'<svg class="icon"><use href="#i-target"/></svg>'+'Today’s progression target</div>'+
     '<div class="ns-action">'+esc(rec.action)+'</div>'+approx+t+mile+reason+live+'</div>';
 }
 // Collapsed subtitle driven by live state: done -> today's numbers, in progress
@@ -1592,7 +1644,9 @@ function buildBody(s,i,type){
         var initVol=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight),r=parseInt(sv.reps,10);if(!isNaN(w)&&w>0&&!isNaN(r)&&r>0&&r<=PB_REP_CAP) initVol+=w*r;});
         var isVolPB=!!(stored.volume&&initVol>stored.volume.value);
         var isBarbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust/i.test(resolvedEx)&&!/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/i.test(resolvedEx);
-        var _ov=computeOverload(ex,prevEffort,resolvedEx,getExerciseHistory(s.id,resolvedEx));
+        var _ovHistory=getExerciseHistory(s.id,resolvedEx);
+        var _ov=_nsRecommendation(ex,prevEffort,resolvedEx,_ovHistory);
+        _ov.live=_nsLiveProgress(ex,savedEx,_ov,resolvedEx,_ovHistory,prevEffort);
         var hasExerciseData=!!savedEx.length;
         var sessionSubmitted=isSessionLogged(s.id);
         var exerciseIsComplete=hasExerciseData&&(sessionSubmitted||(savedEx.length>=sets&&savedEx.slice(0,sets).every(function(set){return !!set.done;})));
@@ -1638,11 +1692,15 @@ function buildBody(s,i,type){
           h+='</div>';
         }
         var isSingleLeg=usesLeftRightReps(resolvedEx);
+        var warmupSets=parseInt(ex.warmupSets,10)||0;
+        if(warmupSets){
+          h+='<div class="working-set-note"><span>WU</span><div><strong>Warm-up first</strong><small>Keep the warm-up controlled. Working sets 1–'+(parseInt(ex.workingSets,10)||Math.max(1,sets-warmupSets))+' determine today’s progression.</small></div></div>';
+        }
         if(isSingleLeg){
           h+='<div class="slbls-single"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
           h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
-          for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;
-            h+='<div class="setrow-single" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum">'+(si+1)+'</div>';
+          for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var displaySet=isWarmup?'WU':(si-warmupSets+1);
+            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+'" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum" aria-label="'+(isWarmup?'Warm-up set':'Working set '+displaySet)+'">'+displaySet+'</div>';
             h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
             h+='<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsLeft?prevSet.repsLeft:'L')+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
             h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsRight?prevSet.repsRight:'R')+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
@@ -1652,8 +1710,8 @@ function buildBody(s,i,type){
         }else{
           h+='<div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
           h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
-          for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;
-            h+='<div class="setrow" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum">'+(si+1)+'</div>';
+          for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var displaySet=isWarmup?'WU':(si-warmupSets+1);
+            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+'" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum" aria-label="'+(isWarmup?'Warm-up set':'Working set '+displaySet)+'">'+displaySet+'</div>';
             h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
             h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc((prevSet&&prevSet.reps)?prevSet.reps:'—')+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
             h+='<input type="number" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
