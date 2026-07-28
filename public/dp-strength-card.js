@@ -60,7 +60,7 @@ function ladderHTML(card) {
 }
 function rungs(list) {
   return '<div class="dpsc-ladder">' + list.map(function (s) {
-    const done = s[1].indexOf('done') > -1 ? '✓ ' : '';
+    const done = s[1].indexOf('done') > -1 ? '<svg class="icon"><use href="#i-check"/></svg> ' : '';
     return '<div class="dpsc-rung ' + s[1] + '"><div class="dpsc-rl">' + done + '</div><div class="dpsc-rt">' + s[0] + '</div></div>';
   }).join('') + '</div>';
 }
@@ -75,9 +75,9 @@ function setsHTML(card, id) {
       '<input class="dpsc-cell" inputmode="decimal" placeholder="' + kg + '" data-ex="' + id + '" data-set="' + i + '" data-f="kg">' +
       '<input class="dpsc-cell" inputmode="numeric" placeholder="' + card.target.reps + '" data-ex="' + id + '" data-set="' + i + '" data-f="reps">' +
       '<div class="dpsc-cell dpsc-rpe">--</div>' +
-      '<button class="dpsc-tick" aria-label="Mark set ' + i + ' done" data-ex="' + id + '" data-set="' + i + '">✓</button></div>';
+      '<button class="dpsc-tick" aria-label="Mark set ' + i + ' done" data-ex="' + id + '" data-set="' + i + '"><svg class="icon"><use href="#i-check"/></svg></button></div>';
   }
-  return '<div class="dpsc-set-head"><span></span><span>Kg</span><span>Reps</span><span>RPE</span><span>✓</span></div>' + rows;
+  return '<div class="dpsc-set-head"><span></span><span>Kg</span><span>Reps</span><span>RPE</span><span><svg class="icon"><use href="#i-check"/></svg></span></div>' + rows;
 }
 
 /**
@@ -108,7 +108,7 @@ export function renderExerciseCard(prescription, sessions, opts) {
       '</div>' +
       '<div class="dpsc-body">' +
         ladderHTML(card) + pb + setsHTML(card, id) +
-        '<div class="dpsc-tip"><span class="dpsc-i">☀</span><span>' + esc(card.coaching) + '</span></div>' +
+        '<div class="dpsc-tip"><span class="dpsc-i"><svg class="icon"><use href="#i-check"/></svg></span><span>' + esc(card.coaching) + '</span></div>' +
         '<button class="dpsc-add">+ Add set</button>' +
       '</div>' +
     '</div>';

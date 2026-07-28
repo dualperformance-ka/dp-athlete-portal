@@ -506,6 +506,10 @@ function localDateFromISO(value){
 function getMon(d){var day=d.getDay(),diff=day===0?-6:1-day;return new Date(d.getFullYear(),d.getMonth(),d.getDate()+diff);}
 function getWS(){var m=getMon(new Date());m.setDate(m.getDate()+weekOffset*7);return m;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// Run "feel" used to be stored with a leading emoji (e.g. "💪 Feeling Strong").
+// Values are plain text now, so strip any leading glyph off legacy drafts and
+// synced records before comparing or displaying them.
+function stripFeelGlyph(s){return String(s==null?'':s).replace(/^[^A-Za-z]+/,'').trim();}
 
 // ── LEGACY PROFILE FIELD HELPERS ──────────────────────────────────────────────
 // The Notion API proxy (api/apiAll → /api/notion) was removed on 2026-07-20.

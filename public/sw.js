@@ -1,18 +1,18 @@
 const CACHE_NAME = 'dp-athlete-v85'; // v85: adaptive mobile progress experience
 const APP_SHELL = [
   '/index.html', '/styles.css?v=85', '/desktop.css?v=3', '/config.js',
-  '/js/01-core.js?v=80',
+  '/js/01-core.js?v=86',
   '/js/02-login-goals.js?v=84',
   '/js/03-nav-nudges.js?v=85',
   '/js/04-checkin.js?v=84',
   '/js/05-handbook.js?v=80',
   '/js/06-nutrition.js?v=83',
   '/js/07-progress.js?v=85',
-  '/js/08-training.js?v=84',
-  '/js/09-logging.js?v=84',
+  '/js/08-training.js?v=86',
+  '/js/09-logging.js?v=86',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=80',
-  '/login.js?v=47', '/icons.css?v=1',
+  '/js/10-boot.js?v=86',
+  '/login.js?v=47', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
 ];

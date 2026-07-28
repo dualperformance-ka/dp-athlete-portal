@@ -8,16 +8,16 @@
     "sha": "40303edeca73"
   },
   "icons.css": {
-    "version": 1,
-    "sha": "7bc36ae4236c"
+    "version": 3,
+    "sha": "d145afd663d9"
   },
   "login.js": {
     "version": 47,
     "sha": "c8d6e79467a0"
   },
   "js/01-core.js": {
-    "version": 80,
-    "sha": "c354a8314d57"
+    "version": 86,
+    "sha": "b5487ef15df0"
   },
   "js/02-login-goals.js": {
     "version": 84,
@@ -44,19 +44,19 @@
     "sha": "a0c0c1963b50"
   },
   "js/08-training.js": {
-    "version": 84,
-    "sha": "03b894e8e9c5"
+    "version": 86,
+    "sha": "2cfa03cc43ac"
   },
   "js/09-logging.js": {
-    "version": 84,
-    "sha": "85b1525bce84"
+    "version": 86,
+    "sha": "e38b58add9f5"
   },
   "accessibility.js": {
     "version": 1,
     "sha": "3e9bf44307a4"
   },
   "js/10-boot.js": {
-    "version": 80,
-    "sha": "3c0faa0af0a7"
+    "version": 86,
+    "sha": "5a567b1572ea"
   }
 }

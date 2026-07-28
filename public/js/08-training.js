@@ -118,11 +118,11 @@ function renderCal(ws){
         // Three-plus sessions have no reliable time data, so show every card
         // without inventing a schedule order.
         var timing=daySessions.length===2?(si===0?'AM':'PM'):'';
-        labels+='<span class="mobile-week-session '+getType(s)+(timing?' has-time':'')+(s.rescheduled?' rescheduled':'')+'">'+(timing?'<b class="mobile-week-time">'+timing+'</b>':'')+'<span><strong>'+esc(s.name||monthSessionLabel(s))+'</strong><small>'+esc(monthSessionDetail(s))+'</small></span>'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session">★</i>':'')+'</span>';
+        labels+='<span class="mobile-week-session '+getType(s)+(timing?' has-time':'')+(s.rescheduled?' rescheduled':'')+'">'+(timing?'<b class="mobile-week-time">'+timing+'</b>':'')+'<span><strong>'+esc(s.name||monthSessionLabel(s))+'</strong><small>'+esc(monthSessionDetail(s))+'</small></span>'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session"><svg class="icon"><use href="#i-star-filled"/></svg></i>':'')+'</span>';
       });
       if(!daySessions.length)labels='<span class="mobile-week-rest">'+(hasRecoveryOnly?'Recovery day':'No session planned')+'</span>';
       var aria=cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+', '+(daySessions.length?(daySessions.length+' session'+(daySessions.length===1?'':'s')+': '+daySessions.map(function(s){return s.name||wgShortLabel(s);}).join(', ')):'no sessions');
-      html+='<button type="button" role="gridcell" class="mobile-week-day'+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(daySessions.length>1?' multi-session':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'"'+(isToday?' aria-current="date"':'')+' onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(aria)+'"><span class="mobile-week-date"><small>'+cellDate.toLocaleDateString('en-AU',{weekday:'short'})+'</small><strong>'+cellDate.getDate()+'</strong>'+(isToday?'<em>Today</em>':'')+'</span><span class="mobile-week-sessions">'+labels+'</span><span class="mobile-week-status">'+(dayDone?'✓':dayMissed?'!':'›')+'</span></button>';
+      html+='<button type="button" role="gridcell" class="mobile-week-day'+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(daySessions.length>1?' multi-session':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'"'+(isToday?' aria-current="date"':'')+' onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(aria)+'"><span class="mobile-week-date"><small>'+cellDate.toLocaleDateString('en-AU',{weekday:'short'})+'</small><strong>'+cellDate.getDate()+'</strong>'+(isToday?'<em>Today</em>':'')+'</span><span class="mobile-week-sessions">'+labels+'</span><span class="mobile-week-status">'+(dayDone?'<svg class="icon"><use href="#i-check"/></svg>':dayMissed?'!':'›')+'</span></button>';
     }
     html+='</div>';
   }else{
@@ -139,7 +139,7 @@ function renderCal(ws){
         real.slice(0,2).forEach(function(s){labs+='<span class="wg-lab '+getType(s)+'">'+esc(wgShortLabel(s))+'</span>';});
         if(real.length>2)labs+='<span class="wg-lab more">+'+(real.length-2)+'</span>';
       }
-      html+='<button type="button" class="wg-day'+(gToday?' today':'')+(allDone?' done':'')+(real.length?' has-events':'')+'" data-day-index="'+gi+'" onclick="selectWeekDay('+gi+',this)" aria-label="'+DAYS[gi]+' '+gd.getDate()+', '+(real.length?(real.length+' session'+(real.length===1?'':'s')):'rest day')+'"><span class="wg-name">'+DAYS[gi]+'</span><span class="wg-date">'+gd.getDate()+'</span><span class="wg-labs">'+labs+'</span><span class="wg-done">'+(allDone?'✓':'')+'</span></button>';
+      html+='<button type="button" class="wg-day'+(gToday?' today':'')+(allDone?' done':'')+(real.length?' has-events':'')+'" data-day-index="'+gi+'" onclick="selectWeekDay('+gi+',this)" aria-label="'+DAYS[gi]+' '+gd.getDate()+', '+(real.length?(real.length+' session'+(real.length===1?'':'s')):'rest day')+'"><span class="wg-name">'+DAYS[gi]+'</span><span class="wg-date">'+gd.getDate()+'</span><span class="wg-labs">'+labs+'</span><span class="wg-done">'+(allDone?'<svg class="icon"><use href="#i-check"/></svg>':'')+'</span></button>';
     }
     html+='</div>';
     for(var di=0;di<7;di++){
@@ -1236,8 +1236,8 @@ function repaintOverload(i,ei){
     var rREl=document.getElementById('rR_'+i+'_'+ei+'_'+si);if(rREl) rREl.placeholder=(ps&&ps.repsRight)?ps.repsRight:'R';
   }
 }
-function _ovLadder(steps){var h='<div class="exc-ladder">';steps.forEach(function(s){h+='<div class="exc-rung '+s[1]+'">'+(s[1].indexOf('done')>-1?'<span class="exc-rk">✓</span>':'')+'<span class="exc-rt">'+s[0]+'</span></div>';});return h+'</div>';}
-function _ovTip(t){return '<div class="exc-tip"><span class="exc-tip-i">☀</span><span>'+t+'</span></div>';}
+function _ovLadder(steps){var h='<div class="exc-ladder">';steps.forEach(function(s){h+='<div class="exc-rung '+s[1]+'">'+(s[1].indexOf('done')>-1?'<span class="exc-rk"><svg class="icon"><use href="#i-check"/></svg></span>':'')+'<span class="exc-rt">'+s[0]+'</span></div>';});return h+'</div>';}
+function _ovTip(t){return '<div class="exc-tip"><span class="exc-tip-i"><svg class="icon"><use href="#i-bulb"/></svg></span><span>'+t+'</span></div>';}
 // ---- Next Session render helpers (shared by template + live repaint) ----
 function _nsChip(rec){
   return '<div class="ns-chip ns-t-'+rec.tone+'">'+(rec.arrow?'<span class="ns-ar">'+rec.arrow+'</span>':'')+(rec.weightKg==null?'Base':_nsBare(rec.weightKg)+'kg')+'</div>';
@@ -1256,11 +1256,11 @@ function _nsMilestone(reps,top,wantSets){
 }
 function _nsMileHTML(m){
   if(!m||m.stage<=0) return '';
-  var nodes=[['🟡','One more rep'],['🟡','One more set'],['🟢','Unlocked'],['🚀','Increase next']];
+  var nodes=[['dot-ring','One more rep'],['dot-ring','One more set'],['dot','Unlocked'],['rocket','Increase next']];
   var h='<div class="ns-mile" data-stage="'+m.stage+'">';
   nodes.forEach(function(n,ix){
     var on=ix<m.stage, cur=ix===m.stage-1;
-    h+='<div class="ns-mnode'+(on?' on':'')+(cur?' cur':'')+'"><span class="ns-me">'+n[0]+'</span><span class="ns-ml">'+n[1]+'</span></div>';
+    h+='<div class="ns-mnode'+(on?' on':'')+(cur?' cur':'')+'"><span class="ns-me ov-node-ic"><svg class="icon"><use href="#i-'+n[0]+'"/></svg></span><span class="ns-ml">'+n[1]+'</span></div>';
     if(ix<nodes.length-1) h+='<span class="ns-mbar'+(ix<m.stage-1?' on':'')+'"></span>';
   });
   return h+'</div>';
@@ -1302,15 +1302,15 @@ function _nsBody(rec){
     t='<div class="ns-target"><div class="ns-tl">Target</div><div class="ns-tnote">'+esc(rec.targetNote)+'</div></div>';
   }
   var mile=rec.milestone?_nsMileHTML(rec.milestone):'';
-  var ri=(rec.milestone&&rec.milestone.stage>=4)?'🚀':(rec.tone==='red'?'⚠':'☀');
-  var reason=rec.reason?'<div class="ns-reason"><span class="ns-ri">'+ri+'</span><span>'+esc(rec.reason)+'</span></div>':'';
+  var ri=(rec.milestone&&rec.milestone.stage>=4)?'rocket':(rec.tone==='red'?'alert':'bulb');
+  var reason=rec.reason?'<div class="ns-reason"><span class="ns-ri ov-node-ic"><svg class="icon"><use href="#i-'+ri+'"/></svg></span><span>'+esc(rec.reason)+'</span></div>':'';
   // Today's running total, shown under the frozen verdict.
   var live=rec.live?'<div class="ns-live'+(rec.live.ahead?' ahead':'')+'"><span class="ns-live-k">Today</span><span>'+esc(rec.live.msg)+'</span></div>':'';
   // Approximate load bump: the equipment's real step isn't known yet.
   var approx=rec.approx?'<div class="ns-approx">Estimated jump — round to the next weight your equipment actually has.</div>':'';
   return '<div class="ns-block ns-t-'+rec.tone+'">'+
     '<div class="ns-status"><span class="ns-dot"></span>'+esc(rec.status)+'</div>'+
-    '<div class="ns-hd">📈 Next Session</div>'+
+    '<div class="ns-hd">'+'<svg class="icon"><use href="#i-trend-up"/></svg>'+'Next Session</div>'+
     '<div class="ns-action">'+esc(rec.action)+'</div>'+approx+t+mile+reason+live+'</div>';
 }
 // Collapsed subtitle driven by live state: done -> today's numbers, in progress
@@ -1321,7 +1321,7 @@ function _nsSubtitle(rec,state,summary,doneCount,total){
   return '<span class="ns-todo">'+esc(rec.action)+'</span>';
 }
 function _nsStateIcon(state){
-  if(state==='done') return '<div class="ns-ic done">✓</div>';
+  if(state==='done') return '<div class="ns-ic done"><svg class="icon"><use href="#i-check"/></svg></div>';
   if(state==='prog') return '<div class="ns-ic prog"></div>';
   return '<div class="ns-ic todo"></div>';
 }
@@ -1384,7 +1384,7 @@ function refreshStrengthExerciseState(card){
   card.classList.toggle('ns-inprogress',state==='prog');
   ['green','yellow','blue','red'].forEach(function(t){card.classList.toggle('ns-t-'+t,state==='todo'&&rec.tone===t);});
   var pill=card.querySelector('.exc-entry-pill');
-  if(pill){pill.textContent=complete?'✓ Done':'In progress';}
+  if(pill){pill.textContent=complete?'Done':'In progress';}
 }
 function refreshStrengthExerciseStates(i){
   document.querySelectorAll('.exc[data-session-index="'+i+'"]').forEach(refreshStrengthExerciseState);
@@ -1406,7 +1406,7 @@ function setGymSubmissionStatus(i,state){
   status.style.display='flex';
   status.className='session-submit-status '+(state==='submitted'?'is-submitted':'is-draft');
   status.innerHTML=state==='submitted'
-    ?'<span class="submit-status-icon">✓</span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>'
+    ?'<span class="submit-status-icon"><svg class="icon"><use href="#i-check"/></svg></span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>'
     :'<span class="submit-status-icon">•••</span><span><strong>Draft saved on this device</strong><small>Press Save session below to submit it to your coaches.</small></span>';
 }
 
@@ -1546,14 +1546,14 @@ function buildBody(s,i,type){
     h+='</div></div>'; // end body + card
     h+='<div class="run-log">';
     h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
-    h+='<div class="saved-label">✓ Session submitted to your coaches</div>';
+    h+='<div class="saved-label"><svg class="icon"><use href="#i-check"/></svg>Session submitted to your coaches</div>';
     h+='<div class="saved-grid">';
     h+='<div class="saved-item"><div class="saved-item-label">Distance</div><div class="saved-item-value" id="saved_run_'+i+'_distance">'+esc(sl.distance?sl.distance+'km':'-')+'</div></div>';
     h+='<div class="saved-item"><div class="saved-item-label">Duration</div><div class="saved-item-value" id="saved_run_'+i+'_duration">'+esc(sl.duration?sl.duration+'min':'-')+'</div></div>';
     h+='<div class="saved-item"><div class="saved-item-label">Avg Pace</div><div class="saved-item-value" id="saved_run_'+i+'_pace">'+esc(sl.pace||'-')+'</div></div>';
     h+='<div class="saved-item"><div class="saved-item-label">RPE</div><div class="saved-item-value" id="saved_run_'+i+'_rpe">'+esc(sl.rpe?sl.rpe+'/10':'-')+'</div></div>';
     h+='</div>';
-    h+='<div class="saved-feeling" id="saved_run_'+i+'_feel" style="display:'+(sl.feel?'block':'none')+';">'+esc(sl.feel||'')+'</div>';
+    h+='<div class="saved-feeling" id="saved_run_'+i+'_feel" style="display:'+(sl.feel?'block':'none')+';">'+esc(stripFeelGlyph(sl.feel)||'')+'</div>';
     h+='<div class="saved-notes" id="saved_run_'+i+'_notes" style="display:'+(sl.notes?'block':'none')+';">'+esc(sl.notes||'')+'</div>';
     h+='<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>';
     h+='</div>';
@@ -1566,7 +1566,7 @@ function buildBody(s,i,type){
     h+='<div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="rr_'+i+'" placeholder="..." value="'+esc(sl.rpe||'')+'" oninput="draftRun('+i+')" /></div>';
     h+='</div>';
     h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>How did it feel?</label><select id="rf_'+i+'" class="li" onchange="draftRun('+i+')"><option value="">Select feeling...</option>';
-    ['💀 Awful','😮‍💨 Struggling','😐 Average','💪 Feeling Strong','🔥 Crushing It'].forEach(function(f){h+='<option'+(sl.feel===f?' selected':'')+'>'+esc(f)+'</option>';});
+    ['Awful','Struggling','Average','Feeling Strong','Crushing It'].forEach(function(f){h+='<option'+(stripFeelGlyph(sl.feel)===f?' selected':'')+'>'+esc(f)+'</option>';});
     h+='</select></div>';
     h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="rn_'+i+'" class="li" placeholder="Any additional thoughts..." oninput="draftRun('+i+')">'+esc(sl.notes||'')+'</textarea></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save Session</button>';
@@ -1639,7 +1639,7 @@ function buildBody(s,i,type){
         }
         var isSingleLeg=usesLeftRightReps(resolvedEx);
         if(isSingleLeg){
-          h+='<div class="slbls-single"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl">✓</div></div>';
+          h+='<div class="slbls-single"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
           h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
           for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;
             h+='<div class="setrow-single" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum">'+(si+1)+'</div>';
@@ -1650,7 +1650,7 @@ function buildBody(s,i,type){
             h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button></div>';
           }
         }else{
-          h+='<div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl">✓</div></div>';
+          h+='<div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
           h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
           for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;
             h+='<div class="setrow" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum">'+(si+1)+'</div>';
@@ -1675,7 +1675,7 @@ function buildBody(s,i,type){
     h+='<div class="run-field run-input-full" style="margin-top:12px;margin-bottom:8px"><label>Session notes <span style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--dim)">(PRs, wins, niggles, anything worth logging)</span></label><textarea id="gn_'+i+'" class="li" placeholder="e.g. Hit a new squat PR, left knee felt a bit off on lunges..." oninput="draftGym('+i+',\''+esc(splitKey)+'\')" style="min-height:70px;resize:vertical;font-size:13px">'+esc(sl2notes)+'</textarea></div>';
     var gymSubmitted=isSessionLogged(s.id),gymHasDraft=gymDraftHasData(sl2);
     h+='<div id="gym_saved_'+i+'" class="session-submit-status '+(gymSubmitted?'is-submitted':'is-draft')+'" style="display:'+(gymSubmitted||gymHasDraft?'flex':'none')+';">';
-    if(gymSubmitted) h+='<span class="submit-status-icon">✓</span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>';
+    if(gymSubmitted) h+='<span class="submit-status-icon"><svg class="icon"><use href="#i-check"/></svg></span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>';
     else h+='<span class="submit-status-icon">•••</span><span><strong>Draft saved on this device</strong><small>Press Save session below to submit it to your coaches.</small></span>';
     h+='</div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveGym('+i+',\''+esc(splitKey)+'\')">Save session</button>';
@@ -1687,7 +1687,7 @@ function buildBody(s,i,type){
     h+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border-mid);border-radius:8px;padding:12px 14px">';
     if(instruction) h+='<div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:12px">'+esc(instruction)+'</div>';
     h+='<div class="run-field run-input-full" style="margin-bottom:10px"><label>What did you do? <span style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--dim)">(training + how it felt, anything worth logging)</span></label><textarea id="nt_'+i+'" class="li" placeholder="e.g. 45min easy run + mobility, legs felt good. Hit chest at the gym, normal week..." oninput="draftNote('+i+')" style="min-height:90px;resize:vertical;font-size:13px">'+esc(noteVal)+'</textarea></div>';
-    h+='<div id="note_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label">✓ Submitted to your coaches</div></div>';
+    h+='<div id="note_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label"><svg class="icon"><use href="#i-check"/></svg>Submitted to your coaches</div></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveNote('+i+')">Save</button>';
     if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save');}(i),0);}
     h+='</div>';

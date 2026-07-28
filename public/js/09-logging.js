@@ -37,7 +37,7 @@ function showRunSaved(i,d){
   if(durEl) durEl.textContent=d.duration?d.duration+'min':'-';
   if(paceEl) paceEl.textContent=d.pace||'-';
   if(rpeEl) rpeEl.textContent=d.rpe?d.rpe+'/10':'-';
-  if(feelEl){feelEl.textContent=d.feel||'';feelEl.style.display=d.feel?'block':'none';}
+  if(feelEl){feelEl.textContent=stripFeelGlyph(d.feel)||'';feelEl.style.display=d.feel?'block':'none';}
   if(notesEl){notesEl.textContent=d.notes||'';notesEl.style.display=d.notes?'block':'none';}
   var saved=document.getElementById('saved_run_'+i);
   if(saved) saved.style.display='block';

@@ -350,7 +350,7 @@ window.closeEnhancedModal = closeEnhancedModal;
       var data = await res.json();
       if(data.authorizeUrl)btn.href=data.authorizeUrl;
       if (data.connected) {
-        btn.innerHTML = '✓ Strava';
+        btn.innerHTML = '<span class="btn-ic"><svg class="icon"><use href="#i-check"/></svg></span>Strava';
         btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:rgba(74,222,128,.9);border-color:rgba(74,222,128,.35);box-shadow:none;text-decoration:none;pointer-events:none;';
         // Check if the athlete has acknowledged the connection.
         window._stravaAthCode = code;
