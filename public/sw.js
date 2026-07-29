@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v87'; // v87: working-set clarity and live progression coaching
+const CACHE_NAME = 'dp-athlete-v88'; // v88: bonus sets count as volume without displacing progression sets
 const APP_SHELL = [
   '/index.html', '/styles.css?v=86', '/desktop.css?v=3', '/config.js',
   '/js/01-core.js?v=86',
@@ -8,8 +8,8 @@ const APP_SHELL = [
   '/js/05-handbook.js?v=80',
   '/js/06-nutrition.js?v=83',
   '/js/07-progress.js?v=85',
-  '/js/08-training.js?v=87',
-  '/js/09-logging.js?v=86',
+  '/js/08-training.js?v=88',
+  '/js/09-logging.js?v=87',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=86',
   '/login.js?v=47', '/icons.css?v=3',

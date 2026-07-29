@@ -90,3 +90,77 @@ test('completed working sets show a consistent Today comparison and next-session
   assert.match(live.prompt, /^Next session: Increase to/);
   assert.equal(live.ahead, true);
 });
+
+test('bonus set counts as volume but cannot replace a programmed working set', () => {
+  const bilateral = {
+    exercise: 'Incline Dumbbell Press',
+    sets: '2',
+    workingSets: '2',
+    reps: '8',
+    repRange: '8-12'
+  };
+  const current = [
+    { _rowIndex: 0, weight: '22.5', reps: '10' },
+    { _rowIndex: 1, weight: '22.5', reps: '9' },
+    { _rowIndex: 2, weight: '22.5', reps: '8' }
+  ];
+  const last = [
+    { weight: '22.5', reps: '9' },
+    { weight: '22.5', reps: '8' }
+  ];
+  const working = context.getWorkingSlice(bilateral, current);
+  assert.deepEqual(Array.from(working, (entry) => entry.reps), ['10', '9']);
+
+  const live = context._nsLiveProgress(
+    bilateral,
+    current,
+    {},
+    bilateral.exercise,
+    [{ sets: last }],
+    last
+  );
+  assert.equal(live.msg, '19 reps · 2 up on last session');
+  assert.match(live.prompt, /^Next session: Stay at 22.5kg/);
+  assert.equal(live.ahead, true);
+});
+
+test('bonus set at the rep ceiling cannot unlock a load increase for an unfinished programmed set', () => {
+  const bilateral = {
+    exercise: 'Incline Dumbbell Press',
+    sets: '2',
+    workingSets: '2',
+    reps: '8',
+    repRange: '8-12'
+  };
+  const current = [
+    { _rowIndex: 0, weight: '22.5', reps: '12' },
+    { _rowIndex: 1, weight: '22.5', reps: '11' },
+    { _rowIndex: 2, weight: '22.5', reps: '12' }
+  ];
+  const recommendation = context.computeOverload(
+    bilateral,
+    current,
+    bilateral.exercise,
+    []
+  );
+  assert.equal(recommendation.status, 'Beat Last Week');
+  assert.equal(recommendation.action, 'Stay at 22.5kg');
+  assert.deepEqual(Array.from(recommendation.target), [12, 12]);
+});
+
+test('legacy logs without row metadata keep the first programmed sets', () => {
+  const bilateral = {
+    exercise: 'Incline Dumbbell Press',
+    sets: '2',
+    workingSets: '2',
+    reps: '8',
+    repRange: '8-12'
+  };
+  const historical = [
+    { weight: '22.5', reps: '10' },
+    { weight: '22.5', reps: '9' },
+    { weight: '22.5', reps: '8' }
+  ];
+  const working = context.getWorkingSlice(bilateral, historical);
+  assert.deepEqual(Array.from(working, (entry) => entry.reps), ['10', '9']);
+});

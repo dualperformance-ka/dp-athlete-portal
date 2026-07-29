@@ -934,23 +934,32 @@ function getExerciseHistory(sessionId,exerciseName){
   out.sort(function(a,b){if(a.date&&b.date) return a.date<b.date?1:(a.date>b.date?-1:0);if(a.date&&!b.date) return -1;if(!a.date&&b.date) return 1;return 0;});
   return out;
 }
-// Working sets = the last N sets that were actually completed. A set counts as
-// completed once it has reps: a weight typed into an empty row is a set still in
-// progress, and letting it hold a slot pushed real sets out of the assessment.
+// Progression is decided only by the programmed working-set rows. Bonus sets
+// are still saved and count toward volume/PBs, but they must never replace a
+// programmed set in the rep target or next-session recommendation.
+// A set counts as completed once it has reps: a weight typed into an empty row
+// is a set still in progress.
 function getWorkingSlice(ex,arr){
   arr=(arr||[]).filter(function(x){return x&&((x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});
   var workingSets=parseInt(ex.workingSets||ex.sets||arr.length||0)||0;
   var warmupSets=parseInt(ex.warmupSets,10)||0;
-  // Live DOM entries carry their original row index, so a partly completed
-  // four-row exercise can never mistake row 1 (warm-up) for working set 1.
-  // Historical logs predate row indexes; for those, the established last-N
-  // fallback preserves compatibility with every existing athlete record.
+  if(!workingSets) return arr;
+  // Live entries and newly saved logs carry their original row index. Keep only
+  // the programmed window: after warm-ups and before any added bonus rows.
   var hasRowIndexes=arr.some(function(x){return x&&x._rowIndex!=null;});
-  if(hasRowIndexes&&warmupSets){
-    arr=arr.filter(function(x){return Number(x._rowIndex)>=warmupSets;});
+  if(hasRowIndexes){
+    return arr.filter(function(x){
+      var row=Number(x._rowIndex);
+      return row>=warmupSets&&row<warmupSets+workingSets;
+    }).slice(0,workingSets);
   }
-  if(!workingSets||arr.length<=workingSets) return arr;
-  return arr.slice(arr.length-workingSets);
+  // Legacy logs have no row metadata. Their stored order mirrors the form, so
+  // use the programmed window when a warm-up is present and the first N rows
+  // otherwise. This keeps a historical bonus set from displacing set one.
+  if(warmupSets&&arr.length>=warmupSets+workingSets){
+    return arr.slice(warmupSets,warmupSets+workingSets);
+  }
+  return arr.slice(0,workingSets);
 }
 function formatSetSummary(arr){arr=(arr||[]).filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});if(!arr.length) return '';return arr.map(function(ps){var reps=ps.reps?(' × '+ps.reps):(ps.repsLeft||ps.repsRight?(' × L '+(ps.repsLeft||'—')+' / R '+(ps.repsRight||'—')):'');return(ps.weight?ps.weight+'kg':'—')+reps;}).join(' | ');}
 function setVal(v){return String(v==null?'':v).trim();}
@@ -1636,10 +1645,21 @@ function buildBody(s,i,type){
       exercises.forEach(function(ex,ei){
         var resolvedEx=exPicks[ex.exercise]||ex.exercise;
         var safeKey=ex.exercise.replace(/[^a-z0-9]/gi,'_');
-        var savedEx=sl2[resolvedEx]||sl2[ex.exercise]||[],sets=parseInt(ex.sets)||2;
-        var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
-        savedEx=displaySavedStrengthSets(s.id,savedEx,prevEffort);
-        var stored=pbComputeStored(resolvedEx,s.id);
+	        var savedEx=sl2[resolvedEx]||sl2[ex.exercise]||[],sets=parseInt(ex.sets)||2;
+	        var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
+	        savedEx=displaySavedStrengthSets(s.id,savedEx,prevEffort);
+	        // Preserve each set's original form row when restoring a draft. This
+	        // keeps bonus rows visible after reload and prevents a blank earlier
+	        // row from shifting later work into the wrong progression slot.
+	        var savedByRow={},maxSavedRow=sets-1;
+	        (savedEx||[]).forEach(function(sv,savedIndex){
+	          var savedRow=parseInt(sv&&sv._rowIndex,10);
+	          if(isNaN(savedRow)||savedRow<0) savedRow=savedIndex;
+	          savedByRow[savedRow]=sv;
+	          if(savedRow>maxSavedRow) maxSavedRow=savedRow;
+	        });
+	        var renderSets=Math.max(sets,maxSavedRow+1);
+	        var stored=pbComputeStored(resolvedEx,s.id);
         var isSingleLeg=usesLeftRightReps(resolvedEx);
         var initVol=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight),r=parseInt(sv.reps,10);if(!isNaN(w)&&w>0&&!isNaN(r)&&r>0&&r<=PB_REP_CAP) initVol+=w*r;});
         var isVolPB=!!(stored.volume&&initVol>stored.volume.value);
@@ -1649,11 +1669,12 @@ function buildBody(s,i,type){
         _ov.live=_nsLiveProgress(ex,savedEx,_ov,resolvedEx,_ovHistory,prevEffort);
         var hasExerciseData=!!savedEx.length;
         var sessionSubmitted=isSessionLogged(s.id);
-        var exerciseIsComplete=hasExerciseData&&(sessionSubmitted||(savedEx.length>=sets&&savedEx.slice(0,sets).every(function(set){return !!set.done;})));
-        var _nsState=exerciseIsComplete?'done':(hasExerciseData?'prog':'todo');
-        var _nsDone=0,_nsParts=[],_nsTopW=null;
-        (savedEx||[]).slice(0,sets).forEach(function(sv){
-          if(sv.done) _nsDone++;
+	        var prescribedRows=[];for(var prescribedIndex=0;prescribedIndex<sets;prescribedIndex++) prescribedRows.push(savedByRow[prescribedIndex]||{});
+	        var exerciseIsComplete=hasExerciseData&&(sessionSubmitted||prescribedRows.every(function(set){return !!set.done;}));
+	        var _nsState=exerciseIsComplete?'done':(hasExerciseData?'prog':'todo');
+	        var _nsDone=0,_nsParts=[],_nsTopW=null;
+	        getWorkingSlice(ex,savedEx||[]).forEach(function(sv){
+	          if(sv.done) _nsDone++;
           var wv=parseFloat(sv.weight);
           var rep=(sv.reps!=null&&String(sv.reps).trim()!=='')?sv.reps:((sv.repsLeft||sv.repsRight)?((sv.repsLeft||'-')+'/'+(sv.repsRight||'-')):'');
           if(!isNaN(wv)&&(_nsTopW==null||wv>_nsTopW)) _nsTopW=wv;
@@ -1699,30 +1720,30 @@ function buildBody(s,i,type){
         if(isSingleLeg){
           h+='<div class="slbls-single"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
           h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
-          for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var displaySet=isWarmup?'WU':(si-warmupSets+1);
-            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+'" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum" aria-label="'+(isWarmup?'Warm-up set':'Working set '+displaySet)+'">'+displaySet+'</div>';
-            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
-            h+='<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsLeft?prevSet.repsLeft:'L')+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
-            h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsRight?prevSet.repsRight:'R')+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
-            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark set '+(si+1)+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
-            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button></div>';
-          }
-        }else{
-          h+='<div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
-          h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
-          for(var si=0;si<sets;si++){var sv=savedEx[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var displaySet=isWarmup?'WU':(si-warmupSets+1);
-            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+'" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum" aria-label="'+(isWarmup?'Warm-up set':'Working set '+displaySet)+'">'+displaySet+'</div>';
-            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
-            h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc((prevSet&&prevSet.reps)?prevSet.reps:'—')+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
-            h+='<input type="number" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
-            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark set '+(si+1)+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
-            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button></div>';
-          }
-        }
+	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set">×</button>':'';
+	            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
+	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+	            h+='<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsLeft?prevSet.repsLeft:'L')+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+	            h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsRight?prevSet.repsRight:'R')+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
+	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
+	          }
+	        }else{
+	          h+='<div class="slbls"><div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
+	          h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
+	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set">×</button>':'';
+	            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
+	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+	            h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc((prevSet&&prevSet.reps)?prevSet.reps:'—')+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+	            h+='<input type="number" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" />';
+	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
+	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
+	          }
+	        }
         h+='</div>';
         var _restSec=parseInt(ex.rest,10);
         if(!isNaN(_restSec)&&_restSec>0) h+='<div class="rest-timer" id="rest_'+i+'_'+ei+'" data-rest="'+_restSec+'" style="display:none"><div><div class="rt-label">Rest</div><div class="rt-count" id="rtc_'+i+'_'+ei+'">0:00</div></div><div class="rt-wrap"><div class="rt-fill" id="rtf_'+i+'_'+ei+'"></div></div><button class="rt-skip" onclick="skipRest('+i+','+ei+')">Skip</button></div>';
-        h+='<button class="addset" onclick="addSet('+i+','+ei+',\'—\',\''+esc(splitKey)+'\')">+ Add set</button>';
+	        h+='<button class="addset" onclick="addSet('+i+','+ei+',\'—\',\''+esc(splitKey)+'\')">+ Add bonus set</button>';
         if(isBarbell){var topW=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight);if(!isNaN(w)&&w>topW)topW=w;});if(!topW&&prevEffort){prevEffort.forEach(function(p){var w=parseFloat(p.weight);if(!isNaN(w)&&w>topW)topW=w;});}h+='<div class="plate-calc" id="plate_'+i+'_'+ei+'">'+platesHtml(topW)+'</div>';}
         h+='</div>';
         h+='</div>';
