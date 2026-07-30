@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v89'; // v89: automatic set completion + background-safe rest timer alerts
+const CACHE_NAME = 'dp-athlete-v90'; // v90: theme-matched rest timer for indoor and outdoor modes
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=87', '/desktop.css?v=3', '/config.js',
+  '/index.html', '/styles.css?v=88', '/desktop.css?v=3', '/config.js',
   '/js/01-core.js?v=86',
   '/js/02-login-goals.js?v=84',
   '/js/03-nav-nudges.js?v=85',
