@@ -1,26 +1,131 @@
 // ── REST TIMER ────────────────────────────────────────────────────────────────
-// Single global countdown, fired when a set is ticked. Reads programmed rest (sec)
-// from the exercise's hidden bar. Only one runs at a time across all exercises.
-var _rest={iv:null,key:null};
-function skipRest(i,ei){if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}var el=document.getElementById('rest_'+i+'_'+ei);if(el){el.style.display='none';el.style.opacity='1';}_rest.key=null;}
+// Single global countdown, fired when a set is completed. The absolute deadline
+// keeps the timer accurate when the browser throttles intervals in another app.
+var _rest={iv:null,key:null,deadline:0,total:0,notified:false};
+var _restPermissionAsked=false;
+function restTimerStorageKey(){return 'dp_rest_timer_'+((athlete&&athlete.code)||'default');}
+function restTimerEnabled(){try{return localStorage.getItem('dp_rest_timer_enabled')!=='false';}catch(e){return true;}}
+function updateRestTimerControls(){
+  var enabled=restTimerEnabled();
+  document.querySelectorAll('[data-rest-timer-toggle]').forEach(function(btn){
+    btn.classList.toggle('is-on',enabled);btn.setAttribute('aria-pressed',enabled?'true':'false');
+    var state=btn.querySelector('.rest-pref-state');if(state)state.textContent=enabled?'On':'Off';
+  });
+}
+async function requestRestAlertPermission(){
+  if(_restPermissionAsked||!('Notification'in window)||Notification.permission!=='default') return;
+  _restPermissionAsked=true;
+  try{await Notification.requestPermission();}catch(e){}
+}
+function toggleRestTimerPreference(){
+  var enabled=!restTimerEnabled();
+  try{localStorage.setItem('dp_rest_timer_enabled',enabled?'true':'false');}catch(e){}
+  if(!enabled&&_rest.key){var parts=_rest.key.split('_');skipRest(parseInt(parts[0],10),parseInt(parts[1],10));}
+  updateRestTimerControls();
+  if(enabled)requestRestAlertPermission();
+  showToast(enabled?'Rest timer on':'Rest timer off');
+}
+function clearRestTimerStorage(){try{localStorage.removeItem(restTimerStorageKey());}catch(e){}}
+function hideRestTimer(i,ei){
+  var el=document.getElementById('rest_'+i+'_'+ei);
+  if(el){el.style.display='none';el.style.opacity='1';el.style.transition='';}
+}
+function skipRest(i,ei){
+  if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}
+  if(_rest.key&&_rest.key!==i+'_'+ei){var active=document.getElementById('rest_'+_rest.key);if(active){active.style.display='none';active.style.opacity='1';}}
+  hideRestTimer(i,ei);clearRestTimerStorage();
+  _rest.key=null;_rest.deadline=0;_rest.total=0;_rest.notified=false;
+}
+function restExerciseName(i,ei){
+  var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
+  var name=card&&card.querySelector('.exn');return name?name.textContent.trim():'your next set';
+}
+function notifyRestComplete(i,ei){
+  if(_rest.notified)return;_rest.notified=true;
+  var name=restExerciseName(i,ei),body='Rest finished — time for '+name+'.';
+  showToast('Rest complete · '+name);
+  try{if(navigator.vibrate)navigator.vibrate([180,90,180]);}catch(e){}
+  if(!('Notification'in window)||Notification.permission!=='granted')return;
+  var options={body:body,icon:'/dp_baby_blue_transparent_512x512.png',badge:'/dp_baby_blue_transparent_512x512.png',tag:'dp-rest-complete',renotify:true,data:{url:location.pathname+location.search}};
+  if('serviceWorker'in navigator){
+    navigator.serviceWorker.getRegistration().then(function(reg){
+      if(reg)return reg.showNotification('Rest complete',options);
+      try{new Notification('Rest complete',options);}catch(e){}
+    }).catch(function(){try{new Notification('Rest complete',options);}catch(e){}});
+  }else{try{new Notification('Rest complete',options);}catch(e){}}
+}
+function finishRest(i,ei){
+  if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}
+  clearRestTimerStorage();notifyRestComplete(i,ei);
+  var el=document.getElementById('rest_'+i+'_'+ei);
+  if(el){el.style.transition='opacity .4s';el.style.opacity='0';setTimeout(function(){hideRestTimer(i,ei);},450);}
+  _rest.key=null;_rest.deadline=0;_rest.total=0;
+}
+function renderRestTimer(i,ei){
+  if(!_rest.deadline)return;
+  var c=document.getElementById('rtc_'+i+'_'+ei);
+  if(!c){if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}return;}
+  var left=Math.max(0,Math.ceil((_rest.deadline-Date.now())/1000));
+  var m=Math.floor(left/60),x=left%60;c.textContent=m+':'+(x<10?'0':'')+x;
+  var f=document.getElementById('rtf_'+i+'_'+ei);if(f)f.style.width=Math.round(left/_rest.total*100)+'%';
+  if(left<=0)finishRest(i,ei);
+}
+function runRestTimer(i,ei){
+  if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}
+  renderRestTimer(i,ei);
+  if(_rest.deadline)_rest.iv=setInterval(function(){renderRestTimer(i,ei);},500);
+}
 function startRest(i,ei){
+  if(!restTimerEnabled())return;
   var el=document.getElementById('rest_'+i+'_'+ei);if(!el) return;
   var total=parseInt(el.getAttribute('data-rest'),10)||0;if(total<=0) return;
   if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}
   if(_rest.key&&_rest.key!==i+'_'+ei){var prev=document.getElementById('rest_'+_rest.key);if(prev){prev.style.display='none';prev.style.opacity='1';}}
   _rest.key=i+'_'+ei;
+  _rest.total=total;_rest.deadline=Date.now()+total*1000;_rest.notified=false;
   el.style.display='flex';el.style.opacity='1';
-  var left=total;
-  function tick(){
-    var c=document.getElementById('rtc_'+i+'_'+ei);if(!c){clearInterval(_rest.iv);_rest.iv=null;return;}
-    var m=Math.floor(left/60),x=left%60;c.textContent=m+':'+(x<10?'0':'')+x;
-    var f=document.getElementById('rtf_'+i+'_'+ei);if(f) f.style.width=Math.round(left/total*100)+'%';
-    if(left<=0){clearInterval(_rest.iv);_rest.iv=null;var e=document.getElementById('rest_'+i+'_'+ei);if(e){e.style.transition='opacity .4s';e.style.opacity='0';setTimeout(function(){if(e){e.style.display='none';e.style.opacity='1';e.style.transition='';}},450);}_rest.key=null;return;}
-    left--;
-  }
-  tick();_rest.iv=setInterval(tick,1000);
+  try{localStorage.setItem(restTimerStorageKey(),JSON.stringify({key:_rest.key,deadline:_rest.deadline,total:total,i:i,ei:ei}));}catch(e){}
+  requestRestAlertPermission();runRestTimer(i,ei);
 }
-function addSet(i,ei,rep,splitKey){var c=document.getElementById('sets_'+i+'_'+ei);var isSL=!!document.getElementById('rL_'+i+'_'+ei+'_0');var si=0;c.querySelectorAll('.setrow,.setrow-single').forEach(function(existing){var parts=String(existing.id||'').split('_'),n=parseInt(parts[parts.length-1],10);if(!isNaN(n)&&n>=si)si=n+1;});var bonus=c.querySelectorAll('.setrow.extra,.setrow-single.extra').length+1;var row=document.createElement('div');var delBtn='<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+splitKey+'\')" title="Remove bonus set">×</button>';if(isSL){row.className='setrow-single extra';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum" aria-label="Bonus set '+bonus+'">B'+bonus+'</div>'+'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="L" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="R" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">'+'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;}else{row.className='setrow extra';row.id='sr_'+i+'_'+ei+'_'+si;row.innerHTML='<div class="snum" aria-label="Bonus set '+bonus+'">B'+bonus+'</div>'+'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<input type="number" class="rpe-in" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" oninput="draftGym('+i+',\''+splitKey+'\')" />'+'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" onclick="togSet('+i+','+ei+','+si+')">'+'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;}c.appendChild(row);}
+function restoreRestTimer(){
+  updateRestTimerControls();
+  if(!restTimerEnabled()){clearRestTimerStorage();return;}
+  var saved=null;try{saved=JSON.parse(localStorage.getItem(restTimerStorageKey())||'null');}catch(e){}
+  if(!saved||!saved.deadline||saved.i==null||saved.ei==null)return;
+  var el=document.getElementById('rest_'+saved.i+'_'+saved.ei);if(!el)return;
+  _rest.key=saved.key||saved.i+'_'+saved.ei;_rest.deadline=Number(saved.deadline);_rest.total=Number(saved.total)||1;_rest.notified=false;
+  if(_rest.deadline<=Date.now()){
+    clearRestTimerStorage();
+    if(Date.now()-_rest.deadline<5*60*1000)notifyRestComplete(saved.i,saved.ei);
+    _rest.key=null;_rest.deadline=0;_rest.total=0;return;
+  }
+  el.style.display='flex';el.style.opacity='1';runRestTimer(saved.i,saved.ei);
+}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')restoreRestTimer();});
+window.addEventListener('focus',restoreRestTimer);
+function addSet(i,ei,rep,splitKey){
+  var c=document.getElementById('sets_'+i+'_'+ei),isSL=!!document.getElementById('rL_'+i+'_'+ei+'_0'),si=0;
+  c.querySelectorAll('.setrow,.setrow-single').forEach(function(existing){var parts=String(existing.id||'').split('_'),n=parseInt(parts[parts.length-1],10);if(!isNaN(n)&&n>=si)si=n+1;});
+  var bonus=c.querySelectorAll('.setrow.extra,.setrow-single.extra').length+1,row=document.createElement('div');
+  var draft='draftGym('+i+',\''+splitKey+'\')',complete='autoCompleteStrengthSet('+i+','+ei+','+si+')';
+  var delBtn='<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+splitKey+'\')" title="Remove bonus set">×</button>';
+  if(isSL){
+    row.className='setrow-single extra';row.id='sr_'+i+'_'+ei+'_'+si;
+    row.innerHTML='<div class="snum" aria-label="Bonus set '+bonus+'">B'+bonus+'</div>'
+      +'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="'+draft+'" onchange="'+complete+'" />'
+      +'<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="L" min="0" oninput="'+draft+'" onchange="'+complete+'" />'
+      +'<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="R" min="0" oninput="'+draft+'" onchange="'+complete+'" />'
+      +'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark bonus set '+bonus+' complete" aria-pressed="false" onclick="togSet('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;
+  }else{
+    row.className='setrow extra';row.id='sr_'+i+'_'+ei+'_'+si;
+    row.innerHTML='<div class="snum" aria-label="Bonus set '+bonus+'">B'+bonus+'</div>'
+      +'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="'+draft+'" onchange="'+complete+'" />'
+      +'<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="'+draft+'" onchange="'+complete+'" />'
+      +'<input type="number" class="rpe-in" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" oninput="'+draft+'" />'
+      +'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark bonus set '+bonus+' complete" aria-pressed="false" onclick="togSet('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;
+  }
+  c.appendChild(row);
+}
 function deleteSet(btn,i,ei,splitKey){var row=btn.closest('.setrow,.setrow-single');var c=row.parentElement;row.remove();c.querySelectorAll('.setrow.extra,.setrow-single.extra').forEach(function(r,idx){var sn=r.querySelector('.snum');if(sn){sn.textContent='B'+(idx+1);sn.setAttribute('aria-label','Bonus set '+(idx+1));}});draftGym(i,splitKey);}
 function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;if(s>=60){var m=Math.floor(s/60),rem=s%60;return rem?m+'min '+rem+'s rest':m+' min rest';}return s+'s rest';}
 function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));}

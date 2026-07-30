@@ -225,6 +225,14 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 @keyframes vpbglowLight{0%,100%{box-shadow:0 0 0 1px rgba(13,148,136,.5),0 0 9px rgba(13,148,136,.45)}50%{box-shadow:0 0 0 1px rgba(13,148,136,.9),0 0 20px rgba(13,148,136,.7)}}
 .setrow.extra{grid-template-columns:22px 1fr 1fr 44px 36px 26px}
 .setrow-single.extra{grid-template-columns:22px 1fr 1fr 1fr 36px 26px}
+.strength-log-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 8px}
+.strength-log-heading .ltitle{margin:0}
+.rest-pref-toggle{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:5px 9px;border:1px solid var(--border-mid);border-radius:999px;background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:9px;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}
+.rest-pref-toggle strong{color:var(--dim);font-size:9px}
+.rest-pref-dot{width:7px;height:7px;border-radius:50%;background:var(--dim);box-shadow:0 0 0 3px transparent;transition:all .15s}
+.rest-pref-toggle.is-on{border-color:rgba(146,210,237,.32);color:var(--text);background:rgba(146,210,237,.08)}
+.rest-pref-toggle.is-on strong{color:#92d2ed}
+.rest-pref-toggle.is-on .rest-pref-dot{background:#92d2ed;box-shadow:0 0 0 3px rgba(146,210,237,.12)}
 .rest-timer{background:#0a0a0a;padding:9px 14px;display:flex;align-items:center;gap:11px;margin-top:2px}
 .rt-label{font-family:var(--mono);font-size:8px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em}
 .rt-count{font-family:var(--display);font-size:21px;font-weight:800;color:#92d2ed;line-height:1}
@@ -1632,6 +1640,10 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode .hicon-goals:hover{border-color:var(--run);color:var(--run)}
 .outdoor-mode .priority-num{background:var(--run-bg);color:var(--run-strong);border-color:var(--run-border)}
 .outdoor-mode .rest-timer{background:var(--surface2);border:1px solid var(--border)}
+.outdoor-mode .rest-pref-toggle{background:#fff;border-color:var(--border)}
+.outdoor-mode .rest-pref-toggle.is-on{background:rgba(8,127,174,.06);border-color:rgba(8,127,174,.28)}
+.outdoor-mode .rest-pref-toggle.is-on strong{color:var(--run-strong)}
+.outdoor-mode .rest-pref-toggle.is-on .rest-pref-dot{background:var(--run-strong);box-shadow:0 0 0 3px rgba(8,127,174,.1)}
 .outdoor-mode .rt-count{color:var(--run-strong)}
 .outdoor-mode .photo-cell.has-photo .photo-overlay{color:#bfe6f5}
 

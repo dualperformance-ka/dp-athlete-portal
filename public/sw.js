@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v88'; // v88: bonus sets count as volume without displacing progression sets
+const CACHE_NAME = 'dp-athlete-v89'; // v89: automatic set completion + background-safe rest timer alerts
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=86', '/desktop.css?v=3', '/config.js',
+  '/index.html', '/styles.css?v=87', '/desktop.css?v=3', '/config.js',
   '/js/01-core.js?v=86',
   '/js/02-login-goals.js?v=84',
   '/js/03-nav-nudges.js?v=85',
@@ -8,8 +8,8 @@ const APP_SHELL = [
   '/js/05-handbook.js?v=80',
   '/js/06-nutrition.js?v=83',
   '/js/07-progress.js?v=85',
-  '/js/08-training.js?v=88',
-  '/js/09-logging.js?v=87',
+  '/js/08-training.js?v=89',
+  '/js/09-logging.js?v=88',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=86',
   '/login.js?v=47', '/icons.css?v=3',

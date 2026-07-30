@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 86,
-    "sha": "1af4b69f6576"
+    "version": 87,
+    "sha": "df58ef8f43f4"
   },
   "desktop.css": {
     "version": 3,
@@ -44,12 +44,12 @@
     "sha": "a0c0c1963b50"
   },
   "js/08-training.js": {
-    "version": 87,
-    "sha": "14929d001e02"
+    "version": 89,
+    "sha": "298869acac7b"
   },
   "js/09-logging.js": {
-    "version": 86,
-    "sha": "e38b58add9f5"
+    "version": 88,
+    "sha": "3f4106379cb2"
   },
   "accessibility.js": {
     "version": 1,
