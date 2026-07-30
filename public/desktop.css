@@ -342,3 +342,208 @@
   .quicklog-btn.is-next{background:var(--run);border-color:var(--run);color:#071015}
   .quicklog-btn.is-done{background:transparent;border-color:transparent;color:var(--ok)}
 }
+
+/* =========================================================================
+   DESKTOP FIT & FINISH
+   Keep every card intrinsically shrinkable and let meaningful copy wrap.
+   Older mobile-first rules intentionally truncate a few compact labels; on a
+   desktop those ellipses look accidental and conceal useful information.
+   ========================================================================= */
+@media (min-width:900px){
+  /* Some older section-specific rules re-centre the whole tab against the
+     viewport, which lets wide cards slide underneath the fixed navigation
+     rail. Keep every secondary page inside the same content shell. */
+  #tab-progress.active,
+  #tab-handbook.active,
+  #tab-comms.active{
+    width:auto!important;
+    max-width:none!important;
+    margin-left:var(--railw)!important;
+    margin-right:0!important;
+  }
+
+  .tab-content,
+  .tab-content>*,
+  .tab-content :where(
+    .card,.todayitem,.todaytarget,.todaymain,.today-context,.today-sessions,
+    .insight-card,.command-status,.ci-card,.ci-main,.ci-rail,.mc,.pstat,
+    .hb-card,.accordion-card,.progress-card,.comms-card,.nutrition-card,
+    .stat-field,.milestone-field,.programme-details-grid>div
+  ){
+    min-width:0;
+    max-width:100%;
+  }
+
+  .tab-content :where(
+    .card-title,.page-title,.page-copy,.todaytitle,.today-subtitle,.todayname,
+    .todaymeta,.todaytarget .value,.todaytarget .desc,.session-why,
+    .coach-moment-label,.coach-moment p,.insight-card span,.insight-card small,
+    .command-status small,.command-status strong,.ci-lbl,.field-hint,
+    .pstat-val,.pstat-lbl,.hb-title,.hb-sub,.comms-title,.comms-body,
+    .priority-text,.programme-details-grid span,.programme-details-grid strong
+  ){
+    overflow-wrap:break-word;
+    word-break:normal;
+  }
+
+  .hn{max-width:100%;overflow-wrap:break-word}
+  .metric-label{
+    min-width:0;
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+    line-height:1.25;
+  }
+
+  /* The command-centre rail is content, not a badge strip. Give it a little
+     more width and allow its two-line headings to remain fully readable. */
+  #tab-training .todaypanel{
+    grid-template-columns:minmax(0,1fr) minmax(340px,420px);
+  }
+  #tab-training .today-context :where(.insight-card span,.command-status small,.command-status strong){
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+  }
+  #tab-training .insight-card{
+    height:auto;
+    align-items:center;
+  }
+  #tab-training .insight-card>div:last-child,
+  #tab-training .command-status>span:last-child{min-width:0}
+  #tab-training .command-status{
+    height:auto;
+    align-items:flex-start;
+  }
+  #tab-training .command-status-icon{margin-top:1px}
+
+  /* Forms and secondary cards should shrink inside their grid tracks instead
+     of making the page wider than the viewport. */
+  #tab-goals :where(input,textarea,select),
+  #tab-checkin :where(input,textarea,select){
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+  #tab-goals .goals-name{overflow-wrap:break-word}
+  #tab-goals .race-options{display:flex;flex-wrap:wrap;gap:8px}
+  #tab-goals .race-opt{max-width:100%;white-space:normal}
+
+  #tab-nutrition .timing-table{
+    width:100%;
+    table-layout:fixed;
+  }
+  #tab-nutrition .timing-table :where(th,td){
+    overflow-wrap:break-word;
+    word-break:normal;
+  }
+  #tab-nutrition .timing-table th:nth-child(1){width:20%}
+  #tab-nutrition .timing-table th:nth-child(2){width:24%}
+  #tab-nutrition .timing-table th:nth-child(3){width:18%}
+  #tab-nutrition .timing-table th:nth-child(4){width:38%}
+  #tab-nutrition .nutrition-principles{grid-column:1/-1}
+  #tab-nutrition .nutrition-principles .nutrnote{max-width:82ch}
+
+  #tab-handbook .hb-card{height:100%}
+  #tab-handbook .hb-title{line-height:1.22}
+  #tab-comms .programme-details-grid strong{white-space:normal}
+
+  /* Check-in uses explicit regions so its page introduction cannot consume
+     the rail cell and push the actual form into a narrow third row. */
+  #tab-checkin.active{
+    grid-template-areas:
+      "intro intro"
+      "rail main"
+      "foot foot";
+    align-items:start;
+  }
+  #tab-checkin>.page-intro{
+    grid-area:intro;
+    width:100%;
+    max-width:none;
+  }
+  #tab-checkin>.ci-rail{grid-area:rail}
+  #tab-checkin>.ci-main{
+    grid-area:main;
+    width:100%;
+    max-width:680px;
+    justify-self:start;
+  }
+  #tab-checkin>.ci-main+.tab-spacer,
+  #tab-checkin>div:last-child{grid-area:foot}
+
+  /* Goals has a deliberate card map: overview full width, paired detail
+     cards, then a full-width milestone row and an anchored final action. */
+  #tab-goals.active{
+    gap:20px 28px;
+  }
+  #tab-goals>*{margin-bottom:0}
+  #tab-goals>.page-intro,
+  #tab-goals>.goals-hero{
+    grid-column:1/-1;
+    width:100%;
+    max-width:none;
+    margin-left:0;
+    margin-right:0;
+    justify-self:stretch;
+  }
+  #tab-goals>.goals-section-card{
+    width:100%;
+    align-self:stretch;
+  }
+  #tab-goals>.goals-section-card:nth-of-type(8){grid-column:1/-1}
+  #tab-goals .why-textarea{min-height:180px}
+  #tab-goals .savebtn,
+  #goalsSaveBtn{
+    position:static;
+    grid-column:1/-1;
+    justify-self:end;
+    width:min(280px,100%);
+    min-width:0;
+    margin:0;
+    box-shadow:0 12px 30px rgba(0,0,0,.24);
+  }
+  #tab-goals>#goalsSaveBtn+div{display:none}
+}
+
+/* Compact desktop/laptop: one insight per row and a two-column weekly agenda.
+   Seven dense day columns do not have enough room for real session names here. */
+@media (min-width:900px) and (max-width:1499px){
+  #tab-training .insight-rail{grid-template-columns:1fr}
+  #tab-training .insight-card{min-height:68px}
+  #tab-training .command-status-grid{grid-template-columns:1fr}
+  #weeklyCalEl{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #tab-weekly .dg{padding:14px 16px}
+  #tab-weekly .dgname{font-size:15px}
+  #tab-weekly .dgdate{font-size:10px}
+
+  .hero-main{
+    grid-template-columns:1fr;
+    grid-template-rows:auto;
+  }
+  .hero-name-row,.hero-support,.hero-bottom{
+    grid-column:1;
+    grid-row:auto;
+  }
+  .hero-metric-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+
+@media (min-width:900px) and (max-width:1199px){
+  #tab-goals.active{grid-template-columns:1fr}
+  #tab-goals>.page-intro,
+  #tab-goals>.goals-hero,
+  #tab-goals>.goals-section-card,
+  #tab-goals>.goals-section-card:nth-of-type(8),
+  #tab-goals .savebtn,
+  #goalsSaveBtn{grid-column:1}
+}
+
+/* Wide desktop: keep the at-a-glance 7-day board and two-up insight cards,
+   now with a rail wide enough for the labels to wrap naturally. */
+@media (min-width:1500px){
+  #weeklyCalEl{grid-template-columns:repeat(7,minmax(0,1fr))}
+  #tab-training .todaypanel{
+    grid-template-columns:minmax(0,1fr) minmax(400px,430px);
+  }
+}

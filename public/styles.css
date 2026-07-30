@@ -11,7 +11,7 @@
   --vpb:#2dd4bf;--vpb-bg:rgba(45,212,191,0.16);--vpb-border:rgba(45,212,191,0.40);
   --shadow-soft:0 10px 30px rgba(0,0,0,0.28);--shadow-blue:0 14px 36px rgba(146,210,237,0.10);
   --mono:'DM Mono',monospace;--display:'Barlow Condensed',sans-serif;--body:'Barlow',sans-serif;
-  --dp-logo:url('dp_logo_inline.png');
+  --dp-logo:url('dp_baby_blue_transparent_512x512.png');
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.55;min-height:100vh;-webkit-font-smoothing:antialiased}

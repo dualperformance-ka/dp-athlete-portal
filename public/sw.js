@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v91'; // v91: female unilateral left/right rendering and structured tracking
+const CACHE_NAME = 'dp-athlete-v92'; // v92: remove stale assets and refresh the primary logo reference
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=88', '/desktop.css?v=3', '/config.js',
+  '/index.html', '/styles.css?v=89', '/desktop.css?v=4', '/config.js',
   '/js/01-core.js?v=87',
   '/js/02-login-goals.js?v=85',
   '/js/03-nav-nudges.js?v=85',
