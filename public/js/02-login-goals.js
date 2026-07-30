@@ -158,17 +158,58 @@ function setRaceFromValue(val){
 // Rebuild the header PB / e1RM / Vol stat block for one exercise slot from the
 // chosen exercise's OWN history. Called when an athlete switches a variant so the
 // stats never show a different exercise's records. (markInlinePbs refills Vol live.)
-function refreshExerciseStat(i,ei,resolvedEx){
+function refreshExerciseStat(i,ei,resolvedEx,ex){
   var statEl=document.getElementById('exstat_'+i+'_'+ei);if(!statEl) return;
   var s=sessions[i];if(!s) return;
   var stored=pbComputeStored(resolvedEx,s.id);
-  var isSingleLeg=usesLeftRightReps(resolvedEx);
+  var isSingleLeg=usesLeftRightReps(resolvedEx,ex);
   var sh='';
   if(stored.load) sh+='<div class="ex-stat ex-stat-pb"><svg class="icon"><use href="#i-trophy"/></svg> PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
   if(!isSingleLeg&&stored.volume) sh+='<div class="ex-stat ex-stat-vol-pb"><svg class="icon"><use href="#i-trophy"/></svg> Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
   if(stored.e1rm) sh+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
   if(!isSingleLeg) sh+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol">Vol 0kg</div>';
   statEl.innerHTML=sh;
+}
+function syncStrengthRepMode(i,ei,ex,resolvedEx,splitKey){
+  var container=document.getElementById('sets_'+i+'_'+ei);if(!container)return;
+  var wantsLeftRight=usesLeftRightReps(resolvedEx,ex);
+  var hasLeftRight=!!container.querySelector('input[id^="rL_"]');
+  if(wantsLeftRight===hasLeftRight)return;
+  var labels=container.previousElementSibling;
+  if(labels){
+    labels.className=wantsLeftRight?'slbls-single':'slbls';
+    labels.innerHTML=wantsLeftRight
+      ?'<div class="slbl"></div><div class="slbl">kg</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div>'
+      :'<div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div>';
+  }
+  container.querySelectorAll('.setrow,.setrow-single').forEach(function(row){
+    var match=String(row.id||'').match(/_(\d+)$/);if(!match)return;
+    var si=parseInt(match[1],10),tick=row.querySelector('.st'),weight=row.querySelector('input[id^="w_"]');
+    function wire(input,required){
+      input.addEventListener('input',function(){draftGym(i,splitKey);});
+      if(required)input.addEventListener('change',function(){autoCompleteStrengthSet(i,ei,si);});
+    }
+    if(wantsLeftRight){
+      var reps=row.querySelector('input[id^="r_"]'),rpe=row.querySelector('input[id^="rpe_"]');
+      var shared=reps?reps.value:'';
+      if(rpe&&rpe.value)row.setAttribute('data-bilateral-rpe',rpe.value);
+      var left=document.createElement('input');left.type='number';left.className='sin';left.id='rL_'+i+'_'+ei+'_'+si;left.placeholder='L';left.min='0';left.value=shared;wire(left,true);
+      var right=document.createElement('input');right.type='number';right.className='sin';right.id='rR_'+i+'_'+ei+'_'+si;right.placeholder='R';right.min='0';right.value=shared;wire(right,true);
+      if(reps)reps.remove();if(rpe)rpe.remove();
+      row.insertBefore(left,tick);row.insertBefore(right,tick);
+      row.classList.remove('setrow');row.classList.add('setrow-single');
+    }else{
+      var leftInput=row.querySelector('input[id^="rL_"]'),rightInput=row.querySelector('input[id^="rR_"]');
+      var leftValue=leftInput?leftInput.value:'',rightValue=rightInput?rightInput.value:'';
+      var leftNum=parseFloat(leftValue),rightNum=parseFloat(rightValue);
+      var combined=!isNaN(leftNum)&&!isNaN(rightNum)?String(Math.min(leftNum,rightNum)):(leftValue||rightValue);
+      var repsInput=document.createElement('input');repsInput.type='number';repsInput.className='sin';repsInput.id='r_'+i+'_'+ei+'_'+si;repsInput.placeholder='—';repsInput.min='0';repsInput.value=combined;wire(repsInput,true);
+      var rpeInput=document.createElement('input');rpeInput.type='number';rpeInput.className='rpe-in';rpeInput.id='rpe_'+i+'_'+ei+'_'+si;rpeInput.placeholder='—';rpeInput.min='1';rpeInput.max='10';rpeInput.step='0.5';rpeInput.value=row.getAttribute('data-bilateral-rpe')||'';wire(rpeInput,false);
+      if(leftInput)leftInput.remove();if(rightInput)rightInput.remove();
+      row.insertBefore(repsInput,tick);row.insertBefore(rpeInput,tick);
+      row.classList.remove('setrow-single');row.classList.add('setrow');
+    }
+  });
 }
 function pickEx(exName,chosen){
   exPicks[exName]=chosen;
@@ -189,13 +230,16 @@ function pickEx(exName,chosen){
     var i=+m[1],ei=+m[2],s=sessions[i];
     if(s){
       var splitKey=GYM_KEYS.find(function(k){return((s.name||'').indexOf(k)>=0);})||'Upper A';
-      refreshExerciseStat(i,ei,chosen);
+      var ex=getSplit(splitKey)[ei]||null;
+      syncStrengthRepMode(i,ei,ex,chosen,splitKey);
+      refreshExerciseStat(i,ei,chosen,ex);
       // Recompute the overload decision for the chosen variant so the chip, why line,
       // ladder, tip, SUGGESTED pill and set placeholders all match this exercise's own
       // history instead of the one it was swapped from.
       try{repaintOverload(i,ei);}catch(e){}
       try{refreshStrengthFeedback(i,splitKey);}catch(e){}
       try{markInlinePbs(i,splitKey);}catch(e){}
+      try{draftGym(i,splitKey);}catch(e){}
     }
   }
 }

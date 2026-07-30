@@ -548,8 +548,17 @@ async function fetchRunLibrary(){
 }
 
 // ── SESSION TYPE ──────────────────────────────────────────────────────────────
-function usesLeftRightReps(exerciseName){
-  return /(?:single[\s-]?leg|split squat)/i.test(String(exerciseName||''));
+function normaliseExerciseName(exerciseName){
+  return String(exerciseName||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+function usesLeftRightReps(exerciseName,prescription){
+  var normalised=normaliseExerciseName(exerciseName);
+  var tagged=prescription&&Array.isArray(prescription.leftRightExercises)?prescription.leftRightExercises:[];
+  if(tagged.some(function(name){return normaliseExerciseName(name)===normalised;}))return true;
+  if(prescription&&prescription.repMode==='left_right'&&normaliseExerciseName(prescription.exercise)===normalised)return true;
+  // Backward-compatible fallback for older split data and athlete-specific
+  // variants that have not yet received explicit Supabase rep-mode metadata.
+  return /(?:\bsingle (?:leg|arm)\b|\bone arm\b|\bunilateral\b|\bsplit squat\b|\blunges?\b|\bstep (?:up|down)\b|\bkickbacks?\b|\bcopenhagen plank\b|\bdumbbell row\b|\bcable (?:hip abduction|adduction|lateral raise)\b)/i.test(normalised);
 }
 function getType(s){
   var t=(s.sessionType||'').toLowerCase(),n=(s.name||'').toLowerCase();

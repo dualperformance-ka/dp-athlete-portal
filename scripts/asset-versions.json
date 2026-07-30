@@ -16,12 +16,12 @@
     "sha": "c8d6e79467a0"
   },
   "js/01-core.js": {
-    "version": 86,
-    "sha": "b5487ef15df0"
+    "version": 87,
+    "sha": "2a6578e884cb"
   },
   "js/02-login-goals.js": {
-    "version": 84,
-    "sha": "26a2e850d71d"
+    "version": 85,
+    "sha": "4195323c546a"
   },
   "js/03-nav-nudges.js": {
     "version": 85,
@@ -44,12 +44,12 @@
     "sha": "a0c0c1963b50"
   },
   "js/08-training.js": {
-    "version": 89,
-    "sha": "298869acac7b"
+    "version": 90,
+    "sha": "40613b70bf6f"
   },
   "js/09-logging.js": {
-    "version": 88,
-    "sha": "3f4106379cb2"
+    "version": 89,
+    "sha": "3d8ef7b22960"
   },
   "accessibility.js": {
     "version": 1,

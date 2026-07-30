@@ -448,7 +448,18 @@ async function saveGym(i,splitKey){
     if(!reps) reps='— reps';
     return 'Set '+(si+1)+': '+(st.weight||'—')+'kg × '+reps+(st.rpe?' @ RPE '+st.rpe:'');
   }
-  var fetches=Object.keys(log).filter(function(k){return k.indexOf('__')!==0;}).map(function(exName){var sets=log[exName];return coachWrite(WEBHOOK,{name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',exerciseLog:exName+': '+sets.map(setSummary).join(' | '),rawSets:sets,notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()});});
+  var fetches=Object.keys(log).filter(function(k){return k.indexOf('__')!==0;}).map(function(exName){
+    var sets=log[exName];
+    var prescription=exercises.find(function(ex){return (exPicks[ex.exercise]||ex.exercise)===exName;})||null;
+    var repMode=usesLeftRightReps(exName,prescription)?'left_right':'reps';
+    return coachWrite(WEBHOOK,{
+      name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',
+      exerciseName:exName,repMode:repMode,
+      exerciseLog:exName+': '+sets.map(setSummary).join(' | '),rawSets:sets,
+      notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,
+      athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()
+    });
+  });
   var gymCoachResults=await Promise.all(fetches);
   await markSessionLogged(s.id);
   stampSessionSubmitted(s.id);

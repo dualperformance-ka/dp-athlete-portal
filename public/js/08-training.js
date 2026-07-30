@@ -1661,7 +1661,7 @@ function buildBody(s,i,type){
 	        });
 	        var renderSets=Math.max(sets,maxSavedRow+1);
 	        var stored=pbComputeStored(resolvedEx,s.id);
-        var isSingleLeg=usesLeftRightReps(resolvedEx);
+        var isSingleLeg=usesLeftRightReps(resolvedEx,ex);
         var initVol=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight),r=parseInt(sv.reps,10);if(!isNaN(w)&&w>0&&!isNaN(r)&&r>0&&r<=PB_REP_CAP) initVol+=w*r;});
         var isVolPB=!!(stored.volume&&initVol>stored.volume.value);
         var isBarbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust/i.test(resolvedEx)&&!/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/i.test(resolvedEx);
@@ -1713,7 +1713,7 @@ function buildBody(s,i,type){
           });
           h+='</div>';
         }
-        var isSingleLeg=usesLeftRightReps(resolvedEx);
+        var isSingleLeg=usesLeftRightReps(resolvedEx,ex);
         var warmupSets=parseInt(ex.warmupSets,10)||0;
         if(warmupSets){
           h+='<div class="working-set-note"><span>WU</span><div><strong>Warm-up first</strong><small>Keep the warm-up controlled. Working sets 1–'+(parseInt(ex.workingSets,10)||Math.max(1,sets-warmupSets))+' determine today’s progression.</small></div></div>';
