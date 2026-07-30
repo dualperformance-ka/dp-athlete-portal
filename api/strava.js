@@ -6,7 +6,8 @@
  *
  * Response shapes:
  *   { connected: false, connectUrl: "https://strava.com/oauth/..." }
- *   { connected: true,  activities: [...] }
+ *   { connected: true,  activities: [...], activitiesAvailable: true }
+ *   { connected: true,  activities: [], activitiesAvailable: false, warning: "strava_rate_limited" }
  *
  * Required env vars:
  *   SUPABASE_URL         — Supabase project URL
@@ -97,8 +98,23 @@ async function fetchActivities(accessToken, perPage = 100) {
     `${STRAVA_API}/athlete/activities?per_page=${perPage}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
-  if (!res.ok) throw new Error(`Strava activities fetch failed: ${res.status}`);
+  if (!res.ok) {
+    const error = new Error(`Strava activities fetch failed: ${res.status}`);
+    error.status = res.status;
+    error.retryAfter = res.headers.get('retry-after');
+    throw error;
+  }
   return res.json();
+}
+
+export function unavailableActivitiesResponse(error) {
+  if (!error || Number(error.status) !== 429) return null;
+  return {
+    connected: true,
+    activities: [],
+    activitiesAvailable: false,
+    warning: 'strava_rate_limited',
+  };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -141,8 +157,26 @@ export default async function handler(req, res) {
       await updateTokens(athleteCode, access_token, refreshed.expires_at);
     }
 
-    const activities = await fetchActivities(access_token);
-    return res.status(200).json({ connected: true, activities });
+    try {
+      const activities = await fetchActivities(access_token);
+      return res.status(200).json({ connected: true, activities, activitiesAvailable: true });
+    } catch (activityError) {
+      // A rate limit affects activity sync, not the athlete's OAuth connection.
+      // Keep the UI truthful and let activity-dependent views use their normal
+      // portal-log fallback until Strava is available again.
+      const fallback = unavailableActivitiesResponse(activityError);
+      if (fallback) {
+        console.warn(JSON.stringify({
+          level: 'warning',
+          message: 'Strava activity sync rate limited',
+          route: '/api/strava',
+          requestId: req.headers && req.headers['x-vercel-id'],
+          retryAfter: activityError.retryAfter || null,
+        }));
+        return res.status(200).json(fallback);
+      }
+      throw activityError;
+    }
   } catch (err) {
     console.error('[strava]', err);
     return res.status(500).json({ error: err.message });

@@ -120,7 +120,7 @@ async function loadProgrammeVolume(force){
     }
     var strava=null;
     try{strava=window._stravaLoadPromise?await window._stravaLoadPromise:null;}catch(e){}
-    var hasStrava=!!(strava&&strava.connected),activities=(strava&&strava.activities)||[];
+    var hasStrava=!!(strava&&strava.connected&&strava.activitiesAvailable!==false),activities=(strava&&strava.activities)||[];
     // Oldest Strava run: anything before it is "unknown", not zero.
     var firstStravaISO=null;
     if(hasStrava){

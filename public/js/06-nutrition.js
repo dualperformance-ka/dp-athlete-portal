@@ -322,7 +322,7 @@ async function loadNutrition(){
   var localCompleted=deriveCompletedKmFromSessions(sessions);
   var stravaResult=null;
   try{stravaResult=window._stravaLoadPromise ? await window._stravaLoadPromise : null;}catch(e){}
-  var hasStrava=!!(stravaResult&&stravaResult.connected);
+  var hasStrava=!!(stravaResult&&stravaResult.connected&&stravaResult.activitiesAvailable!==false);
   var stravaCompleted=hasStrava?deriveCompletedKmFromStrava(stravaResult.activities,nutWeekOffset):null;
   // One source only: Strava wins when connected, then submitted portal logs,
   // then this device's draft logs, and finally the legacy nutrition total.

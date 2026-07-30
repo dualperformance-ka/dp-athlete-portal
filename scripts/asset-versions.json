@@ -32,12 +32,12 @@
     "sha": "6eefd327f174"
   },
   "js/05-handbook.js": {
-    "version": 80,
-    "sha": "26d32cea6da5"
+    "version": 81,
+    "sha": "91f2bf171bb8"
   },
   "js/06-nutrition.js": {
-    "version": 83,
-    "sha": "97f31aba34f2"
+    "version": 84,
+    "sha": "07190f4c513f"
   },
   "js/07-progress.js": {
     "version": 85,
@@ -56,7 +56,7 @@
     "sha": "3e9bf44307a4"
   },
   "js/10-boot.js": {
-    "version": 86,
-    "sha": "5a567b1572ea"
+    "version": 87,
+    "sha": "bc7315a080bd"
   }
 }
