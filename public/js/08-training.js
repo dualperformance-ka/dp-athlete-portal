@@ -1882,9 +1882,6 @@ function togSet(i,ei,si){
       setTimeout(function(){
         if(!card||!strengthExerciseIsComplete(card)) return;
         card.classList.remove('open');refreshStrengthExerciseState(card);
-        var next=card.nextElementSibling;
-        while(next&&(!next.classList||!next.classList.contains('exc'))) next=next.nextElementSibling;
-        if(next&&!next.classList.contains('exercise-complete')){next.classList.add('open');refreshStrengthExerciseState(next);}
       },320);
     }
   }
