@@ -266,11 +266,24 @@ function openReschedule(i){
   var input=document.getElementById('reschedule_'+i);if(!input)return;
   if(input.showPicker)input.showPicker();else input.click();
 }
-function rescheduleSession(i,date){
-  if(!date||!sessions[i])return;var map={};try{map=JSON.parse(localStorage.getItem('dp_reschedules_'+athlete.code)||'{}');}catch(e){}
-  map[sessions[i].id]=date;localStorage.setItem('dp_reschedules_'+athlete.code,JSON.stringify(map));
-  sessions[i].date=date;var match=allSessions.find(function(s){return s.id===sessions[i].id;});if(match)match.date=date;
-  renderTodaySection();renderCal(getWS());showToast('Session moved · coach sync pending');
+function setSessionDateOverride(sessionId,date,options){
+  options=options||{};
+  if(!sessionId||!/^\d{4}-\d{2}-\d{2}$/.test(String(date||'')))return false;
+  var match=allSessions.find(function(s){return s.id===sessionId;});if(!match)return false;
+  var map={};try{map=JSON.parse(localStorage.getItem('dp_reschedules_'+athlete.code)||'{}');}catch(e){}
+  if(match.plannedDate&&date===match.plannedDate)delete map[sessionId];else map[sessionId]=date;
+  localStorage.setItem('dp_reschedules_'+athlete.code,JSON.stringify(map));
+  match.date=date;match.rescheduled=!!(match.plannedDate&&date!==match.plannedDate);
+  var ws=getWS(),we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6),wsISO=localISO(ws),weISO=localISO(we);
+  sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
+  renderTodaySection();renderCal(ws);
+  if(dayPlanDateISO)renderDayPlanDate(dayPlanDateISO);
+  if(!options.silent)showToast('Session moved to '+localDateFromISO(date).toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' · syncing');
+  return true;
+}
+function rescheduleSession(i,date,options){
+  var s=sessions[i];if(!s)return false;
+  return setSessionDateOverride(s.id,date,options);
 }
 var REMINDER_OPTIONS=[
   {key:'sessions',icon:'calendar',label:'Training sessions',sub:'Before planned training'},

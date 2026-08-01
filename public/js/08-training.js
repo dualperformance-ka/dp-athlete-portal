@@ -40,7 +40,9 @@ async function loadWeek(){
   // empty week ([]). Show a retryable error, never "No sessions this week".
   if(!mapped){showLoadError();return;}
   var reschedules={};try{reschedules=JSON.parse(localStorage.getItem('dp_reschedules_'+athlete.code)||'{}');}catch(e){}
-  mapped.forEach(function(s){if(reschedules[s.id]){s.date=reschedules[s.id];s.rescheduled=true;}});
+  mapped.forEach(function(s){
+    if(reschedules[s.id]){s.date=reschedules[s.id];s.rescheduled=s.date!==s.plannedDate;}
+  });
   allSessions=mapped;
   sessions=allSessions.filter(function(s){return s.date&&s.date>=wsISO&&s.date<=weISO;});
   // Pin "this week" from the unpaged load so the volume strip's current-week

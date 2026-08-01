@@ -1,15 +1,15 @@
-const CACHE_NAME = 'dp-athlete-v92'; // v92: remove stale assets and refresh the primary logo reference
+const CACHE_NAME = 'dp-athlete-v93'; // v93: sync and render athlete workout date overrides
 const APP_SHELL = [
   '/index.html', '/styles.css?v=90', '/desktop.css?v=4', '/config.js',
-  '/js/01-core.js?v=88',
+  '/js/01-core.js?v=89',
   '/js/02-login-goals.js?v=85',
-  '/js/03-nav-nudges.js?v=85',
+  '/js/03-nav-nudges.js?v=86',
   '/js/04-checkin.js?v=84',
   '/js/05-handbook.js?v=81',
   '/js/06-nutrition.js?v=84',
   '/js/07-progress.js?v=85',
-  '/js/08-training.js?v=91',
-  '/js/09-logging.js?v=89',
+  '/js/08-training.js?v=92',
+  '/js/09-logging.js?v=90',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=87',
   '/login.js?v=47', '/icons.css?v=3',

@@ -99,27 +99,22 @@ async function plannedSessions(code, body) {
     throw error;
   }
 
-  const [week, next] = await Promise.all([
-    select('planned_sessions', {
-      athlete_code: `eq.${code}`,
-      planned_date: `gte.${start}`,
-      and: `(planned_date.lte.${end})`,
-      select: '*',
-      order: 'planned_date.asc',
-      limit: '100',
-    }),
-    select('planned_sessions', {
-      athlete_code: `eq.${code}`,
-      planned_date: `gt.${end}`,
-      select: '*',
-      order: 'planned_date.asc',
-      limit: '1',
-    }),
-  ]);
+  // Return the athlete's programme, not only the rows whose coach-planned date
+  // falls inside the visible week. Athlete reschedules are stored separately in
+  // athlete_data, so a session moved across a week boundary must still reach the
+  // browser before that override can be applied.
+  const programme = await select('planned_sessions', {
+    athlete_code: `eq.${code}`,
+    select: '*',
+    order: 'planned_date.asc',
+    limit: '1000',
+  });
+  const rows = Array.isArray(programme) ? programme : [];
+  const next = rows.find((row) => row.planned_date > end) || null;
 
   return {
-    rows: Array.isArray(week) ? week : [],
-    next: Array.isArray(next) && next[0] ? next[0] : null,
+    rows,
+    next,
   };
 }
 

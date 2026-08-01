@@ -321,7 +321,7 @@ async function loadPlannedSessions(startISO,endISO){
           intervals:r.intervals,working_pace:r.working_pace,rest:r.rest,
           cool_down:r.cool_down,notes:r.notes};
       }
-      return{id:key,name:r.title||'Session',date:r.planned_date||'',
+      return{id:key,name:r.title||'Session',date:r.planned_date||'',plannedDate:r.planned_date||'',
         sessionType:r.session_type||'',status:r.status||'Planned',
         runningSession:'',runningSessionIds:[],
         runningLibraryIds:r.library_id?[r.library_id]:[],
@@ -371,6 +371,7 @@ async function loadCloudData(code){
       if(row.key==='goals') lsKey='dp_goals_'+code;
       else if(row.key==='logs') lsKey='dp_logs_'+code;
       else if(row.key==='ticked') lsKey='dp_ticked_'+code;
+      else if(row.key==='reschedules') lsKey='dp_reschedules_'+code;
       else if(row.key==='photos') lsKey='dp_photos_'+code;
       else if(row.key.startsWith('daily_body_')) lsKey='dp_daily_body_'+code+'_'+row.key.slice('daily_body_'.length);
       else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);

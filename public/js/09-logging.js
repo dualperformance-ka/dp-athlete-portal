@@ -244,6 +244,7 @@ async function saveRun(i){
   var runStatusResult=await markSessionDone(i);
   showToast((runCoachResult&&runCoachResult.queued)||(runStatusResult&&runStatusResult.queued)?'Run submitted - coach dashboard sync pending':'Run submitted ✓');
   showRunSaved(i,d);
+  if(runDate!==s.date)setSessionDateOverride(s.id,runDate,{silent:true});
   await loadNutrition();
 }
 // ── PERSONAL BEST DETECTION ───────────────────────────────────────────────────
@@ -476,6 +477,7 @@ async function saveGym(i,splitKey){
   }
   setGymSubmissionStatus(i,'submitted');
   lockSaveButton(i,'Save session');
+  if(gymDate!==s.date)setSessionDateOverride(s.id,gymDate,{silent:true});
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';btn.disabled=true;setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;btn.disabled=false;},2500);}}
 function showToast(msg,type){
