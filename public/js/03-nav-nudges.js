@@ -43,8 +43,16 @@ function dismissNudge(el,done){
 // ── CALL NUDGE ────────────────────────────────────────────────────────────────
 // ISO week suffix ("2026_31"). Zero-padded so week keys sort chronologically
 // as plain strings — that is what lets us find the next booked call.
+//
+// Carries the same Mon/Tue grace window as checkinWeekKey and the server's
+// isoWeekKey: the suffix names the week a call *reviews*, not the week it sits
+// in. A Monday call belongs to the week that just finished, so on Mon/Tue the
+// portal is still asking about that week — call and check-in stay in lockstep,
+// and the new week's prompts both appear on Wednesday.
 function callWeekSuffix(date){
   var d=new Date(date||new Date());d.setHours(0,0,0,0);
+  var day=d.getDay(); // 0=Sun .. 6=Sat
+  if(day===1||day===2){d.setDate(d.getDate()-3);} // Mon/Tue -> previous week
   d.setDate(d.getDate()+3-(d.getDay()+6)%7);
   var w1=new Date(d.getFullYear(),0,4);
   var isoWeek=1+Math.round(((d-w1)/86400000-3+(w1.getDay()+6)%7)/7);
@@ -55,13 +63,17 @@ function callBookedPrefix(){
   return 'dp_call_booked_'+acode;
 }
 function callNudgeWeekKey(){return callBookedPrefix()+callWeekSuffix();}
-// Stored value is either the legacy '1' flag or a display string written by the
-// portal, the GHL webhook (/api/call-booked) or the backlog sync.
+// Three stored shapes, all still in the wild:
+//   {time,startsAt}  current — written by the webhook and the backlog sync
+//   "Tue 15 Jul · 6:30 pm"  older server rows and portal self-reports
+//   "1"              legacy flag: booked, but the time was never captured
 function parseBookedValue(raw){
   if(!raw) return null;
-  var t='';
-  try{var p=JSON.parse(raw);if(p&&p!=='1'&&p!==1)t=String(p);}catch(e){if(raw!=='1')t=String(raw);}
-  return {time:t||''};
+  var parsed=raw;
+  try{parsed=JSON.parse(raw);}catch(e){}
+  if(parsed&&typeof parsed==='object') return {time:String(parsed.time||''),startsAt:parsed.startsAt||''};
+  var t=(parsed==='1'||parsed===1)?'':String(parsed||'');
+  return {time:t,startsAt:''};
 }
 function getCallBookedState(){
   var prefix=callBookedPrefix(),thisWeek=callWeekSuffix();

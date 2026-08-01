@@ -15,8 +15,17 @@ export function adelaideDate(date) {
 }
 
 // Same ISO-week math as the portal client's callNudgeWeekKey().
+//
+// The key answers "which week does this call review?", not "which week does it
+// physically sit in". A weekly call very often lands on the Monday or Tuesday
+// after the week it covers, so those days are shifted back into the week they
+// belong to — the identical grace window the weekly check-in already uses
+// (see checkinWeekKey in 03-nav-nudges.js). Without it a Monday call is filed
+// under next week and the athlete is still told to book one for this week.
 export function isoWeekKey(localDate) {
   const d = new Date(localDate); d.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0=Sun .. 6=Sat
+  if (day === 1 || day === 2) d.setDate(d.getDate() - 3); // Mon/Tue -> previous week
   d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
   const w1 = new Date(d.getFullYear(), 0, 4);
   const week = 1 + Math.round(((d - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7);
@@ -38,9 +47,12 @@ export function displayTime(date) {
 }
 
 // Writes the weekly call_booked key for an athlete. Returns { key, value }.
+// The value carries the raw timestamp alongside the display string so the week
+// rules can be re-derived later without going back to GHL. Older rows are a
+// bare string (or the legacy '1' flag); the portal reads all three shapes.
 export async function storeCallBooked(code, startDate) {
   const key = isoWeekKey(adelaideDate(startDate));
-  const value = displayTime(startDate);
+  const value = { time: displayTime(startDate), startsAt: new Date(startDate).toISOString() };
   await upsert('athlete_data', [{
     athlete_code: code,
     key,

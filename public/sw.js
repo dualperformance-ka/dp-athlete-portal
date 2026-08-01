@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v95'; // v94: readiness chip sizing + nudge due/done states + booking backlog
+const CACHE_NAME = 'dp-athlete-v96'; // v94: readiness chip sizing + nudge due/done states + booking backlog
 const APP_SHELL = [
   '/index.html', '/styles.css?v=91', '/desktop.css?v=4', '/config.js',
   '/js/01-core.js?v=89',
   '/js/02-login-goals.js?v=86',
-  '/js/03-nav-nudges.js?v=87',
+  '/js/03-nav-nudges.js?v=88',
   '/js/04-checkin.js?v=84',
   '/js/05-handbook.js?v=81',
   '/js/06-nutrition.js?v=84',
