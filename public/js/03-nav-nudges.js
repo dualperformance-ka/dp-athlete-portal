@@ -1,21 +1,86 @@
 // ── TABS ──────────────────────────────────────────────────────────────────────
+// ── WEEK CARD STATE ───────────────────────────────────────────────────────────
+// Every home nudge carries one of two classes: `is-due` (still to do) or
+// `is-done` (completed, quiet). The card itself lights up only while at least
+// one visible row is still due, so the urgency glow is earned, never ambient.
+function nudgeVisible(el){
+  if(!el) return false;
+  // Computed display, not the inline style: the goals row is hidden by its
+  // stylesheet rather than by an inline value.
+  try{return window.getComputedStyle(el).display!=='none';}catch(e){return el.style.display!=='none';}
+}
+function syncWeekCardState(){
+  var card=document.querySelector('.top-shell-priority');
+  if(!card) return;
+  var due=0,rows=0;
+  Array.prototype.forEach.call(card.querySelectorAll('.nudge-strip,#strava-ack-banner'),function(el){
+    if(el.classList.contains('is-clearing')||!nudgeVisible(el)) return;
+    rows++;
+    if(el.classList.contains('is-due')) due++;
+  });
+  card.classList.toggle('has-due',due>0);
+  // With every row completed the card has nothing to frame, so it goes too —
+  // otherwise mobile is left with an empty bordered sliver under the hero.
+  card.classList.toggle('has-rows',rows>0);
+}
+// Completed rows leave rather than switching to a done state. The collapse is
+// short enough to read as "that's handled" without holding up the screen.
+function dismissNudge(el,done){
+  if(!el||!nudgeVisible(el)){if(el)el.style.display='none';if(done)done();syncWeekCardState();return;}
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if(reduce){el.style.display='none';if(done)done();syncWeekCardState();return;}
+  el.style.height=el.offsetHeight+'px';
+  el.classList.add('is-clearing');
+  syncWeekCardState();
+  requestAnimationFrame(function(){el.style.height='0px';});
+  setTimeout(function(){
+    el.classList.remove('is-clearing');
+    el.style.height='';el.style.display='none';
+    if(done)done();
+    syncWeekCardState();
+  },300);
+}
 // ── CALL NUDGE ────────────────────────────────────────────────────────────────
-function callNudgeWeekKey(){
-  var now=new Date();
-  var d=new Date(now);d.setHours(0,0,0,0);
+// ISO week suffix ("2026_31"). Zero-padded so week keys sort chronologically
+// as plain strings — that is what lets us find the next booked call.
+function callWeekSuffix(date){
+  var d=new Date(date||new Date());d.setHours(0,0,0,0);
   d.setDate(d.getDate()+3-(d.getDay()+6)%7);
   var w1=new Date(d.getFullYear(),0,4);
   var isoWeek=1+Math.round(((d-w1)/86400000-3+(w1.getDay()+6)%7)/7);
-  var isoYear=d.getFullYear();
+  return d.getFullYear()+'_'+(isoWeek<10?'0':'')+isoWeek;
+}
+function callBookedPrefix(){
   var acode=(athlete&&athlete.code)?athlete.code.toUpperCase()+'_':'';
-  return'dp_call_booked_'+acode+isoYear+'_'+(isoWeek<10?'0':'')+isoWeek;
+  return 'dp_call_booked_'+acode;
+}
+function callNudgeWeekKey(){return callBookedPrefix()+callWeekSuffix();}
+// Stored value is either the legacy '1' flag or a display string written by the
+// portal, the GHL webhook (/api/call-booked) or the backlog sync.
+function parseBookedValue(raw){
+  if(!raw) return null;
+  var t='';
+  try{var p=JSON.parse(raw);if(p&&p!=='1'&&p!==1)t=String(p);}catch(e){if(raw!=='1')t=String(raw);}
+  return {time:t||''};
 }
 function getCallBookedState(){
-  var raw=localStorage.getItem(callNudgeWeekKey());
-  if(!raw) return {booked:false,displayTime:''};
-  var t='';
-  try{var p=JSON.parse(raw);if(p&&p!=='1'&&p!==1)t=p;}catch(e){if(raw&&raw!=='1')t=raw;}
-  return {booked:true,displayTime:t||''};
+  var prefix=callBookedPrefix(),thisWeek=callWeekSuffix();
+  var current=parseBookedValue(localStorage.getItem(prefix+thisWeek));
+  // Backlogged bookings: a call already sitting in a later week should never be
+  // hidden behind a "book your call" prompt, so surface the soonest one.
+  var upcoming=null;
+  try{
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(!k||k.indexOf(prefix)!==0) continue;
+      var suffix=k.slice(prefix.length);
+      if(!/^\d{4}_\d{2}$/.test(suffix)||suffix<=thisWeek) continue;
+      var v=parseBookedValue(localStorage.getItem(k));
+      if(!v) continue;
+      if(!upcoming||suffix<upcoming.week) upcoming={week:suffix,displayTime:v.time};
+    }
+  }catch(e){}
+  return {booked:!!current,displayTime:(current&&current.time)||'',upcoming:upcoming};
 }
 // SINGLE source of truth for every booking prompt in the app: the home nudge,
 // the confirmed strip, the check-in Step 1 card and the tab dot all render
@@ -25,7 +90,13 @@ function renderBookingPrompts(){
   var nudge=document.getElementById('callNudge');
   var confirmed=document.getElementById('callConfirmedNudge');
   var dot=document.getElementById('tabDotCheckin');
-  if(nudge) nudge.style.display=st.booked?'none':'';
+  if(nudge){
+    nudge.style.display=st.booked?'none':'';
+    var sub=nudge.querySelector('.nudge-strip-sub');
+    var hasNext=!!(st.upcoming&&st.upcoming.displayTime);
+    if(sub) sub.textContent=hasNext?('Next call '+st.upcoming.displayTime+' · book this week too'):'30 min · Karl & Alex';
+    nudge.classList.toggle('show-sub',hasNext);
+  }
   if(confirmed) confirmed.style.display=st.booked?'':'none';
   var titleEl=document.getElementById('callConfirmedTitle');
   if(titleEl) titleEl.textContent=st.displayTime?'Call booked · '+st.displayTime:'Call booked this week';
@@ -37,9 +108,11 @@ function renderBookingPrompts(){
     var k=document.getElementById('ciBookKicker'),t=document.getElementById('ciBookTitle'),s=document.getElementById('ciBookSub'),a=document.getElementById('ciBookArrow');
     if(k) k.textContent=st.booked?'Step 1 — Done':'Step 1 — Do this first';
     if(t) t.textContent=st.booked?'Call booked':'Book your coaching call';
-    if(s) s.textContent=st.booked?((st.displayTime?st.displayTime+' · ':'')+'Tap to view or rebook'):'30 min with Karl & Alex · Tap to open booking';
+    var nextNote=(st.upcoming&&st.upcoming.displayTime)?('Next call '+st.upcoming.displayTime+' · '):'';
+    if(s) s.textContent=st.booked?((st.displayTime?st.displayTime+' · ':'')+'Tap to view or rebook'):(nextNote+'30 min with Karl & Alex · Tap to open booking');
     if(a) a.style.color=st.booked?'#22c55e':'#f59e0b';
   }
+  syncWeekCardState();
 }
 function initCallNudge(){renderBookingPrompts();}
 function checkinWeekKey(){
@@ -61,14 +134,16 @@ function checkinWeekKey(){
 function initCheckinNudge(){
   var nudge=document.getElementById('checkinNudge');
   if(!nudge) return;
+  // Once this week's form is submitted the row has nothing left to say, so it
+  // unmounts rather than lingering as a completed state.
   var done=!!localStorage.getItem(checkinWeekKey());
   nudge.style.display=done?'none':'';
   var mobileDot=document.getElementById('mobileCheckinDot');if(mobileDot)mobileDot.classList.toggle('visible',!done);
+  syncWeekCardState();
 }
 function hideCheckinNudge(){
   localStorage.setItem(checkinWeekKey(),'1');
-  var nudge=document.getElementById('checkinNudge');
-  if(nudge) nudge.style.display='none';
+  dismissNudge(document.getElementById('checkinNudge'));
   var mobileDot=document.getElementById('mobileCheckinDot');if(mobileDot)mobileDot.classList.remove('visible');
 }
 function initPhotoNudge(){
@@ -79,17 +154,21 @@ function initPhotoNudge(){
   var angleKeys=['front','side','back','front_flexed','back_flexed'];
   var weekPhotos=photos['week'+week]||{};
   var complete=angleKeys.every(function(key){return !!weekPhotos[key];});
-  nudge.style.display=complete?'none':'';
+  // Completing the set while the athlete is looking at the row collapses it
+  // out; on a fresh load there is nothing to animate, so it is simply absent.
+  if(complete&&nudgeVisible(nudge)) dismissNudge(nudge);
+  else nudge.style.display=complete?'none':'';
   var dot=document.getElementById('tabDotProgress');
   if(dot) dot.classList.toggle('visible',!complete);
   var mobileDot=document.getElementById('mobileProgressDot');if(mobileDot)mobileDot.classList.toggle('visible',!complete);
+  syncWeekCardState();
 }
 function hidePhotoNudge(){
-  var nudge=document.getElementById('photoNudge');
-  if(nudge) nudge.style.display='none';
+  dismissNudge(document.getElementById('photoNudge'));
   var dot=document.getElementById('tabDotProgress');
   if(dot) dot.classList.remove('visible');
   var mobileDot=document.getElementById('mobileProgressDot');if(mobileDot)mobileDot.classList.remove('visible');
+  syncWeekCardState();
 }
 function openCallBooking(){
   switchTab('checkin');

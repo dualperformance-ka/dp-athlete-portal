@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=90">
+<link rel="stylesheet" href="/styles.css?v=91">
 <link rel="stylesheet" href="/desktop.css?v=4">
 <link rel="stylesheet" href="/icons.css?v=3">
 
@@ -256,7 +256,7 @@
       </div>
 
       <!-- FIRST-LOGIN GOALS — a compact home row, hidden once goals are saved. -->
-      <button type="button" class="nudge-strip goals-prompt" id="goalsBanner" onclick="switchTab('goals')" aria-label="Set your goals">
+      <button type="button" class="nudge-strip goals-prompt is-due" id="goalsBanner" onclick="switchTab('goals')" aria-label="Set your goals">
         <span class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-target"/></svg></span>
           <span class="nudge-strip-text">
@@ -268,7 +268,7 @@
       </button>
 
       <!-- NUDGE STRIP — call + photos -->
-      <div id="callNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)" onclick="openCallBooking()">
+      <div id="callNudge" class="nudge-strip is-due" style="display:none;border-top:1px solid rgba(255,255,255,.05)" onclick="openCallBooking()">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-calendar"/></svg></span>
           <div class="nudge-strip-text">
@@ -280,7 +280,7 @@
       </div>
 
       <!-- CHECK-IN NUDGE — disappears once submitted -->
-      <div id="checkinNudge" class="nudge-strip" style="display:none" onclick="switchTab('checkin')">
+      <div id="checkinNudge" class="nudge-strip is-due" style="display:none" onclick="switchTab('checkin')">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-clipboard"/></svg></span>
           <div class="nudge-strip-text">
@@ -292,7 +292,7 @@
       </div>
 
       <!-- CALL CONFIRMED NUDGE — compact, appears once call is booked, shows day/time -->
-      <div id="callConfirmedNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)">
+      <div id="callConfirmedNudge" class="nudge-strip is-done" style="display:none;border-top:1px solid rgba(255,255,255,.05)">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-check"/></svg></span>
           <div class="nudge-strip-text">
@@ -303,7 +303,7 @@
       </div>
 
       <!-- PHOTO NUDGE — hidden once this week's photos uploaded -->
-      <div id="photoNudge" class="nudge-strip" style="display:none" onclick="switchTab('progress')">
+      <div id="photoNudge" class="nudge-strip is-due" style="display:none" onclick="switchTab('progress')">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-camera"/></svg></span>
           <div class="nudge-strip-text">
@@ -1202,8 +1202,8 @@
 <script src="config.js"></script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=89"></script>
-<script src="js/02-login-goals.js?v=85"></script>
-<script src="js/03-nav-nudges.js?v=86"></script>
+<script src="js/02-login-goals.js?v=86"></script>
+<script src="js/03-nav-nudges.js?v=87"></script>
 <script src="js/04-checkin.js?v=84"></script>
 <script src="js/05-handbook.js?v=81"></script>
 <script src="js/06-nutrition.js?v=84"></script>
@@ -1211,6 +1211,6 @@
 <script src="js/08-training.js?v=92"></script>
 <script src="js/09-logging.js?v=90"></script>
 <script src="accessibility.js?v=1"></script>
-<script src="js/10-boot.js?v=87"></script>
+<script src="js/10-boot.js?v=88"></script>
 </body>
 </html>

@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v93'; // v93: sync and render athlete workout date overrides
+const CACHE_NAME = 'dp-athlete-v95'; // v94: readiness chip sizing + nudge due/done states + booking backlog
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=90', '/desktop.css?v=4', '/config.js',
+  '/index.html', '/styles.css?v=91', '/desktop.css?v=4', '/config.js',
   '/js/01-core.js?v=89',
-  '/js/02-login-goals.js?v=85',
-  '/js/03-nav-nudges.js?v=86',
+  '/js/02-login-goals.js?v=86',
+  '/js/03-nav-nudges.js?v=87',
   '/js/04-checkin.js?v=84',
   '/js/05-handbook.js?v=81',
   '/js/06-nutrition.js?v=84',
@@ -11,7 +11,7 @@ const APP_SHELL = [
   '/js/08-training.js?v=92',
   '/js/09-logging.js?v=90',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=87',
+  '/js/10-boot.js?v=88',
   '/login.js?v=47', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

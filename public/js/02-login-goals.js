@@ -132,6 +132,7 @@ function populateStatic(){
   var gBanner=document.getElementById('goalsBanner'),gDot=document.getElementById('goalsDot');
   if(gBanner) gBanner.style.display=goalsComplete?'none':'block';
   if(gDot) gDot.style.display=goalsComplete?'none':'inline-block';
+  if(typeof syncWeekCardState==='function') syncWeekCardState();
   if(saved.savedAt){
     var d=new Date(saved.savedAt);
     document.getElementById('goalsSavedTime').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -266,6 +267,7 @@ async function saveGoals(){
   var gBanner=document.getElementById('goalsBanner'),gDot=document.getElementById('goalsDot');
   if(gBanner) gBanner.style.display='none';
   if(gDot) gDot.style.display='none';
+  if(typeof syncWeekCardState==='function') syncWeekCardState();
   showToast(coachResult.queued?'Goals saved - coach dashboard sync pending':'Goals saved ✓');
   setTimeout(function(){btn.textContent='Save Goals';btn.classList.remove('saved');btn.disabled=false;},2500);
 }

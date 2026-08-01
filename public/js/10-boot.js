@@ -365,6 +365,7 @@ window.closeEnhancedModal = closeEnhancedModal;
             if (!ackRow || !ackRow.value || !ackRow.value.acked) {
               var banner = document.getElementById('strava-ack-banner');
               if (banner) banner.style.display = 'flex';
+              if (typeof syncWeekCardState === 'function') syncWeekCardState();
             }
           } catch(e) { /* silently skip banner on error */ }
         }
@@ -382,6 +383,7 @@ window.closeEnhancedModal = closeEnhancedModal;
 window.acknowledgeStrava = async function() {
   var banner = document.getElementById('strava-ack-banner');
   if (banner) banner.style.display = 'none';
+  if (typeof syncWeekCardState === 'function') syncWeekCardState();
   if (_authToken && window._stravaAthCode) {
     try {
       await portalStateWrite('strava_ack',{ acked: true, acked_at: new Date().toISOString() });

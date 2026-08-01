@@ -17,6 +17,10 @@ const ALLOWED_STATE_KEYS = [
   /^ex_picks$/,
   /^pending_writes$/,
   /^strava_ack$/,
+  // ISO week keys ("call_booked_2026_31") — the format the portal, the GHL
+  // webhook and the backlog sync all write. The old date form is kept so any
+  // historic row still round-trips.
+  /^call_booked_\d{4}_\d{2}$/,
   /^call_booked_\d{4}-\d{2}-\d{2}$/,
   /^checkin_[a-z0-9_-]{1,80}$/i,
   /^daily_body_\d{4}-\d{2}-\d{2}$/,

@@ -3,6 +3,10 @@
     {
       "path": "/api/reminders",
       "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/bookings?mode=sync",
+      "schedule": "0 15 * * *"
     }
   ],
   "headers": [

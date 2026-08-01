@@ -118,28 +118,63 @@ async function handleSync(req, res) {
   if (!locationId) return send(res, 500, { ok: false, error: 'GHL_LOCATION_ID not configured' });
   const calendarId = process.env.GHL_CALENDAR_ID || DEFAULT_CALENDAR;
 
-  // 7 days back (this week's already-happened call still counts) to 21 ahead.
-  const start = Date.now() - 7 * 86400000;
-  const end = Date.now() + 21 * 86400000;
+  // Backlog window. Defaults reach far enough back to pick up calls booked
+  // before this endpoint existed, so every athlete's history lands on the
+  // right week key. Override per-run with ?days_back=&days_ahead=.
+  const days = (value, fallback) => {
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, 400) : fallback;
+  };
+  const q = req.query || {};
+  const daysBack = days(q.days_back, 120);
+  const daysAhead = days(q.days_ahead, 60);
+  const start = Date.now() - daysBack * 86400000;
+  const end = Date.now() + daysAhead * 86400000;
 
   try {
-    const eventsRes = await ghl(
-      `/calendars/events?locationId=${encodeURIComponent(locationId)}&calendarId=${encodeURIComponent(calendarId)}&startTime=${start}&endTime=${end}`,
-      '2021-04-15'
-    );
-    const events = (eventsRes && (eventsRes.events || eventsRes.data)) || [];
+    // GHL's calendar events endpoint gets unreliable over long spans, so the
+    // range is walked in 30-day windows and the results concatenated.
+    const WINDOW = 30 * 86400000;
+    const events = [];
+    for (let from = start; from < end; from += WINDOW) {
+      const to = Math.min(from + WINDOW, end);
+      const eventsRes = await ghl(
+        `/calendars/events?locationId=${encodeURIComponent(locationId)}&calendarId=${encodeURIComponent(calendarId)}&startTime=${from}&endTime=${to}`,
+        '2021-04-15'
+      );
+      const batch = (eventsRes && (eventsRes.events || eventsRes.data)) || [];
+      for (const ev of batch) events.push(ev);
+    }
+    // De-duplicate across window overlaps, then process oldest first so the
+    // most recent booking wins when a week holds more than one appointment.
+    const seen = new Set();
+    const ordered = events
+      .filter((ev) => {
+        const id = ev.id || ev.eventId || `${ev.contactId}:${ev.startTime}`;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .sort((a, b) => new Date(a.startTime || a.start_time || 0) - new Date(b.startTime || b.start_time || 0));
 
     const roster = await select('athletes', { select: 'code,email,ghl_contact_id', limit: 500 });
     const byContact = {};
     const byEmail = {};
+    const unknownContacts = new Set();
     (roster || []).forEach((r) => {
       if (r.ghl_contact_id) byContact[r.ghl_contact_id] = r;
       if (r.email) byEmail[String(r.email).toLowerCase()] = r;
     });
 
-    const results = { events: events.length, updated: [], skipped: 0, unmatched: [] };
+    const results = {
+      window: { from: new Date(start).toISOString(), to: new Date(end).toISOString() },
+      events: ordered.length,
+      updated: [],
+      skipped: 0,
+      unmatched: [],
+    };
 
-    for (const ev of events) {
+    for (const ev of ordered) {
       const status = String(ev.appointmentStatus || ev.appoinmentStatus || '').toLowerCase();
       if (status && SKIP_STATUSES.has(status)) { results.skipped++; continue; }
       const startRaw = ev.startTime || ev.start_time || ev.startTimestamp;
@@ -149,7 +184,9 @@ async function handleSync(req, res) {
       const contactId = ev.contactId || ev.contact_id || '';
       let athlete = contactId ? byContact[contactId] : null;
 
-      if (!athlete && contactId) {
+      // A long backlog window can hold dozens of events for contacts who are
+      // not on the roster; the negative cache keeps that to one lookup each.
+      if (!athlete && contactId && !unknownContacts.has(contactId)) {
         try {
           const contactRes = await ghl(`/contacts/${encodeURIComponent(contactId)}`, '2021-07-28');
           const email = String((contactRes && contactRes.contact && contactRes.contact.email) || '').toLowerCase();
@@ -159,10 +196,12 @@ async function handleSync(req, res) {
               await patch('athletes', { code: `eq.${athlete.code}` }, { ghl_contact_id: contactId });
               byContact[contactId] = athlete;
             } catch (e) { console.warn('[bookings sync] contact id backfill failed:', e.message); }
-          } else if (email) {
-            results.unmatched.push(email);
+          } else {
+            unknownContacts.add(contactId);
+            if (email) results.unmatched.push(email);
           }
         } catch (e) {
+          unknownContacts.add(contactId);
           console.warn('[bookings sync] contact lookup failed:', e.message);
         }
       }
@@ -173,6 +212,7 @@ async function handleSync(req, res) {
       results.updated.push({ code: athlete.code, ...stored });
     }
 
+    results.unmatched = [...new Set(results.unmatched)];
     return send(res, 200, { ok: true, ...results });
   } catch (e) {
     console.error('[bookings sync] failed:', e && e.message);
