@@ -68,6 +68,13 @@ for (const id of ['trainingVolumeStrip', 'weeklyVolumeStrip']) {
 if (!index.includes('class="save-state-pill saved"')) {
   failures.push('Mobile sync confirmation should start in its quiet saved state');
 }
+const homePriorityIndex = index.indexOf('class="top-shell-priority week-card"');
+const goalsPromptIndex = index.indexOf('id="goalsBanner"');
+const trainingTabIndex = index.indexOf('id="tab-training"');
+if (homePriorityIndex < 0 || goalsPromptIndex < homePriorityIndex ||
+    (trainingTabIndex >= 0 && goalsPromptIndex > trainingTabIndex)) {
+  failures.push('The first-login goals prompt must stay in the compact home priority card');
+}
 if (!styles.includes('.save-state-pill.saved{opacity:0;pointer-events:none}')) {
   failures.push('Successful mobile sync status should not float over portal content');
 }

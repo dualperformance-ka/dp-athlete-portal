@@ -446,7 +446,7 @@ const STR = {
     {"exercise":"Bulgarian Split Squat","sets":"3","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Dumbbell Bulgarian Split Squat","Hack Squat"]},
     {"exercise":"Seated Hamstring Curl","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up","alts":["Lying Leg Curl"]},
     {"exercise":"Barbell Romanian Dead Lift","sets":"3","reps":"8","repRange":"6-10","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Dumbbell Romanian Deadlift"]},
-    {"exercise":"Adduction Machine","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":""},
+    {"exercise":"Adduction Machine","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Cable Hip Adduction"],"leftRightExercises":["Cable Hip Adduction"]},
     {"exercise":"Standing Calf Raise","sets":"4","reps":"8","repRange":"10-15","warmupSets":"1","workingSets":"3","rest":"90s","notes":"","alts":["Seated Calf Raise"]},
     {"exercise":"Cable Abdominal Crunch","sets":"3","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"3","rest":"90s","notes":""}
   ],
@@ -558,7 +558,7 @@ function usesLeftRightReps(exerciseName,prescription){
   if(prescription&&prescription.repMode==='left_right'&&normaliseExerciseName(prescription.exercise)===normalised)return true;
   // Backward-compatible fallback for older split data and athlete-specific
   // variants that have not yet received explicit Supabase rep-mode metadata.
-  return /(?:\bsingle (?:leg|arm)\b|\bone arm\b|\bunilateral\b|\bsplit squat\b|\blunges?\b|\bstep (?:up|down)\b|\bkickbacks?\b|\bcopenhagen plank\b|\bdumbbell row\b|\bcable (?:hip abduction|adduction|lateral raise)\b)/i.test(normalised);
+  return /(?:\bsingle (?:leg|arm)\b|\bone arm\b|\bunilateral\b|\bsplit squat\b|\blunges?\b|\bstep (?:up|down)\b|\bkickbacks?\b|\bcopenhagen plank\b|\bdumbbell row\b|\bcable (?:hip (?:abduction|adduction)|adduction|lateral raise)\b)/i.test(normalised);
 }
 function getType(s){
   var t=(s.sessionType||'').toLowerCase(),n=(s.name||'').toLowerCase();

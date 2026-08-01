@@ -28,7 +28,8 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .hicon-goals:hover,.hicon-accent:hover{border-color:#92d2ed;color:#aadcf2}
 .hicon-dot{width:6px;height:6px;border-radius:50%;background:#92d2ed;flex-shrink:0;animation:pdot 2s ease-in-out infinite}
 @keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.65)}}
-.goals-prompt{background: rgba(255,255,255,0.06);border:1px solid rgba(146,210,237,.25);border-radius:12px;padding:18px 16px;margin-bottom:16px;display:none}
+.goals-prompt{width:100%;display:none;font:inherit;color:inherit;text-align:left;-webkit-appearance:none;appearance:none}
+.goals-prompt .nudge-strip-title,.goals-prompt .nudge-strip-sub{display:block}
 .goals-prompt-label{font-family:var(--mono);font-size:9px;color:#92d2ed;text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px}
 .goals-prompt-title{font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;margin-bottom:6px}
 .goals-prompt-sub{font-size:13px;color:rgba(255,255,255,.5);line-height:1.5;margin-bottom:14px}

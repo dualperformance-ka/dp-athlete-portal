@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 89,
-    "sha": "6dd23ad355b4"
+    "version": 90,
+    "sha": "86fe7ad331fb"
   },
   "desktop.css": {
     "version": 4,
@@ -16,8 +16,8 @@
     "sha": "c8d6e79467a0"
   },
   "js/01-core.js": {
-    "version": 87,
-    "sha": "2a6578e884cb"
+    "version": 88,
+    "sha": "1c53aefe4676"
   },
   "js/02-login-goals.js": {
     "version": 85,

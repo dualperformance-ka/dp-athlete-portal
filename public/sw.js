@@ -1,7 +1,7 @@
 const CACHE_NAME = 'dp-athlete-v92'; // v92: remove stale assets and refresh the primary logo reference
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=89', '/desktop.css?v=4', '/config.js',
-  '/js/01-core.js?v=87',
+  '/index.html', '/styles.css?v=90', '/desktop.css?v=4', '/config.js',
+  '/js/01-core.js?v=88',
   '/js/02-login-goals.js?v=85',
   '/js/03-nav-nudges.js?v=85',
   '/js/04-checkin.js?v=84',

@@ -12,6 +12,12 @@ const context = {};
 vm.createContext(context);
 vm.runInContext(source.slice(start, end), context);
 
+const strengthStart = source.indexOf('const STR = ');
+const strengthEnd = source.indexOf('\n\n// ── RUN LIBRARY', strengthStart);
+const strengthContext = {};
+vm.createContext(strengthContext);
+vm.runInContext(`${source.slice(strengthStart, strengthEnd)};this.STR=STR;`, strengthContext);
+
 test('female unilateral movements use left/right reps', () => {
   [
     'Bulgarian Split Squat',
@@ -21,11 +27,22 @@ test('female unilateral movements use left/right reps', () => {
     'Cable Glute Kickback',
     'Cable Hip Abduction',
     'Cable Adduction',
+    'Cable Hip Adduction',
     'Cable Lateral Raise',
     'Dumbbell Row',
     'Copenhagen Plank',
     'Single Leg Curl',
   ].forEach((name) => assert.equal(context.usesLeftRightReps(name), true, name));
+});
+
+test('Lower A offers cable hip adduction with separate left/right reps', () => {
+  const adduction = strengthContext.STR['Lower A'].find(
+    (exercise) => exercise.exercise === 'Adduction Machine'
+  );
+  assert.ok(adduction);
+  assert.deepEqual(Array.from(adduction.alts), ['Cable Hip Adduction']);
+  assert.deepEqual(Array.from(adduction.leftRightExercises), ['Cable Hip Adduction']);
+  assert.equal(context.usesLeftRightReps('Cable Hip Adduction', adduction), true);
 });
 
 test('female bilateral movements keep one reps field', () => {

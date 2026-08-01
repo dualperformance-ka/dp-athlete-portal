@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=89">
+<link rel="stylesheet" href="/styles.css?v=90">
 <link rel="stylesheet" href="/desktop.css?v=4">
 <link rel="stylesheet" href="/icons.css?v=3">
 
@@ -255,6 +255,18 @@
         <button id="strava-ack-btn" onclick="acknowledgeStrava()" style="background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">Got it</button>
       </div>
 
+      <!-- FIRST-LOGIN GOALS — a compact home row, hidden once goals are saved. -->
+      <button type="button" class="nudge-strip goals-prompt" id="goalsBanner" onclick="switchTab('goals')" aria-label="Set your goals">
+        <span class="nudge-strip-inner">
+          <span class="nudge-strip-icon"><svg class="icon"><use href="#i-target"/></svg></span>
+          <span class="nudge-strip-text">
+            <span class="nudge-strip-title">Set your goals</span>
+            <span class="nudge-strip-sub">Personalise your plan · about 2 min</span>
+          </span>
+          <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
+        </span>
+      </button>
+
       <!-- NUDGE STRIP — call + photos -->
       <div id="callNudge" class="nudge-strip" style="display:none;border-top:1px solid rgba(255,255,255,.05)" onclick="openCallBooking()">
         <div class="nudge-strip-inner">
@@ -335,12 +347,6 @@
       <div class="page-kicker">Today</div>
       <div class="page-title">Today's Plan</div>
       <div class="page-copy">A focused daily command center for execution, logging, and coach context.</div>
-    </div>
-    <div class="goals-prompt" id="goalsBanner">
-      <div class="goals-prompt-label">Start here</div>
-      <div class="goals-prompt-title">Set your goals first</div>
-      <div class="goals-prompt-sub">Karl & Alex build everything around your targets. Takes 2 minutes — do this before anything else. This banner disappears once you save.</div>
-      <button class="goals-prompt-btn" onclick="switchTab('goals')">Set my goals <svg class="icon"><use href="#i-arrow-right"/></svg></button>
     </div>
     <div class="loading" id="loadingEl">
       <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
@@ -1195,7 +1201,7 @@
 
 <script src="config.js"></script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=87"></script>
+<script src="js/01-core.js?v=88"></script>
 <script src="js/02-login-goals.js?v=85"></script>
 <script src="js/03-nav-nudges.js?v=85"></script>
 <script src="js/04-checkin.js?v=84"></script>
