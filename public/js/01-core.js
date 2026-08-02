@@ -333,7 +333,7 @@ async function loadCloudData(code){
   try{
     var result=await portalRequest('state-read');
     var rows=result.rows||[];
-    if(!rows.length){_skipSbSync=false;return;}
+    var structuredCheckins=result.checkins||[];
     // Build a set of keys that exist in Supabase
     var cloudKeys={};
     rows.forEach(function(row){cloudKeys[row.key]=row.value;});
@@ -374,11 +374,37 @@ async function loadCloudData(code){
       else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);
       else if(row.key==='ex_picks') lsKey='dp_ex_picks_'+code;
       else if(row.key.startsWith('call_booked_')) lsKey='dp_call_booked_'+(code?code.toUpperCase()+'_':'')+row.key.slice('call_booked_'.length);
-      else if(row.key.startsWith('checkin_')) lsKey='dp_checkin_'+row.key.slice('checkin_'.length);
       else if(row.key==='pending_writes') lsKey=pendingCoachWritesKey(code);
       if(!lsKey||!row.value) return;
       localStorage.setItem(lsKey,JSON.stringify(row.value));
     });
+    // Rebuild this athlete's completion cache exclusively from structured
+    // weekly_checkins (plus a locally queued submission). Old releases used a
+    // shared dp_checkin_YYYY_WW key and mirrored it through athlete_data; both
+    // could create false positives across athletes or after failed submits.
+    var checkinPrefix='dp_checkin_'+String(code||'').toUpperCase()+'_';
+    try{
+      var remove=[];
+      for(var _ci=0;_ci<localStorage.length;_ci++){
+        var _cik=localStorage.key(_ci);if(_cik&&_cik.indexOf(checkinPrefix)===0)remove.push(_cik);
+      }
+      remove.forEach(function(key){localStorage.removeItem(key);});
+      structuredCheckins.forEach(function(row){
+        var ending=String(row.week_ending||'');
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(ending)){
+          var match=String(row.week_key||'').match(/week_ending_(\d{4}-\d{2}-\d{2})/);
+          ending=match?match[1]:'';
+        }
+        if(!ending)return;
+        localStorage.setItem(checkinPrefix+checkinWeekSuffix(localDateFromISO(ending)),JSON.stringify({submittedAt:row.submitted_at||'',weekEnding:ending}));
+      });
+      // An offline submission is still work the athlete has completed. Keep
+      // its nudge quiet while the existing outbox retries the canonical write.
+      readPendingCoachWrites(code).forEach(function(item){
+        var p=item&&item.payload;if(!p||p.type!=='weekly_checkin'||!p.weekEnding)return;
+        localStorage.setItem(checkinPrefix+checkinWeekSuffix(localDateFromISO(p.weekEnding)),JSON.stringify({queued:true,weekEnding:p.weekEnding}));
+      });
+    }catch(e){console.warn('Check-in completion hydration failed',e);}
     // Backfill: if photos exist locally but not in Supabase, push them up now
     if(!cloudKeys['photos']){
       var localPhotos=localStorage.getItem('dp_photos_'+code);

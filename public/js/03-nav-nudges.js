@@ -127,9 +127,8 @@ function renderBookingPrompts(){
   syncWeekCardState();
 }
 function initCallNudge(){renderBookingPrompts();}
-function checkinWeekKey(){
-  var now=new Date();
-  var d=new Date(now);d.setHours(0,0,0,0);
+function checkinWeekSuffix(date){
+  var d=new Date(date||new Date());d.setHours(0,0,0,0);
   // Grace window: a Mon/Tue submission reports on the week that just finished,
   // so anchor the key to that week too (matches the Week Ending default in
   // initCheckin). Shift the reference date back into the previous week before
@@ -141,7 +140,15 @@ function checkinWeekKey(){
   var w1=new Date(d.getFullYear(),0,4);
   var isoWeek=1+Math.round(((d-w1)/86400000-3+(w1.getDay()+6)%7)/7);
   var isoYear=d.getFullYear();
-  return'dp_checkin_'+isoYear+'_'+(isoWeek<10?'0':'')+isoWeek;
+  return isoYear+'_'+(isoWeek<10?'0':'')+isoWeek;
+}
+function checkinStateKey(date){return'checkin_'+checkinWeekSuffix(date);}
+function checkinWeekKey(date){
+  // The browser cache must be athlete-scoped. Coaches commonly open several
+  // client portals on one device; the old unscoped dp_checkin_2026_31 key let
+  // one athlete's submission hide every other athlete's nudge that week.
+  var acode=(athlete&&athlete.code)?String(athlete.code).toUpperCase()+'_':'';
+  return'dp_checkin_'+acode+checkinWeekSuffix(date);
 }
 function initCheckinNudge(){
   var nudge=document.getElementById('checkinNudge');

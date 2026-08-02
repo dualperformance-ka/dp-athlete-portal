@@ -28,7 +28,7 @@ function ciStep(dir){ciGoStep(CI_STEP+dir);}
 // ── CHECK-IN DRAFTS + CONSENT ─────────────────────────────────────────────────
 var CI_DRAFT_FIELDS=['ciName','ciWeekEnding','ciRunComp','ciRunPlan','ciRunKm','ciRunFeel','ciRunWins','ciRunNiggles','ciLiftComp','ciLiftPlan','ciLiftFeel','ciLiftWins','ciLiftNiggles','ciSleep','ciEnergy','ciSoreness','ciNut','ciFuelling','ciStress','ciMot','ciSocial','ciNotes','ciTestimonial'];
 var _ciDraftTimer=null,_ciDraftHooked=false;
-function ciDraftKey(){return 'dp_ci_draft_'+((athlete&&athlete.code)||'default')+'_'+checkinWeekKey().slice('dp_checkin_'.length);}
+function ciDraftKey(){return 'dp_ci_draft_'+((athlete&&athlete.code)||'default')+'_'+checkinWeekSuffix();}
 function draftCheckin(){
   if(_ciDraftTimer)clearTimeout(_ciDraftTimer);
   _ciDraftTimer=setTimeout(saveCiDraft,400);
@@ -127,15 +127,11 @@ async function submitCheckin(){
     socialEating:document.getElementById('ciSocial').value||'None',stress:document.getElementById('ciStress').value,
     motivation:document.getElementById('ciMot').value,upcomingImpact:document.getElementById('ciNotes').value||'',
     testimonial:document.getElementById('ciTestimonial').value||''};
-  var sbCiKey='checkin_'+checkinWeekKey().slice('dp_checkin_'.length);
-  localStorage.setItem('dp_'+sbCiKey,JSON.stringify(payload));
-  if(_authToken&&athlete&&athlete.code){
-    try{
-      portalStateWrite(sbCiKey,payload).catch(function(err){console.warn('Checkin sync failed:',err);});
-    }catch(e){console.warn('Checkin sync failed:',e);}
-  }
   try{
     var checkinResult=await coachWrite(CHECKIN_WEBHOOK,Object.assign({type:'weekly_checkin'},payload));
+    // Mark completion only after the form has been accepted or safely queued.
+    // Previously the cache was written before /api/ingest ran, so a failed or
+    // abandoned submission could suppress the nudge without a real check-in.
     hideCheckinNudge();
     clearCiDraft();
     document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';

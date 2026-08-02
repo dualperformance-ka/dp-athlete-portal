@@ -16,20 +16,20 @@
     "sha": "c8d6e79467a0"
   },
   "js/01-core.js": {
-    "version": 90,
-    "sha": "67960a876272"
+    "version": 91,
+    "sha": "f93cff6b7db3"
   },
   "js/02-login-goals.js": {
     "version": 87,
     "sha": "c25f51a7c78b"
   },
   "js/03-nav-nudges.js": {
-    "version": 88,
-    "sha": "52c90880c3be"
+    "version": 89,
+    "sha": "cfe275240087"
   },
   "js/04-checkin.js": {
-    "version": 84,
-    "sha": "6eefd327f174"
+    "version": 85,
+    "sha": "c7a912fc2a65"
   },
   "js/05-handbook.js": {
     "version": 81,

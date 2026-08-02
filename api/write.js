@@ -66,15 +66,28 @@ function assertValueSize(value) {
   }
 }
 
-async function stateRead(code) {
-  const rows = await select('athlete_data', {
-    athlete_code: `eq.${code}`,
-    key: 'neq.strava_tokens',
-    select: 'key,value,updated_at',
-    order: 'updated_at.asc',
-    limit: '1000',
-  });
-  return { rows: Array.isArray(rows) ? rows : [] };
+export async function stateRead(code, selectRows = select) {
+  const [stateRows, checkins] = await Promise.all([
+    selectRows('athlete_data', {
+      athlete_code: `eq.${code}`,
+      key: 'neq.strava_tokens',
+      select: 'key,value,updated_at',
+      order: 'updated_at.asc',
+      limit: '1000',
+    }),
+    // weekly_checkins is the coach-facing source of truth. Returning its
+    // completion dates prevents a stale athlete_data cache flag from hiding a
+    // form that was never actually submitted.
+    selectRows('weekly_checkins', {
+      athlete_code: `eq.${code}`,
+      select: 'week_key,week_ending,submitted_at',
+      order: 'submitted_at.desc',
+      limit: '100',
+    }),
+  ]);
+  const rows = (Array.isArray(stateRows) ? stateRows : [])
+    .filter((row) => !String(row.key || '').startsWith('checkin_'));
+  return { rows, checkins: Array.isArray(checkins) ? checkins : [] };
 }
 
 async function stateWrite(code, body) {
