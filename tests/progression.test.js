@@ -164,3 +164,29 @@ test('legacy logs without row metadata keep the first programmed sets', () => {
   const working = context.getWorkingSlice(bilateral, historical);
   assert.deepEqual(Array.from(working, (entry) => entry.reps), ['10', '9']);
 });
+
+test('exercise history follows the exercise across splits and name formatting', () => {
+  context.allSessions = [
+    { id: 'upper-a-old', date: '2026-06-01' },
+    { id: 'full-body-new', date: '2026-07-01' }
+  ];
+  // Deliberately insert the newer session first: selection must follow session
+  // dates, not object insertion order or split name.
+  context.logs = {
+    'full-body-new': {
+      '  INCLINE   DUMBBELL PRESS ': [{ weight: '25', reps: '9' }],
+      __sessionDate: '2026-07-01'
+    },
+    'upper-a-old': {
+      'Incline Dumbbell Press': [{ weight: '22.5', reps: '10' }],
+      __sessionDate: '2026-06-01'
+    }
+  };
+
+  const previous = context.getExercisePreviousEffort('current-lower', 'Incline Dumbbell Press');
+  const history = context.getExerciseHistory('current-lower', 'incline dumbbell press');
+
+  assert.equal(previous[0].weight, '25');
+  assert.deepEqual(Array.from(history, (entry) => entry.sessionId), ['full-body-new', 'upper-a-old']);
+  assert.deepEqual(Array.from(history, (entry) => entry.sets[0].weight), ['25', '22.5']);
+});

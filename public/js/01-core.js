@@ -67,9 +67,6 @@ function initAuthStateListener(){
     var method=localStorage.getItem('dp_auth_method');
     if(session&&session.access_token)_authToken=session.access_token;
     else if(method==='email')_authToken=null;
-    // Email-authed athletes get a visible logout (legacy keeps it coach-only
-    // via the ?code= link — unchanged).
-    if(_authToken){var lb=document.getElementById('logoutBtn');if(lb)lb.style.display='';}
     // Refresh failed / signed out elsewhere while the portal is open: fall
     // back to the login screen's email panel with a friendly recovery path
     // ("send a new code") instead of silently 401-ing in the background.

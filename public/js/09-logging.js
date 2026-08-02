@@ -150,6 +150,28 @@ function showRunSaved(i,d){
   lockSaveButton(i,'Save session');
 }
 var _draftGymTimer=null;
+function strengthSessionDate(i,s){
+  var el=document.getElementById('gym_date_'+i);
+  return (el&&el.value)||(s&&s.date)||new Date().toISOString().slice(0,10);
+}
+function mergeStrengthLog(previous,current,meta){
+  var merged={};
+  Object.keys(previous||{}).forEach(function(key){
+    if(key.indexOf('__')!==0&&Array.isArray(previous[key])) merged[key]=previous[key];
+  });
+  Object.keys(current||{}).forEach(function(key){
+    if(key.indexOf('__')===0||!Array.isArray(current[key])) return;
+    var target=exerciseHistoryKey(key);
+    Object.keys(merged).forEach(function(oldKey){
+      if(exerciseHistoryKey(oldKey)===target&&oldKey!==key) delete merged[oldKey];
+    });
+    merged[key]=current[key];
+  });
+  Object.keys(meta||{}).forEach(function(key){
+    if(meta[key]!==undefined&&meta[key]!==null&&meta[key]!=='') merged[key]=meta[key];
+  });
+  return merged;
+}
 function draftGym(i,splitKey){
   // Instant coaching feedback: recompute the recommendation, milestone, PBs,
   // volume and e1RM straight from the DOM on every keystroke (no wait for save).
@@ -161,7 +183,7 @@ function draftGym(i,splitKey){
   if(_draftGymTimer) clearTimeout(_draftGymTimer);
   _draftGymTimer=setTimeout(function(){persistGymDraft(i,splitKey);},250);
 }
-function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;var previous=logs[s.id]||{};var exercises=getSplit(splitKey);var log={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;log[useName]=arr;});var gnEl=document.getElementById('gn_'+i);if(gnEl) log.__notes=gnEl.value;if(previous.__submittedAt) log.__submittedAt=previous.__submittedAt;logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);setGymSubmissionStatus(i,gymDraftHasData(log)?'draft':'hidden');try{markInlinePbs(i,splitKey);}catch(e){}}
+function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;var previous=logs[s.id]||{};var exercises=getSplit(splitKey);var current={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;current[useName]=arr;});var gnEl=document.getElementById('gn_'+i);var meta={__sessionDate:strengthSessionDate(i,s),__updatedAt:new Date().toISOString()};if(gnEl)meta.__notes=gnEl.value;if(previous.__submittedAt)meta.__submittedAt=previous.__submittedAt;var log=mergeStrengthLog(previous,current,meta);logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);setGymSubmissionStatus(i,gymDraftHasData(log)?'draft':'hidden');try{markInlinePbs(i,splitKey);}catch(e){}}
 
 // ── NOTE-ONLY SESSION (discovery week "train as normal" + log notes) ──────────
 function draftNote(i){
@@ -276,7 +298,7 @@ function pbNum(v){var n=parseFloat(v);return isNaN(n)?null:n;}
 // whitespace, trim. Keeps each exercise's PB history bound to the same exercise even
 // if the name is logged with different casing or stray spaces ("Bench Press" /
 // "bench  press " all fold together). Does NOT merge genuinely different exercises.
-function pbNormName(n){return String(n==null?'':n).toLowerCase().replace(/\s+/g,' ').trim();}
+function pbNormName(n){return exerciseHistoryKey(n);}
 function pbRound1(n){return Math.round(n*10)/10;}
 function pbE1rm(w,r){if(r<1||r>10) return null;return w*36/(37-r);}
 function pbCleanSets(sets){
@@ -435,13 +457,14 @@ function markInlinePbs(i,splitKey){
 
 async function saveGym(i,splitKey){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
-  var s=sessions[i],exercises=getSplit(splitKey),log={};
+  var s=sessions[i],exercises=getSplit(splitKey),previous=logs[s.id]||{},log={};
   exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;if(sets.length) log[useName]=sets;});
   var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
   if(gymNotes) log.__notes=gymNotes;
-  logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
-  try{await portalStateWrite('logs',logs);}catch(e){}
   var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:(s.date||new Date().toISOString().slice(0,10));
+  var storedLog=mergeStrengthLog(previous,log,{__notes:gymNotes,__sessionDate:gymDate,__updatedAt:new Date().toISOString()});
+  logs[s.id]=storedLog;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
+  try{await portalStateWrite('logs',logs);}catch(e){}
   var pbHits=[];try{pbHits=detectSessionPBs(s.id,log);}catch(e){console.warn('PB detection failed:',e);}
   function setSummary(st,si){
     var reps=(st.reps!==undefined&&st.reps!==null&&st.reps!=='')?(st.reps+'reps'):'';

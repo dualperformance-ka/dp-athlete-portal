@@ -1,7 +1,5 @@
 // ── INIT ──────────────────────────────────────────────────────────────────────
 var urlCode=new URLSearchParams(location.search).get('code');
-// Sign-out is coach-only: the dashboard opens the portal with ?code=, athletes launch the installed app without it.
-if(urlCode){var _lb=document.getElementById('logoutBtn');if(_lb)_lb.style.display='';}
 // Session-aware boot: resolve the Supabase auth session FIRST so an
 // email-migrated athlete reopening the PWA goes straight to the portal (no
 // login flash). Legacy athletes have no session and fall through to the

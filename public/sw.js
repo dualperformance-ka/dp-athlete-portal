@@ -1,17 +1,17 @@
-const CACHE_NAME = 'dp-athlete-v96'; // v94: readiness chip sizing + nudge due/done states + booking backlog
+const CACHE_NAME = 'dp-athlete-v98'; // v98: access-code coaches get Contact sign-out; email athletes do not
 const APP_SHELL = [
   '/index.html', '/styles.css?v=91', '/desktop.css?v=4', '/config.js',
-  '/js/01-core.js?v=89',
-  '/js/02-login-goals.js?v=86',
+  '/js/01-core.js?v=90',
+  '/js/02-login-goals.js?v=87',
   '/js/03-nav-nudges.js?v=88',
   '/js/04-checkin.js?v=84',
   '/js/05-handbook.js?v=81',
   '/js/06-nutrition.js?v=84',
   '/js/07-progress.js?v=85',
-  '/js/08-training.js?v=92',
-  '/js/09-logging.js?v=90',
+  '/js/08-training.js?v=93',
+  '/js/09-logging.js?v=91',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=88',
+  '/js/10-boot.js?v=90',
   '/login.js?v=47', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

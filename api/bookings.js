@@ -19,7 +19,7 @@
 // backfill ghl_contact_id onto the roster row for instant future matching.
 
 import { select, patch } from './_lib/supabase-rest.js';
-import { storeCallBooked } from './_lib/booking.js';
+import { storeCallBooked, isoWeekKey, adelaideDate, displayTime } from './_lib/booking.js';
 import crypto from 'node:crypto';
 
 const GHL_BASE = 'https://services.leadconnectorhq.com';
@@ -130,12 +130,18 @@ async function handleSync(req, res) {
   const daysAhead = days(q.days_ahead, 60);
   const start = Date.now() - daysBack * 86400000;
   const end = Date.now() + daysAhead * 86400000;
+  // ?debug=1 reports what was actually queried and what came back; ?dry_run=1
+  // matches athletes without writing. "Nothing happened" is otherwise
+  // indistinguishable from "wrong calendar" or "token can't see the calendar".
+  const debug = String(q.debug || '') === '1';
+  const dryRun = String(q.dry_run || '') === '1';
 
   try {
     // GHL's calendar events endpoint gets unreliable over long spans, so the
     // range is walked in 30-day windows and the results concatenated.
     const WINDOW = 30 * 86400000;
     const events = [];
+    const windows = [];
     for (let from = start; from < end; from += WINDOW) {
       const to = Math.min(from + WINDOW, end);
       const eventsRes = await ghl(
@@ -143,6 +149,16 @@ async function handleSync(req, res) {
         '2021-04-15'
       );
       const batch = (eventsRes && (eventsRes.events || eventsRes.data)) || [];
+      if (debug) {
+        windows.push({
+          from: new Date(from).toISOString().slice(0, 10),
+          to: new Date(to).toISOString().slice(0, 10),
+          count: batch.length,
+          // If GHL nests events under a key we don't read, the payload keys
+          // reveal it immediately rather than silently yielding zero.
+          payloadKeys: batch.length ? undefined : Object.keys(eventsRes || {}),
+        });
+      }
       for (const ev of batch) events.push(ev);
     }
     // De-duplicate across window overlaps, then process oldest first so the
@@ -168,11 +184,24 @@ async function handleSync(req, res) {
 
     const results = {
       window: { from: new Date(start).toISOString(), to: new Date(end).toISOString() },
+      calendarId,
+      calendarSource: process.env.GHL_CALENDAR_ID ? 'env' : 'default',
+      rosterWithContactId: Object.keys(byContact).length,
+      dryRun,
       events: ordered.length,
       updated: [],
       skipped: 0,
       unmatched: [],
     };
+    if (debug) {
+      results.windows = windows;
+      results.sample = ordered.slice(0, 5).map((ev) => ({
+        contactId: ev.contactId || ev.contact_id || null,
+        startTime: ev.startTime || ev.start_time || null,
+        status: ev.appointmentStatus || ev.appoinmentStatus || null,
+        onRoster: !!byContact[ev.contactId || ev.contact_id],
+      }));
+    }
 
     for (const ev of ordered) {
       const status = String(ev.appointmentStatus || ev.appoinmentStatus || '').toLowerCase();
@@ -208,8 +237,12 @@ async function handleSync(req, res) {
 
       if (!athlete) { if (!contactId) results.unmatched.push('(no contact on event)'); continue; }
 
-      const stored = await storeCallBooked(athlete.code, startDate);
-      results.updated.push({ code: athlete.code, ...stored });
+      if (dryRun) {
+        results.updated.push({ code: athlete.code, key: isoWeekKey(adelaideDate(startDate)), value: displayTime(startDate) });
+      } else {
+        const stored = await storeCallBooked(athlete.code, startDate);
+        results.updated.push({ code: athlete.code, ...stored });
+      }
     }
 
     results.unmatched = [...new Set(results.unmatched)];

@@ -96,6 +96,11 @@ async function doLogin(code){
   hideLoginSuccess();
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('portalScreen').style.display='block';
+  // Coaches authenticate with an athlete access code; clients use email OTP.
+  // Keep sign-out available to coaches inside Contact without exposing it in
+  // the athlete experience.
+  var coachLogout=document.getElementById('coachLogoutBtn');
+  if(coachLogout)coachLogout.style.display=localStorage.getItem('dp_auth_method')==='code'?'flex':'none';
   document.getElementById('quicklogStrip').style.display='flex';
   try{syncQuickLogDock();}catch(e){}
   document.getElementById('heroName').textContent=athlete.name;

@@ -914,10 +914,32 @@ function scrollToSession(idx){
   setTimeout(function(){card.scrollIntoView({behavior:'smooth',block:'start'});},60);
 }
 
+// Exercise progress belongs to the athlete + exercise, never to a programme
+// split. Normalising only case and whitespace keeps genuine exercise variants
+// separate while allowing a coach to move/recase the same exercise safely.
+function exerciseHistoryKey(name){
+  return String(name==null?'':name).toLowerCase().replace(/\s+/g,' ').trim();
+}
+function getExerciseSetsFromLog(entry,exerciseName){
+  if(!entry||typeof entry!=='object'||Array.isArray(entry)) return null;
+  var target=exerciseHistoryKey(exerciseName),match=null;
+  Object.keys(entry).some(function(key){
+    if(key.indexOf('__')===0||exerciseHistoryKey(key)!==target||!Array.isArray(entry[key])) return false;
+    match=entry[key];return true;
+  });
+  return match;
+}
+function strengthLogHasSetData(set){
+  return !!(set&&(
+    (set.weight&&String(set.weight).trim()!=='')||
+    (set.reps&&String(set.reps).trim()!=='')||
+    (set.repsLeft&&String(set.repsLeft).trim()!=='')||
+    (set.repsRight&&String(set.repsRight).trim()!=='')
+  ));
+}
 function getExercisePreviousEffort(sessionId,exerciseName){
-  var prevEffort=null;var allSessIds=Object.keys(logs||{});
-  for(var li=allSessIds.length-1;li>=0;li--){var lid=allSessIds[li];if(lid===sessionId) continue;var ldata=logs[lid];if(ldata&&ldata[exerciseName]&&ldata[exerciseName].length){var lsets=ldata[exerciseName].filter(function(ls){return ls&&((ls.weight&&String(ls.weight).trim()!=='')||(ls.reps&&String(ls.reps).trim()!==''));});if(lsets.length){prevEffort=lsets;break;}}}
-  return prevEffort;
+  var history=getExerciseHistory(sessionId,exerciseName);
+  return history.length?history[0].sets:null;
 }
 // Full history for one exercise across every logged session (excluding the current
 // one), newest first. Feeds multi-session smarts like stall detection. Mirrors the
@@ -928,12 +950,18 @@ function getExerciseHistory(sessionId,exerciseName){
   Object.keys(logs||{}).forEach(function(sid){
     if(sid.indexOf('__')===0||sid===String(sessionId)) return;
     var entry=logs[sid];if(!entry||typeof entry!=='object'||Array.isArray(entry)) return;
-    var sets=entry[exerciseName];if(!Array.isArray(sets)||!sets.length) return;
-    var clean=sets.filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});
+    var sets=getExerciseSetsFromLog(entry,exerciseName);if(!Array.isArray(sets)||!sets.length) return;
+    var clean=sets.filter(strengthLogHasSetData);
     if(!clean.length) return;
-    out.push({date:dateById[sid]||null,sets:clean});
+    var sessionDate=String(entry.__sessionDate||dateById[sid]||entry.__submittedAt||'').slice(0,10)||null;
+    var updatedAt=Date.parse(entry.__updatedAt||entry.__submittedAt||sessionDate||'')||0;
+    out.push({sessionId:sid,date:sessionDate,updatedAt:updatedAt,sets:clean});
   });
-  out.sort(function(a,b){if(a.date&&b.date) return a.date<b.date?1:(a.date>b.date?-1:0);if(a.date&&!b.date) return -1;if(!a.date&&b.date) return 1;return 0;});
+  out.sort(function(a,b){
+    if(a.date&&b.date&&a.date!==b.date) return a.date<b.date?1:-1;
+    if(a.date&&!b.date) return -1;if(!a.date&&b.date) return 1;
+    return b.updatedAt-a.updatedAt;
+  });
   return out;
 }
 // Progression is decided only by the programmed working-set rows. Bonus sets
@@ -1648,7 +1676,7 @@ function buildBody(s,i,type){
       exercises.forEach(function(ex,ei){
         var resolvedEx=exPicks[ex.exercise]||ex.exercise;
         var safeKey=ex.exercise.replace(/[^a-z0-9]/gi,'_');
-	        var savedEx=sl2[resolvedEx]||sl2[ex.exercise]||[],sets=parseInt(ex.sets)||2;
+	        var savedEx=getExerciseSetsFromLog(sl2,resolvedEx)||getExerciseSetsFromLog(sl2,ex.exercise)||[],sets=parseInt(ex.sets)||2;
 	        var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
 	        savedEx=displaySavedStrengthSets(s.id,savedEx,prevEffort);
 	        // Preserve each set's original form row when restoring a draft. This
