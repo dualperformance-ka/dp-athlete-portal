@@ -1672,8 +1672,13 @@ function buildBody(s,i,type){
     h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     if(exercises.length){
       var restTimerOn=typeof restTimerEnabled==='function'?restTimerEnabled():true;
-      h+='<div class="strength-log-heading"><div class="ltitle">Log your sets</div><button type="button" class="rest-pref-toggle'+(restTimerOn?' is-on':'')+'" data-rest-timer-toggle aria-pressed="'+(restTimerOn?'true':'false')+'" onclick="toggleRestTimerPreference()"><span class="rest-pref-dot"></span><span>Rest timer</span><strong class="rest-pref-state">'+(restTimerOn?'On':'Off')+'</strong></button></div><div class="exlist">';
+      h+='<div class="strength-log-heading"><div class="ltitle">Log your sets</div><button type="button" class="rest-pref-toggle'+(restTimerOn?' is-on':'')+'" data-rest-timer-toggle aria-pressed="'+(restTimerOn?'true':'false')+'" onclick="toggleRestTimerPreference()"><span class="rest-pref-dot"></span><span>Rest timer</span><strong class="rest-pref-state">'+(restTimerOn?'On':'Off')+'</strong></button></div>';
+      if(isFemaleSplit(splitKey)){
+        h+='<div class="female-priority-note"><span class="female-priority-note-badge">Priority</span><div><strong>Short on time?</strong><span>Complete the priority exercises first to cover the session’s main muscle groups. Keep going through the full session whenever time allows.</span></div></div>';
+      }
+      h+='<div class="exlist">';
       exercises.forEach(function(ex,ei){
+        var isTimeCrunchPriority=isFemalePriorityExercise(splitKey,ex.exercise);
         var resolvedEx=exPicks[ex.exercise]||ex.exercise;
         var safeKey=ex.exercise.replace(/[^a-z0-9]/gi,'_');
 	        var savedEx=getExerciseSetsFromLog(sl2,resolvedEx)||getExerciseSetsFromLog(sl2,ex.exercise)||[],sets=parseInt(ex.sets)||2;
@@ -1713,8 +1718,8 @@ function buildBody(s,i,type){
         });
         var _nsSummary=(_nsTopW!=null?_nsBare(_nsTopW)+'kg × ':'')+_nsParts.join(' · ');
         var _nsStateCls=exerciseIsComplete?' ns-logged':(hasExerciseData?' ns-inprogress':' ns-t-'+_ov.tone);
-        h+='<div class="exc'+_nsStateCls+(ei===0?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'">';
-        h+='<div class="exc-summary" onclick="toggleExc(this)">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div></div>'+_nsChip(_ov)+'<div class="exc-chev">▾</div></div>';
+        h+='<div class="exc'+_nsStateCls+(ei===0?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'">';
+        h+='<div class="exc-summary" onclick="toggleExc(this)">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn-row"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>'+(isTimeCrunchPriority?'<span class="female-priority-badge">Priority</span>':'')+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div></div>'+_nsChip(_ov)+'<div class="exc-chev">▾</div></div>';
         h+='<div class="exc-body">'+_nsBody(_ov);
         h+='<div class="exh">';
         h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">';

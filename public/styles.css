@@ -2232,6 +2232,20 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 /* ── Progressive overload card redesign (collapsible + coaching) ───────────── */
 .exc-summary{display:flex;align-items:center;gap:9px;padding:12px 14px;cursor:pointer}
 .exc-sum-main{flex:1;min-width:0}
+.exn-row{display:flex;align-items:center;gap:8px;min-width:0}
+.exn-row .exn{min-width:0}
+.female-priority-note{display:flex;align-items:flex-start;gap:11px;margin:0 0 12px;padding:11px 12px;border:1px solid rgba(255,170,0,.28);border-radius:10px;background:rgba(255,170,0,.065);color:var(--text)}
+.female-priority-note-badge,.female-priority-badge{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,170,0,.4);border-radius:999px;background:rgba(255,170,0,.13);color:#ffc04d;font-family:var(--mono);font-size:8px;font-weight:800;line-height:1;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap}
+.female-priority-note-badge{min-height:23px;padding:5px 8px;flex:0 0 auto}
+.female-priority-badge{min-height:20px;padding:4px 7px}
+.female-priority-note strong,.female-priority-note span{display:block}
+.female-priority-note strong{margin-bottom:3px;font-size:12px;line-height:1.2}
+.female-priority-note div>span{color:var(--muted);font-size:10px;line-height:1.45}
+.exc.female-priority-exercise{border-color:rgba(255,170,0,.28)}
+.exc.female-priority-exercise:not(.exercise-complete){background:linear-gradient(90deg,rgba(255,170,0,.045),rgba(255,255,255,.02) 32%)}
+.outdoor-mode .female-priority-note{background:#fff8e8;border-color:#e7c97b}
+.outdoor-mode .female-priority-note-badge,.outdoor-mode .female-priority-badge{background:#fff1c7;border-color:#d9b85d;color:#8a5a00}
+.outdoor-mode .exc.female-priority-exercise:not(.exercise-complete){background:linear-gradient(90deg,#fff9ea,#fff 36%);border-color:#dfc36e}
 .exc-entry-pill{display:none;align-items:center;justify-content:center;min-height:28px;padding:5px 9px;border:1px solid var(--run-border);border-radius:999px;background:rgba(146,210,237,.08);color:var(--run);font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
 .exc.has-entry:not(.open){border-color:rgba(146,210,237,.42);background:rgba(146,210,237,.055);box-shadow:0 7px 20px rgba(0,0,0,.12)}
 .exc.has-entry:not(.open) .exc-entry-pill{display:inline-flex}

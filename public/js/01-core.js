@@ -2,6 +2,51 @@
 // ── WORKOUT SPLITS (Supabase = source of truth, hardcoded STR = fallback) ────
 var SPLITS_BY_NAME={};
 function getSplit(key){return SPLITS_BY_NAME[key]||STR[key]||[];}
+
+// Female sessions keep their full exercise list, but the priority slots give
+// athletes a balanced minimum session when time is genuinely tight. Matching
+// the programmed slot (rather than the selected alternative) means a swap for
+// equivalent equipment keeps the same training priority.
+var FEMALE_TIME_CRUNCH_PRIORITIES={
+  'glute a female':[
+    'barbell hip thrust',
+    'barbell romanian deadlift',
+    'bulgarian split squat',
+    'standing calf raise'
+  ],
+  'glute b female':[
+    'leg press feet high wide',
+    'seated hip abduction',
+    'lying hamstring curl',
+    'seated calf raise'
+  ],
+  'upper a female':[
+    'machine shoulder press',
+    'incline dumbbell press',
+    'lat pulldown',
+    'chest supported row',
+    'cable abdominal crunch'
+  ],
+  'upper b female':[
+    'assisted pull up',
+    'low machine row',
+    'pec dec',
+    'cable lateral raise',
+    'overhead tricep extension',
+    'hanging knee raise'
+  ]
+};
+function priorityMatchKey(value){
+  return String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+function isFemaleSplit(splitKey){
+  return /(^|\s)female($|\s)/.test(priorityMatchKey(splitKey));
+}
+function isFemalePriorityExercise(splitKey,exerciseName){
+  if(!isFemaleSplit(splitKey))return false;
+  var priorities=FEMALE_TIME_CRUNCH_PRIORITIES[priorityMatchKey(splitKey)]||[];
+  return priorities.indexOf(priorityMatchKey(exerciseName))>=0;
+}
 async function loadWorkoutSplits(){
   try{
     var result=await portalRequest('workout-splits');
