@@ -41,6 +41,9 @@ function rejectedKeys(session, opts) {
 // Seed only. A future per-athlete calibration can replace this through
 // opts.relativeEffortPerKmThreshold without changing the matching rules.
 export const DEFAULT_RELATIVE_EFFORT_PER_KM_THRESHOLD = 3.0;
+export const UNDERRUN_TOLERANCE_PERCENT = 0.15;
+export const OVERRUN_TOLERANCE_PERCENT = 0.25;
+export const MIN_DISTANCE_TOLERANCE_KM = 1.5;
 
 function addPrescriptionValue(parts, value) {
   if (typeof value === 'string' && value.trim()) parts.push(value.trim());
@@ -90,7 +93,8 @@ export function matchActivityToSession(session, activities, opts = {}) {
 
   var plannedKm = plannedDistance(session, opts);
   var confidence = plannedKm ? 'high' : 'low';
-  var toleranceKm = plannedKm ? Math.max(plannedKm * 0.15, 1.5) : null;
+  var underToleranceKm = plannedKm ? Math.max(plannedKm * UNDERRUN_TOLERANCE_PERCENT, MIN_DISTANCE_TOLERANCE_KM) : null;
+  var overToleranceKm = plannedKm ? Math.max(plannedKm * OVERRUN_TOLERANCE_PERCENT, MIN_DISTANCE_TOLERANCE_KM) : null;
   var claimed = toKeySet(opts.claimedActivityIds || opts.claimedActivities);
   var rejected = rejectedKeys(session, opts);
   var candidates = [];
@@ -107,7 +111,8 @@ export function matchActivityToSession(session, activities, opts = {}) {
     if (rejected.has(key)) { reasons.push('rejected'); return; }
 
     var distanceKm = Number(activity && activity.distance) / 1000;
-    if (plannedKm && (!Number.isFinite(distanceKm) || distanceKm < 0 || Math.abs(distanceKm - plannedKm) > toleranceKm + 1e-9)) {
+    var distanceDeltaKm = distanceKm - plannedKm;
+    if (plannedKm && (!Number.isFinite(distanceKm) || distanceKm < 0 || distanceDeltaKm < -underToleranceKm - 1e-9 || distanceDeltaKm > overToleranceKm + 1e-9)) {
       reasons.push('distance_outside_tolerance');
       return;
     }

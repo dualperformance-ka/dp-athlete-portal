@@ -16,16 +16,16 @@
     "sha": "c8d6e79467a0"
   },
   "js/01-core.js": {
-    "version": 96,
-    "sha": "e3094b26e58e"
+    "version": 97,
+    "sha": "55e6b7c61adc"
   },
   "js/02-login-goals.js": {
     "version": 90,
     "sha": "79cda0988f3f"
   },
   "js/03-nav-nudges.js": {
-    "version": 92,
-    "sha": "5291a559c8a2"
+    "version": 93,
+    "sha": "2cbc97084590"
   },
   "js/04-checkin.js": {
     "version": 86,
@@ -44,8 +44,8 @@
     "sha": "b4fe068e7abd"
   },
   "js/strava-match.js": {
-    "version": 2,
-    "sha": "dbaa6050a589"
+    "version": 3,
+    "sha": "c5e6f60eee87"
   },
   "js/08-training.js": {
     "version": 98,

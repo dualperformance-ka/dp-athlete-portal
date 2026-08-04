@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v108'; // v108: call booking time recovery + relative-effort guard
+const CACHE_NAME = 'dp-athlete-v109'; // v109: call booking recovery + asymmetric Strava tolerance
 const APP_SHELL = [
   '/index.html', '/styles.css?v=96', '/desktop.css?v=4', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -9,7 +9,7 @@ const APP_SHELL = [
   '/js/05-handbook.js?v=82',
   '/js/06-nutrition.js?v=86',
   '/js/07-progress.js?v=86',
-  '/js/strava-match.js?v=2',
+  '/js/strava-match.js?v=3',
   '/js/08-training.js?v=98',
   '/js/09-logging.js?v=94',
   '/accessibility.js?v=1',

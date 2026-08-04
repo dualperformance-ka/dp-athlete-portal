@@ -29,6 +29,13 @@ test('15% over and 15% under both complete', () => {
   assert.equal(matchActivityToSession(session, [run(3, 10.2)]).matched, true);
 });
 
+test('a 12km prescription accepts over-running up to 15km but not beyond', () => {
+  assert.equal(matchActivityToSession(session, [run(17, 14.35)]).matched, true);
+  assert.equal(matchActivityToSession(session, [run(18, 15)]).matched, true);
+  assert.equal(matchActivityToSession(session, [run(19, 15.01)]).matched, false);
+  assert.equal(matchActivityToSession(session, [run(20, 10.19)]).matched, false);
+});
+
 test('a 4km commute ride does not complete a 12km run session', () => {
   const result = matchActivityToSession(session, [run(4, 4, { sport_type: 'Ride' })]);
   assert.equal(result.matched, false);
