@@ -9,6 +9,7 @@ const index = readFileSync(join(publicDir, 'index.html'), 'utf8');
 const worker = readFileSync(join(publicDir, 'sw.js'), 'utf8');
 const styles = readFileSync(join(publicDir, 'styles.css'), 'utf8');
 const nutrition = readFileSync(join(publicDir, 'js', '06-nutrition.js'), 'utf8');
+const loginGoals = readFileSync(join(publicDir, 'js', '02-login-goals.js'), 'utf8');
 const vercel = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8'));
 const failures = [];
 
@@ -38,6 +39,21 @@ for (const asset of localAssets) {
   if (!cachedAssets.has(asset)) failures.push(`Service worker is missing current asset: ${asset}`);
 }
 
+// PWA cache boundary: only explicitly versioned code/style assets may bypass
+// the network on launch. Navigations and config.js must continue through the
+// network-first branch, while /api requests must remain outside SW handling.
+for (const marker of [
+  "url.pathname.startsWith('/api/')",
+  "const isVersionedShellAsset = /\\.(?:css|js)$/",
+  "url.searchParams.has('v')",
+  "url.pathname === '/'",
+]) {
+  if (!worker.includes(marker)) failures.push(`Service worker caching boundary is missing: ${marker}`);
+}
+if (!/if \(isVersionedShellAsset\) \{[\s\S]*caches\.match\(request\)[\s\S]*return;[\s\S]*const isShell/.test(worker)) {
+  failures.push('Versioned PWA shell assets must stay cache-first ahead of the network-first navigation/config branch');
+}
+
 const publicScripts = walk(publicDir).filter((file) => file.endsWith('.js'));
 for (const file of publicScripts) {
   const source = readFileSync(file, 'utf8');
@@ -58,6 +74,11 @@ const apiFunctions = readdirSync(join(root, 'api')).filter((name) => name.endsWi
 if (apiFunctions.length > 12) failures.push(`Vercel function limit exceeded: ${apiFunctions.length}/12`);
 
 if (!index.includes('accessibility.js?v=1')) failures.push('Accessibility runtime is not loaded');
+if (!loginGoals.includes("portalRequest('bootstrap')") ||
+    !loginGoals.includes('Combined portal bootstrap failed; using compatibility reads') ||
+    !/await loadCloudData\(code,bootstrap\.state\);[\s\S]*await loadStructuredBodyData\(code,bootstrap\.bodyLogs\);[\s\S]*await loadSessionLogs\(bootstrap\.sessionLogs\);/.test(loginGoals)) {
+  failures.push('Read-only startup bootstrap lost its ordered hydration or compatibility fallback');
+}
 if (!index.includes('aria-label="Previous training week"')) failures.push('Calendar controls need accessible names');
 if (/id="(?:trainingKmCard|weeklyKmCard)"/.test(index)) {
   failures.push('The duplicate weekly target card has returned to the Training schedule');
@@ -137,9 +158,9 @@ for (const name of ['styles.css', 'desktop.css', 'icons.css']) {
   if (depth !== 0) failures.push(`${name} has unbalanced braces (depth ${depth} at end of file).`);
 }
 
-// Cache busting. The service worker is network-first for CSS/JS, but the
-// browser and the CDN both key on the full URL — shipping edited CSS behind an
-// unchanged ?v= means athletes keep the old stylesheet. Two checks:
+// Cache busting. Versioned CSS/JS is cache-first in the installed PWA, and the
+// browser/CDN both key on the full URL — shipping an edited asset behind an
+// unchanged ?v= would leave athletes on the old file. Two checks:
 //   1. index.html and sw.js must agree on every version.
 //   2. an asset whose contents changed must have had its version bumped,
 //      verified against the content hashes in scripts/asset-versions.json.

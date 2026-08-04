@@ -240,7 +240,25 @@ async function bodyLogs(code) {
   return { rows: Array.isArray(rows) ? rows : [] };
 }
 
+// Combine the read-only hydration calls that previously blocked portal entry
+// behind three separate authenticated requests. Keep each result in its
+// original response shape so the browser can run the existing hydration logic
+// unchanged. Reader injection makes the orchestration independently testable
+// without touching Supabase or weakening the request authentication boundary.
+export async function bootstrapRead(code, readers = {}) {
+  const readState = readers.stateRead || stateRead;
+  const readBodyLogs = readers.bodyLogs || bodyLogs;
+  const readSessionLogs = readers.sessionLogsRead || sessionLogsRead;
+  const [state, bodyLogRows, sessionLogs] = await Promise.all([
+    readState(code),
+    readBodyLogs(code),
+    readSessionLogs(code),
+  ]);
+  return { state, bodyLogs: bodyLogRows, sessionLogs };
+}
+
 async function dispatch(action, code, body) {
+  if (action === 'bootstrap') return bootstrapRead(code);
   if (action === 'state-read') return stateRead(code);
   if (action === 'state-write') return stateWrite(code, body);
   if (action === 'planned-sessions') return plannedSessions(code, body);

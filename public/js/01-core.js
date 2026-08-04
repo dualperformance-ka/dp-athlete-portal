@@ -372,11 +372,11 @@ async function loadPlannedSessions(startISO,endISO){
   }catch(e){ console.warn('Planned sessions load failed',e); return null; }
 }
 
-async function loadCloudData(code){
+async function loadCloudData(code,preloaded){
   _skipSbSync=true;
   programmeWeeks=12;
   try{
-    var result=await portalRequest('state-read');
+    var result=preloaded||await portalRequest('state-read');
     var rows=result.rows||[];
     var structuredCheckins=result.checkins||[];
     // Build a set of keys that exist in Supabase
@@ -491,11 +491,11 @@ async function loadCloudData(code){
 // Hydrate daily body logs from the structured Supabase source of truth. The
 // readiness card can then use the same local-first path offline while every
 // device receives the latest server copy at login.
-async function loadStructuredBodyData(code){
+async function loadStructuredBodyData(code,preloaded){
   if(!code) return;
   var wasSkipping=_skipSbSync;
   try{
-    var result=await portalRequest('body-logs');
+    var result=preloaded||await portalRequest('body-logs');
     if(!result||!Array.isArray(result.rows)) return;
     _skipSbSync=true;
     result.rows.forEach(function(row){

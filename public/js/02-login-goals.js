@@ -70,6 +70,23 @@ async function fetchAthleteProfile(code,roster){
   return buildAthleteProfile(null,code,roster);
 }
 function saveProfileCache(code,profile){try{localStorage.setItem('dp_profile_'+code,JSON.stringify(profile));}catch(e){}}
+async function hydratePortalData(code){
+  try{
+    var bootstrap=await portalRequest('bootstrap');
+    // Preserve the established hydration order: compatibility state first,
+    // then canonical structured body rows. This keeps cloud/local precedence
+    // identical while removing two browser/server round trips.
+    await loadCloudData(code,bootstrap.state);
+    await loadStructuredBodyData(code,bootstrap.bodyLogs);
+    await loadSessionLogs(bootstrap.sessionLogs);
+    return;
+  }catch(e){
+    console.warn('Combined portal bootstrap failed; using compatibility reads',e);
+  }
+  // Safe rollout/failure path: older deployments and transient bootstrap
+  // failures retain the exact request sequence used before this optimisation.
+  await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);})(),loadSessionLogs()]);
+}
 async function doLogin(code){
   var btn=document.getElementById('loginBtn')||document.querySelector('.lbtn');
   btn.textContent='Authenticating...';btn.disabled=true;btn.classList.add('loading');
@@ -89,7 +106,7 @@ async function doLogin(code){
   // Supabase remains the identity provider for email OTP only; portal data
   // always flows through the authenticated server gateway.
   if(localStorage.getItem('dp_auth_method')==='email')await ensureSupabaseClient();
-  await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);})(),loadSessionLogs()]);
+  await hydratePortalData(code);
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
   exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');

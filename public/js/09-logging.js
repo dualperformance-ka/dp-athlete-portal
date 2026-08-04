@@ -225,9 +225,9 @@ async function markSessionLogged(sessionId){
   sessionLoggedCache[key]=true;
   try{await portalRequest('session-log-write',{sessionKey:key});}catch(e){console.warn('session log sync failed:',e);}
 }
-async function loadSessionLogs(){
+async function loadSessionLogs(preloaded){
   try{
-    var res=await portalRequest('session-logs-read');
+    var res=preloaded||await portalRequest('session-logs-read');
     if(res.rows){res.rows.forEach(function(r){sessionLoggedCache[r.session_key]=true;});}
   }catch(e){console.warn('session_logs load failed:',e);}
 }

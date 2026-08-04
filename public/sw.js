@@ -1,15 +1,15 @@
-const CACHE_NAME = 'dp-athlete-v98'; // v98: access-code coaches get Contact sign-out; email athletes do not
+const CACHE_NAME = 'dp-athlete-v100'; // v100: cache-first versioned PWA shell assets
 const APP_SHELL = [
   '/index.html', '/styles.css?v=95', '/desktop.css?v=4', '/config.js',
-  '/js/01-core.js?v=93',
-  '/js/02-login-goals.js?v=87',
+  '/js/01-core.js?v=94',
+  '/js/02-login-goals.js?v=88',
   '/js/03-nav-nudges.js?v=90',
   '/js/04-checkin.js?v=86',
   '/js/05-handbook.js?v=81',
   '/js/06-nutrition.js?v=85',
   '/js/07-progress.js?v=85',
   '/js/08-training.js?v=96',
-  '/js/09-logging.js?v=91',
+  '/js/09-logging.js?v=92',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=90',
   '/login.js?v=47', '/icons.css?v=3',
@@ -37,10 +37,21 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
-  // App shell (page navigations + HTML/CSS/JS): NETWORK-FIRST.
-  // Always fetch fresh when online so a new deploy shows immediately; fall
-  // back to cache only when offline. This is what stops the portal from
-  // getting stuck on a stale styles.css after a deploy.
+  // Versioned JS/CSS: CACHE-FIRST. Every changed shell file gets a new ?v=
+  // value in index.html, so a deploy naturally misses the old cache and fetches
+  // the new file. Installed PWAs can therefore launch without waiting for a
+  // network round trip while never caching API or athlete-data responses.
+  const isVersionedShellAsset = /\.(?:css|js)$/.test(url.pathname) && url.searchParams.has('v');
+  if (isVersionedShellAsset) {
+    event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(response => {
+      if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+      return response;
+    })));
+    return;
+  }
+
+  // Navigations, HTML and unversioned runtime files (notably config.js):
+  // NETWORK-FIRST so deployment and configuration changes remain immediate.
   const isShell = request.mode === 'navigate' ||
     url.pathname === '/' ||
     /\.(?:html|css|js)$/.test(url.pathname);
