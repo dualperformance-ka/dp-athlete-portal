@@ -47,9 +47,9 @@ function isFemalePriorityExercise(splitKey,exerciseName){
   var priorities=FEMALE_TIME_CRUNCH_PRIORITIES[priorityMatchKey(splitKey)]||[];
   return priorities.indexOf(priorityMatchKey(exerciseName))>=0;
 }
-async function loadWorkoutSplits(){
+async function loadWorkoutSplits(preloaded){
   try{
-    var result=await portalRequest('workout-splits');
+    var result=preloaded||await portalRequest('workout-splits');
     var rows=result.rows||[];
     if(!rows.length)return;
     var map={};
@@ -349,9 +349,9 @@ window.addEventListener('online',function(){retryPendingCoachWrites(false);});
 
 // Coach prescription overrides now live directly on planned_sessions rows in
 // Supabase — loadPlannedSessions() populates _sessionOverrides from each row.
-async function loadPlannedSessions(startISO,endISO){
+async function loadPlannedSessions(startISO,endISO,preloaded){
   try{
-    var result=await portalRequest('planned-sessions',{start:startISO,end:endISO});
+    var result=preloaded||await portalRequest('planned-sessions',{start:startISO,end:endISO});
     var plannedRows=(result.rows||[]).slice();
     if(result.next&&!plannedRows.some(function(existing){return existing.id===result.next.id;}))plannedRows.push(result.next);
     _sessionOverrides={};
@@ -614,6 +614,16 @@ function getPropText(prop){
   return '';
 }
 function getRelationIds(prop){return prop&&prop.relation?(prop.relation||[]).map(function(r){return r.id;}).filter(Boolean):[];}
+
+// Core programme/photo helpers are needed by the home nudges and check-in.
+// Keeping them here lets the heavier Progress renderer load only when opened.
+function getCurrentProgrammeWeek(){
+  var wkS=sessions.find(function(s){return s.week;});
+  if(wkS){var m=wkS.week.match(/\d+/);if(m)return parseInt(m[0]);}
+  if(athlete.startDate&&athlete.startDate!=='—'){var start=localDateFromISO(athlete.startDate);var now=new Date();var diff=Math.floor((now-start)/(7*24*60*60*1000))+1;return Math.max(1,Math.min(programmeWeeks,diff));}
+  return 1;
+}
+function getPhotos(){return JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');}
 
 let runLibraryById={},runLibraryByName={};
 // fetchRunLibrary is now a no-op — loadRunningLibrary populates all the same data

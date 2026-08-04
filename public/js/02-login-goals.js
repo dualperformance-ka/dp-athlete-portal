@@ -123,10 +123,16 @@ async function doLogin(code){
   document.getElementById('heroName').textContent=athlete.name;
   populateStatic();
   retryPendingCoachWrites(true);
-  // Start Strava before loading the week so kilometre totals can use it as the
-  // primary completed-distance source without briefly showing a manual total.
-  window._stravaLoadPromise=window.initStrava ? window.initStrava(athlete.code) : Promise.resolve({connected:false,activities:[]});
-  loadWeek();
+  // The primary plan gets the network first. Strava, nutrition and programme
+  // metrics start only after today's session has rendered; they update their
+  // existing mounts asynchronously and never gate portal entry.
+  window._portalSecondaryStarted=false;
+  Promise.resolve(loadWeek()).finally(function(){
+    window._portalSecondaryStarted=true;
+    window._stravaLoadPromise=window.initStrava ? window.initStrava(athlete.code) : Promise.resolve({connected:false,activities:[]});
+    loadNutrition();
+    if(typeof refreshRunningLibraryRevision==='function')setTimeout(refreshRunningLibraryRevision,0);
+  });
   initCallNudge();
   initCheckinNudge();
   syncPushSubscription();

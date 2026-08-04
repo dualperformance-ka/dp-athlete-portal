@@ -7,6 +7,7 @@
 import { select, upsert } from './_lib/supabase-rest.js';
 import { getRequestAthlete } from './_lib/auth.js';
 import { allowPortalRequest, safeError } from './_lib/http.js';
+import crypto from 'node:crypto';
 
 const ALLOWED_STATE_KEYS = [
   /^goals$/,
@@ -146,12 +147,31 @@ async function workoutSplits(code) {
   return { rows: Array.isArray(rows) ? rows : [] };
 }
 
-async function sessionLibrary() {
-  const rows = await select('session_library', {
+function libraryRevision(rows) {
+  return crypto.createHash('sha1').update(JSON.stringify(rows || [])).digest('hex').slice(0, 16);
+}
+
+export async function sessionLibrary(body = {}, selectRows = select) {
+  const rows = await selectRows('session_library', {
     archived: 'eq.false',
     select: '*',
     order: 'name.asc',
     limit: '1000',
+  });
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const revision = libraryRevision(safeRows);
+  if (text(body.libraryRevision, 80) === revision) {
+    return { rows: [], revision, notModified: true };
+  }
+  return { rows: safeRows, revision, notModified: false };
+}
+
+async function nutritionProgramme(code, selectRows = select) {
+  const rows = await selectRows('nutrition_plans', {
+    athlete_code: `eq.${code}`,
+    select: '*',
+    order: 'week_label.asc',
+    limit: '100',
   });
   return { rows: Array.isArray(rows) ? rows : [] };
 }
@@ -251,6 +271,31 @@ export async function bookingRead(code, selectRows = select) {
   return { rows: Array.isArray(rows) ? rows : [] };
 }
 
+// Full read snapshot for the primary portal screen. Each section settles
+// independently: a library or nutrition problem must not hide an otherwise
+// valid training plan, and the client can retry only the missing legacy read.
+export async function trainingRead(code, body = {}, readers = {}) {
+  const readPlanned = readers.plannedSessions || plannedSessions;
+  const readSplits = readers.workoutSplits || workoutSplits;
+  const readNutrition = readers.nutritionProgramme || nutritionProgramme;
+  const readLibrary = readers.sessionLibrary || sessionLibrary;
+  const includeLibrary = body.includeLibrary === true;
+  const names = ['planned', 'splits', 'nutrition'];
+  const tasks = [readPlanned(code, body), readSplits(code), readNutrition(code)];
+  if (includeLibrary) {
+    names.push('library');
+    tasks.push(readLibrary({ libraryRevision: body.libraryRevision || '' }));
+  }
+  const settled = await Promise.allSettled(tasks);
+  const result = { planned: null, splits: null, nutrition: null, library: null, errors: [] };
+  settled.forEach((entry, index) => {
+    const name = names[index];
+    if (entry.status === 'fulfilled') result[name] = entry.value;
+    else result.errors.push(name);
+  });
+  return result;
+}
+
 // Combine the read-only hydration calls that previously blocked portal entry
 // behind three separate authenticated requests. Keep each result in its
 // original response shape so the browser can run the existing hydration logic
@@ -270,12 +315,13 @@ export async function bootstrapRead(code, readers = {}) {
 
 async function dispatch(action, code, body) {
   if (action === 'bootstrap') return bootstrapRead(code);
+  if (action === 'training-read') return trainingRead(code, body);
   if (action === 'booking-read') return bookingRead(code);
   if (action === 'state-read') return stateRead(code);
   if (action === 'state-write') return stateWrite(code, body);
   if (action === 'planned-sessions') return plannedSessions(code, body);
   if (action === 'workout-splits') return workoutSplits(code);
-  if (action === 'session-library') return sessionLibrary();
+  if (action === 'session-library') return sessionLibrary(body);
   if (action === 'nutrition-week') return nutritionWeek(code, body);
   if (action === 'programme-data') return programmeData(code);
   if (action === 'session-logs-read') return sessionLogsRead(code);

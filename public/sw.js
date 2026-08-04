@@ -1,17 +1,18 @@
-const CACHE_NAME = 'dp-athlete-v101'; // v101: weekly booking date/time confirmation
+const CACHE_NAME = 'dp-athlete-v105'; // v105: complete offline PWA shell and install icons
 const APP_SHELL = [
   '/index.html', '/styles.css?v=95', '/desktop.css?v=4', '/config.js',
-  '/js/01-core.js?v=94',
-  '/js/02-login-goals.js?v=88',
-  '/js/03-nav-nudges.js?v=91',
+  '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
+  '/js/01-core.js?v=95',
+  '/js/02-login-goals.js?v=89',
+  '/js/03-nav-nudges.js?v=92',
   '/js/04-checkin.js?v=86',
-  '/js/05-handbook.js?v=81',
-  '/js/06-nutrition.js?v=85',
-  '/js/07-progress.js?v=85',
-  '/js/08-training.js?v=96',
+  '/js/05-handbook.js?v=82',
+  '/js/06-nutrition.js?v=86',
+  '/js/07-progress.js?v=86',
+  '/js/08-training.js?v=97',
   '/js/09-logging.js?v=92',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=90',
+  '/js/10-boot.js?v=91',
   '/login.js?v=47', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
@@ -50,14 +51,30 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Navigations, HTML and unversioned runtime files (notably config.js):
-  // NETWORK-FIRST so deployment and configuration changes remain immediate.
-  const isShell = request.mode === 'navigate' ||
-    url.pathname === '/' ||
-    /\.(?:html|css|js)$/.test(url.pathname);
+  // Installed-PWA navigations: return the cached shell immediately and refresh
+  // it in the background. The service-worker update check plus versioned asset
+  // URLs still advances deployments safely, while weak connections no longer
+  // hold a home-screen launch behind an HTML round trip.
+  if (request.mode === 'navigate' || url.pathname === '/') {
+    const cacheKey = '/index.html';
+    const networkResponse = fetch(request).then(response => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(cacheKey, copy));
+      }
+      return response;
+    });
+    event.waitUntil(networkResponse.then(() => undefined).catch(() => undefined));
+    event.respondWith(caches.match(cacheKey).then(cached => cached || networkResponse));
+    return;
+  }
+
+  // Unversioned runtime files (notably config.js): NETWORK-FIRST so runtime
+  // configuration changes remain immediate.
+  const isShell = /\.(?:html|css|js)$/.test(url.pathname);
 
   if (isShell) {
-    const cacheKey = request.mode === 'navigate' ? '/index.html' : request;
+    const cacheKey = request;
     event.respondWith(
       fetch(request).then(response => {
         if (response.ok) {

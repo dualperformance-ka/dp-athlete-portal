@@ -75,48 +75,78 @@ updateFloatingPortalHeader();
 
 const RUNNING_LIBRARY_BY_ID = {};
 
-// Fetch all Running Library workouts on page load
-var RUN_LIB_CACHE_KEY='dp_run_library_cache_v2'; // v2 = Supabase-backed
-var RUN_LIB_CACHE_TTL=60*60*1000; // 1 hour
+// The cached library renders immediately. A compact revision check runs only
+// after the primary plan is visible, so coach edits still arrive without
+// putting the global library on the critical launch path.
+var RUN_LIB_CACHE_KEY='dp_run_library_cache_v3';
+var RUN_LIB_CACHE_TTL=24*60*60*1000;
+var _runLibraryCacheRevision='',_runLibraryCacheLoaded=false,_runLibraryRevisionChecked=false;
 
-async function loadRunningLibrary() {
-  try {
-    // Try localStorage cache first (stores processed data)
-    try {
-      var cached=JSON.parse(localStorage.getItem(RUN_LIB_CACHE_KEY)||'null');
-      if(cached && cached.ts && (Date.now()-cached.ts)<RUN_LIB_CACHE_TTL && cached.byId){
-        var ids=Object.keys(cached.byId);
-        if(ids.length){
-          console.log('Run library: loaded from cache ('+ids.length+' workouts)');
-          ids.forEach(function(id){
-            var entry=cached.byId[id];
-            RUNNING_LIBRARY_BY_ID[id]=entry;
-            runLibraryById[id]=Object.assign({},entry,{warmUp:entry.warmup||'',coolDown:entry.cooldown||'',sessionGoal:entry.goal||'',recoveryType:entry.recovery||''});
-            if(entry.name) runLibraryByName[entry.name.toLowerCase()]=runLibraryById[id];
-          });
-          return;
-        }
-      }
-    } catch(e){}
-
+function hydrateRunningLibraryMap(byId){
+  var ids=Object.keys(byId||{});
+  if(!ids.length)return false;
+  ids.forEach(function(id){
+    var entry=byId[id];
+    RUNNING_LIBRARY_BY_ID[id]=entry;
+    runLibraryById[id]=Object.assign({},entry,{warmUp:entry.warmup||'',coolDown:entry.cooldown||'',sessionGoal:entry.goal||'',recoveryType:entry.recovery||''});
+    if(entry.name)runLibraryByName[entry.name.toLowerCase()]=runLibraryById[id];
+  });
+  return true;
+}
+function hydrateRunningLibraryCache(){
+  if(_runLibraryCacheLoaded)return true;
+  try{
+    var cached=JSON.parse(localStorage.getItem(RUN_LIB_CACHE_KEY)||'null');
+    if(cached&&cached.ts&&(Date.now()-cached.ts)<RUN_LIB_CACHE_TTL&&hydrateRunningLibraryMap(cached.byId)){
+      _runLibraryCacheLoaded=true;_runLibraryCacheRevision=String(cached.revision||'');
+      console.log('Run library: loaded from cache ('+Object.keys(cached.byId).length+' workouts)');
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+function cacheRunningLibrary(revision){
+  _runLibraryCacheLoaded=true;_runLibraryCacheRevision=String(revision||'');
+  try{localStorage.setItem(RUN_LIB_CACHE_KEY,JSON.stringify({ts:Date.now(),revision:_runLibraryCacheRevision,byId:RUNNING_LIBRARY_BY_ID}));}catch(e){}
+}
+async function loadRunningLibrary(preloaded){
+  try{
+    if(preloaded&&preloaded.notModified){hydrateRunningLibraryCache();return true;}
+    if(preloaded&&Array.isArray(preloaded.rows)){
+      processLibraryRows(preloaded.rows);cacheRunningLibrary(preloaded.revision);
+      _runLibraryRevisionChecked=true;
+      console.log('Running Library loaded:',preloaded.rows.length,'workouts');return true;
+    }
+    if(hydrateRunningLibraryCache())return true;
     console.log('Loading Running Library...');
-    var res = await portalRequest('session-library');
-    if (!res.rows) { console.warn('Session library load failed'); return; }
-    processLibraryRows(res.rows);
-    // Cache the processed data
-    try {
-      localStorage.setItem(RUN_LIB_CACHE_KEY, JSON.stringify({ts:Date.now(), byId:RUNNING_LIBRARY_BY_ID}));
-    } catch(e){}
-    console.log('Running Library loaded:', res.rows.length, 'workouts');
-  } catch (error) {
-    console.error('Failed to load Running Library:', error);
-  }
+    var res=await portalRequest('session-library');
+    if(!res.rows){console.warn('Session library load failed');return false;}
+    processLibraryRows(res.rows);cacheRunningLibrary(res.revision);
+    _runLibraryRevisionChecked=true;
+    console.log('Running Library loaded:',res.rows.length,'workouts');return true;
+  }catch(error){console.error('Failed to load Running Library:',error);return false;}
+}
+async function refreshRunningLibraryRevision(){
+  if(_runLibraryRevisionChecked||!_authToken||!_runLibraryCacheLoaded)return;
+  _runLibraryRevisionChecked=true;
+  try{
+    var res=await portalRequest('session-library',{libraryRevision:_runLibraryCacheRevision});
+    if(res.notModified){cacheRunningLibrary(res.revision);return;}
+    if(Array.isArray(res.rows)){
+      processLibraryRows(res.rows);cacheRunningLibrary(res.revision);
+      if(typeof invalidateProgrammeVolume==='function')invalidateProgrammeVolume();
+      if(typeof renderTodaySection==='function')renderTodaySection();
+      if(window._portalSecondaryStarted&&typeof loadNutrition==='function')loadNutrition();
+    }
+  }catch(e){console.warn('Run library revision check failed',e);}
 }
 
 // Map a Supabase session_library row to the shape the portal renderers expect.
 // Each template is keyed by BOTH its Supabase uuid and its migrated Notion page
 // id, so old planned sessions linked by Notion id still resolve.
 function processLibraryRows(rows) {
+  Object.keys(RUNNING_LIBRARY_BY_ID).forEach(function(id){delete RUNNING_LIBRARY_BY_ID[id];});
+  runLibraryById={};runLibraryByName={};
   rows.forEach(function(r) {
     var mapped = {
       name: r.name || '', type: r.session_type || '', description: r.description || '',

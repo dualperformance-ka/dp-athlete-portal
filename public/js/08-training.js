@@ -1,6 +1,27 @@
 // ── LOAD WEEK ─────────────────────────────────────────────────────────────────
 function setDisplay(id,value){var el=document.getElementById(id);if(el)el.style.display=value;}
 var trainingMonthGridStart=null,trainingMonthGridEnd=null;
+var TRAINING_READ_TTL=60*1000,_trainingReadPromise=null;
+async function loadTrainingReadSnapshot(startISO,endISO){
+  var cached=window._trainingReadSnapshot;
+  if(cached&&cached.ts&&(Date.now()-cached.ts)<TRAINING_READ_TTL&&cached.bundle)return cached.bundle;
+  if(_trainingReadPromise)return _trainingReadPromise;
+  _trainingReadPromise=(async function(){
+    var hasLibrary=typeof hydrateRunningLibraryCache==='function'&&hydrateRunningLibraryCache();
+    var bundle=await portalRequest('training-read',{
+      start:startISO,end:endISO,includeLibrary:!hasLibrary,
+      libraryRevision:(typeof _runLibraryCacheRevision!=='undefined'&&_runLibraryCacheRevision)||''
+    });
+    window._trainingReadSnapshot={
+      ts:Date.now(),bundle:bundle,
+      plannedRows:bundle.planned&&Array.isArray(bundle.planned.rows)?bundle.planned.rows:null,
+      nutritionRows:bundle.nutrition&&Array.isArray(bundle.nutrition.rows)?bundle.nutrition.rows:null
+    };
+    return bundle;
+  })();
+  try{return await _trainingReadPromise;}
+  finally{_trainingReadPromise=null;}
+}
 function isMobileTrainingCalendar(){return !!(window.matchMedia&&window.matchMedia('(max-width:760px)').matches);}
 function trainingWeekDisplayLabel(){
   var wkS=sessions.find(function(s){return s.week;});
@@ -24,13 +45,18 @@ async function loadWeek(){
   var _errEl=document.getElementById('loadErrEl');if(_errEl)_errEl.style.display='none';
   var _weeklyErrEl=document.getElementById('weeklyLoadErrEl');if(_weeklyErrEl)_weeklyErrEl.style.display='none';
   if(typeof applyTrainingView==='function')applyTrainingView();
-  // Run library + workout splits + plan fetch in parallel — all from Supabase
+  // One authenticated read snapshot replaces the previous library + splits +
+  // plan requests. Every section retains its original loader as a fallback, so
+  // a partial Supabase failure cannot hide an otherwise valid training plan.
   var results;
   try{
+    var bundle=null;
+    try{bundle=await loadTrainingReadSnapshot(localISO(fetchStart),localISO(fetchEnd));}
+    catch(e){console.warn('Combined training read failed; using compatibility reads',e);}
     results=await Promise.all([
-      loadRunningLibrary(),
-      loadWorkoutSplits(),
-      loadPlannedSessions(localISO(fetchStart),localISO(fetchEnd))
+      loadRunningLibrary(bundle&&bundle.library),
+      loadWorkoutSplits(bundle&&bundle.splits),
+      loadPlannedSessions(localISO(fetchStart),localISO(fetchEnd),bundle&&bundle.planned)
     ]);
   }catch(e){console.warn('Week load failed',e);results=[null,null,null];}
   var mapped=results[2];
@@ -70,7 +96,9 @@ async function loadWeek(){
   var lifts=sessions.filter(function(s){return getType(s)==='strength';});
   document.getElementById('ciRuns').textContent=runs.length;document.getElementById('ciLifts').textContent=lifts.length;
   updateSessionCounter();
-  loadNutrition(); // also populates KM tracker
+  // On subsequent week changes refresh secondary metrics after the primary
+  // calendar has yielded. The first load starts these from doLogin().
+  if(window._portalSecondaryStarted)setTimeout(function(){loadNutrition();},0);
   if(!sessions.length&&!mobileCalendar){showNoplan();return;}
   setDisplay('noplanEl','none');setDisplay('weeklyNoplanEl','none');
   renderCal(ws);

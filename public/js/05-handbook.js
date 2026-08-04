@@ -98,7 +98,9 @@ async function loadProgrammeVolume(force){
     var planned={},manual={};
     if(_authToken&&code){
       try{
-        var res=await portalRequest('programme-data');
+        var snapshot=window._trainingReadSnapshot;
+        var hasSnapshot=!!(snapshot&&Array.isArray(snapshot.plannedRows)&&Array.isArray(snapshot.nutritionRows));
+        var res=hasSnapshot?{planned:snapshot.plannedRows,nutrition:snapshot.nutritionRows}:await portalRequest('programme-data');
         (res.planned||[]).forEach(function(r){
           var m=String(r.week_label||'').match(/\d+/);
           if(!m) return;

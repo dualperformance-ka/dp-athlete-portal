@@ -1,7 +1,6 @@
 // ── PHOTO UPLOAD ──────────────────────────────────────────────────────────────
 var currentPhotoWeek=null,currentAngle=null,photoModalNextAngle=null;
 var ANGLES=['Front','Side','Back','Front Flexed','Back Flexed'];
-function getPhotos(){return JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');}
 function savePhotos(photos){localStorage.setItem('dp_photos_'+athlete.code,JSON.stringify(photos));if(typeof initPhotoNudge==='function')initPhotoNudge();}
 function photoAngleKey(angle){return angle.toLowerCase().replace(/\s/g,'_');}
 function completedPhotoAngles(weekPhotos){
@@ -349,11 +348,4 @@ function toggleWeightLog(){
   rows.forEach(function(r){r.style.display=expanded?'none':'';});
   if(expanded){btn.textContent=btn.getAttribute('data-show-label');btn.setAttribute('data-expanded','0');}
   else{btn.setAttribute('data-show-label',btn.textContent);btn.textContent='Show less';btn.setAttribute('data-expanded','1');}
-}
-
-function getCurrentProgrammeWeek(){
-  var wkS=sessions.find(function(s){return s.week;});
-  if(wkS){var m=wkS.week.match(/\d+/);if(m) return parseInt(m[0]);}
-  if(athlete.startDate&&athlete.startDate!=='—'){var start=localDateFromISO(athlete.startDate);var now=new Date();var diff=Math.floor((now-start)/(7*24*60*60*1000))+1;return Math.max(1,Math.min(programmeWeeks,diff));}
-  return 1;
 }

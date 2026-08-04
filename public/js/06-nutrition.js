@@ -233,9 +233,16 @@ async function loadNutrition(){
   var nutritionPlanned=[];
   if(_authToken){
     try{
-      var res=await portalRequest('nutrition-week',{weekLabel:weekLabel});
-      row=res.plan||null;
-      nutritionPlanned=res.planned||[];
+      var snapshot=window._trainingReadSnapshot;
+      var freshSnapshot=!!(snapshot&&snapshot.ts&&(Date.now()-snapshot.ts)<60000&&Array.isArray(snapshot.nutritionRows)&&Array.isArray(snapshot.plannedRows));
+      if(freshSnapshot){
+        row=snapshot.nutritionRows.find(function(item){return String(item.week_label||'').toLowerCase()===weekLabel.toLowerCase();})||null;
+        nutritionPlanned=snapshot.plannedRows.filter(function(item){return String(item.week_label||'').toLowerCase()===weekLabel.toLowerCase();});
+      }else{
+        var res=await portalRequest('nutrition-week',{weekLabel:weekLabel});
+        row=res.plan||null;
+        nutritionPlanned=res.planned||[];
+      }
     }catch(e){console.warn('nutrition_plans load failed',e);}
   }
 

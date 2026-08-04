@@ -51,7 +51,10 @@ for (const marker of [
   if (!worker.includes(marker)) failures.push(`Service worker caching boundary is missing: ${marker}`);
 }
 if (!/if \(isVersionedShellAsset\) \{[\s\S]*caches\.match\(request\)[\s\S]*return;[\s\S]*const isShell/.test(worker)) {
-  failures.push('Versioned PWA shell assets must stay cache-first ahead of the network-first navigation/config branch');
+  failures.push('Versioned PWA shell assets must stay cache-first ahead of the remaining shell strategies');
+}
+if (!/request\.mode === 'navigate'[\s\S]*caches\.match\(cacheKey\)[\s\S]*cached \|\| networkResponse[\s\S]*const isShell/.test(worker)) {
+  failures.push('Installed-PWA navigation must serve the cached HTML shell while revalidating it in the background');
 }
 
 const publicScripts = walk(publicDir).filter((file) => file.endsWith('.js'));
@@ -158,7 +161,7 @@ for (const name of ['styles.css', 'desktop.css', 'icons.css']) {
   if (depth !== 0) failures.push(`${name} has unbalanced braces (depth ${depth} at end of file).`);
 }
 
-// Cache busting. Versioned CSS/JS is cache-first in the installed PWA, and the
+// Cache busting. Versioned CSS/JS and the HTML app shell are cache-first in the installed PWA, and the
 // browser/CDN both key on the full URL — shipping an edited asset behind an
 // unchanged ?v= would leave athletes on the old file. Two checks:
 //   1. index.html and sw.js must agree on every version.

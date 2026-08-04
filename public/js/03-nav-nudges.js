@@ -303,6 +303,21 @@ function dpMarkCallBooked(startTime){
     refreshCallBookingsFromCloud(0);
   }
 }
+var _progressModulePromise=null;
+function ensureProgressModule(){
+  if(typeof loadProgress==='function')return Promise.resolve();
+  if(_progressModulePromise)return _progressModulePromise;
+  _progressModulePromise=new Promise(function(resolve,reject){
+    var mount=document.getElementById('progressModuleAsset');
+    var src=mount&&mount.getAttribute('data-src');
+    if(!src){reject(new Error('Progress module asset is missing'));return;}
+    var script=document.createElement('script');script.src=src;script.async=true;
+    script.onload=function(){typeof loadProgress==='function'?resolve():reject(new Error('Progress module did not initialise'));};
+    script.onerror=function(){reject(new Error('Progress module failed to load'));};
+    document.body.appendChild(script);
+  });
+  return _progressModulePromise;
+}
 window.addEventListener('message',function(e){
   if(!e.data) return;
   // GHL / LeadConnector booking confirmation
@@ -352,7 +367,7 @@ function switchTab(tab){
     if(!isDesktop) window.scrollTo({top:0,behavior:'smooth'});
   }
   if(isMobileSecondary) window.scrollTo({top:0,behavior:'smooth'});
-  if(tab==='progress') loadProgress();
+  if(tab==='progress')ensureProgressModule().then(function(){loadProgress();}).catch(function(){showToast('Progress is unavailable — check your connection');});
   if(tab==='training'||tab==='weekly') applyTrainingView();
 }
 
