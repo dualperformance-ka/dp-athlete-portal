@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v100'; // v100: cache-first versioned PWA shell assets
+const CACHE_NAME = 'dp-athlete-v101'; // v101: weekly booking date/time confirmation
 const APP_SHELL = [
   '/index.html', '/styles.css?v=95', '/desktop.css?v=4', '/config.js',
   '/js/01-core.js?v=94',
   '/js/02-login-goals.js?v=88',
-  '/js/03-nav-nudges.js?v=90',
+  '/js/03-nav-nudges.js?v=91',
   '/js/04-checkin.js?v=86',
   '/js/05-handbook.js?v=81',
   '/js/06-nutrition.js?v=85',

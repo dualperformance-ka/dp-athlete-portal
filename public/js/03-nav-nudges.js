@@ -46,8 +46,16 @@ function dismissNudge(el,done){
 //
 // Weeks reset at Monday midnight. A booking from Sunday belongs only to the
 // week that just ended, so Monday always starts with a fresh booking prompt.
+function callAdelaideDate(date){
+  var p={};
+  try{
+    new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Adelaide',year:'numeric',month:'2-digit',day:'2-digit'})
+      .formatToParts(date).forEach(function(x){p[x.type]=x.value;});
+    return new Date(Number(p.year),Number(p.month)-1,Number(p.day));
+  }catch(e){return new Date(date);}
+}
 function callWeekSuffix(date){
-  var d=new Date(date||new Date());d.setHours(0,0,0,0);
+  var d=callAdelaideDate(new Date(date||new Date()));d.setHours(0,0,0,0);
   d.setDate(d.getDate()+3-(d.getDay()+6)%7);
   var w1=new Date(d.getFullYear(),0,4);
   var isoWeek=1+Math.round(((d-w1)/86400000-3+(w1.getDay()+6)%7)/7);
@@ -57,7 +65,7 @@ function callBookedPrefix(){
   var acode=(athlete&&athlete.code)?athlete.code.toUpperCase()+'_':'';
   return 'dp_call_booked_'+acode;
 }
-function callNudgeWeekKey(){return callBookedPrefix()+callWeekSuffix();}
+function callNudgeWeekKey(date){return callBookedPrefix()+callWeekSuffix(date);}
 // Three stored shapes, all still in the wild:
 //   {time,startsAt}  current — written by the webhook and the backlog sync
 //   "Tue 15 Jul · 6:30 pm"  older server rows and portal self-reports
@@ -66,9 +74,13 @@ function parseBookedValue(raw){
   if(!raw) return null;
   var parsed=raw;
   try{parsed=JSON.parse(raw);}catch(e){}
-  if(parsed&&typeof parsed==='object') return {time:String(parsed.time||''),startsAt:parsed.startsAt||''};
+  if(parsed&&typeof parsed==='object'){
+    var startsAt=parsed.startsAt||parsed.startTime||parsed.start_time||'';
+    return {time:String(parsed.time||parsed.displayTime||dpFormatBookedTime(startsAt)||''),startsAt:startsAt};
+  }
   var t=(parsed==='1'||parsed===1)?'':String(parsed||'');
-  return {time:t,startsAt:''};
+  var d=/^\d{4}-\d{2}-\d{2}T/.test(t)?new Date(t):null;
+  return {time:(d&&!isNaN(d))?dpFormatBookedTime(d):t,startsAt:(d&&!isNaN(d))?d.toISOString():''};
 }
 function getCallBookedState(){
   var prefix=callBookedPrefix(),thisWeek=callWeekSuffix();
@@ -84,7 +96,7 @@ function getCallBookedState(){
       if(!/^\d{4}_\d{2}$/.test(suffix)||suffix<=thisWeek) continue;
       var v=parseBookedValue(localStorage.getItem(k));
       if(!v) continue;
-      if(!upcoming||suffix<upcoming.week) upcoming={week:suffix,displayTime:v.time};
+      if(!upcoming||suffix<upcoming.week) upcoming={week:suffix,displayTime:v.time,startsAt:v.startsAt};
     }
   }catch(e){}
   return {booked:!!current,displayTime:(current&&current.time)||'',upcoming:upcoming};
@@ -106,7 +118,9 @@ function renderBookingPrompts(){
   }
   if(confirmed) confirmed.style.display=st.booked?'':'none';
   var titleEl=document.getElementById('callConfirmedTitle');
-  if(titleEl) titleEl.textContent=st.displayTime?'Call booked · '+st.displayTime:'Call booked this week';
+  var subEl=document.getElementById('callConfirmedSub');
+  if(titleEl) titleEl.textContent='Call booked';
+  if(subEl) subEl.textContent=st.displayTime?(st.displayTime+' · Karl & Alex'):'Confirming date and time…';
   if(dot) dot.classList.toggle('visible',!st.booked);
   var card=document.getElementById('ciBookCard');
   if(card){
@@ -120,8 +134,47 @@ function renderBookingPrompts(){
     if(a) a.style.color=st.booked?'#22c55e':'#f59e0b';
   }
   syncWeekCardState();
+  return st;
 }
-function initCallNudge(){renderBookingPrompts();}
+var _callBookingRefreshTimer=null;
+function applyCloudBookingRows(rows){
+  var prefix=callBookedPrefix(),serverKeys={};
+  (rows||[]).forEach(function(row){
+    var key=String(row&&row.key||'');
+    if(!/^call_booked_\d{4}_\d{2}$/.test(key))return;
+    var suffix=key.slice('call_booked_'.length);
+    serverKeys[suffix]=true;
+    localStorage.setItem(prefix+suffix,JSON.stringify(row.value));
+  });
+  // If the widget could not expose a timestamp, it temporarily marked the
+  // current week locally. Once the webhook supplies an authoritative booking
+  // in another week, remove that optimistic flag rather than showing a
+  // timeless confirmation in the wrong week.
+  var currentSuffix=callWeekSuffix(),currentRaw=parseBookedValue(localStorage.getItem(prefix+currentSuffix));
+  var hasDatedFuture=(rows||[]).some(function(row){
+    var key=String(row&&row.key||''),suffix=key.slice('call_booked_'.length),v=parseBookedValue(JSON.stringify(row&&row.value));
+    return /^call_booked_\d{4}_\d{2}$/.test(key)&&suffix>currentSuffix&&v&&v.time;
+  });
+  if(currentRaw&&!currentRaw.time&&!serverKeys[currentSuffix]&&hasDatedFuture)localStorage.removeItem(prefix+currentSuffix);
+}
+async function refreshCallBookingsFromCloud(attempt){
+  attempt=attempt||0;
+  if(!_authToken||!athlete||!athlete.code)return;
+  try{
+    var result=await portalRequest('booking-read');
+    applyCloudBookingRows(result.rows||[]);
+    var state=renderBookingPrompts();
+    if((state.booked&&state.displayTime)||(!state.booked&&state.upcoming&&state.upcoming.displayTime))return;
+  }catch(e){console.warn('Booking time refresh failed',e);}
+  if(attempt<2){
+    if(_callBookingRefreshTimer)clearTimeout(_callBookingRefreshTimer);
+    _callBookingRefreshTimer=setTimeout(function(){refreshCallBookingsFromCloud(attempt+1);},attempt===0?2500:6000);
+  }
+}
+function initCallNudge(){
+  var state=renderBookingPrompts();
+  if(state.booked&&!state.displayTime)refreshCallBookingsFromCloud(0);
+}
 function checkinWeekSuffix(date){
   var d=new Date(date||new Date());d.setHours(0,0,0,0);
   // Weeks reset at Monday midnight. The form's completion state is therefore
@@ -202,20 +255,52 @@ function dpFormatBookedTime(iso){
     if(!iso) return '';
     var d=new Date(iso);
     if(isNaN(d)) return '';
-    return d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+
-      ' · '+d.toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit',hour12:true});
+    return d.toLocaleDateString('en-AU',{timeZone:'Australia/Adelaide',weekday:'short',day:'numeric',month:'short'}).replace(',','')+
+      ' · '+d.toLocaleTimeString('en-AU',{timeZone:'Australia/Adelaide',hour:'numeric',minute:'2-digit',hour12:true}).toLowerCase();
   }catch(ex){return '';}
 }
-function dpMarkCallBooked(displayTime){
-  var wkey=callNudgeWeekKey();
-  var saveVal=displayTime||'1';
+function dpBookingStart(value){
+  if(value==null||value==='')return null;
+  var d=new Date(typeof value==='number'?value:String(value));
+  return isNaN(d)?null:d;
+}
+function dpExtractBookingStart(data,payloadStr){
+  var d=(data&&typeof data==='object')?data:{};
+  var direct=[d.startTime,d.start_time,d.appointment_start_time,d.selectedSlot,d.selected_slot,
+    d.appointment&&(d.appointment.startTime||d.appointment.start_time),
+    d.payload&&(d.payload.startTime||d.payload.start_time||d.payload.selectedSlot||d.payload.selected_slot),
+    d.data&&(d.data.startTime||d.data.start_time||d.data.selectedSlot||d.data.selected_slot)];
+  for(var i=0;i<direct.length;i++){var found=dpBookingStart(direct[i]);if(found)return found;}
+  var queue=[d],seen=[],depth=0;
+  while(queue.length&&depth<80){
+    var obj=queue.shift();depth++;
+    if(!obj||typeof obj!=='object'||seen.indexOf(obj)>=0)continue;seen.push(obj);
+    Object.keys(obj).forEach(function(key){
+      var value=obj[key];
+      if(/(?:start.*time|appointment.*start|selected.*slot|slot.*time)/i.test(key))direct.push(value);
+      if(value&&typeof value==='object')queue.push(value);
+    });
+  }
+  for(var j=0;j<direct.length;j++){var nested=dpBookingStart(direct[j]);if(nested)return nested;}
+  var matches=String(payloadStr||'').match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?/g)||[];
+  for(var k=0;k<matches.length;k++){var fallback=dpBookingStart(matches[k]);if(fallback)return fallback;}
+  return null;
+}
+function dpMarkCallBooked(startTime){
+  var start=dpBookingStart(startTime);
+  var wkey=callNudgeWeekKey(start||new Date());
+  var saveVal=start?{time:dpFormatBookedTime(start),startsAt:start.toISOString()}:'1';
   localStorage.setItem(wkey,JSON.stringify(saveVal));
   renderBookingPrompts();
   setTimeout(function(){try{closeCallModal();}catch(ex){}},1500);
   if(_authToken&&athlete&&athlete.code){
     var _wkpfx='dp_call_booked_'+athlete.code.toUpperCase()+'_';
     var sbKey='call_booked_'+wkey.slice(_wkpfx.length);
-    portalStateWrite(sbKey,saveVal).catch(function(err){console.warn('Call booked sync failed:',err);});
+    // Never let a timestamp-free widget success overwrite the authoritative
+    // webhook value. When a real start is available both paths store the same
+    // dated shape; otherwise the portal waits for booking-read to hydrate it.
+    if(start)portalStateWrite(sbKey,saveVal).catch(function(err){console.warn('Call booked sync failed:',err);});
+    refreshCallBookingsFromCloud(0);
   }
 }
 window.addEventListener('message',function(e){
@@ -227,19 +312,14 @@ window.addEventListener('message',function(e){
     try{payloadStr=(typeof e.data==='string')?e.data:JSON.stringify(e.data);}catch(ex){}
     if(/appointment|booking/i.test(payloadStr)&&/(book|confirm|success|created|scheduled|complete)/i.test(payloadStr)){
       var d=(typeof e.data==='object')?e.data:{};
-      var st=d.startTime||(d.appointment&&d.appointment.startTime)||(d.payload&&(d.payload.startTime||d.payload.start_time));
-      // Fallback: GHL's embed often omits a structured startTime — scan the
-      // raw payload for any ISO datetime before giving up on showing a time.
-      // (The authoritative time still arrives via the GHL webhook -> /api/call-booked.)
-      if(!st){var m=payloadStr.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?/);if(m)st=m[0];}
-      dpMarkCallBooked(dpFormatBookedTime(st));
+      dpMarkCallBooked(dpExtractBookingStart(d,payloadStr));
       return;
     }
   }
   // Legacy Calendly fallback
   if(e.data.event&&e.data.event==='calendly.event_scheduled'){
     var startTime=e.data.payload&&e.data.payload.event&&e.data.payload.event.start_time;
-    dpMarkCallBooked(dpFormatBookedTime(startTime));
+    dpMarkCallBooked(startTime);
   }
 });
 

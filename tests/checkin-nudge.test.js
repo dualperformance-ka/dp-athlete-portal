@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { stateRead } from '../api/write.js';
-import { isoWeekKey } from '../api/_lib/booking.js';
+import { bookingRead, stateRead } from '../api/write.js';
+import { adelaideDate, displayTime, isoWeekKey } from '../api/_lib/booking.js';
 
 const root = new URL('..', import.meta.url).pathname;
 const navSource = readFileSync(join(root, 'public', 'js', '03-nav-nudges.js'), 'utf8');
@@ -22,7 +22,7 @@ function checkinKeys(code) {
 }
 
 function callKeys() {
-  const start = navSource.indexOf('function callWeekSuffix');
+  const start = navSource.indexOf('function callAdelaideDate');
   const end = navSource.indexOf('function callBookedPrefix', start);
   assert.ok(start >= 0 && end > start, 'call key helper should remain discoverable');
   const context = {};
@@ -55,6 +55,46 @@ test('portal booking nudge does not carry a Sunday booking into Monday', () => {
   assert.equal(keys.callWeekSuffix(new Date(2026, 7, 2)), '2026_31');
   assert.equal(keys.callWeekSuffix(new Date(2026, 7, 3)), '2026_32');
   assert.equal(keys.callWeekSuffix(new Date(2026, 7, 4)), '2026_32');
+});
+
+test('booking week boundaries use Adelaide time even for UTC timestamps', () => {
+  const sundayUtcButMondayAdelaide = new Date('2026-08-02T15:00:00Z');
+  assert.equal(callKeys().callWeekSuffix(sundayUtcButMondayAdelaide), '2026_32');
+  assert.equal(isoWeekKey(adelaideDate(sundayUtcButMondayAdelaide)), 'call_booked_2026_32');
+});
+
+test('booked calls display both their Adelaide date and time', () => {
+  const start = new Date('2026-08-04T09:00:00Z');
+  assert.equal(displayTime(start), 'Tue 4 Aug · 6:30 pm');
+
+  const uiStart = navSource.indexOf('function dpFormatBookedTime');
+  const uiEnd = navSource.indexOf("window.addEventListener('message'", uiStart);
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(navSource.slice(uiStart, uiEnd), context);
+  assert.equal(context.dpFormatBookedTime(start), 'Tue 4 Aug · 6:30 pm');
+  assert.equal(
+    context.dpExtractBookingStart({ data: { selected_slot: '2026-08-04T09:00:00Z' } }, '').toISOString(),
+    '2026-08-04T09:00:00.000Z',
+  );
+});
+
+test('booking refresh reads only weekly booking state for the authenticated athlete', async () => {
+  let query;
+  const result = await bookingRead('KARL', async (table, params) => {
+    query = { table, params };
+    return [{ key: 'call_booked_2026_32', value: { time: 'Tue 4 Aug · 6:30 pm' } }];
+  });
+  assert.equal(query.table, 'athlete_data');
+  assert.equal(query.params.athlete_code, 'eq.KARL');
+  assert.equal(query.params.key, 'like.call_booked_*');
+  assert.equal(result.rows[0].key, 'call_booked_2026_32');
+});
+
+test('timestamp-free widget confirmations cannot overwrite the cloud booking value', () => {
+  assert.match(navSource, /if\(start\)portalStateWrite\(sbKey,saveVal\)/);
+  assert.match(navSource, /refreshCallBookingsFromCloud\(0\)/);
+  assert.match(navSource, /getElementById\('callConfirmedSub'\)/);
 });
 
 test('cloud hydration uses structured check-ins, not legacy cache rows', async () => {

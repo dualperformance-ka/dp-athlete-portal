@@ -240,6 +240,17 @@ async function bodyLogs(code) {
   return { rows: Array.isArray(rows) ? rows : [] };
 }
 
+export async function bookingRead(code, selectRows = select) {
+  const rows = await selectRows('athlete_data', {
+    athlete_code: `eq.${code}`,
+    key: 'like.call_booked_*',
+    select: 'key,value,updated_at',
+    order: 'key.asc',
+    limit: '100',
+  });
+  return { rows: Array.isArray(rows) ? rows : [] };
+}
+
 // Combine the read-only hydration calls that previously blocked portal entry
 // behind three separate authenticated requests. Keep each result in its
 // original response shape so the browser can run the existing hydration logic
@@ -259,6 +270,7 @@ export async function bootstrapRead(code, readers = {}) {
 
 async function dispatch(action, code, body) {
   if (action === 'bootstrap') return bootstrapRead(code);
+  if (action === 'booking-read') return bookingRead(code);
   if (action === 'state-read') return stateRead(code);
   if (action === 'state-write') return stateWrite(code, body);
   if (action === 'planned-sessions') return plannedSessions(code, body);
