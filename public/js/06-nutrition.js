@@ -196,7 +196,11 @@ async function renderVolumeStrip(id,mode){
   el.classList.toggle('is-open',open);
   var tog=el.querySelector('.vstrip-toggle');
   if(tog) tog.setAttribute('aria-expanded',open?'true':'false');
-  el.style.display='block';
+  // Programme volume belongs to the Training plan, not the mobile Home view.
+  // This render finishes asynchronously and used to turn the strip back on
+  // after applyTrainingView() had hidden it, leaving it below the fixed nav.
+  var hiddenOnMobileHome=id==='trainingVolumeStrip'&&document.body.classList.contains('mobile-portal-home');
+  el.style.display=hiddenOnMobileHome?'none':'block';
   // Keep the current week in view without yanking the page around.
   if(open){
     var cur=el.querySelector('.vstrip-week.is-current'),scroller=el.querySelector('.vstrip-scroll');

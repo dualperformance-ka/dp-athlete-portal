@@ -761,7 +761,7 @@ function syncHeroShell(insights,todaySessions){
   if(support){
     if(todaySessions.length){
       var primary=(todaySessions[0]&&todaySessions[0].name)||'today\'s session';
-      support.textContent='Today centers on '+primary+'. Open the brief, execute cleanly, and let the week build around it.';
+      support.textContent='Today: '+primary+'. Open the brief and execute cleanly.';
     }else{
       support.textContent='Recovery day. Stay ahead of the week, lock in the admin that matters, and be ready for the next key session.';
     }

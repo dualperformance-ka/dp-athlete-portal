@@ -1,14 +1,14 @@
 const CACHE_NAME = 'dp-athlete-v98'; // v98: access-code coaches get Contact sign-out; email athletes do not
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=92', '/desktop.css?v=4', '/config.js',
+  '/index.html', '/styles.css?v=93', '/desktop.css?v=4', '/config.js',
   '/js/01-core.js?v=93',
   '/js/02-login-goals.js?v=87',
   '/js/03-nav-nudges.js?v=90',
   '/js/04-checkin.js?v=86',
   '/js/05-handbook.js?v=81',
-  '/js/06-nutrition.js?v=84',
+  '/js/06-nutrition.js?v=85',
   '/js/07-progress.js?v=85',
-  '/js/08-training.js?v=94',
+  '/js/08-training.js?v=95',
   '/js/09-logging.js?v=91',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=90',

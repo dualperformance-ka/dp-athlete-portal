@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 92,
-    "sha": "cb4852c4e1f0"
+    "version": 93,
+    "sha": "29bea23ac20c"
   },
   "desktop.css": {
     "version": 4,
@@ -36,16 +36,16 @@
     "sha": "91f2bf171bb8"
   },
   "js/06-nutrition.js": {
-    "version": 84,
-    "sha": "07190f4c513f"
+    "version": 85,
+    "sha": "dd8380367cc0"
   },
   "js/07-progress.js": {
     "version": 85,
     "sha": "a0c0c1963b50"
   },
   "js/08-training.js": {
-    "version": 94,
-    "sha": "b8a2362aec0a"
+    "version": 95,
+    "sha": "79407473a578"
   },
   "js/09-logging.js": {
     "version": 91,

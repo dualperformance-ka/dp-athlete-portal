@@ -5019,6 +5019,22 @@ html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
   .hpills .readiness-chip .hero-readiness-ring .hero-stat-value{font-size:9.5px}
   .hpills .readiness-chip .hero-stat-note{font-size:10px}
 }
+
+/* Mobile Home keeps both utility pills on one quiet, balanced row. */
+@media(max-width:760px){
+  body.mobile-portal-home #trainingVolumeStrip{display:none!important}
+  body.mobile-portal-home .hero-support{
+    display:block;overflow:visible;font-size:10.5px;line-height:1.3;
+    -webkit-line-clamp:unset;line-clamp:unset;
+  }
+  body.mobile-portal-home .hpills .readiness-chip{padding:2px 8px 2px 2px;gap:5px}
+  body.mobile-portal-home .hpills .readiness-chip .hero-readiness-ring{
+    width:22px;height:22px;flex:0 0 22px;
+  }
+  body.mobile-portal-home .hpills .readiness-chip .hero-readiness-ring .hero-stat-value{font-size:9px}
+  body.mobile-portal-home .hpills .readiness-chip-label{font-size:6px;line-height:1.15}
+  body.mobile-portal-home .hpills .readiness-chip .hero-stat-note{font-size:9.5px;line-height:1.15}
+}
 /* ══════════════════════════════════════════════════════════════════════
    WEEKLY NUDGES · urgency + completion · v91
    Three states, one vocabulary:
