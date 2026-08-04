@@ -138,12 +138,11 @@ function renderBookingPrompts(){
 }
 var _callBookingRefreshTimer=null;
 function applyCloudBookingRows(rows){
-  var prefix=callBookedPrefix(),serverKeys={};
+  var prefix=callBookedPrefix();
   (rows||[]).forEach(function(row){
     var key=String(row&&row.key||'');
     if(!/^call_booked_\d{4}_\d{2}$/.test(key))return;
     var suffix=key.slice('call_booked_'.length);
-    serverKeys[suffix]=true;
     localStorage.setItem(prefix+suffix,JSON.stringify(row.value));
   });
   // If the widget could not expose a timestamp, it temporarily marked the
@@ -155,13 +154,20 @@ function applyCloudBookingRows(rows){
     var key=String(row&&row.key||''),suffix=key.slice('call_booked_'.length),v=parseBookedValue(JSON.stringify(row&&row.value));
     return /^call_booked_\d{4}_\d{2}$/.test(key)&&suffix>currentSuffix&&v&&v.time;
   });
-  if(currentRaw&&!currentRaw.time&&!serverKeys[currentSuffix]&&hasDatedFuture)localStorage.removeItem(prefix+currentSuffix);
+  // Older builds accidentally uploaded the timestamp-free flag too. A dated
+  // future row is more authoritative and must displace that stale placeholder.
+  if(currentRaw&&!currentRaw.time&&hasDatedFuture)localStorage.removeItem(prefix+currentSuffix);
 }
 async function refreshCallBookingsFromCloud(attempt){
   attempt=attempt||0;
   if(!_authToken||!athlete||!athlete.code)return;
   try{
-    var result=await portalRequest('booking-read');
+    var before=getCallBookedState();
+    // Repair historic placeholder rows immediately. The server resolves this
+    // authenticated athlete only and pulls their real appointment from GHL;
+    // later retries stay cheap and read Supabase only.
+    var action=(attempt===0&&before.booked&&!before.displayTime)?'booking-sync':'booking-read';
+    var result=await portalRequest(action);
     applyCloudBookingRows(result.rows||[]);
     var state=renderBookingPrompts();
     if((state.booked&&state.displayTime)||(!state.booked&&state.upcoming&&state.upcoming.displayTime))return;

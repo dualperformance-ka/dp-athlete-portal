@@ -109,6 +109,7 @@ async function doLogin(code){
   await hydratePortalData(code);
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
+  stravaMatchRejections=JSON.parse(localStorage.getItem('dp_strava_match_rejections_'+code)||'{}');
   exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
   hideLoginSuccess();
   document.getElementById('loginScreen').style.display='none';
@@ -130,6 +131,9 @@ async function doLogin(code){
   Promise.resolve(loadWeek()).finally(function(){
     window._portalSecondaryStarted=true;
     window._stravaLoadPromise=window.initStrava ? window.initStrava(athlete.code) : Promise.resolve({connected:false,activities:[]});
+    window._stravaLoadPromise.then(function(){
+      if(typeof refreshStravaSessionMatches==='function')refreshStravaSessionMatches();
+    }).catch(function(){});
     loadNutrition();
     if(typeof refreshRunningLibraryRevision==='function')setTimeout(refreshRunningLibraryRevision,0);
   });

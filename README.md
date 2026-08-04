@@ -21,6 +21,9 @@ an ignored local `.env` file; never commit them.
 - `EMAIL_AUTH_ENABLED`: set to `true` to enable email OTP sign-in for enrolled athletes (see `docs/auth-migration.md`; leave unset for legacy code login only)
 - `REMINDERS_CRON_SECRET` or `CRON_SECRET`: required bearer secret for scheduled reminder delivery
 - `NOTIFY_SECRET`: required bearer secret for coach-triggered push notifications
+- `GHL_API_TOKEN`: GoHighLevel private-integration token with calendar-event and contact read scopes; used to recover booked call times
+- `GHL_LOCATION_ID`: GoHighLevel location containing the coaching-call calendar
+- `GHL_CALENDAR_ID`: optional calendar override (defaults to the portal widget calendar)
 - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`: push notification credentials
 
 `NOTION_TOKEN` is no longer used and should be deleted from the Vercel project.

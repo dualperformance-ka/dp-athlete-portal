@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 95,
-    "sha": "688fe82de60a"
+    "version": 96,
+    "sha": "2e0ff36e5192"
   },
   "desktop.css": {
     "version": 4,
@@ -16,12 +16,12 @@
     "sha": "c8d6e79467a0"
   },
   "js/01-core.js": {
-    "version": 95,
-    "sha": "690e86f5f733"
+    "version": 96,
+    "sha": "e3094b26e58e"
   },
   "js/02-login-goals.js": {
-    "version": 89,
-    "sha": "d1b2428385a3"
+    "version": 90,
+    "sha": "79cda0988f3f"
   },
   "js/03-nav-nudges.js": {
     "version": 92,
@@ -43,13 +43,17 @@
     "version": 86,
     "sha": "b4fe068e7abd"
   },
+  "js/strava-match.js": {
+    "version": 2,
+    "sha": "dbaa6050a589"
+  },
   "js/08-training.js": {
-    "version": 97,
-    "sha": "750be769a56d"
+    "version": 98,
+    "sha": "c68ca7229aa0"
   },
   "js/09-logging.js": {
-    "version": 92,
-    "sha": "c9861f0e4d98"
+    "version": 94,
+    "sha": "2493b8c32638"
   },
   "accessibility.js": {
     "version": 1,

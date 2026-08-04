@@ -66,6 +66,104 @@ async function ghl(path, version) {
   return data;
 }
 
+// Authenticated portal recovery path. GHL's embedded widget sometimes reports
+// a successful booking without including the selected timestamp in its
+// postMessage payload. In that case /api/portal-data calls this function with
+// the athlete code derived from the signed session, then reads the resulting
+// athlete_data row back to the browser. No client-supplied identity is trusted.
+export async function syncBookingsForAthlete(code, options = {}) {
+  const selectRows = options.selectRows || select;
+  const patchRows = options.patchRows || patch;
+  const fetchGhl = options.fetchGhl || ghl;
+  const storeBooking = options.storeBooking || storeCallBooked;
+  const now = Number.isFinite(options.now) ? options.now : Date.now();
+  const locationId = options.locationId || process.env.GHL_LOCATION_ID;
+  const calendarId = options.calendarId || process.env.GHL_CALENDAR_ID || DEFAULT_CALENDAR;
+  if (!locationId) throw new Error('GHL_LOCATION_ID not configured');
+
+  const roster = await selectRows('athletes', {
+    code: `eq.${String(code).toUpperCase()}`,
+    select: 'code,email,ghl_contact_id',
+    limit: 1,
+  });
+  const athlete = Array.isArray(roster) ? roster[0] : null;
+  if (!athlete) throw new Error('Athlete not found');
+
+  // Include recent history as well as upcoming appointments so an already
+  // booked call can recover after a reload or a delayed webhook.
+  const start = now - 14 * 86400000;
+  const end = now + 60 * 86400000;
+  const windowMs = 30 * 86400000;
+  const events = [];
+  for (let from = start; from < end; from += windowMs) {
+    const to = Math.min(from + windowMs, end);
+    const response = await fetchGhl(
+      `/calendars/events?locationId=${encodeURIComponent(locationId)}&calendarId=${encodeURIComponent(calendarId)}&startTime=${from}&endTime=${to}`,
+      '2021-04-15'
+    );
+    const batch = (response && (response.events || response.data)) || [];
+    for (const event of batch) events.push(event);
+  }
+
+  const targetEmail = String(athlete.email || '').trim().toLowerCase();
+  let targetContactId = String(athlete.ghl_contact_id || '').trim();
+  const contactEmails = new Map();
+  const seen = new Set();
+  const updated = [];
+  const ordered = events
+    .filter((event) => {
+      const id = event.id || event.eventId || `${event.contactId || event.contact_id}:${event.startTime || event.start_time}`;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
+    .sort((a, b) => new Date(a.startTime || a.start_time || 0) - new Date(b.startTime || b.start_time || 0));
+
+  for (const event of ordered) {
+    const status = String(event.appointmentStatus || event.appoinmentStatus || '').toLowerCase();
+    if (status && SKIP_STATUSES.has(status)) continue;
+    const contactId = String(event.contactId || event.contact_id || '').trim();
+    const inlineEmail = String(
+      event.email || event.contactEmail || event.contact_email || (event.contact && event.contact.email) || ''
+    ).trim().toLowerCase();
+    let matches = !!(targetContactId && contactId === targetContactId)
+      || !!(targetEmail && inlineEmail === targetEmail);
+
+    // Older roster rows may not have a GHL contact id yet. Resolve only the
+    // unique contacts present on this calendar and stop doing lookups once the
+    // athlete's id is known.
+    if (!matches && !targetContactId && targetEmail && contactId) {
+      let eventEmail = contactEmails.get(contactId);
+      if (eventEmail === undefined) {
+        try {
+          const contactResponse = await fetchGhl(`/contacts/${encodeURIComponent(contactId)}`, '2021-07-28');
+          eventEmail = String(contactResponse && contactResponse.contact && contactResponse.contact.email || '').trim().toLowerCase();
+        } catch {
+          eventEmail = '';
+        }
+        contactEmails.set(contactId, eventEmail);
+      }
+      if (eventEmail && eventEmail === targetEmail) {
+        matches = true;
+        targetContactId = contactId;
+        try {
+          await patchRows('athletes', { code: `eq.${athlete.code}` }, { ghl_contact_id: contactId });
+        } catch (error) {
+          console.warn('[bookings recovery] contact id backfill failed:', error && error.message);
+        }
+      }
+    }
+    if (!matches) continue;
+
+    const startRaw = event.startTime || event.start_time || event.startTimestamp;
+    const startDate = startRaw ? new Date(startRaw) : null;
+    if (!startDate || isNaN(startDate)) continue;
+    updated.push(await storeBooking(athlete.code, startDate));
+  }
+
+  return { updated, calendarId };
+}
+
 // ── WEBHOOK MODE ──────────────────────────────────────────────────────────────
 
 async function handleWebhook(req, res) {

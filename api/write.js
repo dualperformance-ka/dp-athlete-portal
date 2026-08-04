@@ -4,9 +4,10 @@
 // endpoint is intentionally retired and returns 410 so old unauthenticated
 // Notion writes cannot be revived accidentally.
 
-import { select, upsert } from './_lib/supabase-rest.js';
+import { remove, select, upsert } from './_lib/supabase-rest.js';
 import { getRequestAthlete } from './_lib/auth.js';
 import { allowPortalRequest, safeError } from './_lib/http.js';
+import { syncBookingsForAthlete } from './bookings.js';
 import crypto from 'node:crypto';
 
 const ALLOWED_STATE_KEYS = [
@@ -18,6 +19,7 @@ const ALLOWED_STATE_KEYS = [
   /^ex_picks$/,
   /^pending_writes$/,
   /^strava_ack$/,
+  /^strava_match_rejections$/,
   // ISO week keys ("call_booked_2026_31") — the format the portal, the GHL
   // webhook and the backlog sync all write. The old date form is kept so any
   // historic row still round-trips.
@@ -250,6 +252,21 @@ async function sessionLogWrite(code, body) {
   return { session_key: sessionKey };
 }
 
+async function rejectStravaMatch(code, body) {
+  const sessionKey = text(body.sessionKey, 180);
+  const clientWriteId = text(body.clientWriteId, 120);
+  if (!sessionKey || !clientWriteId || !clientWriteId.startsWith('strava_')) {
+    const error = new Error('A valid Strava match is required');
+    error.status = 400;
+    throw error;
+  }
+  await Promise.all([
+    remove('session_logs', { athlete_code: `eq.${code}`, session_key: `eq.${sessionKey}` }),
+    remove('training_session_logs', { athlete_code: `eq.${code}`, client_write_id: `eq.${clientWriteId}` }),
+  ]);
+  return { session_key: sessionKey, client_write_id: clientWriteId };
+}
+
 async function bodyLogs(code) {
   const rows = await select('daily_body_logs', {
     athlete_code: `eq.${code}`,
@@ -269,6 +286,12 @@ export async function bookingRead(code, selectRows = select) {
     limit: '100',
   });
   return { rows: Array.isArray(rows) ? rows : [] };
+}
+
+export async function bookingSync(code, syncBookings = syncBookingsForAthlete, readBookings = bookingRead) {
+  const sync = await syncBookings(code);
+  const current = await readBookings(code);
+  return { ...current, synced: sync.updated || [] };
 }
 
 // Full read snapshot for the primary portal screen. Each section settles
@@ -317,6 +340,7 @@ async function dispatch(action, code, body) {
   if (action === 'bootstrap') return bootstrapRead(code);
   if (action === 'training-read') return trainingRead(code, body);
   if (action === 'booking-read') return bookingRead(code);
+  if (action === 'booking-sync') return bookingSync(code);
   if (action === 'state-read') return stateRead(code);
   if (action === 'state-write') return stateWrite(code, body);
   if (action === 'planned-sessions') return plannedSessions(code, body);
@@ -326,6 +350,7 @@ async function dispatch(action, code, body) {
   if (action === 'programme-data') return programmeData(code);
   if (action === 'session-logs-read') return sessionLogsRead(code);
   if (action === 'session-log-write') return sessionLogWrite(code, body);
+  if (action === 'strava-match-reject') return rejectStravaMatch(code, body);
   if (action === 'body-logs') return bodyLogs(code);
 
   const error = new Error('Unknown portal action');

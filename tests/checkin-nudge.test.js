@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { bookingRead, stateRead } from '../api/write.js';
+import { bookingRead, bookingSync, stateRead } from '../api/write.js';
+import { syncBookingsForAthlete } from '../api/bookings.js';
 import { adelaideDate, displayTime, isoWeekKey } from '../api/_lib/booking.js';
 
 const root = new URL('..', import.meta.url).pathname;
@@ -95,6 +96,48 @@ test('timestamp-free widget confirmations cannot overwrite the cloud booking val
   assert.match(navSource, /if\(start\)portalStateWrite\(sbKey,saveVal\)/);
   assert.match(navSource, /refreshCallBookingsFromCloud\(0\)/);
   assert.match(navSource, /getElementById\('callConfirmedSub'\)/);
+  assert.match(coreSource, /if\(!datedBooking\)return/);
+  assert.match(navSource, /portalRequest\(action\)/);
+  assert.match(navSource, /\?'booking-sync':'booking-read'/);
+  assert.match(navSource, /currentRaw&&!currentRaw\.time&&hasDatedFuture/);
+});
+
+test('authenticated booking recovery stores only the matching athlete appointment', async () => {
+  const stored = [];
+  const patched = [];
+  const start = '2026-08-04T09:00:00Z';
+  const result = await syncBookingsForAthlete('THOMAS', {
+    now: new Date('2026-08-04T00:00:00Z').getTime(),
+    locationId: 'location',
+    calendarId: 'calendar',
+    selectRows: async () => [{ code: 'THOMAS', email: 'thomas@example.com', ghl_contact_id: null }],
+    fetchGhl: async (path) => path.startsWith('/contacts/')
+      ? { contact: { email: path.includes('contact-thomas') ? 'thomas@example.com' : 'other@example.com' } }
+      : { events: [
+        { id: 'other', contactId: 'contact-other', startTime: '2026-08-05T09:00:00Z', appointmentStatus: 'confirmed' },
+        { id: 'match', contactId: 'contact-thomas', startTime: start, appointmentStatus: 'confirmed' },
+      ] },
+    patchRows: async (...args) => { patched.push(args); return []; },
+    storeBooking: async (code, date) => {
+      stored.push({ code, date: date.toISOString() });
+      return { key: 'call_booked_2026_32', value: { time: 'Tue 4 Aug · 6:30 pm', startsAt: date.toISOString() } };
+    },
+  });
+  // The same mocked events are returned for each date window, but event ids
+  // are de-duplicated before matching and writing.
+  assert.deepEqual(stored, [{ code: 'THOMAS', date: '2026-08-04T09:00:00.000Z' }]);
+  assert.equal(patched.length, 1);
+  assert.equal(result.updated.length, 1);
+});
+
+test('booking sync returns freshly recovered cloud rows', async () => {
+  const result = await bookingSync(
+    'THOMAS',
+    async (code) => ({ updated: [{ key: 'call_booked_2026_32' }], code }),
+    async () => ({ rows: [{ key: 'call_booked_2026_32', value: { time: 'Tue 4 Aug · 6:30 pm' } }] }),
+  );
+  assert.equal(result.rows[0].value.time, 'Tue 4 Aug · 6:30 pm');
+  assert.equal(result.synced[0].key, 'call_booked_2026_32');
 });
 
 test('cloud hydration uses structured check-ins, not legacy cache rows', async () => {

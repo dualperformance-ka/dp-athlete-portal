@@ -227,12 +227,25 @@ window.addEventListener('offline',function(){setSaveState('offline');});
     else if(key==='dp_logs_'+code) sbKey='logs';
     else if(key==='dp_ticked_'+code) sbKey='ticked';
     else if(key==='dp_reschedules_'+code) sbKey='reschedules';
+    else if(key==='dp_strava_match_rejections_'+code) sbKey='strava_match_rejections';
     else if(key==='dp_photos_'+code) sbKey='photos';
     else if(key.startsWith('dp_call_booked_')&&athlete&&athlete.code){var _cpfx='dp_call_booked_'+athlete.code.toUpperCase()+'_';if(key.startsWith(_cpfx))sbKey='call_booked_'+key.slice(_cpfx.length);}
     else if(key.startsWith('dp_daily_body_'+code+'_')) sbKey='daily_body_'+key.slice(('dp_daily_body_'+code+'_').length);
     else if(key.startsWith('dp_daily_nut_'+code+'_')) sbKey='daily_nut_'+key.slice(('dp_daily_nut_'+code+'_').length);
     if(!sbKey) return;
-    try{_scheduleSbSync(code,sbKey,JSON.parse(value));}catch(e){}
+    try{
+      var parsedValue=JSON.parse(value);
+      // A GHL widget success message does not always include the appointment
+      // timestamp. Keep that optimistic "booked" flag on this device only;
+      // uploading it would turn a temporary placeholder into the cloud source
+      // of truth and leave every device stuck on "Confirming date and time".
+      if(sbKey.indexOf('call_booked_')===0){
+        var datedBooking=parsedValue&&typeof parsedValue==='object'&&
+          (parsedValue.startsAt||parsedValue.startTime||parsedValue.start_time||parsedValue.time||parsedValue.displayTime);
+        if(!datedBooking)return;
+      }
+      _scheduleSbSync(code,sbKey,parsedValue);
+    }catch(e){}
   };
 })();
 
@@ -414,6 +427,7 @@ async function loadCloudData(code,preloaded){
       else if(row.key==='logs') lsKey='dp_logs_'+code;
       else if(row.key==='ticked') lsKey='dp_ticked_'+code;
       else if(row.key==='reschedules') lsKey='dp_reschedules_'+code;
+      else if(row.key==='strava_match_rejections') lsKey='dp_strava_match_rejections_'+code;
       else if(row.key==='photos') lsKey='dp_photos_'+code;
       else if(row.key.startsWith('daily_body_')) lsKey='dp_daily_body_'+code+'_'+row.key.slice('daily_body_'.length);
       else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);

@@ -13,6 +13,20 @@
   --mono:'DM Mono',monospace;--display:'Barlow Condensed',sans-serif;--body:'Barlow',sans-serif;
   --dp-logo:url('dp_baby_blue_transparent_512x512.png');
 }
+
+/* Strava planned-session matching */
+.strava-match-attribution,.strava-match-suggestion{display:flex;align-items:center;gap:9px;margin:10px 12px 0;padding:9px 10px;border-radius:8px;border:1px solid rgba(252,76,2,.22);background:rgba(252,76,2,.06);font-size:12px;color:var(--text)}
+.strava-match-attribution.today,.strava-match-suggestion.today{margin:12px 0 0}
+.strava-match-attribution svg,.strava-match-suggestion svg{flex:0 0 auto}
+.strava-match-attribution>span,.strava-match-suggestion>span{min-width:0;flex:1}
+.strava-match-attribution strong{display:block;font-size:12px;color:var(--text)}
+.strava-match-attribution small{display:block;margin-top:2px;font-family:var(--mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:#fc4c02}
+.strava-match-attribution button,.strava-match-suggestion button{flex:0 0 auto;border:1px solid rgba(252,76,2,.35);border-radius:6px;background:transparent;color:#fc4c02;padding:6px 8px;font:700 10px var(--mono);cursor:pointer}
+.strava-match-suggestion button{background:#fc4c02;color:#fff}
+.todayitem.strava-complete{border-color:rgba(252,76,2,.26);box-shadow:inset 3px 0 0 #fc4c02}
+.strava-feedback{border:1px solid rgba(252,76,2,.2);border-radius:9px;background:rgba(252,76,2,.04);padding:14px}
+.strava-feedback-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+@media(max-width:560px){.strava-feedback-grid{grid-template-columns:1fr}.strava-match-attribution,.strava-match-suggestion{align-items:flex-start;flex-wrap:wrap}.strava-match-attribution button,.strava-match-suggestion button{margin-left:20px}}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.55;min-height:100vh;-webkit-font-smoothing:antialiased}
 header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(146,210,237,0.1)}

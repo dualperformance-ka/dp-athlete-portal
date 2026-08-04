@@ -65,6 +65,13 @@ export async function patch(table, query, values) {
   });
 }
 
+export async function remove(table, query) {
+  return supabaseRequest(tablePath(table, query), {
+    method: 'DELETE',
+    prefer: 'return=minimal',
+  });
+}
+
 export async function select(table, query) {
   return supabaseRequest(tablePath(table, query), { method: 'GET' });
 }
