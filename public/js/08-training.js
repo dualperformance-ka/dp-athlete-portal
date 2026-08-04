@@ -674,6 +674,18 @@ function buildRunSubtitle(s,meta,resolvedTitle){
   return out.join(' · ');
 }
 
+function calculateDailyReadiness(body){
+  if(!body)return null;
+  var sleep=parseFloat(body.sleep),energy=parseFloat(body.energy);
+  var soreness=parseFloat(body.soreness),stress=parseFloat(body.stress);
+  var vals=[];
+  if(!isNaN(sleep))vals.push(sleep*10);
+  if(!isNaN(energy))vals.push(energy*10);
+  if(!isNaN(soreness))vals.push((11-soreness)*10);
+  if(!isNaN(stress))vals.push((11-stress)*10);
+  return vals.length?Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length):null;
+}
+
 function getHomeInsights(){
   var planned=sessions.filter(function(s){return getType(s)!=='rest';}).length;
   var completed=sessions.filter(function(s){return getType(s)!=='rest'&&(isSessionLogged(s.id)||logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id]);}).length;
@@ -683,10 +695,7 @@ function getHomeInsights(){
   var sleep=null,energy=null,soreness=null,stress=null;
   if(body){
     sleep=parseFloat(body.sleep);energy=parseFloat(body.energy);soreness=parseFloat(body.soreness);stress=parseFloat(body.stress);
-    var vals=[];
-    if(!isNaN(sleep))vals.push(sleep*10);if(!isNaN(energy))vals.push(energy*10);
-    if(!isNaN(soreness))vals.push((11-soreness)*10);if(!isNaN(stress))vals.push((11-stress)*10);
-    if(vals.length)readiness=Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length);
+    readiness=calculateDailyReadiness(body);
   }
   var exerciseNames={};
   Object.keys(logs||{}).forEach(function(id){var entry=logs[id];if(!entry||typeof entry!=='object'||Array.isArray(entry))return;Object.keys(entry).forEach(function(name){if(name.indexOf('__')!==0&&Array.isArray(entry[name]))exerciseNames[pbNormName(name)]=1;});});
@@ -905,6 +914,48 @@ function renderTodaySection(){
   el.style.display='block';
   if(typeof applyTrainingView==='function')applyTrainingView();
 }
+
+// Readiness is strictly a daily score. Keep long-running/PWA sessions honest:
+// clear yesterday's score at local midnight and re-check the synced body log
+// whenever the app returns from the background or regains focus.
+var _readinessDayKey='';
+var _readinessMidnightTimer=null,_readinessLastCloudRefresh=0,_readinessRefreshPromise=null;
+function scheduleReadinessMidnightReset(){
+  if(_readinessMidnightTimer)clearTimeout(_readinessMidnightTimer);
+  var now=new Date(),next=new Date(now);next.setHours(24,0,1,0);
+  _readinessMidnightTimer=setTimeout(function(){refreshDailyReadiness(true);},Math.max(1000,next-now));
+}
+function paintDailyReadiness(){
+  if(!athlete||!athlete.code)return;
+  if(typeof renderTodaySection==='function')renderTodaySection();
+  if(typeof syncQuickLogDock==='function')syncQuickLogDock();
+}
+function refreshDailyReadiness(syncCloud){
+  var today=localISO(new Date()),dayChanged=today!==_readinessDayKey;
+  _readinessDayKey=today;
+  scheduleReadinessMidnightReset();
+  // Paint first so a new day immediately shows "Log body check" instead of
+  // waiting on the network. A current cloud record then replaces it below.
+  paintDailyReadiness();
+  var canSync=syncCloud&&athlete&&athlete.code&&typeof loadStructuredBodyData==='function';
+  var freshEnough=!dayChanged&&(Date.now()-_readinessLastCloudRefresh)<60000;
+  if(!canSync||freshEnough||_readinessRefreshPromise)return;
+  _readinessLastCloudRefresh=Date.now();
+  _readinessRefreshPromise=loadStructuredBodyData(athlete.code)
+    .then(paintDailyReadiness)
+    .catch(function(){})
+    .finally(function(){_readinessRefreshPromise=null;});
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible')refreshDailyReadiness(true);
+});
+window.addEventListener('focus',function(){refreshDailyReadiness(true);});
+window.addEventListener('storage',function(event){
+  var prefix=athlete&&athlete.code?'dp_daily_body_'+athlete.code+'_':'';
+  if(prefix&&event.key&&event.key.indexOf(prefix)===0)refreshDailyReadiness(false);
+});
+if(document.readyState&&document.readyState!=='loading')scheduleReadinessMidnightReset();
+else document.addEventListener('DOMContentLoaded',scheduleReadinessMidnightReset);
 
 function scrollToSession(idx){
   var card=document.getElementById('sc_'+idx);

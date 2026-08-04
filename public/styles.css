@@ -5046,11 +5046,11 @@ html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
    per-id styling and the state classes have to win over all of it.
    ══════════════════════════════════════════════════════════════════════ */
 :root{
-  --nudge-due:#92d2ed;--nudge-due-soft:rgba(146,210,237,.16);--nudge-due-line:rgba(146,210,237,.34);
+  --nudge-due:#f59e0b;--nudge-due-soft:rgba(245,158,11,.16);--nudge-due-line:rgba(245,158,11,.52);
   --nudge-done:#22c55e;--nudge-done-soft:rgba(34,197,94,.13);--nudge-done-line:rgba(34,197,94,.32);
 }
 .outdoor-mode{
-  --nudge-due:#1f7fa6;--nudge-due-soft:rgba(31,127,166,.12);--nudge-due-line:rgba(31,127,166,.32);
+  --nudge-due:#d97706;--nudge-due-soft:rgba(217,119,6,.13);--nudge-due-line:rgba(217,119,6,.52);
   --nudge-done:#15803d;--nudge-done-soft:rgba(21,128,61,.1);--nudge-done-line:rgba(21,128,61,.32);
 }
 .nudge-strip{
@@ -5061,8 +5061,8 @@ html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
 /* ── Leading-edge rail — cheapest possible "this one matters" signal ──── */
 #goalsBanner.is-due::before,#callNudge.is-due::before,
 #checkinNudge.is-due::before,#photoNudge.is-due::before{
-  content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;
-  background:linear-gradient(180deg,var(--nudge-due),transparent)
+  content:'';position:absolute;left:0;top:6px;bottom:6px;width:4px;border-radius:0 4px 4px 0;
+  background:var(--nudge-due);box-shadow:0 0 10px var(--nudge-due-soft)
 }
 #callConfirmedNudge.is-done::before{
   content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;
@@ -5104,13 +5104,17 @@ html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
   color:var(--nudge-due);opacity:.75
 }
 @keyframes nudgeDotPulse{
-  0%{box-shadow:0 0 0 0 rgba(146,210,237,.5)}
-  70%{box-shadow:0 0 0 7px rgba(146,210,237,0)}
-  100%{box-shadow:0 0 0 0 rgba(146,210,237,0)}
+  0%{box-shadow:0 0 0 0 rgba(245,158,11,.58)}
+  70%{box-shadow:0 0 0 7px rgba(245,158,11,0)}
+  100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}
 }
 @keyframes nudgeGlow{
-  0%,100%{box-shadow:0 0 0 1px rgba(146,210,237,.05),0 16px 34px -22px rgba(146,210,237,.30)}
-  50%{box-shadow:0 0 0 1px rgba(146,210,237,.13),0 22px 46px -18px rgba(146,210,237,.52)}
+  0%,100%{box-shadow:0 0 0 1px rgba(245,158,11,.06),0 16px 34px -22px rgba(245,158,11,.30)}
+  50%{box-shadow:0 0 0 1px rgba(245,158,11,.16),0 22px 46px -18px rgba(245,158,11,.48)}
+}
+@keyframes nudgeGlowLight{
+  0%,100%{box-shadow:0 0 0 1px rgba(217,119,6,.10),0 12px 28px -17px rgba(217,119,6,.38)}
+  50%{box-shadow:0 0 0 2px rgba(217,119,6,.20),0 17px 36px -13px rgba(217,119,6,.55)}
 }
 
 /* ── Mobile: rows share one card, so the card carries the glow ────────── */
@@ -5119,7 +5123,9 @@ html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
     border-color:var(--nudge-due-line);
     animation:nudgeGlow 5.5s ease-in-out infinite
   }
-  .outdoor-mode .week-card.has-due{border-color:var(--nudge-due-line);animation:none}
+  .outdoor-mode .week-card.has-due{
+    border-color:var(--nudge-due-line);animation:nudgeGlowLight 5.5s ease-in-out infinite
+  }
   .week-card>.nudge-strip.is-due,.week-card>.nudge-strip.is-done{padding-left:14px}
   .week-card>#goalsBanner.is-due .nudge-strip-icon,.week-card>#callNudge.is-due .nudge-strip-icon,
   .week-card>#checkinNudge.is-due .nudge-strip-icon,.week-card>#photoNudge.is-due .nudge-strip-icon,
@@ -5144,7 +5150,7 @@ html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
   }
   .top-shell-priority>.nudge-strip.is-done{border-color:var(--nudge-done-line)}
   .outdoor-mode .top-shell-priority>.nudge-strip.is-due{
-    border-color:var(--nudge-due-line)!important;animation:none
+    border-color:var(--nudge-due-line)!important;animation:nudgeGlowLight 5.5s ease-in-out infinite
   }
 }
 
