@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stateRead } from '../api/write.js';
+import { isoWeekKey } from '../api/_lib/booking.js';
 
 const root = new URL('..', import.meta.url).pathname;
 const navSource = readFileSync(join(root, 'public', 'js', '03-nav-nudges.js'), 'utf8');
@@ -20,23 +21,47 @@ function checkinKeys(code) {
   return context;
 }
 
+function callKeys() {
+  const start = navSource.indexOf('function callWeekSuffix');
+  const end = navSource.indexOf('function callBookedPrefix', start);
+  assert.ok(start >= 0 && end > start, 'call key helper should remain discoverable');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(navSource.slice(start, end), context);
+  return context;
+}
+
 test('weekly check-in completion cache is scoped to the active athlete', () => {
   const monday = new Date(2026, 7, 3, 5, 54);
-  assert.equal(checkinKeys('KARL').checkinWeekKey(monday), 'dp_checkin_KARL_2026_31');
-  assert.equal(checkinKeys('ALEX').checkinWeekKey(monday), 'dp_checkin_ALEX_2026_31');
+  assert.equal(checkinKeys('KARL').checkinWeekKey(monday), 'dp_checkin_KARL_2026_32');
+  assert.equal(checkinKeys('ALEX').checkinWeekKey(monday), 'dp_checkin_ALEX_2026_32');
 });
 
-test('Monday and Tuesday retain the previous-week grace window', () => {
+test('weekly completion state resets on Monday', () => {
   const keys = checkinKeys('KARL');
-  assert.equal(keys.checkinWeekSuffix(new Date(2026, 7, 3)), '2026_31');
-  assert.equal(keys.checkinWeekSuffix(new Date(2026, 7, 4)), '2026_31');
-  assert.equal(keys.checkinWeekSuffix(new Date(2026, 7, 5)), '2026_32');
+  assert.equal(keys.checkinWeekSuffix(new Date(2026, 7, 2)), '2026_31');
+  assert.equal(keys.checkinWeekSuffix(new Date(2026, 7, 3)), '2026_32');
+  assert.equal(keys.checkinWeekSuffix(new Date(2026, 7, 4)), '2026_32');
+});
+
+test('server booking keys reset on Monday too', () => {
+  assert.equal(isoWeekKey(new Date(2026, 7, 2)), 'call_booked_2026_31');
+  assert.equal(isoWeekKey(new Date(2026, 7, 3)), 'call_booked_2026_32');
+  assert.equal(isoWeekKey(new Date(2026, 7, 4)), 'call_booked_2026_32');
+});
+
+test('portal booking nudge does not carry a Sunday booking into Monday', () => {
+  const keys = callKeys();
+  assert.equal(keys.callWeekSuffix(new Date(2026, 7, 2)), '2026_31');
+  assert.equal(keys.callWeekSuffix(new Date(2026, 7, 3)), '2026_32');
+  assert.equal(keys.callWeekSuffix(new Date(2026, 7, 4)), '2026_32');
 });
 
 test('cloud hydration uses structured check-ins, not legacy cache rows', async () => {
   assert.match(apiSource, /selectRows\('weekly_checkins'/);
   assert.match(apiSource, /filter\(\(row\) => !String\(row\.key \|\| ''\)\.startsWith\('checkin_'\)\)/);
   assert.match(coreSource, /var structuredCheckins=result\.checkins\|\|\[\]/);
+  assert.match(coreSource, /completedOn=row\.submitted_at\?new Date\(row\.submitted_at\)/);
   assert.doesNotMatch(coreSource, /row\.key\.startsWith\('checkin_'\).*lsKey=/);
 
   const queries = [];

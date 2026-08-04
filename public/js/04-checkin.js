@@ -115,7 +115,7 @@ async function submitCheckin(){
     wkNum=Math.max(1,Math.min(12,Math.floor((_w-_s)/(7*24*60*60*1000))+1));
   }else{wkNum=getCurrentProgrammeWeek();}
   var notionTitle=name.toUpperCase().trim()+' — Week '+wkNum;
-  var payload={name:notionTitle,athleteName:name,athleteCode:athlete&&athlete.code||'',athleteId:athlete&&athlete.notionPageId||'',weekEnding:weekEndVal,
+  var payload={name:notionTitle,athleteName:name,athleteCode:athlete&&athlete.code||'',athleteId:athlete&&athlete.notionPageId||'',weekEnding:weekEndVal,submittedAt:new Date().toISOString(),
     runCompleted:document.getElementById('ciRunComp').value||'0',runPlanned:document.getElementById('ciRunPlan').value||'0',
     runKm:document.getElementById('ciRunKm').value||'0',runFeel:document.getElementById('ciRunFeel').value,
     runWins:document.getElementById('ciRunWins').value||'None',runNiggles:document.getElementById('ciRunNiggles').value||'None',

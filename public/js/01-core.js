@@ -441,13 +441,19 @@ async function loadCloudData(code){
           ending=match?match[1]:'';
         }
         if(!ending)return;
-        localStorage.setItem(checkinPrefix+checkinWeekSuffix(localDateFromISO(ending)),JSON.stringify({submittedAt:row.submitted_at||'',weekEnding:ending}));
+        // The nudge is a weekly action cycle, so completion belongs to the
+        // Adelaide week in which the athlete submitted it. This lets Monday
+        // start clean while an overdue form can still report on last Sunday.
+        var completedOn=row.submitted_at?new Date(row.submitted_at):localDateFromISO(ending);
+        if(isNaN(completedOn))completedOn=localDateFromISO(ending);
+        localStorage.setItem(checkinPrefix+checkinWeekSuffix(completedOn),JSON.stringify({submittedAt:row.submitted_at||'',weekEnding:ending}));
       });
       // An offline submission is still work the athlete has completed. Keep
       // its nudge quiet while the existing outbox retries the canonical write.
       readPendingCoachWrites(code).forEach(function(item){
         var p=item&&item.payload;if(!p||p.type!=='weekly_checkin'||!p.weekEnding)return;
-        localStorage.setItem(checkinPrefix+checkinWeekSuffix(localDateFromISO(p.weekEnding)),JSON.stringify({queued:true,weekEnding:p.weekEnding}));
+        var queuedOn=p.submittedAt?new Date(p.submittedAt):(item.createdAt?new Date(item.createdAt):new Date());
+        localStorage.setItem(checkinPrefix+checkinWeekSuffix(queuedOn),JSON.stringify({queued:true,weekEnding:p.weekEnding}));
       });
     }catch(e){console.warn('Check-in completion hydration failed',e);}
     // Backfill: if photos exist locally but not in Supabase, push them up now

@@ -44,15 +44,10 @@ function dismissNudge(el,done){
 // ISO week suffix ("2026_31"). Zero-padded so week keys sort chronologically
 // as plain strings — that is what lets us find the next booked call.
 //
-// Carries the same Mon/Tue grace window as checkinWeekKey and the server's
-// isoWeekKey: the suffix names the week a call *reviews*, not the week it sits
-// in. A Monday call belongs to the week that just finished, so on Mon/Tue the
-// portal is still asking about that week — call and check-in stay in lockstep,
-// and the new week's prompts both appear on Wednesday.
+// Weeks reset at Monday midnight. A booking from Sunday belongs only to the
+// week that just ended, so Monday always starts with a fresh booking prompt.
 function callWeekSuffix(date){
   var d=new Date(date||new Date());d.setHours(0,0,0,0);
-  var day=d.getDay(); // 0=Sun .. 6=Sat
-  if(day===1||day===2){d.setDate(d.getDate()-3);} // Mon/Tue -> previous week
   d.setDate(d.getDate()+3-(d.getDay()+6)%7);
   var w1=new Date(d.getFullYear(),0,4);
   var isoWeek=1+Math.round(((d-w1)/86400000-3+(w1.getDay()+6)%7)/7);
@@ -129,13 +124,9 @@ function renderBookingPrompts(){
 function initCallNudge(){renderBookingPrompts();}
 function checkinWeekSuffix(date){
   var d=new Date(date||new Date());d.setHours(0,0,0,0);
-  // Grace window: a Mon/Tue submission reports on the week that just finished,
-  // so anchor the key to that week too (matches the Week Ending default in
-  // initCheckin). Shift the reference date back into the previous week before
-  // the ISO-week calc, so a late check-in can't land under the new week's key
-  // and overwrite / suppress the current week's submission.
-  var day=d.getDay(); // 0=Sun .. 6=Sat
-  if(day===1||day===2){d.setDate(d.getDate()-3);} // Mon/Tue -> previous week
+  // Weeks reset at Monday midnight. The form's completion state is therefore
+  // never carried into the new week, even when last week's form was submitted
+  // late on Sunday.
   d.setDate(d.getDate()+3-(d.getDay()+6)%7);
   var w1=new Date(d.getFullYear(),0,4);
   var isoWeek=1+Math.round(((d-w1)/86400000-3+(w1.getDay()+6)%7)/7);
