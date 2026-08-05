@@ -1,11 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import vm from 'node:vm';
 import {
   DEFAULT_RELATIVE_EFFORT_PER_KM_THRESHOLD,
   classifyPrescribedIntensity,
   matchActivityToSession,
   stravaActivityKey,
 } from '../public/js/strava-match.js';
+
+const root = new URL('..', import.meta.url).pathname;
+const loggingSource = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
+
+function rejectionHelpers(){
+  const start=loggingSource.indexOf('function removeLatestStravaRejection');
+  const end=loggingSource.indexOf('function stravaMatchActivityKey',start);
+  assert.ok(start>=0&&end>start,'Strava rejection helper should remain discoverable');
+  const context={};vm.createContext(context);vm.runInContext(loggingSource.slice(start,end),context);return context;
+}
 
 const session = { id: 'long-run', date: '2026-08-04', plannedKm: 12 };
 const run = (id, km, extra = {}) => ({
@@ -72,6 +85,18 @@ test('a rejected pairing is not re-suggested', () => {
   });
   assert.equal(result.matched, false);
   assert.ok(result.reasons.includes('rejected'));
+});
+
+test('undo removes only the latest rejection for the selected session', () => {
+  const original={ easy: ['activity-1','activity-2'], tempo: ['activity-3'] };
+  const restored=rejectionHelpers().removeLatestStravaRejection(original,'easy');
+  assert.deepEqual(JSON.parse(JSON.stringify(restored)),{ easy: ['activity-1'], tempo: ['activity-3'] });
+  assert.deepEqual(original,{ easy: ['activity-1','activity-2'], tempo: ['activity-3'] });
+});
+
+test('undo clears the session rejection key after restoring its only activity', () => {
+  const restored=rejectionHelpers().removeLatestStravaRejection({ easy: ['activity-1'] },'easy');
+  assert.deepEqual(JSON.parse(JSON.stringify(restored)),{});
 });
 
 test('prescribed tempo run at 2.4 relative effort per km downgrades to low confidence', () => {

@@ -223,6 +223,13 @@ var stravaMatchRejections={};
 var stravaSessionMatches={};
 var _stravaAutoCompleting={};
 
+function removeLatestStravaRejection(rejections,sessionId){
+  var next=Object.assign({},rejections||{}),sid=String(sessionId),list=(next[sid]||[]).map(String);
+  if(!list.length)return next;
+  list.pop();
+  if(list.length)next[sid]=list;else delete next[sid];
+  return next;
+}
 function stravaMatchActivityKey(activity){
   if(window.stravaActivityKey)return window.stravaActivityKey(activity);
   if(activity&&activity.id!=null)return String(activity.id);
@@ -254,14 +261,20 @@ function stravaMatchableSession(session){
 }
 function stravaLogoSvg(){return '<svg width="11" height="11" viewBox="0 0 24 24" fill="#FC4C02" aria-hidden="true"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg>';}
 function stravaMatchHtml(session,i,context){
-  var match=getStravaSessionMatch(session);if(!match||!match.activity)return '';
+  var match=getStravaSessionMatch(session);
+  if(!match||!match.activity){
+    if(stravaSessionNeedsManualLog(session&&session.id)){
+      return '<div class="strava-match-removed '+(context||'')+'" role="status"><span>Strava match removed</span><button type="button" onclick="event.stopPropagation();undoStravaMatch('+i+',this)">Undo</button></div>';
+    }
+    return '';
+  }
   var sum=stravaActivitySummary(match.activity),distance=sum.distance.toFixed(1).replace(/\.0$/,''),minutes=Math.round(sum.duration);
   if(match.confidence==='low'&&!isSessionLogged(session.id)){
     var prompt=stravaMatchHasReason(match,'intensity_below_prescription')?'This looks easier than the session you had planned — did you do the intervals?':('Looks like you ran this — '+distance+' km, '+minutes+' min. Mark it done?');
     return '<div class="strava-match-suggestion '+(context||'')+'">'+stravaLogoSvg()+'<span>'+prompt+'</span><button type="button" onclick="event.stopPropagation();confirmStravaMatch('+i+')">Confirm</button></div>';
   }
   if(!isSessionLogged(session.id))return '';
-  return '<div class="strava-match-attribution '+(context||'')+'">'+stravaLogoSvg()+'<span><strong>'+distance+' km · '+minutes+' min</strong><small>Matched from Strava</small></span><button type="button" onclick="event.stopPropagation();rejectStravaMatch('+i+')">Not this session</button></div>';
+  return '<div class="strava-match-attribution '+(context||'')+'">'+stravaLogoSvg()+'<span class="strava-match-copy"><strong><span>'+distance+' km</span><span aria-hidden="true">·</span><span>'+minutes+' min</span></strong><small>Synced from Strava</small></span><button type="button" aria-label="Remove this Strava match" onclick="event.stopPropagation();rejectStravaMatch('+i+')">Not this run</button></div>';
 }
 function stravaFeedbackFormHtml(session,i){
   var entry=logs[session.id]||{},saved=!!entry.__stravaFeedbackAt;
@@ -350,7 +363,21 @@ async function rejectStravaMatch(i){
     try{await portalStateWrite('ticked',ticked);}catch(e){}
     try{await portalRequest('strava-match-reject',{sessionKey:'session_'+athlete.code+'_'+s.id,clientWriteId:meta.clientWriteId||stravaClientWriteId(activity)});}catch(e){console.warn('Strava unmatch cleanup pending:',e);}
   }
-  delete stravaSessionMatches[sid];paintStravaMatches();
+  delete stravaSessionMatches[sid];paintStravaMatches();showToast('Strava match removed · Undo is available below');
+}
+async function undoStravaMatch(i,button){
+  var s=sessions[i];if(!s)return;
+  var sid=String(s.id),list=(stravaMatchRejections[sid]||[]).map(String);if(!list.length)return;
+  if(button){button.disabled=true;button.textContent='Restoring…';}
+  stravaMatchRejections=removeLatestStravaRejection(stravaMatchRejections,sid);
+  localStorage.setItem('dp_strava_match_rejections_'+athlete.code,JSON.stringify(stravaMatchRejections));
+  try{await portalStateWrite('strava_match_rejections',stravaMatchRejections);}catch(e){console.warn('Strava undo sync pending:',e);}
+  try{
+    await refreshStravaSessionMatches();
+    showToast(getStravaSessionMatch(s)?'Strava match restored ✓':'Undo saved · Strava will retry on refresh');
+  }catch(e){
+    console.warn('Strava rematch pending:',e);paintStravaMatches();showToast('Undo saved · Strava will retry on refresh');
+  }
 }
 
 var sessionLoggedCache={};

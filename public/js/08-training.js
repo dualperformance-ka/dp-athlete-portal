@@ -390,8 +390,9 @@ function buildCard(s,i){
   h+='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
   h+='</button></div>';
   if(marked) h+='<div class="sc-nudge" id="nudge_'+i+'">Marked — tap to open &amp; log your data</div>';
-  if(type==='run'&&typeof stravaMatchHtml==='function')h+=stravaMatchHtml(s,i,'plan');
-  h+='<div class="scb" id="scb_'+i+'">'+buildBody(s,i,type)+'</div></div>';
+  h+='<div class="scb" id="scb_'+i+'">';
+  if(type==='run'&&typeof stravaMatchHtml==='function')h+=stravaMatchHtml(s,i,'session');
+  h+=buildBody(s,i,type)+'</div></div>';
   return h;
 }
 
@@ -868,13 +869,11 @@ function renderTodaySection(){
     html+='<div class="todaylist">';
     todaySessions.forEach(function(s){
       var type=getType(s),meta=[],resolved=type==='run'?resolveRunDisplay(s):null;
-      var todayStravaMatch=type==='run'&&typeof getStravaSessionMatch==='function'?getStravaSessionMatch(s):null;
-      var todayStravaDone=!!(todayStravaMatch&&isSessionLogged(s.id));
       if(s.intensity) meta.push(s.intensity);
       if(s.week) meta.push(s.week);
       if(s.status) meta.push(s.status);
       var displayName=s.name||'Session';
-      html+='<div class="todayitem'+(todayStravaDone?' strava-complete':'')+'"><div class="todaytop"><div class="todaydot '+type+'"></div><div class="todaymain">';
+      html+='<div class="todayitem"><div class="todaytop"><div class="todaydot '+type+'"></div><div class="todaymain">';
       html+='<div class="todayname '+type+'">'+esc(displayName)+'</div>';
       if(meta.length) html+='<div class="todaymeta">'+esc(meta.join(' · '))+'</div>';
       var sessionIdx=-1;sessions.forEach(function(ws,wi){if(ws.id===s.id) sessionIdx=wi;});
@@ -932,7 +931,6 @@ function renderTodaySection(){
       }else{
         html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
       }
-      if(type==='run'&&typeof stravaMatchHtml==='function')html+=stravaMatchHtml(s,sessionIdx,'today');
       if(type!=='rest'&&sessionIdx>=0){
         html+='<button type="button" class="today-action primary" onclick="startFocusedSession('+sessionIdx+')" style="width:100%;margin-top:12px">Open session <svg class="icon"><use href="#i-arrow-right"/></svg></button>';
       }

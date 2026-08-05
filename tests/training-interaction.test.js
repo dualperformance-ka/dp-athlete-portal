@@ -7,6 +7,18 @@ import { join } from 'node:path';
 const root = new URL('..', import.meta.url).pathname;
 const source = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
 
+test('Strava match controls stay inside the opened session, not the Home card', () => {
+  const buildCardStart=source.indexOf('function buildCard');
+  const buildCardEnd=source.indexOf('function resolveRunDisplay',buildCardStart);
+  const homeStart=source.indexOf('function renderTodaySection');
+  const homeEnd=source.indexOf('// Readiness is strictly',homeStart);
+  const buildCardSource=source.slice(buildCardStart,buildCardEnd);
+  const homeSource=source.slice(homeStart,homeEnd);
+  assert.match(buildCardSource,/class="scb"[\s\S]*stravaMatchHtml\(s,i,'session'\)[\s\S]*buildBody\(s,i,type\)/);
+  assert.doesNotMatch(homeSource,/stravaMatchHtml/);
+  assert.doesNotMatch(homeSource,/strava-complete/);
+});
+
 function classList(initial = []) {
   const classes = new Set(initial);
   return {
