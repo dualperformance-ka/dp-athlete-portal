@@ -71,3 +71,48 @@ test('completing an exercise collapses it without opening the next exercise', ()
   assert.equal(card.classList.contains('open'), false);
   assert.equal(nextCard.classList.contains('open'), false);
 });
+
+test('set auto-completion waits for RPE when the row includes an RPE field', () => {
+  const fields = {
+    'input[id^="w_"]': { value: '80' },
+    'input[id^="r_"]': { value: '8' },
+    'input[id^="rpe_"]': { value: '' }
+  };
+  const row = { querySelector: (selector) => fields[selector] || null };
+  const button = { classList: classList() };
+  const context = {
+    console,
+    Date,
+    Math,
+    Intl,
+    setTimeout: () => 0,
+    clearTimeout: () => {},
+    setInterval: () => 0,
+    clearInterval: () => {},
+    document: {
+      addEventListener: () => {},
+      getElementById: (id) => id.startsWith('sr_') ? row : button,
+      querySelector: () => null,
+      querySelectorAll: () => []
+    },
+    window: {
+      addEventListener: () => {},
+      matchMedia: () => ({ matches: false })
+    },
+    localStorage: {
+      getItem: () => null,
+      setItem: () => {}
+    }
+  };
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  let completions = 0;
+  context.togSet = () => { completions += 1; };
+
+  context.autoCompleteStrengthSet(0, 0, 0);
+  assert.equal(completions, 0, 'weight and reps alone must keep the set open');
+
+  fields['input[id^="rpe_"]'].value = '8';
+  context.autoCompleteStrengthSet(0, 0, 0);
+  assert.equal(completions, 1, 'the set completes after RPE is entered');
+});

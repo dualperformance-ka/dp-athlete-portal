@@ -121,7 +121,7 @@ function addSet(i,ei,rep,splitKey){
     row.innerHTML='<div class="snum" aria-label="Bonus set '+bonus+'">B'+bonus+'</div>'
       +'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="'+draft+'" onchange="'+complete+'" />'
       +'<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="'+draft+'" onchange="'+complete+'" />'
-      +'<input type="number" class="rpe-in" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" oninput="'+draft+'" />'
+      +'<input type="number" class="rpe-in" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" oninput="'+draft+'" onchange="'+complete+'" />'
       +'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark bonus set '+bonus+' complete" aria-pressed="false" onclick="togSet('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;
   }
   c.appendChild(row);
@@ -473,6 +473,9 @@ function pbComputeStored(exName,excludeId){
 }
 // Detect new PBs for one exercise's sets against stored pbs
 function detectExercisePBs(exName,sets,stored){
+  // The recorded number on an assisted movement is help supplied by the
+  // machine, not load lifted. Conventional load/volume/e1RM PBs do not apply.
+  if(_isAssistedExercise(exName)) return [];
   stored=stored||{load:null,reps:null,e1rm:null,volume:null};
   var clean=pbCleanSets(sets),hits=[];
   if(!clean.length) return hits;
@@ -532,6 +535,7 @@ function markInlinePbs(i,splitKey){
       }
     });
     var resolvedEx=exPicks[ex.exercise]||ex.exercise;
+    if(_isAssistedExercise(resolvedEx)) return;
     var stored=pbComputeStored(resolvedEx,s.id);
     var hasHistory=!(stored.load==null&&stored.reps==null&&stored.e1rm==null&&stored.volume==null);
     var loadW=stored.load?pbNum(stored.load.weight):null;
@@ -601,11 +605,11 @@ async function saveGym(i,splitKey){
   logs[s.id]=storedLog;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
   try{await portalStateWrite('logs',logs);}catch(e){}
   var pbHits=[];try{pbHits=detectSessionPBs(s.id,log);}catch(e){console.warn('PB detection failed:',e);}
-  function setSummary(st,si){
+  function setSummary(st,si,assisted){
     var reps=(st.reps!==undefined&&st.reps!==null&&st.reps!=='')?(st.reps+'reps'):'';
     if(!reps&&(st.repsLeft||st.repsRight)) reps='L '+(st.repsLeft||'—')+' / R '+(st.repsRight||'—')+' reps';
     if(!reps) reps='— reps';
-    return 'Set '+(si+1)+': '+(st.weight||'—')+'kg × '+reps+(st.rpe?' @ RPE '+st.rpe:'');
+    return 'Set '+(si+1)+': '+(st.weight||'—')+(assisted?'kg assistance':'kg')+' × '+reps+(st.rpe?' @ RPE '+st.rpe:'');
   }
   var fetches=Object.keys(log).filter(function(k){return k.indexOf('__')!==0;}).map(function(exName){
     var sets=log[exName];
@@ -614,7 +618,7 @@ async function saveGym(i,splitKey){
     return coachWrite(WEBHOOK,{
       name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',
       exerciseName:exName,repMode:repMode,
-      exerciseLog:exName+': '+sets.map(setSummary).join(' | '),rawSets:sets,
+      exerciseLog:exName+': '+sets.map(function(st,si){return setSummary(st,si,_isAssistedExercise(exName));}).join(' | '),rawSets:sets,
       notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,
       athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()
     });

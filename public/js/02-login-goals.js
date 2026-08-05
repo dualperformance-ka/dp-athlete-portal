@@ -194,6 +194,9 @@ function setRaceFromValue(val){
 function refreshExerciseStat(i,ei,resolvedEx,ex){
   var statEl=document.getElementById('exstat_'+i+'_'+ei);if(!statEl) return;
   var s=sessions[i];if(!s) return;
+  // Assistance is machine help, so conventional load/volume/e1RM records are
+  // misleading for assisted dips and pull-ups.
+  if(_isAssistedExercise(resolvedEx)){statEl.innerHTML='';return;}
   var stored=pbComputeStored(resolvedEx,s.id);
   var isSingleLeg=usesLeftRightReps(resolvedEx,ex);
   var sh='';
@@ -207,13 +210,18 @@ function syncStrengthRepMode(i,ei,ex,resolvedEx,splitKey){
   var container=document.getElementById('sets_'+i+'_'+ei);if(!container)return;
   var wantsLeftRight=usesLeftRightReps(resolvedEx,ex);
   var hasLeftRight=!!container.querySelector('input[id^="rL_"]');
-  if(wantsLeftRight===hasLeftRight)return;
   var labels=container.previousElementSibling;
+  var loadLabel=_isAssistedExercise(resolvedEx)?'Assist kg':'kg';
+  if(wantsLeftRight===hasLeftRight){
+    var loadHeading=labels&&labels.querySelectorAll('.slbl')[1];
+    if(loadHeading)loadHeading.textContent=loadLabel;
+    return;
+  }
   if(labels){
     labels.className=wantsLeftRight?'slbls-single':'slbls';
     labels.innerHTML=wantsLeftRight
-      ?'<div class="slbl"></div><div class="slbl">kg</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div>'
-      :'<div class="slbl"></div><div class="slbl">kg</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div>';
+      ?'<div class="slbl"></div><div class="slbl">'+loadLabel+'</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div>'
+      :'<div class="slbl"></div><div class="slbl">'+loadLabel+'</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div>';
   }
   container.querySelectorAll('.setrow,.setrow-single').forEach(function(row){
     var match=String(row.id||'').match(/_(\d+)$/);if(!match)return;
@@ -237,7 +245,7 @@ function syncStrengthRepMode(i,ei,ex,resolvedEx,splitKey){
       var leftNum=parseFloat(leftValue),rightNum=parseFloat(rightValue);
       var combined=!isNaN(leftNum)&&!isNaN(rightNum)?String(Math.min(leftNum,rightNum)):(leftValue||rightValue);
       var repsInput=document.createElement('input');repsInput.type='number';repsInput.className='sin';repsInput.id='r_'+i+'_'+ei+'_'+si;repsInput.placeholder='—';repsInput.min='0';repsInput.value=combined;wire(repsInput,true);
-      var rpeInput=document.createElement('input');rpeInput.type='number';rpeInput.className='rpe-in';rpeInput.id='rpe_'+i+'_'+ei+'_'+si;rpeInput.placeholder='—';rpeInput.min='1';rpeInput.max='10';rpeInput.step='0.5';rpeInput.value=row.getAttribute('data-bilateral-rpe')||'';wire(rpeInput,false);
+      var rpeInput=document.createElement('input');rpeInput.type='number';rpeInput.className='rpe-in';rpeInput.id='rpe_'+i+'_'+ei+'_'+si;rpeInput.placeholder='—';rpeInput.min='1';rpeInput.max='10';rpeInput.step='0.5';rpeInput.value=row.getAttribute('data-bilateral-rpe')||'';wire(rpeInput,true);
       if(leftInput)leftInput.remove();if(rightInput)rightInput.remove();
       row.insertBefore(repsInput,tick);row.insertBefore(rpeInput,tick);
       row.classList.remove('setrow-single');row.classList.add('setrow');

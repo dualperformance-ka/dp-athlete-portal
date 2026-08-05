@@ -190,3 +190,48 @@ test('exercise history follows the exercise across splits and name formatting', 
   assert.deepEqual(Array.from(history, (entry) => entry.sessionId), ['full-body-new', 'upper-a-old']);
   assert.deepEqual(Array.from(history, (entry) => entry.sets[0].weight), ['25', '22.5']);
 });
+
+test('assisted dips progress by reducing assistance rather than adding weight', () => {
+  const assisted = {
+    exercise: 'Assisted Dips',
+    sets: '2',
+    workingSets: '2',
+    reps: '8',
+    repRange: '8-12'
+  };
+  const current = [
+    { weight: '20.4', reps: '12' },
+    { weight: '20.4', reps: '12' }
+  ];
+  const history = [
+    { sets: current },
+    { sets: [{ weight: '27', reps: '12' }, { weight: '27', reps: '12' }] }
+  ];
+
+  const recommendation = context.computeOverload(assisted, current, assisted.exercise, history);
+
+  assert.equal(recommendation.status, 'Ready to Progress');
+  assert.equal(recommendation.action, 'Reduce assistance to 13.8kg');
+  assert.equal(recommendation.weightKg, 13.8);
+  assert.equal(recommendation.assisted, true);
+  assert.match(context._nsChip(recommendation), /13\.8kg assist/);
+});
+
+test('assisted dips hold the assistance setting while reps are still building', () => {
+  const assisted = {
+    exercise: 'Assisted Dips',
+    sets: '2',
+    workingSets: '2',
+    reps: '8',
+    repRange: '8-12'
+  };
+  const current = [
+    { weight: '20.4', reps: '10' },
+    { weight: '20.4', reps: '10' }
+  ];
+
+  const recommendation = context.computeOverload(assisted, current, assisted.exercise, []);
+
+  assert.equal(recommendation.action, 'Stay at 20.4kg assistance');
+  assert.match(recommendation.reason, /before reducing assistance/);
+});
