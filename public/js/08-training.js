@@ -2053,5 +2053,8 @@ function togSet(i,ei,si){
       },320);
     }
   }
-  if(on) startRest(i,ei);
+  if(on){
+    var exerciseName=card&&typeof card.querySelector==='function'?card.querySelector('.exn'):null;
+    startRest(i,ei,exerciseName?exerciseName.textContent.trim():'');
+  }
 }

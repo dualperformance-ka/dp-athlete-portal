@@ -1,8 +1,9 @@
 // ── REST TIMER ────────────────────────────────────────────────────────────────
 // Single global countdown, fired when a set is completed. The absolute deadline
 // keeps the timer accurate when the browser throttles intervals in another app.
-var _rest={iv:null,key:null,deadline:0,total:0,notified:false};
+var _rest={iv:null,key:null,deadline:0,total:0,exerciseName:'',notified:false};
 var _restPermissionAsked=false;
+var REST_ALERT_LEAD_SECONDS=3;
 function restTimerStorageKey(){return 'dp_rest_timer_'+((athlete&&athlete.code)||'default');}
 function restTimerEnabled(){try{return localStorage.getItem('dp_rest_timer_enabled')!=='false';}catch(e){return true;}}
 function updateRestTimerControls(){
@@ -34,32 +35,46 @@ function skipRest(i,ei){
   if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}
   if(_rest.key&&_rest.key!==i+'_'+ei){var active=document.getElementById('rest_'+_rest.key);if(active){active.style.display='none';active.style.opacity='1';}}
   hideRestTimer(i,ei);clearRestTimerStorage();
-  _rest.key=null;_rest.deadline=0;_rest.total=0;_rest.notified=false;
+  _rest.key=null;_rest.deadline=0;_rest.total=0;_rest.exerciseName='';_rest.notified=false;
 }
 function restExerciseName(i,ei){
   var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
   var name=card&&card.querySelector('.exn');return name?name.textContent.trim():'your next set';
 }
-function notifyRestComplete(i,ei){
-  if(_rest.notified)return;_rest.notified=true;
-  var name=restExerciseName(i,ei),body='Rest finished — time for '+name+'.';
+function restAppIsVisible(){return document.visibilityState==='visible';}
+function showRestForegroundComplete(i,ei,exerciseName){
+  var name=String(exerciseName||'').trim()||restExerciseName(i,ei);
   showToast('Rest complete · '+name);
   try{if(navigator.vibrate)navigator.vibrate([180,90,180]);}catch(e){}
+}
+function sendRestSystemAlert(i,ei,exerciseName){
+  if(_rest.notified)return;_rest.notified=true;
+  var name=String(exerciseName||'').trim()||restExerciseName(i,ei);
+  var remaining=Math.max(0,Math.ceil((_rest.deadline-Date.now())/1000));
+  var early=remaining>0;
+  var title=early?'Rest nearly complete':'Rest complete';
+  var body=early?'Rest finishes in '+remaining+' seconds — get ready for '+name+'.':'Rest finished — time for '+name+'.';
+  try{
+    var saved=JSON.parse(localStorage.getItem(restTimerStorageKey())||'null');
+    if(saved&&Number(saved.deadline)===Number(_rest.deadline)){saved.notified=true;localStorage.setItem(restTimerStorageKey(),JSON.stringify(saved));}
+  }catch(e){}
   if(!('Notification'in window)||Notification.permission!=='granted')return;
   var options={body:body,icon:'/dp_baby_blue_transparent_512x512.png',badge:'/dp_baby_blue_transparent_512x512.png',tag:'dp-rest-complete',renotify:true,data:{url:location.pathname+location.search}};
   if('serviceWorker'in navigator){
     navigator.serviceWorker.getRegistration().then(function(reg){
-      if(reg)return reg.showNotification('Rest complete',options);
-      try{new Notification('Rest complete',options);}catch(e){}
-    }).catch(function(){try{new Notification('Rest complete',options);}catch(e){}});
-  }else{try{new Notification('Rest complete',options);}catch(e){}}
+      if(reg)return reg.showNotification(title,options);
+      try{new Notification(title,options);}catch(e){}
+    }).catch(function(){try{new Notification(title,options);}catch(e){}});
+  }else{try{new Notification(title,options);}catch(e){}}
 }
 function finishRest(i,ei){
   if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}
-  clearRestTimerStorage();notifyRestComplete(i,ei);
+  if(restAppIsVisible())showRestForegroundComplete(i,ei,_rest.exerciseName);
+  else if(!_rest.notified)sendRestSystemAlert(i,ei,_rest.exerciseName);
+  clearRestTimerStorage();
   var el=document.getElementById('rest_'+i+'_'+ei);
   if(el){el.style.transition='opacity .4s';el.style.opacity='0';setTimeout(function(){hideRestTimer(i,ei);},450);}
-  _rest.key=null;_rest.deadline=0;_rest.total=0;
+  _rest.key=null;_rest.deadline=0;_rest.total=0;_rest.exerciseName='';
 }
 function renderRestTimer(i,ei){
   if(!_rest.deadline)return;
@@ -68,6 +83,7 @@ function renderRestTimer(i,ei){
   var left=Math.max(0,Math.ceil((_rest.deadline-Date.now())/1000));
   var m=Math.floor(left/60),x=left%60;c.textContent=m+':'+(x<10?'0':'')+x;
   var f=document.getElementById('rtf_'+i+'_'+ei);if(f)f.style.width=Math.round(left/_rest.total*100)+'%';
+  if(left<=REST_ALERT_LEAD_SECONDS&&!_rest.notified&&!restAppIsVisible())sendRestSystemAlert(i,ei,_rest.exerciseName);
   if(left<=0)finishRest(i,ei);
 }
 function runRestTimer(i,ei){
@@ -75,16 +91,16 @@ function runRestTimer(i,ei){
   renderRestTimer(i,ei);
   if(_rest.deadline)_rest.iv=setInterval(function(){renderRestTimer(i,ei);},500);
 }
-function startRest(i,ei){
+function startRest(i,ei,exerciseName){
   if(!restTimerEnabled())return;
   var el=document.getElementById('rest_'+i+'_'+ei);if(!el) return;
   var total=parseInt(el.getAttribute('data-rest'),10)||0;if(total<=0) return;
   if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}
   if(_rest.key&&_rest.key!==i+'_'+ei){var prev=document.getElementById('rest_'+_rest.key);if(prev){prev.style.display='none';prev.style.opacity='1';}}
   _rest.key=i+'_'+ei;
-  _rest.total=total;_rest.deadline=Date.now()+total*1000;_rest.notified=false;
+  _rest.total=total;_rest.deadline=Date.now()+total*1000;_rest.exerciseName=String(exerciseName||'').trim()||restExerciseName(i,ei);_rest.notified=false;
   el.style.display='flex';el.style.opacity='1';
-  try{localStorage.setItem(restTimerStorageKey(),JSON.stringify({key:_rest.key,deadline:_rest.deadline,total:total,i:i,ei:ei}));}catch(e){}
+  try{localStorage.setItem(restTimerStorageKey(),JSON.stringify({key:_rest.key,deadline:_rest.deadline,total:total,i:i,ei:ei,exerciseName:_rest.exerciseName}));}catch(e){}
   requestRestAlertPermission();runRestTimer(i,ei);
 }
 function restoreRestTimer(){
@@ -93,11 +109,14 @@ function restoreRestTimer(){
   var saved=null;try{saved=JSON.parse(localStorage.getItem(restTimerStorageKey())||'null');}catch(e){}
   if(!saved||!saved.deadline||saved.i==null||saved.ei==null)return;
   var el=document.getElementById('rest_'+saved.i+'_'+saved.ei);if(!el)return;
-  _rest.key=saved.key||saved.i+'_'+saved.ei;_rest.deadline=Number(saved.deadline);_rest.total=Number(saved.total)||1;_rest.notified=false;
+  _rest.key=saved.key||saved.i+'_'+saved.ei;_rest.deadline=Number(saved.deadline);_rest.total=Number(saved.total)||1;_rest.exerciseName=String(saved.exerciseName||'').trim()||restExerciseName(saved.i,saved.ei);_rest.notified=!!saved.notified;
   if(_rest.deadline<=Date.now()){
     clearRestTimerStorage();
-    if(Date.now()-_rest.deadline<5*60*1000)notifyRestComplete(saved.i,saved.ei);
-    _rest.key=null;_rest.deadline=0;_rest.total=0;return;
+    if(Date.now()-_rest.deadline<5*60*1000){
+      if(restAppIsVisible())showRestForegroundComplete(saved.i,saved.ei,_rest.exerciseName);
+      else if(!_rest.notified)sendRestSystemAlert(saved.i,saved.ei,_rest.exerciseName);
+    }
+    _rest.key=null;_rest.deadline=0;_rest.total=0;_rest.exerciseName='';return;
   }
   el.style.display='flex';el.style.opacity='1';runRestTimer(saved.i,saved.ei);
 }
