@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v112'; // v112: Strava details live inside open sessions
+const CACHE_NAME = 'dp-athlete-v113'; // v113: prominent Strava-orange undo action
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=99', '/desktop.css?v=4', '/config.js',
+  '/index.html', '/styles.css?v=100', '/desktop.css?v=4', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=97',
   '/js/02-login-goals.js?v=92',

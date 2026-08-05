@@ -25,11 +25,14 @@
 .strava-match-attribution button:hover{border-color:rgba(252,76,2,.4);color:#fc4c02}
 .strava-match-suggestion button{background:#fc4c02;color:#fff}
 .strava-match-attribution.session,.strava-match-suggestion.session{margin:0 0 14px;padding:11px 12px;border-radius:12px}
-.strava-match-removed{display:flex;align-items:center;gap:9px;margin:10px 12px 0;padding:8px 10px;border:1px dashed var(--border-mid);border-radius:8px;background:rgba(255,255,255,.025);font-size:11px;color:var(--muted)}
+.strava-match-removed{display:flex;align-items:center;gap:9px;margin:10px 12px 0;padding:8px 10px;border:1px solid rgba(252,76,2,.2);border-radius:8px;background:rgba(252,76,2,.045);font-size:11px;color:var(--muted)}
 .strava-match-removed.today{margin:12px 0 0}
 .strava-match-removed.session{margin:0 0 14px;padding:11px 12px;border-radius:12px}
 .strava-match-removed>span{min-width:0;flex:1}
-.strava-match-removed button{flex:0 0 auto;border:1px solid var(--run-border);border-radius:7px;background:var(--run-bg);color:var(--run-strong);padding:6px 10px;font:700 10px var(--mono);cursor:pointer;white-space:nowrap}
+.strava-match-removed button{flex:0 0 auto;border:1px solid #fc4c02;border-radius:7px;background:#fc4c02;color:#fff;padding:6px 11px;font:800 10px var(--mono);cursor:pointer;white-space:nowrap;box-shadow:0 5px 14px rgba(252,76,2,.24);transition:background .15s,transform .12s,box-shadow .15s}
+.strava-match-removed button:hover{background:#e84602;box-shadow:0 7px 18px rgba(252,76,2,.32)}
+.strava-match-removed button:active{transform:scale(.96)}
+.strava-match-removed button:focus-visible{outline:3px solid rgba(252,76,2,.3);outline-offset:2px}
 .strava-match-removed button:disabled{opacity:.55;cursor:wait}
 .strava-feedback{border:1px solid rgba(252,76,2,.2);border-radius:9px;background:rgba(252,76,2,.04);padding:14px}
 .strava-feedback-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
