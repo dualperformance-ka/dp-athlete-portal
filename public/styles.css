@@ -252,12 +252,16 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .setrow-single.extra{grid-template-columns:22px 1fr 1fr 1fr 36px 26px}
 .strength-log-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 8px}
 .strength-log-heading .ltitle{margin:0}
+.strength-log-prefs{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
 .rest-pref-toggle{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:5px 9px;border:1px solid var(--border-mid);border-radius:999px;background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:9px;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}
 .rest-pref-toggle strong{color:var(--dim);font-size:9px}
 .rest-pref-dot{width:7px;height:7px;border-radius:50%;background:var(--dim);box-shadow:0 0 0 3px transparent;transition:all .15s}
 .rest-pref-toggle.is-on{border-color:rgba(146,210,237,.32);color:var(--text);background:rgba(146,210,237,.08)}
 .rest-pref-toggle.is-on strong{color:#92d2ed}
 .rest-pref-toggle.is-on .rest-pref-dot{background:#92d2ed;box-shadow:0 0 0 3px rgba(146,210,237,.12)}
+html.strength-rpe-off .slbls .slbl:nth-child(4),html.strength-rpe-off .setrow .rpe-in{display:none}
+html.strength-rpe-off .slbls,html.strength-rpe-off .setrow{grid-template-columns:22px 1fr 1fr 36px}
+html.strength-rpe-off .setrow.extra{grid-template-columns:22px 1fr 1fr 36px 26px}
 .rest-timer{position:relative;background:linear-gradient(135deg,rgba(146,210,237,.10),rgba(255,255,255,.035));border:1px solid var(--run-border);border-radius:12px;padding:11px 12px;display:flex;align-items:center;gap:12px;margin:10px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
 .rt-label{font-family:var(--mono);font-size:8px;color:var(--dim);text-transform:uppercase;letter-spacing:.12em}
 .rt-count{font-family:var(--display);font-size:22px;font-weight:800;color:var(--run);line-height:1}
@@ -2183,6 +2187,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .del-set{width:26px;height:26px}
   .setrow.extra{grid-template-columns:22px 1fr 1fr 44px 36px 30px}
   .setrow-single.extra{grid-template-columns:22px 1fr 1fr 1fr 36px 30px}
+  html.strength-rpe-off .setrow.extra{grid-template-columns:22px 1fr 1fr 36px 30px}
 }
 
 /* ── EMAIL OTP LOGIN (migrated athletes) — matches the code-login styling ── */

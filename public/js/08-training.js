@@ -1,5 +1,27 @@
 // ── LOAD WEEK ─────────────────────────────────────────────────────────────────
 function setDisplay(id,value){var el=document.getElementById(id);if(el)el.style.display=value;}
+function strengthRpeEnabled(){try{return localStorage.getItem('dp_strength_rpe_enabled')!=='false';}catch(e){return true;}}
+function updateStrengthRpeControls(){
+  var enabled=strengthRpeEnabled();
+  if(document.documentElement)document.documentElement.classList.toggle('strength-rpe-off',!enabled);
+  document.querySelectorAll('[data-strength-rpe-toggle]').forEach(function(btn){
+    btn.classList.toggle('is-on',enabled);btn.setAttribute('aria-pressed',enabled?'true':'false');
+    var state=btn.querySelector('.rest-pref-state');if(state)state.textContent=enabled?'On':'Off';
+  });
+}
+function toggleStrengthRpePreference(){
+  var enabled=!strengthRpeEnabled();
+  try{localStorage.setItem('dp_strength_rpe_enabled',enabled?'true':'false');}catch(e){}
+  updateStrengthRpeControls();
+  document.querySelectorAll('.exc').forEach(function(card){
+    var wasComplete=card.classList.contains('exercise-complete');
+    refreshStrengthExerciseState(card);
+    if(strengthExerciseIsComplete(card))card.classList.remove('open');
+    else if(wasComplete)card.classList.add('open');
+  });
+  if(typeof showToast==='function')showToast(enabled?'RPE column on':'RPE column off');
+}
+updateStrengthRpeControls();
 var trainingMonthGridStart=null,trainingMonthGridEnd=null;
 var TRAINING_READ_TTL=60*1000,_trainingReadPromise=null;
 async function loadTrainingReadSnapshot(startISO,endISO){
@@ -1553,9 +1575,19 @@ function strengthSetHasRequiredInputs(row){
   var hasWeight=weight&&String(weight.value||'').trim()!=='';
   var hasReps=(reps&&String(reps.value||'').trim()!=='')||
     (left&&right&&String(left.value||'').trim()!==''&&String(right.value||'').trim()!=='');
-  // Bilateral rows include an RPE field. Keep the row active until it is filled
-  // so leaving the reps input cannot collapse the exercise before RPE is logged.
-  var hasRpe=!rpe||String(rpe.value||'').trim()!=='';
+  // When RPE logging is enabled, bilateral rows stay active until it is filled.
+  // With the preference off, weight + reps are enough to complete the set.
+  var rpeRequired=typeof strengthRpeEnabled!=='function'||strengthRpeEnabled();
+  var hasRpe=!rpe||!rpeRequired||String(rpe.value||'').trim()!=='';
+  return !!(hasWeight&&hasReps&&hasRpe);
+}
+function strengthSavedSetHasRequiredInputs(set,isSingleLeg){
+  set=set||{};
+  var hasWeight=String(set.weight==null?'':set.weight).trim()!=='';
+  var hasReps=isSingleLeg
+    ?String(set.repsLeft==null?'':set.repsLeft).trim()!==''&&String(set.repsRight==null?'':set.repsRight).trim()!==''
+    :String(set.reps==null?'':set.reps).trim()!=='';
+  var hasRpe=isSingleLeg||!strengthRpeEnabled()||String(set.rpe==null?'':set.rpe).trim()!=='';
   return !!(hasWeight&&hasReps&&hasRpe);
 }
 function strengthExerciseIsComplete(card){
@@ -1568,19 +1600,12 @@ function strengthExerciseIsComplete(card){
   }
   return true;
 }
-function strengthExerciseWasSubmitted(card){
-  if(!card) return false;
-  var i=parseInt(card.getAttribute('data-session-index'),10);
-  var s=!isNaN(i)&&sessions[i];
-  return !!(s&&isSessionLogged(s.id));
-}
 function refreshStrengthExerciseState(card){
   if(!card) return;
   var hasData=strengthExerciseHasData(card);
-  // Saving a session is the athlete's explicit completion action. A submitted
-  // exercise with logged work must therefore render as Done even when they did
-  // fewer than the programmed sets or did not tick every individual set.
-  var complete=strengthExerciseIsComplete(card)||(hasData&&strengthExerciseWasSubmitted(card));
+  // Submission does not override set requirements: every visible row must have
+  // its enabled columns filled and its completion tick on before this says Done.
+  var complete=strengthExerciseIsComplete(card);
   card.classList.toggle('has-entry',hasData);
   card.classList.toggle('exercise-complete',complete);
   // Collapsed-row state: done -> today's numbers, in progress -> set count,
@@ -1809,7 +1834,8 @@ function buildBody(s,i,type){
     h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     if(exercises.length){
       var restTimerOn=typeof restTimerEnabled==='function'?restTimerEnabled():true;
-      h+='<div class="strength-log-heading"><div class="ltitle">Log your sets</div><button type="button" class="rest-pref-toggle'+(restTimerOn?' is-on':'')+'" data-rest-timer-toggle aria-pressed="'+(restTimerOn?'true':'false')+'" onclick="toggleRestTimerPreference()"><span class="rest-pref-dot"></span><span>Rest timer</span><strong class="rest-pref-state">'+(restTimerOn?'On':'Off')+'</strong></button></div>';
+      var strengthRpeOn=typeof strengthRpeEnabled==='function'?strengthRpeEnabled():true;
+      h+='<div class="strength-log-heading"><div class="ltitle">Log your sets</div><div class="strength-log-prefs"><button type="button" class="rest-pref-toggle'+(strengthRpeOn?' is-on':'')+'" data-strength-rpe-toggle aria-pressed="'+(strengthRpeOn?'true':'false')+'" onclick="toggleStrengthRpePreference()"><span class="rest-pref-dot"></span><span>RPE</span><strong class="rest-pref-state">'+(strengthRpeOn?'On':'Off')+'</strong></button><button type="button" class="rest-pref-toggle'+(restTimerOn?' is-on':'')+'" data-rest-timer-toggle aria-pressed="'+(restTimerOn?'true':'false')+'" onclick="toggleRestTimerPreference()"><span class="rest-pref-dot"></span><span>Rest timer</span><strong class="rest-pref-state">'+(restTimerOn?'On':'Off')+'</strong></button></div></div>';
       if(isFemaleSplit(splitKey)){
         h+='<div class="female-priority-note"><span class="female-priority-note-badge">Priority</span><div><strong>Short on time?</strong><span>Complete the priority exercises first to cover the session’s main muscle groups. Keep going through the full session whenever time allows.</span></div></div>';
       }
@@ -1842,9 +1868,8 @@ function buildBody(s,i,type){
         var _ov=_nsRecommendation(ex,prevEffort,resolvedEx,_ovHistory);
         _ov.live=_nsLiveProgress(ex,savedEx,_ov,resolvedEx,_ovHistory,prevEffort);
         var hasExerciseData=!!savedEx.length;
-        var sessionSubmitted=isSessionLogged(s.id);
-	        var prescribedRows=[];for(var prescribedIndex=0;prescribedIndex<sets;prescribedIndex++) prescribedRows.push(savedByRow[prescribedIndex]||{});
-	        var exerciseIsComplete=hasExerciseData&&(sessionSubmitted||prescribedRows.every(function(set){return !!set.done;}));
+	        var renderedRows=[];for(var renderedIndex=0;renderedIndex<renderSets;renderedIndex++) renderedRows.push(savedByRow[renderedIndex]||{});
+	        var exerciseIsComplete=hasExerciseData&&renderedRows.every(function(set){return !!set.done&&strengthSavedSetHasRequiredInputs(set,isSingleLeg);});
 	        var _nsState=exerciseIsComplete?'done':(hasExerciseData?'prog':'todo');
 	        var _nsDone=0,_nsParts=[],_nsTopW=null;
 	        getWorkingSlice(ex,savedEx||[]).forEach(function(sv){
@@ -1856,7 +1881,7 @@ function buildBody(s,i,type){
         });
         var _nsSummary=(_nsTopW!=null?_nsBare(_nsTopW)+(isAssisted?'kg assist × ':'kg × '):'')+_nsParts.join(' · ');
         var _nsStateCls=exerciseIsComplete?' ns-logged':(hasExerciseData?' ns-inprogress':' ns-t-'+_ov.tone);
-        h+='<div class="exc'+_nsStateCls+(ei===0?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'">';
+        h+='<div class="exc'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'">';
         h+='<div class="exc-summary" onclick="toggleExc(this)">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn-row"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>'+(isTimeCrunchPriority?'<span class="female-priority-badge">Priority</span>':'')+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div></div>'+_nsChip(_ov)+'<div class="exc-chev">▾</div></div>';
         h+='<div class="exc-body">'+_nsBody(_ov);
         h+='<div class="exh">';
@@ -1933,7 +1958,7 @@ function buildBody(s,i,type){
     h+='</div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveGym('+i+',\''+esc(splitKey)+'\')">Save session</button>';
     if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save session');}(i),0);}
-    setTimeout(function(){if(typeof restoreRestTimer==='function')restoreRestTimer();},0);
+    setTimeout(function(){updateStrengthRpeControls();if(typeof restoreRestTimer==='function')restoreRestTimer();},0);
   }else if(type==='note'){
     var sl3=logs[s.id]||{};
     var noteVal=(typeof sl3.__notes==='string')?sl3.__notes:(sl3.notes||'');
@@ -2035,8 +2060,18 @@ async function markSessionDone(i){
 }
 function autoCompleteStrengthSet(i,ei,si){
   var row=document.getElementById('sr_'+i+'_'+ei+'_'+si),btn=document.getElementById('st_'+i+'_'+ei+'_'+si);
-  if(!row||!btn||btn.classList.contains('on'))return;
-  if(strengthSetHasRequiredInputs(row))togSet(i,ei,si);
+  if(!row||!btn||!strengthSetHasRequiredInputs(row))return;
+  if(!btn.classList.contains('on')){togSet(i,ei,si);return;}
+  settleStrengthExerciseCompletion(btn.closest('.exc'));
+}
+function settleStrengthExerciseCompletion(card){
+  if(!card)return;
+  refreshStrengthExerciseState(card);
+  if(!strengthExerciseIsComplete(card))return;
+  setTimeout(function(){
+    if(!card||!strengthExerciseIsComplete(card))return;
+    card.classList.remove('open');refreshStrengthExerciseState(card);
+  },320);
 }
 function togSet(i,ei,si){
   var btn=document.getElementById('st_'+i+'_'+ei+'_'+si);if(!btn) return;
@@ -2045,13 +2080,7 @@ function togSet(i,ei,si){
   if(card){
     var splitKey=card.getAttribute('data-split-key')||'Upper A';
     draftGym(i,splitKey);
-    refreshStrengthExerciseState(card);
-    if(on&&strengthExerciseIsComplete(card)){
-      setTimeout(function(){
-        if(!card||!strengthExerciseIsComplete(card)) return;
-        card.classList.remove('open');refreshStrengthExerciseState(card);
-      },320);
-    }
+    if(on)settleStrengthExerciseCompletion(card);else refreshStrengthExerciseState(card);
   }
   if(on){
     var exerciseName=card&&typeof card.querySelector==='function'?card.querySelector('.exn'):null;

@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v116'; // v116: visibility-aware rest timer alerts
+const CACHE_NAME = 'dp-athlete-v118'; // v118: strict strength exercise completion
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=100', '/desktop.css?v=4', '/config.js',
+  '/index.html', '/styles.css?v=101', '/desktop.css?v=4', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=97',
   '/js/02-login-goals.js?v=92',
@@ -10,7 +10,7 @@ const APP_SHELL = [
   '/js/06-nutrition.js?v=86',
   '/js/07-progress.js?v=86',
   '/js/strava-match.js?v=3',
-  '/js/08-training.js?v=102',
+  '/js/08-training.js?v=104',
   '/js/09-logging.js?v=101',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=91',
