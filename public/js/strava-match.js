@@ -42,7 +42,6 @@ function rejectedKeys(session, opts) {
 // opts.relativeEffortPerKmThreshold without changing the matching rules.
 export const DEFAULT_RELATIVE_EFFORT_PER_KM_THRESHOLD = 3.0;
 export const UNDERRUN_TOLERANCE_PERCENT = 0.15;
-export const OVERRUN_TOLERANCE_PERCENT = 0.25;
 export const MIN_DISTANCE_TOLERANCE_KM = 1.5;
 
 function addPrescriptionValue(parts, value) {
@@ -94,7 +93,6 @@ export function matchActivityToSession(session, activities, opts = {}) {
   var plannedKm = plannedDistance(session, opts);
   var confidence = plannedKm ? 'high' : 'low';
   var underToleranceKm = plannedKm ? Math.max(plannedKm * UNDERRUN_TOLERANCE_PERCENT, MIN_DISTANCE_TOLERANCE_KM) : null;
-  var overToleranceKm = plannedKm ? Math.max(plannedKm * OVERRUN_TOLERANCE_PERCENT, MIN_DISTANCE_TOLERANCE_KM) : null;
   var claimed = toKeySet(opts.claimedActivityIds || opts.claimedActivities);
   var rejected = rejectedKeys(session, opts);
   var candidates = [];
@@ -112,7 +110,9 @@ export function matchActivityToSession(session, activities, opts = {}) {
 
     var distanceKm = Number(activity && activity.distance) / 1000;
     var distanceDeltaKm = distanceKm - plannedKm;
-    if (plannedKm && (!Number.isFinite(distanceKm) || distanceKm < 0 || distanceDeltaKm < -underToleranceKm - 1e-9 || distanceDeltaKm > overToleranceKm + 1e-9)) {
+    // A run may exceed the prescription by any amount and still complete it.
+    // Keep the lower bound so short runs and commutes do not claim the session.
+    if (plannedKm && (!Number.isFinite(distanceKm) || distanceKm < 0 || distanceDeltaKm < -underToleranceKm - 1e-9)) {
       reasons.push('distance_outside_tolerance');
       return;
     }
