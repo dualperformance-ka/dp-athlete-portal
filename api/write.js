@@ -125,7 +125,7 @@ async function plannedSessions(code, body) {
   // browser before that override can be applied.
   const programme = await select('planned_sessions', {
     athlete_code: `eq.${code}`,
-    select: '*',
+    select: 'id,notion_page_id,title,planned_date,session_type,status,library_id,run_details,intensity,week_label,distance_km,target_pace,warm_up,intervals,working_pace,rest,cool_down,notes',
     order: 'planned_date.asc',
     limit: '1000',
   });
@@ -300,17 +300,16 @@ export async function bookingSync(code, syncBookings = syncBookingsForAthlete, r
 export async function trainingRead(code, body = {}, readers = {}) {
   const readPlanned = readers.plannedSessions || plannedSessions;
   const readSplits = readers.workoutSplits || workoutSplits;
-  const readNutrition = readers.nutritionProgramme || nutritionProgramme;
   const readLibrary = readers.sessionLibrary || sessionLibrary;
   const includeLibrary = body.includeLibrary === true;
-  const names = ['planned', 'splits', 'nutrition'];
-  const tasks = [readPlanned(code, body), readSplits(code), readNutrition(code)];
+  const names = ['planned', 'splits'];
+  const tasks = [readPlanned(code, body), readSplits(code)];
   if (includeLibrary) {
     names.push('library');
     tasks.push(readLibrary({ libraryRevision: body.libraryRevision || '' }));
   }
   const settled = await Promise.allSettled(tasks);
-  const result = { planned: null, splits: null, nutrition: null, library: null, errors: [] };
+  const result = { planned: null, splits: null, library: null, errors: [] };
   settled.forEach((entry, index) => {
     const name = names[index];
     if (entry.status === 'fulfilled') result[name] = entry.value;

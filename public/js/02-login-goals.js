@@ -87,14 +87,20 @@ async function hydratePortalData(code){
   // failures retain the exact request sequence used before this optimisation.
   await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);})(),loadSessionLogs()]);
 }
-async function doLogin(code){
+function hydrateLocalPortalState(code){
+  ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
+  logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
+  stravaMatchRejections=JSON.parse(localStorage.getItem('dp_strava_match_rejections_'+code)||'{}');
+  exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
+}
+async function doLogin(code,prevalidatedRoster){
   var btn=document.getElementById('loginBtn')||document.querySelector('.lbtn');
   btn.textContent='Authenticating...';btn.disabled=true;btn.classList.add('loading');
   clearLoginError();
   function resetBtn(){btn.textContent='Enter Portal';btn.disabled=false;btn.classList.remove('loading');}
   var showWelcome=manualLoginIntent;
   manualLoginIntent=false;
-  var roster=await validateRosterCode(code);
+  var roster=prevalidatedRoster||await validateRosterCode(code);
   if(!roster){resetBtn();showLoginError('Access code not recognised or your session has expired');renderCode();return;}
   if(roster.active===false){resetBtn();showPausedScreen(roster.name);return;}
   var fresh=await fetchAthleteProfile(code,roster);
@@ -106,11 +112,9 @@ async function doLogin(code){
   // Supabase remains the identity provider for email OTP only; portal data
   // always flows through the authenticated server gateway.
   if(localStorage.getItem('dp_auth_method')==='email')await ensureSupabaseClient();
-  await hydratePortalData(code);
-  ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
-  logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
-  stravaMatchRejections=JSON.parse(localStorage.getItem('dp_strava_match_rejections_'+code)||'{}');
-  exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
+  // Render from device state immediately. Cloud history is reconciled below in
+  // parallel with the current-week request instead of blocking portal entry.
+  hydrateLocalPortalState(code);
   hideLoginSuccess();
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('portalScreen').style.display='block';
@@ -123,12 +127,17 @@ async function doLogin(code){
   try{syncQuickLogDock();}catch(e){}
   document.getElementById('heroName').textContent=athlete.name;
   populateStatic();
-  retryPendingCoachWrites(true);
   // The primary plan gets the network first. Strava, nutrition and programme
   // metrics start only after today's session has rendered; they update their
   // existing mounts asynchronously and never gate portal entry.
   window._portalSecondaryStarted=false;
-  Promise.resolve(loadWeek()).finally(function(){
+  var hydrationPromise=hydratePortalData(code).then(function(){
+    hydrateLocalPortalState(code);
+    if(typeof renderBookingPrompts==='function')renderBookingPrompts();
+    initCheckinNudge();
+  }).catch(function(e){console.warn('Background portal hydration failed',e);});
+  var initialWeekPromise=Promise.resolve(loadWeek());
+  initialWeekPromise.finally(function(){
     window._portalSecondaryStarted=true;
     window._stravaLoadPromise=window.initStrava ? window.initStrava(athlete.code) : Promise.resolve({connected:false,activities:[]});
     window._stravaLoadPromise.then(function(){
@@ -136,10 +145,29 @@ async function doLogin(code){
     }).catch(function(){});
     loadNutrition();
     if(typeof refreshRunningLibraryRevision==='function')setTimeout(refreshRunningLibraryRevision,0);
+    // Writes, booking repair and push setup are important but must not compete
+    // with the first current-week response on a cold connection.
+    setTimeout(function(){
+      retryPendingCoachWrites(true);
+      initCallNudge();
+      syncPushSubscription();
+    },0);
   });
-  initCallNudge();
+  // A persisted week paints immediately. Refresh it without clearing the
+  // visible cards; on a cold start loadWeek already performs the network read.
+  var weekRefreshPromise=initialWeekPromise.then(function(){
+    return window._trainingReadServedPersistent&&typeof refreshWeekInBackground==='function'
+      ?refreshWeekInBackground():null;
+  }).catch(function(){});
+  // Once cloud state and the fresh plan have both settled, re-apply reschedules
+  // and completion state using the in-memory snapshot. This is a local rerender,
+  // not another request.
+  Promise.allSettled([hydrationPromise,weekRefreshPromise]).then(function(){
+    hydrateLocalPortalState(code);
+    if(window._trainingReadSnapshot)loadWeek();
+  });
+  if(typeof renderBookingPrompts==='function')renderBookingPrompts();
   initCheckinNudge();
-  syncPushSubscription();
 }
 
 function populateStatic(){

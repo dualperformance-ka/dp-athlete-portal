@@ -30,7 +30,9 @@ async function bootPortal(){
         if(me.active===false){showPausedScreen(me.name);return;}
         // Same pipeline as a code login → identical portal, same athlete_code,
         // same history. The session token rides along on API calls.
-        doLogin(me.code);
+        // The session lookup already returned the validated roster record.
+        // Pass it through so doLogin does not repeat the same network request.
+        doLogin(me.code,me);
         return;
       }
       if(me&&me.error==='invalid_session') await authSignOut();
@@ -42,7 +44,7 @@ async function bootPortal(){
   if(legacyToken){
     _authToken=legacyToken;
     var legacyMe=await resolveAuthedAthlete();
-    if(legacyMe&&legacyMe.ok&&legacyMe.code){doLogin(legacyMe.code);return;}
+    if(legacyMe&&legacyMe.ok&&legacyMe.code){doLogin(legacyMe.code,legacyMe);return;}
     _authToken=null;localStorage.removeItem('dp_legacy_session');
   }
   var savedCode=localStorage.getItem('dp_auth_code');

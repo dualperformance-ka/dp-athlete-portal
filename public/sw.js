@@ -1,19 +1,19 @@
-const CACHE_NAME = 'dp-athlete-v118'; // v118: strict strength exercise completion
+const CACHE_NAME = 'dp-athlete-v120'; // v120: cache-first homepage with background hydration
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=101', '/desktop.css?v=4', '/config.js',
+  '/index.html', '/styles.css?v=102', '/desktop.css?v=4', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=97',
-  '/js/02-login-goals.js?v=92',
+  '/js/02-login-goals.js?v=94',
   '/js/03-nav-nudges.js?v=93',
   '/js/04-checkin.js?v=86',
   '/js/05-handbook.js?v=82',
   '/js/06-nutrition.js?v=86',
   '/js/07-progress.js?v=86',
   '/js/strava-match.js?v=3',
-  '/js/08-training.js?v=104',
+  '/js/08-training.js?v=106',
   '/js/09-logging.js?v=101',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=91',
+  '/js/10-boot.js?v=92',
   '/login.js?v=47', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

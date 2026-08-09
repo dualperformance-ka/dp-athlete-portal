@@ -23,10 +23,43 @@ function toggleStrengthRpePreference(){
 }
 updateStrengthRpeControls();
 var trainingMonthGridStart=null,trainingMonthGridEnd=null;
-var TRAINING_READ_TTL=60*1000,_trainingReadPromise=null;
-async function loadTrainingReadSnapshot(startISO,endISO){
+var TRAINING_READ_TTL=60*1000,TRAINING_PERSIST_TTL=24*60*60*1000,_trainingReadPromise=null;
+function trainingReadCacheKey(startISO,endISO){
+  return 'dp_training_week_v1_'+String((athlete&&athlete.code)||'').toUpperCase()+'_'+startISO+'_'+endISO;
+}
+function readPersistedTrainingSnapshot(startISO,endISO){
+  try{
+    var cached=JSON.parse(localStorage.getItem(trainingReadCacheKey(startISO,endISO))||'null');
+    if(!cached||!cached.ts||!cached.bundle||(Date.now()-cached.ts)>TRAINING_PERSIST_TTL)return null;
+    return cached;
+  }catch(e){return null;}
+}
+function persistTrainingSnapshot(startISO,endISO,bundle){
+  try{
+    // session_library already has its own compact cache. Do not duplicate that
+    // potentially large dataset inside the week snapshot.
+    var compact={planned:bundle.planned||null,splits:bundle.splits||null,library:null,errors:bundle.errors||[]};
+    localStorage.setItem(trainingReadCacheKey(startISO,endISO),JSON.stringify({ts:Date.now(),bundle:compact}));
+  }catch(e){}
+}
+async function loadTrainingReadSnapshot(startISO,endISO,options){
+  options=options||{};
   var cached=window._trainingReadSnapshot;
-  if(cached&&cached.ts&&(Date.now()-cached.ts)<TRAINING_READ_TTL&&cached.bundle)return cached.bundle;
+  var code=String((athlete&&athlete.code)||'').toUpperCase();
+  if(!options.force&&cached&&cached.code===code&&cached.start===startISO&&cached.end===endISO&&cached.ts&&(Date.now()-cached.ts)<TRAINING_READ_TTL&&cached.bundle){
+    window._trainingReadServedPersistent=cached.source==='persistent';
+    return cached.bundle;
+  }
+  if(!options.force){
+    var persisted=readPersistedTrainingSnapshot(startISO,endISO);
+    if(persisted){
+      window._trainingReadSnapshot={ts:Date.now(),code:code,start:startISO,end:endISO,bundle:persisted.bundle,
+        plannedRows:persisted.bundle.planned&&Array.isArray(persisted.bundle.planned.rows)?persisted.bundle.planned.rows:null,
+        nutritionRows:null,source:'persistent'};
+      window._trainingReadServedPersistent=true;
+      return persisted.bundle;
+    }
+  }
   if(_trainingReadPromise)return _trainingReadPromise;
   _trainingReadPromise=(async function(){
     var hasLibrary=typeof hydrateRunningLibraryCache==='function'&&hydrateRunningLibraryCache();
@@ -35,14 +68,28 @@ async function loadTrainingReadSnapshot(startISO,endISO){
       libraryRevision:(typeof _runLibraryCacheRevision!=='undefined'&&_runLibraryCacheRevision)||''
     });
     window._trainingReadSnapshot={
-      ts:Date.now(),bundle:bundle,
+      ts:Date.now(),code:code,start:startISO,end:endISO,bundle:bundle,
       plannedRows:bundle.planned&&Array.isArray(bundle.planned.rows)?bundle.planned.rows:null,
-      nutritionRows:bundle.nutrition&&Array.isArray(bundle.nutrition.rows)?bundle.nutrition.rows:null
+      nutritionRows:null,source:'network'
     };
+    window._trainingReadServedPersistent=false;
+    persistTrainingSnapshot(startISO,endISO,bundle);
     return bundle;
   })();
   try{return await _trainingReadPromise;}
   finally{_trainingReadPromise=null;}
+}
+async function refreshWeekInBackground(){
+  var ws=getWS(),we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);
+  var startISO=localISO(ws),endISO=localISO(we);
+  try{
+    await loadTrainingReadSnapshot(startISO,endISO,{force:true});
+    await loadWeek();
+    return true;
+  }catch(e){
+    console.warn('Background week refresh failed; keeping cached plan',e);
+    return false;
+  }
 }
 function isMobileTrainingCalendar(){return !!(window.matchMedia&&window.matchMedia('(max-width:760px)').matches);}
 function trainingWeekDisplayLabel(){
