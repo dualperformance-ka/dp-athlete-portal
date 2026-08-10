@@ -491,6 +491,22 @@ html.strength-rpe-off .setrow.extra{grid-template-columns:22px 1fr 1fr 36px 26px
 .ex-pill{font-family:var(--mono);font-size:10px;padding:5px 10px;border:1px solid var(--border-mid);border-radius:20px;background:var(--surface);color:var(--muted);cursor:pointer;letter-spacing:.02em;white-space:nowrap;line-height:1.4;transition:all .12s;-webkit-tap-highlight-color:transparent}
 .ex-pill.active{background:#92d2ed;border-color:#92d2ed;color:#050505}
 .ex-pill:active{opacity:.7}
+/* "More options" expander — the coach's programmed exercise and alts stay the
+   visual priority, so this reads as a quiet secondary control until the athlete
+   is actually training something from the wider same-muscle bank. */
+.ex-pill-more{display:inline-flex;align-items:center;gap:5px;border-style:dashed;color:var(--dim)}
+.ex-pill-more .ex-more-caret{font-size:9px;line-height:1;transition:transform .15s}
+.ex-pill-more[aria-expanded="true"] .ex-more-caret{transform:rotate(180deg)}
+.ex-pill-more.is-swapped{border-style:solid;border-color:rgba(146,210,237,.55);color:#92d2ed}
+.ex-pill-more.is-swapped::after{content:'SWAPPED';font-size:8px;letter-spacing:.08em;background:rgba(146,210,237,.16);border-radius:20px;padding:2px 6px}
+.ex-swaps{margin:0 14px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2,rgba(255,255,255,.02));padding:10px 12px 4px}
+.ex-swaps-note{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
+.ex-swaps-note strong{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#92d2ed}
+.ex-swaps-note span{font-size:11px;line-height:1.45;color:var(--dim)}
+.ex-swap-group{margin-bottom:10px}
+.ex-swap-group-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.ex-swap-pills{display:flex;gap:6px;flex-wrap:wrap}
+.ex-pill-alt{white-space:normal;text-align:left}
 
 /* ── MOBILE POLISH ─────────────────────────────────────────────────────────── */
 /* Hero pills scroll horizontally instead of squeezing/clipping */
@@ -1650,6 +1666,12 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode .setrow.has-pb .sin,.outdoor-mode .setrow-single.has-pb .sin{border-color:#6d28d9;background:#dccdff;color:#4c1d95;-webkit-text-fill-color:#4c1d95;box-shadow:inset 0 0 13px rgba(124,58,237,.55),0 0 10px rgba(124,58,237,.4);animation:pbglowLight 1.8s ease-in-out infinite}
 .outdoor-mode .ex-pill{background:#fff;border-color:rgba(7,17,22,.25);color:#334750}
 .outdoor-mode .ex-pill.active{background:#087fae;border-color:#087fae;color:#fff}
+.outdoor-mode .ex-pill-more{color:#4a626c}
+.outdoor-mode .ex-pill-more.is-swapped{border-color:#087fae;color:#087fae}
+.outdoor-mode .ex-pill-more.is-swapped::after{background:rgba(8,127,174,.12)}
+.outdoor-mode .ex-swaps{background:rgba(255,255,255,.72);border-color:rgba(7,17,22,.18)}
+.outdoor-mode .ex-swaps-note strong{color:#087fae}
+.outdoor-mode .ex-swaps-note span,.outdoor-mode .ex-swap-group-label{color:rgba(7,17,22,.72)}
 .outdoor-mode .plate-pill{background:#fff;border-color:rgba(7,17,22,.22);color:#334750}
 .outdoor-mode .st{background:#fff;border-color:rgba(7,17,22,.3)}
 .outdoor-mode .st.on{background:#23804b;border-color:#23804b}
@@ -2177,6 +2199,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .warr,.wtoday,.nut-arr{min-height:42px;min-width:44px}
   .hicon{min-height:36px}
   .ex-pill{min-height:34px;padding:8px 12px;display:inline-flex;align-items:center}
+  .ex-swaps{max-height:290px;overflow-y:auto;-webkit-overflow-scrolling:touch}
   .rt-skip{min-height:36px;padding:8px 14px}
   .coach-moment button,.reschedule-btn{width:40px;height:40px;flex-basis:40px}
   .hb-modal-close,.ql-modal-close,.more-menu-close,.focus-close{width:42px;height:42px}

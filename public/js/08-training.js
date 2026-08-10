@@ -1690,6 +1690,17 @@ function toggleExc(el){
   c.classList.toggle('open');
   refreshStrengthExerciseState(c);
 }
+// Expands the wider same-muscle swap bank under an exercise. Kept collapsed by
+// default so the coach's programmed exercise and alts stay the obvious choice.
+function toggleSwapPanel(button,panelId){
+  var panel=document.getElementById(panelId);
+  if(!panel) return;
+  var open=panel.hasAttribute('hidden');
+  if(open){panel.removeAttribute('hidden');}
+  else{panel.setAttribute('hidden','');}
+  panel.classList.toggle('open',open);
+  if(button&&button.setAttribute) button.setAttribute('aria-expanded',open?'true':'false');
+}
 function gymDraftHasData(log){
   if(!log||typeof log!=='object') return false;
   if(String(log.__notes||'').trim()) return true;
@@ -1948,15 +1959,39 @@ function buildBody(s,i,type){
         if(prevEffort){var prevStr=formatSetSummary(prevEffort,resolvedEx);h+='<div id="prev_'+i+'_'+ei+'" class="prev-effort has-last">LAST: '+esc(prevStr)+'</div>';}
         else{h+='<div id="prev_'+i+'_'+ei+'" class="prev-effort">TARGET: '+esc(ex.repRange||ex.reps)+'</div>';}
         h+='</div></div>';
-        if(ex.alts&&ex.alts.length){
-          var allOpts=[ex.exercise].concat(ex.alts);
-          h+='<div class="ex-picker">';
-          allOpts.forEach(function(opt){
+        // Swap picker. The programmed exercise and the coach's alts stay on top
+        // as the priority row; the wider same-muscle bank sits one tap away
+        // behind "More options", grouped by equipment so a busy or under-kitted
+        // gym never costs the athlete the muscle group the slot was written for.
+        var swapOptions=(typeof getExerciseSwapOptions==='function')?getExerciseSwapOptions(ex):{priority:[ex.exercise].concat(ex.alts||[]),groups:[],patternLabel:''};
+        var swapPriority=swapOptions.priority||[];
+        var swapGroups=swapOptions.groups||[];
+        if(swapPriority.length>1||swapGroups.length){
+          var exNameSafe=ex.exercise.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          var pickPill=function(opt,extraCls){
             var safeOpt=opt.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-            var exNameSafe=ex.exercise.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-            h+='<button class="ex-pill'+(opt===resolvedEx?' active':'')+'" onclick="pickEx(\''+exNameSafe+'\',\''+safeOpt+'\')" data-pg="'+safeKey+'" data-pv="'+esc(opt)+'">'+esc(opt)+'</button>';
-          });
+            return '<button type="button" class="ex-pill'+(extraCls||'')+(opt===resolvedEx?' active':'')+'" onclick="pickEx(\''+exNameSafe+'\',\''+safeOpt+'\')" data-pg="'+safeKey+'" data-pv="'+esc(opt)+'">'+esc(opt)+'</button>';
+          };
+          // Is the athlete currently on something outside the coach's shortlist?
+          var offProgramme=swapPriority.every(function(opt){return opt!==resolvedEx;});
+          var swapPanelId='swaps_'+i+'_'+ei;
+          h+='<div class="ex-picker-label">Swap exercise</div>';
+          h+='<div class="ex-picker">';
+          swapPriority.forEach(function(opt){h+=pickPill(opt,'');});
+          if(swapGroups.length){
+            h+='<button type="button" class="ex-pill ex-pill-more'+(offProgramme?' is-swapped':'')+'" aria-expanded="'+(offProgramme?'true':'false')+'" aria-controls="'+swapPanelId+'" onclick="toggleSwapPanel(this,\''+swapPanelId+'\')"><span class="ex-more-caret">▾</span>More options</button>';
+          }
           h+='</div>';
+          if(swapGroups.length){
+            h+='<div class="ex-swaps'+(offProgramme?' open':'')+'" id="'+swapPanelId+'"'+(offProgramme?'':' hidden')+'>';
+            h+='<div class="ex-swaps-note"><strong>'+esc(swapOptions.patternLabel)+'</strong><span>Every option below trains the same muscle group as the programmed exercise — pick whatever you can get on. Stick to the sets, reps and effort as written.</span></div>';
+            swapGroups.forEach(function(group){
+              h+='<div class="ex-swap-group"><div class="ex-swap-group-label">'+esc(group.label)+'</div><div class="ex-swap-pills">';
+              group.options.forEach(function(opt){h+=pickPill(opt,' ex-pill-alt');});
+              h+='</div></div>';
+            });
+            h+='</div>';
+          }
         }
         var isSingleLeg=usesLeftRightReps(resolvedEx,ex);
         var warmupSets=parseInt(ex.warmupSets,10)||0;

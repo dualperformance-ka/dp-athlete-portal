@@ -288,6 +288,16 @@ function pickEx(exName,chosen){
   document.querySelectorAll('[data-pg="'+safeKey+'"]').forEach(function(p){
     p.classList.toggle('active',p.dataset.pv===chosen);
   });
+  // Flag the "More options" button whenever the athlete lands on a swap from
+  // the wider bank, so a card collapsed back down still shows it is off-plan.
+  document.querySelectorAll('.exc').forEach(function(card){
+    var pills=card.querySelectorAll('[data-pg="'+safeKey+'"]');
+    if(!pills.length) return;
+    var moreBtn=card.querySelector('.ex-pill-more');
+    if(!moreBtn) return;
+    var chosenIsExtra=!!card.querySelector('.ex-pill-alt[data-pg="'+safeKey+'"].active');
+    moreBtn.classList.toggle('is-swapped',chosenIsExtra);
+  });
   var nameEl=document.getElementById('exn_'+safeKey);
   if(nameEl) nameEl.textContent=chosen;
   // Re-pull the chosen variant's own history: PB / e1RM / Vol header + LAST/TARGET

@@ -578,6 +578,237 @@ const STR = {
   ]
 };
 
+// ── EXERCISE SWAP LIBRARY ─────────────────────────────────────────────────────
+// The programmed exercise and its coach-set `alts` stay the athlete's priority
+// options. This library is the safety net behind them: every programmed slot is
+// mapped to a movement pattern, and each pattern carries a wider bank of
+// substitutions that train the same muscle group. That way a busy squat rack, a
+// missing machine or a hotel gym never costs the athlete the training stimulus
+// the session was written to deliver.
+//
+// Options are tagged by equipment so the picker can group them — an athlete
+// scanning for "what can I actually get on right now" finds it in one glance.
+//   machine | cable | free (barbell/dumbbell/kettlebell) | bodyweight (incl. bands)
+var SWAP_EQUIPMENT_ORDER=['machine','cable','free','bodyweight'];
+var SWAP_EQUIPMENT_LABELS={machine:'Machine',cable:'Cable',free:'Free weight',bodyweight:'Bodyweight / bands'};
+var EX_PATTERNS={
+  vertical_pull:{label:'Lats — vertical pull',options:[
+    {n:'Machine Lat Pulldown',e:'machine'},{n:'Assisted Pull Up Machine',e:'machine'},{n:'Iso-Lateral Pulldown',e:'machine'},
+    {n:'Lat Pulldown',e:'cable'},{n:'Cable Lat Pulldown',e:'cable'},{n:'Close Grip Lat Pulldown',e:'cable'},{n:'Neutral Grip Lat Pulldown',e:'cable'},{n:'Straight Arm Pulldown',e:'cable'},
+    {n:'Dumbbell Pullover',e:'free'},
+    {n:'Pull Up',e:'bodyweight'},{n:'Chin Up',e:'bodyweight'},{n:'Band Assisted Pull Up',e:'bodyweight'}
+  ]},
+  horizontal_row:{label:'Upper back — horizontal row',options:[
+    {n:'Low Machine Row',e:'machine'},{n:'Mid Machine Row',e:'machine'},{n:'Wide Grip Machine Row',e:'machine'},{n:'Chest Supported Row',e:'machine'},{n:'Iso-Lateral Row',e:'machine'},
+    {n:'Seated Cable Row (close grip)',e:'cable'},{n:'Seated Cable Row (wide grip)',e:'cable'},{n:'Single Arm Cable Row',e:'cable'},
+    {n:'Single Arm Dumbbell Row',e:'free'},{n:'Chest Supported Dumbbell Row',e:'free'},{n:'Barbell Bent Over Row',e:'free'},{n:'T-Bar Row',e:'free'},
+    {n:'Inverted Row',e:'bodyweight'},{n:'Ring Row',e:'bodyweight'}
+  ]},
+  rear_delt:{label:'Rear delts — upper back health',options:[
+    {n:'Reverse Pec Dec',e:'machine'},{n:'Rear Delt Fly Machine',e:'machine'},
+    {n:'Cable Rear Delt Fly',e:'cable'},{n:'Face Pull',e:'cable'},{n:'Cable Y-Raise',e:'cable'},
+    {n:'Dumbbell Rear Delt Fly',e:'free'},{n:'Prone Incline Rear Delt Raise',e:'free'},
+    {n:'Band Pull Apart',e:'bodyweight'}
+  ]},
+  horizontal_press:{label:'Chest — pressing',options:[
+    {n:'Machine Chest Press',e:'machine'},{n:'Machine Incline Bench Press',e:'machine'},{n:'Smith Machine Incline Press',e:'machine'},
+    {n:'Cable Chest Press',e:'cable'},
+    {n:'Incline Dumbbell Press',e:'free'},{n:'Flat Dumbbell Press',e:'free'},{n:'Barbell Bench Press',e:'free'},{n:'Barbell Incline Bench Press',e:'free'},
+    {n:'Push Up',e:'bodyweight'},{n:'Deficit Push Up',e:'bodyweight'},{n:'Feet Elevated Push Up',e:'bodyweight'}
+  ]},
+  chest_fly:{label:'Chest — fly / stretch',options:[
+    {n:'Pec Dec',e:'machine'},{n:'Chest Fly Machine',e:'machine'},
+    {n:'Cable Fly',e:'cable'},{n:'High to Low Cable Fly',e:'cable'},{n:'Low to High Cable Fly',e:'cable'},
+    {n:'Dumbbell Fly',e:'free'},{n:'Incline Dumbbell Fly',e:'free'},
+    {n:'Deficit Push Up',e:'bodyweight'}
+  ]},
+  vertical_press:{label:'Shoulders — overhead press',options:[
+    {n:'Machine Shoulder Press',e:'machine'},{n:'Smith Machine Shoulder Press',e:'machine'},
+    {n:'Seated Dumbbell Shoulder Press',e:'free'},{n:'Standing Dumbbell Press',e:'free'},{n:'Seated Barbell Press',e:'free'},{n:'Standing Barbell Overhead Press',e:'free'},{n:'Arnold Press',e:'free'},{n:'Landmine Press',e:'free'},
+    {n:'Pike Push Up',e:'bodyweight'}
+  ]},
+  lateral_delt:{label:'Side delts',options:[
+    {n:'Machine Lateral Raise',e:'machine'},
+    {n:'Cable Lateral Raise',e:'cable'},{n:'Single Arm Cable Lateral Raise',e:'cable'},
+    {n:'Lateral Dumbbell Raise',e:'free'},{n:'Seated Lateral Raise',e:'free'},{n:'Leaning Lateral Raise',e:'free'},
+    {n:'Band Lateral Raise',e:'bodyweight'}
+  ]},
+  triceps:{label:'Triceps',options:[
+    {n:'Machine Dips',e:'machine'},{n:'Machine Tricep Extension',e:'machine'},{n:'Assisted Dip Machine',e:'machine'},
+    {n:'Tricep Rope Extension',e:'cable'},{n:'Cable Pushdown (bar)',e:'cable'},{n:'Overhead Rope Extension',e:'cable'},{n:'Single Arm Cable Pushdown',e:'cable'},
+    {n:'Skull Crusher',e:'free'},{n:'Dumbbell Overhead Extension',e:'free'},{n:'Close Grip Bench Press',e:'free'},{n:'Dumbbell Kickback',e:'free'},
+    {n:'Parallel Bar Dip',e:'bodyweight'},{n:'Bench Dip',e:'bodyweight'},{n:'Diamond Push Up',e:'bodyweight'}
+  ]},
+  biceps:{label:'Biceps',options:[
+    {n:'Machine Preacher Curl',e:'machine'},
+    {n:'Cable Bicep Curl',e:'cable'},{n:'Cable Rope Hammer Curl',e:'cable'},{n:'Bayesian Cable Curl',e:'cable'},
+    {n:'Dumbbell Hammer Curl',e:'free'},{n:'Dumbbell Bicep Curl',e:'free'},{n:'Incline Dumbbell Curl',e:'free'},{n:'Barbell Curl',e:'free'},{n:'EZ Bar Curl',e:'free'},{n:'Preacher Curl',e:'free'},
+    {n:'Chin Up',e:'bodyweight'}
+  ]},
+  quad_isolation:{label:'Quads — knee extension',options:[
+    {n:'Leg Extension',e:'machine'},{n:'Single Leg Extension',e:'machine'},
+    {n:'Cyclist Goblet Squat',e:'free'},{n:'Heel Elevated Goblet Squat',e:'free'},
+    {n:'Sissy Squat',e:'bodyweight'},{n:'Reverse Nordic Curl',e:'bodyweight'},{n:'Wall Sit',e:'bodyweight'}
+  ]},
+  squat_pattern:{label:'Quads & glutes — squat / press',options:[
+    {n:'Lying Down Leg Press',e:'machine'},{n:'Leg Press',e:'machine'},{n:'Hack Squat',e:'machine'},{n:'Pendulum Squat',e:'machine'},{n:'Smith Machine Squat',e:'machine'},
+    {n:'Barbell Back Squat',e:'free'},{n:'Barbell Front Squat',e:'free'},{n:'Goblet Squat',e:'free'},{n:'Dumbbell Squat',e:'free'},{n:'Trap Bar Squat',e:'free'},
+    {n:'Bodyweight Squat',e:'bodyweight'},{n:'Squat Jump',e:'bodyweight'}
+  ]},
+  unilateral_leg:{label:'Single leg — quads, glutes & stability',options:[
+    {n:'Single Leg Press',e:'machine'},{n:'Smith Machine Split Squat',e:'machine'},
+    {n:'Bulgarian Split Squat',e:'free'},{n:'Dumbbell Bulgarian Split Squat',e:'free'},{n:'Walking Lunge',e:'free'},{n:'Reverse Lunge',e:'free'},{n:'Dumbbell Step Up',e:'free'},{n:'Front Foot Elevated Split Squat',e:'free'},
+    {n:'Single Leg Step Down',e:'bodyweight'},{n:'Bodyweight Split Squat',e:'bodyweight'},{n:'Step Up',e:'bodyweight'},{n:'Skater Squat',e:'bodyweight'}
+  ]},
+  hamstring_curl:{label:'Hamstrings — knee flexion',options:[
+    {n:'Seated Hamstring Curl',e:'machine'},{n:'Lying Leg Curl',e:'machine'},{n:'Standing Hamstring Curl',e:'machine'},{n:'Single Leg Seated Curl',e:'machine'},
+    {n:'Cable Leg Curl',e:'cable'},
+    {n:'Nordic Hamstring Curl',e:'bodyweight'},{n:'Swiss Ball Hamstring Curl',e:'bodyweight'},{n:'Slider Leg Curl',e:'bodyweight'}
+  ]},
+  hip_hinge:{label:'Hamstrings & glutes — hip hinge',options:[
+    {n:'45° Back Extension',e:'machine'},{n:'Machine Back Extension',e:'machine'},
+    {n:'Cable Pull Through',e:'cable'},{n:'Single Leg Cable Romanian Deadlift',e:'cable'},
+    {n:'Barbell Romanian Dead Lift',e:'free'},{n:'Dumbbell Romanian Deadlift',e:'free'},{n:'Single Leg Romanian Deadlift',e:'free'},{n:'Trap Bar Deadlift',e:'free'},{n:'Conventional Deadlift',e:'free'},{n:'Good Morning',e:'free'},{n:'Kettlebell Swing',e:'free'},
+    {n:'Back Extension',e:'bodyweight'},{n:'Single Leg Hip Hinge',e:'bodyweight'}
+  ]},
+  hip_thrust:{label:'Glutes — hip extension',options:[
+    {n:'Hip Thrust Machine',e:'machine'},{n:'Glute Kickback Machine',e:'machine'},
+    {n:'Cable Glute Kickback',e:'cable'},{n:'Cable Pull Through',e:'cable'},
+    {n:'Barbell Hip Thrust',e:'free'},{n:'Dumbbell Hip Thrust',e:'free'},{n:'Single Leg Hip Thrust',e:'free'},{n:'Frog Pump',e:'free'},
+    {n:'Glute Bridge',e:'bodyweight'},{n:'Single Leg Glute Bridge',e:'bodyweight'},{n:'Banded Hip Thrust',e:'bodyweight'}
+  ]},
+  hip_abduction:{label:'Glute medius — abduction',options:[
+    {n:'Seated Hip Abduction',e:'machine'},{n:'Standing Abduction Machine',e:'machine'},
+    {n:'Cable Hip Abduction',e:'cable'},
+    {n:'Banded Lateral Walk',e:'bodyweight'},{n:'Side Lying Leg Raise',e:'bodyweight'},{n:'Banded Clamshell',e:'bodyweight'}
+  ]},
+  hip_adduction:{label:'Adductors — groin strength',options:[
+    {n:'Adduction Machine',e:'machine'},
+    {n:'Cable Hip Adduction',e:'cable'},
+    {n:'Copenhagen Plank',e:'bodyweight'},{n:'Side Lying Adduction Raise',e:'bodyweight'},{n:'Swiss Ball Adductor Squeeze',e:'bodyweight'}
+  ]},
+  hip_flexor:{label:'Hip flexors — stride drive',options:[
+    {n:'Cable Hip Flexion',e:'cable'},{n:'Standing Cable Knee Drive',e:'cable'},
+    {n:'Weighted Standing Knee Raise',e:'free'},
+    {n:'Hip Flexors',e:'bodyweight'},{n:'Banded Standing Knee Drive',e:'bodyweight'},{n:'Seated Hip Flexor Raise',e:'bodyweight'},{n:'Psoas March',e:'bodyweight'},{n:'Hanging Knee Raise',e:'bodyweight'}
+  ]},
+  calf_straight:{label:'Calves — gastroc (straight leg)',options:[
+    {n:'Standing Calf Raise',e:'machine'},{n:'Smith Machine Calf Raise',e:'machine'},{n:'Leg Press Calf Raise',e:'machine'},
+    {n:'Dumbbell Standing Calf Raise',e:'free'},{n:'Barbell Standing Calf Raise',e:'free'},
+    {n:'Single Leg Standing Calf Raise',e:'bodyweight'},{n:'Bodyweight Calf Raise',e:'bodyweight'},{n:'Pogo Hops',e:'bodyweight'}
+  ]},
+  calf_bent:{label:'Calves — soleus (bent knee)',options:[
+    {n:'Seated Calf Raise',e:'machine'},{n:'Smith Machine Seated Calf Raise',e:'machine'},
+    {n:'Dumbbell Seated Calf Raise',e:'free'},{n:'Weighted Seated Calf Raise',e:'free'},
+    {n:'Single Leg Seated Calf Raise',e:'bodyweight'},{n:'Bent Knee Wall Calf Raise',e:'bodyweight'}
+  ]},
+  tibialis:{label:'Tibialis — shin resilience',options:[
+    {n:'Tibialis Machine',e:'machine'},
+    {n:'Cable Tibialis Raise',e:'cable'},
+    {n:'Tib Bar Raise',e:'free'},{n:'Weighted Toe Raise',e:'free'},
+    {n:'Tibialis Raise',e:'bodyweight'},{n:'Banded Dorsiflexion',e:'bodyweight'},{n:'Heel Walks',e:'bodyweight'}
+  ]},
+  core_flexion:{label:'Core — trunk flexion & bracing',options:[
+    {n:'Crunch Machine',e:'machine'},{n:'Ab Coaster',e:'machine'},
+    {n:'Cable Abdominal Crunch',e:'cable'},{n:'Kneeling Cable Crunch',e:'cable'},{n:'Cable Woodchop',e:'cable'},{n:'Pallof Press',e:'cable'},
+    {n:'Weighted Sit Up',e:'free'},{n:'Weighted Plank',e:'free'},
+    {n:'Hanging Knee Raise',e:'bodyweight'},{n:'Hanging Leg Raise',e:'bodyweight'},{n:'Reverse Crunch',e:'bodyweight'},{n:'Dead Bug',e:'bodyweight'},{n:'Plank',e:'bodyweight'},{n:'V-Up',e:'bodyweight'}
+  ]}
+};
+// Explicit slot → pattern mapping for every exercise the programme currently
+// writes (including coach alts and the female split slots). Anything not listed
+// falls back to keyword inference below, so a new Supabase exercise still gets
+// sensible options without a code change.
+var EX_PATTERN_BY_NAME={
+  'lat pulldown':'vertical_pull','cable lat pulldown':'vertical_pull','machine lat pulldown':'vertical_pull','assisted pull up':'vertical_pull','pull up':'vertical_pull','chin up':'vertical_pull','straight arm pulldown':'vertical_pull',
+  'low machine row':'horizontal_row','mid machine row':'horizontal_row','wide grip machine row':'horizontal_row','wide grip cable row':'horizontal_row','chest supported row':'horizontal_row','cable row close grip':'horizontal_row','cable row wide grip':'horizontal_row','seated cable row wide':'horizontal_row','low pulley row':'horizontal_row','dumbbell row':'horizontal_row','barbell bent over row':'horizontal_row',
+  'rear delt fly':'rear_delt','cable rear delt fly':'rear_delt','face pull':'rear_delt','reverse pec dec':'rear_delt',
+  'incline dumbbell press':'horizontal_press','barbell incline bench press':'horizontal_press','machine incline bench press':'horizontal_press','bench press':'horizontal_press','machine chest press':'horizontal_press','push up':'horizontal_press',
+  'pec dec':'chest_fly','cable fly':'chest_fly','chest fly machine':'chest_fly','dumbbell fly':'chest_fly',
+  'machine shoulder press':'vertical_press','dumbbell shoulder press':'vertical_press','seated barbell press':'vertical_press','overhead press':'vertical_press',
+  'lateral dumbbell raise':'lateral_delt','machine lateral raise':'lateral_delt','cable lateral raise':'lateral_delt',
+  'machine dips':'triceps','assisted dips':'triceps','parallel bar dip':'triceps','cable pushdown':'triceps','cable pushdown bar':'triceps','tricep rope extension':'triceps','overhead rope extension':'triceps','overhead tricep extension':'triceps','skull crusher':'triceps',
+  'dumbbell hammer curl':'biceps','bicep curl':'biceps','barbell curl':'biceps','preacher curl':'biceps',
+  'leg extension':'quad_isolation','single leg extension':'quad_isolation',
+  'lying down leg press':'squat_pattern','leg press':'squat_pattern','leg press feet high wide':'squat_pattern','hack squat':'squat_pattern','barbell back squat':'squat_pattern','back squat':'squat_pattern','goblet squat':'squat_pattern',
+  'bulgarian split squat':'unilateral_leg','dumbbell bulgarian split squat':'unilateral_leg','single leg step down':'unilateral_leg','walking lunge':'unilateral_leg','reverse lunge':'unilateral_leg','step up':'unilateral_leg',
+  'seated hamstring curl':'hamstring_curl','lying hamstring curl':'hamstring_curl','lying leg curl':'hamstring_curl','standing hamstring curl':'hamstring_curl','nordic hamstring curl':'hamstring_curl',
+  'barbell romanian dead lift':'hip_hinge','barbell romanian deadlift':'hip_hinge','dumbbell romanian deadlift':'hip_hinge','romanian deadlift':'hip_hinge','deadlift':'hip_hinge','good morning':'hip_hinge','back extension':'hip_hinge',
+  'barbell hip thrust':'hip_thrust','dumbbell hip thrust':'hip_thrust','hip thrust':'hip_thrust','glute bridge':'hip_thrust','glute kickback':'hip_thrust','cable glute kickback':'hip_thrust',
+  'seated hip abduction':'hip_abduction','cable hip abduction':'hip_abduction','abduction machine':'hip_abduction',
+  'adduction machine':'hip_adduction','cable hip adduction':'hip_adduction','copenhagen plank':'hip_adduction',
+  'hip flexors':'hip_flexor','cable hip flexion':'hip_flexor',
+  'standing calf raise':'calf_straight','seated calf raise':'calf_bent','tibialis raise':'tibialis',
+  'cable abdominal crunch':'core_flexion','crunch machine':'core_flexion','hanging knee raise':'core_flexion','hanging leg raise':'core_flexion','plank':'core_flexion','pallof press':'core_flexion'
+};
+// Keyword fallback. Order matters — the first match wins, so the more specific
+// tests (seated vs standing calf, adduction vs abduction) sit above the general
+// ones.
+var EX_PATTERN_RULES=[
+  [/seated calf|soleus|bent knee calf/,'calf_bent'],
+  [/calf raise|calf press/,'calf_straight'],
+  [/tibialis|tib bar|dorsiflex|toe raise|heel walk/,'tibialis'],
+  [/adduction|adductor|copenhagen/,'hip_adduction'],
+  [/abduction|clamshell|lateral walk|glute med/,'hip_abduction'],
+  [/hip flexor|knee drive|psoas/,'hip_flexor'],
+  [/hip thrust|glute bridge|kickback|frog pump/,'hip_thrust'],
+  [/romanian|rdl|deadlift|good morning|pull through|back extension|hinge|kettlebell swing/,'hip_hinge'],
+  [/(?:hamstring|leg) curl|nordic/,'hamstring_curl'],
+  [/split squat|lunge|step up|step down|single leg press|skater squat/,'unilateral_leg'],
+  [/leg extension|sissy squat|wall sit|reverse nordic/,'quad_isolation'],
+  [/squat|leg press|hack|pendulum/,'squat_pattern'],
+  [/crunch|sit up|plank|leg raise|knee raise|dead bug|woodchop|pallof|\bab\b|\bcore\b|v-up/,'core_flexion'],
+  [/rear delt|face pull|reverse pec|pull apart|y-raise/,'rear_delt'],
+  [/lateral raise|side raise|lateral dumbbell/,'lateral_delt'],
+  [/pulldown|pull up|pull-up|chin up|chin-up|pullover/,'vertical_pull'],
+  [/\brow\b|rowing/,'horizontal_row'],
+  [/\bfly\b|\bflye\b|pec dec/,'chest_fly'],
+  [/shoulder press|overhead press|military press|arnold|pike push/,'vertical_press'],
+  [/bench press|chest press|push up|push-up|dips?\b/,'horizontal_press'],
+  [/pushdown|tricep|skull crusher|kickback/,'triceps'],
+  [/curl/,'biceps']
+];
+function exercisePatternKey(exerciseName){
+  var normalised=normaliseExerciseName(exerciseName);
+  if(!normalised)return '';
+  if(EX_PATTERN_BY_NAME[normalised])return EX_PATTERN_BY_NAME[normalised];
+  for(var r=0;r<EX_PATTERN_RULES.length;r++){
+    if(EX_PATTERN_RULES[r][0].test(normalised))return EX_PATTERN_RULES[r][1];
+  }
+  return '';
+}
+// Builds the picker payload for one programmed slot:
+//   priority — the programmed exercise plus the coach's alts, in coach order
+//   groups   — every other same-muscle option, grouped by equipment
+// A prescription can opt out with swapLocked:true (Supabase) when the exercise
+// itself is the point of the session and no substitution is acceptable.
+function getExerciseSwapOptions(prescription){
+  var programmed=prescription&&prescription.exercise?prescription.exercise:'';
+  var priority=[programmed].concat((prescription&&prescription.alts)||[]).filter(Boolean);
+  var seen={},ordered=[];
+  priority.forEach(function(name){
+    var key=normaliseExerciseName(name);
+    if(key&&!seen[key]){seen[key]=true;ordered.push(name);}
+  });
+  var patternKey=prescription&&prescription.pattern?prescription.pattern:exercisePatternKey(programmed);
+  var pattern=EX_PATTERNS[patternKey];
+  if(!pattern||(prescription&&prescription.swapLocked))return{priority:ordered,groups:[],patternLabel:pattern?pattern.label:''};
+  var byEquipment={};
+  pattern.options.forEach(function(option){
+    var key=normaliseExerciseName(option.n);
+    if(!key||seen[key])return;
+    seen[key]=true;
+    (byEquipment[option.e]=byEquipment[option.e]||[]).push(option.n);
+  });
+  var groups=[];
+  SWAP_EQUIPMENT_ORDER.forEach(function(equipment){
+    if(byEquipment[equipment]&&byEquipment[equipment].length){
+      groups.push({equipment:equipment,label:SWAP_EQUIPMENT_LABELS[equipment],options:byEquipment[equipment]});
+    }
+  });
+  return{priority:ordered,groups:groups,patternLabel:pattern.label};
+}
+
 // ── RUN LIBRARY ───────────────────────────────────────────────────────────────
 const RUN={"Threshold Work":{"description":"Warm up 15min easy. Run at sustained threshold effort (RPE 7–8). Cool down easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"Easy Run":{"description":"Relaxed aerobic run at conversational pace (RPE 4–5). Focus on easy breathing and good form.","type":"Easy Run","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"Long Run":{"description":"Long aerobic endurance run. Relaxed steady effort (RPE 5–6). Focus on time on feet and fueling.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Progressive Long Run":{"description":"Long run starting easy, gradually increasing pace in final third toward marathon effort.","type":"Long Run","intensity":"Aerobic","surface":"Road","difficulty":"Intermediate"},"Fast Finish Long Run":{"description":"Long run mostly easy with final 3–5km at marathon effort (RPE 7).","type":"Long Run","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"12x1min Fartlek":{"description":"Warm up 10–15min easy. 12x1min strong (RPE 7–8) with 1min jog recovery. Cool down easy.","type":"Fartlek","intensity":"Aerobic","surface":"Road","difficulty":"Beginner"},"8x2min Fartlek":{"description":"Warm up 10–15min easy + strides. 8x2min steady hard (RPE 7) with 2min jog recovery. Cool down 10min easy.","type":"Fartlek","intensity":"Threshold","surface":"Road","difficulty":"Beginner"},"20min Tempo":{"description":"Warm up 10–15min easy. 20min tempo steady effort (RPE 7). Cool down 10min easy.","type":"Tempo","intensity":"Tempo","surface":"Road","difficulty":"Intermediate"},"25min Tempo":{"description":"Warm up 15min easy. 25min continuous tempo (RPE 7). Cool down 10–15min easy.","type":"Tempo","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"5x1km Threshold":{"description":"Warm up 15min easy + strides. 5x1km threshold (RPE 7–8) with 90s jog recovery. Cool down 10min easy.","type":"Threshold","intensity":"Threshold","surface":"Road","difficulty":"Intermediate"},"6x400m Intervals":{"description":"Warm up 15min easy + drills. 6x400m fast (RPE 8) with 200m jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"6x800m Intervals":{"description":"Warm up 15min easy. 6x800m strong (RPE 8) with 2min jog recovery. Cool down easy.","type":"Track","intensity":"VO2 Max","surface":"Track","difficulty":"Intermediate"},"10x20s Hill Sprints":{"description":"Warm up 15min easy. 10x20s hill sprints (RPE 9) full recovery. Cool down easy.","type":"Hills","intensity":"Neuromuscular","surface":"Hills","difficulty":"Beginner"},"5km Recovery":{"description":"5km gentle recovery jog (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"},"6km Recovery":{"description":"6km very easy recovery run (RPE 3–4).","type":"Recovery","intensity":"Easy","surface":"Road","difficulty":"Beginner"}};
 

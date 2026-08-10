@@ -1,16 +1,16 @@
-const CACHE_NAME = 'dp-athlete-v120'; // v120: cache-first homepage with background hydration
+const CACHE_NAME = 'dp-athlete-v121'; // v121: equipment-grouped exercise swap options in strength sessions
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=102', '/desktop.css?v=4', '/config.js',
+  '/index.html', '/styles.css?v=103', '/desktop.css?v=4', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=97',
-  '/js/02-login-goals.js?v=94',
+  '/js/01-core.js?v=98',
+  '/js/02-login-goals.js?v=95',
   '/js/03-nav-nudges.js?v=93',
   '/js/04-checkin.js?v=86',
   '/js/05-handbook.js?v=82',
   '/js/06-nutrition.js?v=86',
   '/js/07-progress.js?v=86',
   '/js/strava-match.js?v=4',
-  '/js/08-training.js?v=106',
+  '/js/08-training.js?v=107',
   '/js/09-logging.js?v=101',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=92',
