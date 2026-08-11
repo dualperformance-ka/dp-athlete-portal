@@ -319,11 +319,15 @@ async function submitQuickBody(){
     date:bodyDate,weight:document.getElementById('qlbWeight').value||'',
     sleep:document.getElementById('qlbSleep').value,energy:document.getElementById('qlbEnergy').value,
     stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,pain:pain,painLocation:painLocation,coachAlert:Number(pain)>=5,notes:notes};
+  // The local copy is this device's record of the attempt, nothing more. The
+  // dock only turns green once the server confirms — see quickLogState.
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
   try{syncQuickLogDock();}catch(e){}
   var bodyResult=await coachWrite(DAILY_BODY_WEBHOOK,payload);
+  if(!bodyResult||!bodyResult.queued) markLogConfirmed('body',payload.date);
+  try{syncQuickLogDock();}catch(e){}
   closeQuickLog('body');
-  showToast(bodyResult.queued?'Body logged - coach dashboard sync pending':'Body logged ✓');
+  showToast(bodyResult.queued?'Body saved on this device - not sent to your coaches yet':'Body logged ✓');
   btn.textContent='Log Body';btn.disabled=false;
   // Reset for next use
   document.getElementById('qlbDate').value='';document.getElementById('qlbWeight').value='';
@@ -346,11 +350,14 @@ async function submitQuickNut(){
     var _v=document.getElementById(_f[1]).value;
     if(_v!==''&&_v!=null) payload[_f[0]]=_v;
   });
+  // Same contract as body: local means attempted, green means received.
   localStorage.setItem('dp_daily_nut_'+athlete.code+'_'+nutDate,JSON.stringify(payload));
   try{syncQuickLogDock();}catch(e){}
   var nutResult=await coachWrite(DAILY_NUT_WEBHOOK,payload);
+  if(!nutResult||!nutResult.queued) markLogConfirmed('nut',nutDate);
+  try{syncQuickLogDock();}catch(e){}
   closeQuickLog('nut');
-  showToast(nutResult.queued?'Nutrition logged - coach dashboard sync pending':'Nutrition logged ✓');
+  showToast(nutResult.queued?'Nutrition saved on this device - not sent to your coaches yet':'Nutrition logged ✓');
   btn.textContent='Log Nutrition';btn.disabled=false;
   // Reset for next use
   document.getElementById('qlnDate').value='';document.getElementById('qlnCal').value='';

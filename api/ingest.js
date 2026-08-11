@@ -19,6 +19,32 @@ function send(res, status, payload) {
   return res.status(status).json(payload);
 }
 
+// Column-tolerant upsert. New optional columns (the strength swap fields) ship
+// in the same release as their migration, and whichever lands first would
+// otherwise reject every write in between — a training log lost to deploy
+// ordering. PostgREST names the offending column, so we drop it and retry;
+// raw_payload still carries the full submission either way, so nothing is
+// actually lost while the migration catches up.
+export const OPTIONAL_COLUMNS = ['exercise_name', 'programmed_exercise', 'muscle_group', 'is_swap', 'rep_mode'];
+
+export async function upsertTolerant(table, row, onConflict, write = upsert) {
+  let attempt = { ...row };
+  for (let i = 0; i <= OPTIONAL_COLUMNS.length; i++) {
+    try {
+      return await write(table, attempt, onConflict);
+    } catch (error) {
+      const message = String(error?.message || '');
+      const missing = OPTIONAL_COLUMNS.find(
+        (column) => Object.hasOwn(attempt, column) && message.includes(`'${column}'`)
+      );
+      if (!missing) throw error;
+      console.warn(`[ingest] ${table}.${missing} not present yet — retrying without it`);
+      delete attempt[missing];
+    }
+  }
+  return write(table, attempt, onConflict);
+}
+
 function has(value) {
   return value !== undefined && value !== null && String(value).trim() !== '';
 }
@@ -160,7 +186,7 @@ async function persistStructured(payload) {
   }
 
   if (type === 'Run' || type === 'Strength' || type === 'training_log') {
-    return upsert('training_session_logs', {
+    return upsertTolerant('training_session_logs', {
       client_write_id: text(payload.clientWriteId, 120),
       athlete_code: code,
       athlete_name: athleteName(payload),
@@ -169,6 +195,18 @@ async function persistStructured(payload) {
       session_category: text(payload.sessionCategory || payload.type, 80),
       session_date: date(payload.date),
       exercise_log: text(payload.exerciseLog, 2000),
+      // Strength swap context. Sets are stored under the exercise actually
+      // performed so progression follows the real movement; these columns keep
+      // the link back to what was prescribed, and give the coach dashboard a
+      // muscle-group dimension that survives any substitution.
+      exercise_name: text(payload.exerciseName, 240),
+      programmed_exercise: text(payload.programmedExercise, 240),
+      muscle_group: text(payload.muscleGroup, 120),
+      is_swap: payload.isSwap === true,
+      // 'left_right' on unilateral work, 'reps' otherwise. The portal has always
+      // sent this; giving it a column makes single-leg volume queryable instead
+      // of buried in raw_payload.
+      rep_mode: text(payload.repMode, 20),
       distance_km: number(payload.distanceKm ?? payload.distance),
       duration_min: number(payload.durationMin ?? payload.duration),
       pace: text(payload.pace, 80),

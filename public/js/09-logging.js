@@ -197,12 +197,28 @@ function draftGym(i,splitKey){
   try{refreshStrengthFeedback(i,splitKey);}catch(e){}
   try{markInlinePbs(i,splitKey);}catch(e){}
   refreshStrengthExerciseStates(i);
-  setGymSubmissionStatus(i,'draft');
+  // A session already sent to the coaches must not silently drop back to
+  // "draft" the moment it is touched — it needs to say the change has not been
+  // submitted, and give the athlete the button to send it.
+  refreshGymSubmitState(i,sessions[i]&&sessions[i].id,null);
   // Persisting to storage stays debounced so we are not writing on every keypress.
   if(_draftGymTimer) clearTimeout(_draftGymTimer);
   _draftGymTimer=setTimeout(function(){persistGymDraft(i,splitKey);},250);
 }
-function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;var previous=logs[s.id]||{};var exercises=getSplit(splitKey);var current={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;current[useName]=arr;});var gnEl=document.getElementById('gn_'+i);var meta={__sessionDate:strengthSessionDate(i,s),__updatedAt:new Date().toISOString()};if(gnEl)meta.__notes=gnEl.value;if(previous.__submittedAt)meta.__submittedAt=previous.__submittedAt;var log=mergeStrengthLog(previous,current,meta);logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);setGymSubmissionStatus(i,gymDraftHasData(log)?'draft':'hidden');try{markInlinePbs(i,splitKey);}catch(e){}}
+// Which programmed slot each logged exercise actually filled. Sets are stored
+// under the performed name so progression follows the real movement, which on
+// its own loses the link back to the prescription — this map keeps it, and is
+// what lets the portal tell "swapped the row again" apart from "trained a
+// different slot".
+function collectSlotMap(exercises){
+  var slots={};
+  (exercises||[]).forEach(function(ex){
+    if(!ex||!ex.exercise) return;
+    slots[ex.exercise]=exPicks[ex.exercise]||ex.exercise;
+  });
+  return slots;
+}
+function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;var previous=logs[s.id]||{};var exercises=getSplit(splitKey);var current={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;current[useName]=arr;});var gnEl=document.getElementById('gn_'+i);var meta={__sessionDate:strengthSessionDate(i,s),__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises)};if(gnEl)meta.__notes=gnEl.value;if(previous.__submittedAt)meta.__submittedAt=previous.__submittedAt;if(previous.__submittedSig)meta.__submittedSig=previous.__submittedSig;var log=mergeStrengthLog(previous,current,meta);logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);refreshGymSubmitState(i,s.id,log);try{markInlinePbs(i,splitKey);}catch(e){}}
 
 // ── NOTE-ONLY SESSION (discovery week "train as normal" + log notes) ──────────
 function draftNote(i){
@@ -423,6 +439,9 @@ function isSessionLogged(sessionId){
 function stampSessionSubmitted(sessionId){
   if(!logs[sessionId]||typeof logs[sessionId]!=='object') logs[sessionId]={};
   logs[sessionId].__submittedAt=new Date().toISOString();
+  // Snapshot of exactly what went to the coaches. Anything the athlete adds
+  // afterwards changes the signature, which is what re-opens the save button.
+  logs[sessionId].__submittedSig=gymLogSignature(logs[sessionId]);
   logs.__savedAt=Date.now();
   localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
 }
@@ -434,6 +453,60 @@ function lockSaveButton(i,label){
   btn.disabled=true;
   btn.style.opacity='0.7';
   btn.style.cursor='default';
+}
+// A submitted session is not a closed session. Athletes routinely add an
+// exercise after pressing save — they finish the session, then remember the
+// last movement — and a permanently disabled button left that work stranded in
+// the local draft, visible to nobody. Re-open the button the moment the draft
+// diverges from what was actually submitted.
+function unlockSaveButton(i,label){
+  var btn=document.getElementById('sb_'+i);
+  if(!btn) return;
+  btn.classList.remove('saved');
+  btn.textContent=label||'Update session';
+  btn.disabled=false;
+  btn.style.opacity='';
+  btn.style.cursor='';
+}
+// What was actually sent to the coaches, as exercise → set count. Compared
+// against the live draft to tell "nothing has changed since submitting" apart
+// from "there is new work here that never left the device".
+function gymLogSignature(log){
+  if(!log||typeof log!=='object') return '';
+  return Object.keys(log)
+    .filter(function(k){return k.indexOf('__')!==0&&Array.isArray(log[k])&&log[k].length;})
+    .map(function(k){return exerciseHistoryKey(k)+':'+log[k].length;})
+    .sort()
+    .join('|');
+}
+// Deterministic per athlete + session + exercise, so re-submitting UPDATES the
+// row instead of inserting a second copy. A random id per submit meant every
+// re-save duplicated the whole session in training_session_logs.
+function strengthClientWriteId(sessionId,exerciseName){
+  var slug=exerciseHistoryKey(exerciseName).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  var id='strength_'+(athlete&&athlete.code||'')+'_'+sessionId+'_'+slug;
+  if(id.length<=120) return id;
+  // Truncating would let two long exercise names collide onto one row, so fold
+  // the name down to a stable hash instead of cutting it off.
+  var h=0;for(var c=0;c<slug.length;c++){h=(h*31+slug.charCodeAt(c))>>>0;}
+  return ('strength_'+(athlete&&athlete.code||'')+'_'+sessionId+'_'+h.toString(36)).slice(0,120);
+}
+// One place decides what the athlete sees: submitted and unchanged, submitted
+// but edited since, or never submitted at all.
+function refreshGymSubmitState(i,sessionId,log){
+  var entry=log||logs[sessionId]||{};
+  if(!gymDraftHasData(entry)){setGymSubmissionStatus(i,'hidden');return;}
+  if(!entry.__submittedAt){setGymSubmissionStatus(i,'draft');return;}
+  // Sessions submitted before signatures existed carry no baseline. Treating a
+  // missing one as "changed" would flag every past session as unsent, so they
+  // stay settled until the athlete actually edits them.
+  if(entry.__submittedSig&&gymLogSignature(entry)!==entry.__submittedSig){
+    setGymSubmissionStatus(i,'resubmit');
+    unlockSaveButton(i,'Update session');
+    return;
+  }
+  setGymSubmissionStatus(i,'submitted');
+  lockSaveButton(i,'Save session');
 }
 async function saveRun(i){
   var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
@@ -647,7 +720,7 @@ async function saveGym(i,splitKey){
   var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
   if(gymNotes) log.__notes=gymNotes;
   var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:(s.date||new Date().toISOString().slice(0,10));
-  var storedLog=mergeStrengthLog(previous,log,{__notes:gymNotes,__sessionDate:gymDate,__updatedAt:new Date().toISOString()});
+  var storedLog=mergeStrengthLog(previous,log,{__notes:gymNotes,__sessionDate:gymDate,__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises)});
   logs[s.id]=storedLog;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
   try{await portalStateWrite('logs',logs);}catch(e){}
   var pbHits=[];try{pbHits=detectSessionPBs(s.id,log);}catch(e){console.warn('PB detection failed:',e);}
@@ -661,9 +734,24 @@ async function saveGym(i,splitKey){
     var sets=log[exName];
     var prescription=exercises.find(function(ex){return (exPicks[ex.exercise]||ex.exercise)===exName;})||null;
     var repMode=usesLeftRightReps(exName,prescription)?'left_right':'reps';
+    // Coaches need the prescription, not just what was performed. Without the
+    // programmed slot a swapped exercise reads as though it was written that
+    // way, which hides both equipment problems and the niggles behind them.
+    var programmed=prescription&&prescription.exercise?prescription.exercise:exName;
+    var isSwap=exerciseHistoryKey(programmed)!==exerciseHistoryKey(exName);
+    var muscleGroup=(typeof exerciseMuscleGroup==='function'&&exerciseMuscleGroup(exName))||null;
     return coachWrite(WEBHOOK,{
+      // Stable per session + exercise: a second submit updates this row rather
+      // than adding a duplicate alongside it.
+      clientWriteId:strengthClientWriteId(s.id,exName),
       name:athlete.name+' — '+exName+' — '+gymDate,session:s.name,type:'Strength',
       exerciseName:exName,repMode:repMode,
+      programmedExercise:programmed,isSwap:isSwap,
+      muscleGroup:muscleGroup?muscleGroup.label:'',muscleGroupKey:muscleGroup?muscleGroup.key:'',
+      // exercise_log stays strictly "<name>: Set 1: ..." — the coach dashboard
+      // parses the exercise name by splitting on ": Set ", and keys PB history
+      // off it. Annotating the swap in this string would corrupt both. The swap
+      // travels in programmedExercise / isSwap instead.
       exerciseLog:exName+': '+sets.map(function(st,si){return setSummary(st,si,_isAssistedExercise(exName));}).join(' | '),rawSets:sets,
       notes:gymNotes,athleteCode:athlete.code,athleteId:athlete.notionPageId,
       athleteName:athlete.name,date:gymDate,submittedAt:new Date().toISOString()
@@ -683,8 +771,7 @@ async function saveGym(i,splitKey){
     var sbBtn=document.getElementById('sb_'+i);
     if(sbBtn){gymSavedBanner=document.createElement('div');gymSavedBanner.id='gym_saved_'+i;sbBtn.parentNode.insertBefore(gymSavedBanner,sbBtn);}
   }
-  setGymSubmissionStatus(i,'submitted');
-  lockSaveButton(i,'Save session');
+  refreshGymSubmitState(i,s.id,logs[s.id]);
   if(gymDate!==s.date)setSessionDateOverride(s.id,gymDate,{silent:true});
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';btn.disabled=true;setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;btn.disabled=false;},2500);}}
@@ -720,29 +807,77 @@ document.addEventListener('input',function(e){
 // Body and nutrition are daily actions, so the dock stays pinned. To keep the
 // home screen down to a single accent, only the next unlogged segment is
 // filled — anything already logged today drops to a quiet done state.
-function quickLogDoneToday(kind){
-  try{
-    if(!window.athlete||!athlete.code) return false;
-    var key='dp_daily_'+(kind==='body'?'body':'nut')+'_'+athlete.code+'_'+todayISO2();
-    return !!localStorage.getItem(key);
-  }catch(e){return false;}
+// Days the SERVER has confirmed, hydrated from /api/portal bootstrap and kept
+// current as writes land. A local key only ever means "this device tried".
+var _confirmedLogDates={body:{},nut:{}};
+function hydrateConfirmedLogDates(dailyLogged){
+  var next={body:{},nut:{}};
+  (dailyLogged&&dailyLogged.body||[]).forEach(function(d){next.body[String(d).slice(0,10)]=true;});
+  (dailyLogged&&dailyLogged.nutrition||[]).forEach(function(d){next.nut[String(d).slice(0,10)]=true;});
+  _confirmedLogDates=next;
+  try{syncQuickLogDock();}catch(e){}
+  return _confirmedLogDates;
 }
+// Standalone read for deployments whose bootstrap predates dailyLogged, and
+// for refreshing after the retry queue drains.
+async function loadConfirmedLogDates(){
+  try{
+    var res=await portalRequest('daily-log-dates');
+    return hydrateConfirmedLogDates(res||{});
+  }catch(e){console.warn('daily log confirmation read failed:',e);return _confirmedLogDates;}
+}
+function markLogConfirmed(kind,date){
+  var k=(kind==='body'?'body':'nut');
+  _confirmedLogDates[k][String(date).slice(0,10)]=true;
+}
+// Three states, not two. "Logged" must mean the coaches have it — the whole
+// failure this replaces was a tick that only ever meant the athlete pressed a
+// button. "Sending" is the state that used to be invisible: written on this
+// device, not yet acknowledged by the server, and therefore not something a
+// coach can see.
+function quickLogState(kind){
+  try{
+    if(!window.athlete||!athlete.code) return 'none';
+    var k=(kind==='body'?'body':'nut');
+    var today=todayISO2();
+    if(_confirmedLogDates[k]&&_confirmedLogDates[k][today]) return 'logged';
+    var key='dp_daily_'+k+'_'+athlete.code+'_'+today;
+    return localStorage.getItem(key)?'sending':'none';
+  }catch(e){return 'none';}
+}
+// Kept for callers that only care whether there is anything to do today.
+function quickLogDoneToday(kind){return quickLogState(kind)==='logged';}
 function syncQuickLogDock(){
   var body=document.getElementById('qlDockBody');
   var nut=document.getElementById('qlDockNut');
   if(!body||!nut) return;
-  var bodyDone=quickLogDoneToday('body');
-  var nutDone=quickLogDoneToday('nut');
-  body.classList.toggle('is-done',bodyDone);
-  nut.classList.toggle('is-done',nutDone);
+  var state={body:quickLogState('body'),nut:quickLogState('nut')};
+  [['body',body],['nut',nut]].forEach(function(pair){
+    var s=state[pair[0]],el=pair[1];
+    el.classList.toggle('is-done',s==='logged');
+    el.classList.toggle('is-sending',s==='sending');
+  });
   // Exactly one segment may be filled. Body leads because readiness shapes
-  // how the session should be executed.
-  var nextUp=bodyDone?(nutDone?null:'nut'):'body';
+  // how the session should be executed. Anything unconfirmed still counts as
+  // outstanding: it is not with the coaches yet.
+  var bodySettled=state.body==='logged',nutSettled=state.nut==='logged';
+  var nextUp=bodySettled?(nutSettled?null:'nut'):'body';
   body.classList.toggle('is-next',nextUp==='body');
   nut.classList.toggle('is-next',nextUp==='nut');
   var strip=document.getElementById('quicklogStrip');
-  if(strip) strip.classList.toggle('all-logged',bodyDone&&nutDone);
-  body.setAttribute('aria-label',bodyDone?'Daily body log, already logged today':'Daily body log, not logged yet today');
-  nut.setAttribute('aria-label',nutDone?'Daily nutrition log, already logged today':'Daily nutrition log, not logged yet today');
+  if(strip) strip.classList.toggle('all-logged',bodySettled&&nutSettled);
+  var label={
+    logged:function(n){return n+', logged and sent to your coaches';},
+    sending:function(n){return n+', saved on this device but not yet sent — tap to resend';},
+    none:function(n){return n+', not logged yet today';}
+  };
+  body.setAttribute('aria-label',label[state.body]('Daily body log'));
+  nut.setAttribute('aria-label',label[state.nut]('Daily nutrition log'));
+  var hint=document.getElementById('quicklogHint');
+  if(hint){
+    var stuck=[state.body==='sending'?'body':null,state.nut==='sending'?'nutrition':null].filter(Boolean);
+    hint.textContent=stuck.length?('Your '+stuck.join(' and ')+' log hasn’t reached your coaches yet — tap to resend.'):'';
+    hint.style.display=stuck.length?'block':'none';
+  }
 }
 document.addEventListener('DOMContentLoaded',function(){try{syncQuickLogDock();}catch(e){}});

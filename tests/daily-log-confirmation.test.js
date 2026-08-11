@@ -1,0 +1,135 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { dailyLogDates, bootstrapRead } from '../api/write.js';
+
+// The quick-log dock used to tick from a local key written before the request
+// was even sent. A submission that never left the phone looked exactly like one
+// that landed: the athlete saw a tick, the coach saw nothing, and nobody could
+// tell the difference — which is how two days of Thomas's nutrition went
+// missing while he believed he had logged it.
+//
+// So "logged" has to mean the server holds it, and the state in between —
+// written here, not yet acknowledged — has to be visible rather than silent.
+
+test('confirmation reads only the dates, from both daily tables', async () => {
+  const asked = [];
+  const rows = table => {
+    asked.push(table);
+    return table === 'daily_body_logs'
+      ? [{ log_date: '2026-08-11' }, { log_date: '2026-08-10' }]
+      : [{ log_date: '2026-08-09' }];
+  };
+  const result = await dailyLogDates('THOMAS', async (table, params) => {
+    assert.equal(params.select, 'log_date', 'nutrition notes run to hundreds of words — never pull whole rows for this');
+    assert.equal(params.athlete_code, 'eq.THOMAS');
+    return rows(table);
+  });
+  assert.deepEqual(asked.sort(), ['daily_body_logs', 'daily_nutrition_logs']);
+  assert.deepEqual(result, { body: ['2026-08-11', '2026-08-10'], nutrition: ['2026-08-09'] });
+});
+
+test('timestamps are trimmed to plain dates so the client can compare them', async () => {
+  const result = await dailyLogDates('ALVIN', async () => [{ log_date: '2026-08-10T00:00:00+00:00' }]);
+  assert.deepEqual(result.body, ['2026-08-10']);
+});
+
+test('a confirmation failure never blocks portal entry', async () => {
+  const result = await bootstrapRead('ALVIN', {
+    stateRead: async () => ({ rows: [] }),
+    bodyLogs: async () => ({ rows: [] }),
+    sessionLogsRead: async () => ({ rows: [] }),
+    dailyLogDates: async () => { throw new Error('Supabase unavailable'); },
+  });
+  assert.deepEqual(result.dailyLogged, { body: [], nutrition: [] });
+  assert.ok(result.state, 'the rest of the bootstrap still lands');
+});
+
+// ── Dock state resolution ───────────────────────────────────────────────────
+
+function loadDock() {
+  const root = new URL('..', import.meta.url).pathname;
+  const source = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
+  const start = source.indexOf('// Days the SERVER has confirmed');
+  const end = source.indexOf('document.addEventListener(\'DOMContentLoaded\',function(){try{syncQuickLogDock();}catch(e){}});', start);
+  assert.ok(start > 0 && end > start, 'dock state block should exist in 09-logging.js');
+
+  const context = {
+    athlete: { code: 'THOMAS' },
+    localStorage: {
+      _v: {},
+      getItem(k) { return Object.prototype.hasOwnProperty.call(this._v, k) ? this._v[k] : null; },
+      setItem(k, v) { this._v[k] = String(v); },
+    },
+    document: { getElementById: () => null },
+    console,
+    todayISO2: () => '2026-08-10',
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(
+    source.slice(start, end) +
+    '\nthis.quickLogState=quickLogState;this.hydrateConfirmedLogDates=hydrateConfirmedLogDates;' +
+    'this.markLogConfirmed=markLogConfirmed;this.quickLogDoneToday=quickLogDoneToday;',
+    context
+  );
+  return context;
+}
+
+const dock = loadDock();
+const localKey = kind => 'dp_daily_' + kind + '_THOMAS_2026-08-10';
+
+test('a day the server holds reads as logged', () => {
+  dock.hydrateConfirmedLogDates({ body: ['2026-08-10'], nutrition: ['2026-08-09'] });
+  assert.equal(dock.quickLogState('body'), 'logged');
+  assert.equal(dock.quickLogState('nut'), 'none', 'nutrition landed for the 9th, not today');
+});
+
+test('written on this device but never acknowledged reads as sending, not logged', () => {
+  dock.hydrateConfirmedLogDates({ body: [], nutrition: [] });
+  dock.localStorage.setItem(localKey('nut'), '{"calories":"1851"}');
+  assert.equal(dock.quickLogState('nut'), 'sending');
+  assert.notEqual(dock.quickLogState('nut'), 'logged', 'this is the bug — a local key is not proof the coaches have it');
+});
+
+test('a confirmed write promotes sending to logged', () => {
+  dock.hydrateConfirmedLogDates({ body: [], nutrition: [] });
+  dock.localStorage.setItem(localKey('nut'), '{"calories":"1851"}');
+  assert.equal(dock.quickLogState('nut'), 'sending');
+  dock.markLogConfirmed('nut', '2026-08-10');
+  assert.equal(dock.quickLogState('nut'), 'logged');
+});
+
+test('server confirmation wins even with no local key — the athlete may be on another device', () => {
+  dock.localStorage._v = {};
+  dock.hydrateConfirmedLogDates({ body: ['2026-08-10'], nutrition: ['2026-08-10'] });
+  assert.equal(dock.quickLogState('body'), 'logged');
+  assert.equal(dock.quickLogState('nut'), 'logged');
+});
+
+test('nothing anywhere reads as not logged', () => {
+  dock.localStorage._v = {};
+  dock.hydrateConfirmedLogDates({ body: [], nutrition: [] });
+  assert.equal(dock.quickLogState('body'), 'none');
+  assert.equal(dock.quickLogState('nut'), 'none');
+});
+
+test('done-today only counts confirmed logs', () => {
+  dock.localStorage._v = {};
+  dock.hydrateConfirmedLogDates({ body: [], nutrition: [] });
+  dock.localStorage.setItem(localKey('body'), '{"weight":"72.3"}');
+  assert.equal(dock.quickLogDoneToday('body'), false, 'an unsent log is not a done log');
+  dock.markLogConfirmed('body', '2026-08-10');
+  assert.equal(dock.quickLogDoneToday('body'), true);
+});
+
+test('hydrating replaces prior state rather than accumulating it', () => {
+  dock.localStorage._v = {};
+  dock.hydrateConfirmedLogDates({ body: ['2026-08-10'], nutrition: [] });
+  assert.equal(dock.quickLogState('body'), 'logged');
+  dock.hydrateConfirmedLogDates({ body: [], nutrition: [] });
+  assert.equal(dock.quickLogState('body'), 'none', 'a deleted log must not linger as confirmed');
+});

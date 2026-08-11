@@ -1340,6 +1340,60 @@ function refreshStrengthFeedback(i,splitKey){
     var lastEl=document.getElementById('prev_'+i+'_'+ei);
     if(lastEl){lastEl.className='prev-effort'+(prevEffort?' has-last':'');lastEl.innerHTML=prevEffort?('LAST: '+esc(formatSetSummary(getWorkingSlice(ex,prevEffort),resolvedEx))):('TARGET: '+esc(ex.repRange||ex.reps));}
   });
+  refreshMuscleCoverage(i,splitKey);
+}
+
+// What the session was written to train, against what has actually been logged.
+// With swaps in play the exercise names alone no longer answer that, so the
+// readout works off muscle groups: a session where every exercise was
+// substituted still confirms the target groups were covered — or shows exactly
+// which one got dropped when the athlete ran out of time.
+function buildMuscleCoverage(i,splitKey){
+  var exercises=getSplit(splitKey),s=sessions[i];
+  if(!s||!exercises.length) return [];
+  var planned={},order=[];
+  exercises.forEach(function(ex){
+    var group=(typeof exerciseMuscleGroup==='function')?exerciseMuscleGroup(ex.exercise):null;
+    if(!group) return;
+    if(!planned[group.key]){planned[group.key]={key:group.key,label:group.label,plannedSets:0,loggedSets:0};order.push(group.key);}
+    planned[group.key].plannedSets+=parseInt(ex.workingSets||ex.sets,10)||0;
+  });
+  exercises.forEach(function(ex,ei){
+    var resolvedEx=exPicks[ex.exercise]||ex.exercise;
+    var sets=collectExerciseSets(i,ei,true);
+    if(!sets.length&&logs[s.id]) sets=getExerciseSetsFromLog(logs[s.id],resolvedEx)||[];
+    // Credit the group the athlete actually trained. Swapping a row for a
+    // pull-up moves the work from horizontal to vertical pull, and the readout
+    // should show that honestly rather than assume the prescription was met.
+    var group=(typeof exerciseMuscleGroup==='function')?exerciseMuscleGroup(resolvedEx):null;
+    if(!group) return;
+    if(!planned[group.key]){planned[group.key]={key:group.key,label:group.label,plannedSets:0,loggedSets:0};order.push(group.key);}
+    sets.forEach(function(set){
+      if(typeof strengthSetWorkload==='function'&&strengthSetWorkload(set)) planned[group.key].loggedSets++;
+    });
+  });
+  return order.map(function(key){return planned[key];});
+}
+function muscleCoverageHtml(groups){
+  if(!groups||!groups.length) return '';
+  var covered=groups.filter(function(g){return g.loggedSets>0;}).length;
+  var missing=groups.filter(function(g){return g.plannedSets>0&&g.loggedSets===0;});
+  var summary=covered+' of '+groups.length+' muscle groups trained';
+  var chips='';
+  groups.forEach(function(g){
+    var state=g.loggedSets===0?'todo':(g.plannedSets&&g.loggedSets>=g.plannedSets?'done':'partial');
+    chips+='<span class="mcov-chip is-'+state+'"><span class="mcov-chip-label">'+esc(g.label)+'</span><span class="mcov-chip-sets">'+g.loggedSets+(g.plannedSets?'/'+g.plannedSets:'')+'</span></span>';
+  });
+  return '<div class="mcov-head"><span class="mcov-title">Muscle groups this session</span><span class="mcov-sum">'+esc(summary)+'</span></div>'
+    +'<div class="mcov-chips">'+chips+'</div>'
+    +(missing.length?'<div class="mcov-gap">Still untouched: '+esc(missing.map(function(g){return g.label;}).join(', '))+'</div>':'');
+}
+function refreshMuscleCoverage(i,splitKey){
+  var mount=document.getElementById('mcov_'+i);
+  if(!mount) return;
+  var html=muscleCoverageHtml(buildMuscleCoverage(i,splitKey));
+  mount.innerHTML=html;
+  mount.style.display=html?'block':'none';
 }
 
 // ---------------------------------------------------------------------------
@@ -1711,8 +1765,13 @@ function setGymSubmissionStatus(i,state){
   if(state==='hidden'){status.style.display='none';return;}
   status.style.display='flex';
   status.className='session-submit-status '+(state==='submitted'?'is-submitted':'is-draft');
+  // 'resubmit' is the session that was sent, then added to. Saying "submitted"
+  // there would hide the new work; saying "draft" would wrongly imply nothing
+  // has reached the coaches at all.
   status.innerHTML=state==='submitted'
     ?'<span class="submit-status-icon"><svg class="icon"><use href="#i-check"/></svg></span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>'
+    :state==='resubmit'
+    ?'<span class="submit-status-icon">•••</span><span><strong>Changes not yet submitted</strong><small>You have added to this session since submitting it — press Update session to send the rest.</small></span>'
     :'<span class="submit-status-icon">•••</span><span><strong>Draft saved on this device</strong><small>Press Save session below to submit it to your coaches.</small></span>';
 }
 
@@ -1975,6 +2034,14 @@ function buildBody(s,i,type){
           // Is the athlete currently on something outside the coach's shortlist?
           var offProgramme=swapPriority.every(function(opt){return opt!==resolvedEx;});
           var swapPanelId='swaps_'+i+'_'+ei;
+          // Overload needs repetition to read. An athlete on a different
+          // variation every week never builds the history the engine compares
+          // against, so their numbers look flat however hard they train — say
+          // so here, where the swap is about to happen, rather than never.
+          var churn=(typeof variationChurn==='function')?variationChurn(logs,ex.exercise):null;
+          if(churn&&churn.churning){
+            h+='<div class="swap-churn-note"><span class="swap-churn-badge">Heads up</span><div><strong>'+churn.distinct+' different variations in your last '+churn.sessions+' sessions here.</strong><span>Progress is measured against your own history, so it needs you to repeat a movement. Pick one and stay on it for about four weeks before switching again.</span></div></div>';
+          }
           h+='<div class="ex-picker-label">Swap exercise</div>';
           h+='<div class="ex-picker">';
           swapPriority.forEach(function(opt){h+=pickPill(opt,'');});
@@ -2030,6 +2097,11 @@ function buildBody(s,i,type){
         h+='</div>';
       });
       h+='</div>';
+      // Coverage lives under the exercise list and refreshes on every keystroke
+      // through refreshStrengthFeedback, so it answers "have I trained what this
+      // session was for?" while there is still time to act on the answer.
+      h+='<div class="muscle-coverage" id="mcov_'+i+'"></div>';
+      setTimeout(function(idx,key){return function(){refreshMuscleCoverage(idx,key);};}(i,splitKey),0);
     }
     var sl2notes=(logs[s.id]&&logs[s.id].__notes)||'';
     h+='<div class="run-field run-input-full" style="margin-top:12px;margin-bottom:8px"><label>Session notes <span style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--dim)">(PRs, wins, niggles, anything worth logging)</span></label><textarea id="gn_'+i+'" class="li" placeholder="e.g. Hit a new squat PR, left knee felt a bit off on lunges..." oninput="draftGym('+i+',\''+esc(splitKey)+'\')" style="min-height:70px;resize:vertical;font-size:13px">'+esc(sl2notes)+'</textarea></div>';
@@ -2039,7 +2111,10 @@ function buildBody(s,i,type){
     else h+='<span class="submit-status-icon">•••</span><span><strong>Draft saved on this device</strong><small>Press Save session below to submit it to your coaches.</small></span>';
     h+='</div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveGym('+i+',\''+esc(splitKey)+'\')">Save session</button>';
-    if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save session');}(i),0);}
+    // Re-derived on render rather than assumed: an athlete who added an
+    // exercise and then closed the app must come back to an open button, not a
+    // locked one hiding unsent work.
+    if(gymSubmitted||gymHasDraft){var _gymSid=s.id;setTimeout(function(){refreshGymSubmitState(i,_gymSid,logs[_gymSid]);},0);}
     setTimeout(function(){updateStrengthRpeControls();if(typeof restoreRestTimer==='function')restoreRestTimer();},0);
   }else if(type==='note'){
     var sl3=logs[s.id]||{};

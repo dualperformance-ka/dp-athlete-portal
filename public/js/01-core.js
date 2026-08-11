@@ -356,6 +356,12 @@ async function retryPendingCoachWrites(silent){
       await persistPendingCoachWrites(keep,bucket);
     }
   }
+  if(totalSynced){
+    // A drained queue means some of those "saved on this device" logs have now
+    // actually reached the coaches — re-read the confirmed dates so the dock
+    // stops warning about work that has since landed.
+    if(typeof loadConfirmedLogDates==='function'){try{await loadConfirmedLogDates();}catch(e){}}
+  }
   if(totalSynced&&!silent) showToast(totalSynced+' pending coach update'+(totalSynced>1?'s':'')+' synced');
 }
 window.addEventListener('online',function(){retryPendingCoachWrites(false);});
@@ -807,6 +813,114 @@ function getExerciseSwapOptions(prescription){
     }
   });
   return{priority:ordered,groups:groups,patternLabel:pattern.label};
+}
+
+// ── MUSCLE GROUP TRACKING ─────────────────────────────────────────────────────
+// Per-exercise progression stays the source of truth for load: a pull-up and a
+// lat pulldown are not interchangeable numbers. But once an athlete can swap
+// freely, "am I progressing?" can no longer be answered by one exercise string
+// alone — three sessions of three different rows look like three false starts.
+// These helpers add the muscle-group layer over the top: what actually got
+// trained, and whether the athlete is staying on a variation long enough for
+// the overload engine to have anything to work with.
+var MUSCLE_GROUP_CHURN_WINDOW=4;   // how many recent sessions a slot is judged over
+var MUSCLE_GROUP_CHURN_LIMIT=3;    // distinct variations within that window before we speak up
+function exerciseMuscleGroup(exerciseName){
+  var key=exercisePatternKey(exerciseName);
+  if(!key||!EX_PATTERNS[key])return null;
+  return{key:key,label:EX_PATTERNS[key].label};
+}
+// A set only counts as training if reps were actually recorded. A typed weight
+// with an empty reps box is an abandoned set, and counting it would inflate
+// coverage exactly when an athlete cut a session short.
+function strengthSetWorkload(set){
+  if(!set||typeof set!=='object')return null;
+  var weight=parseFloat(set.weight);
+  var reps=parseFloat(set.reps);
+  if(isNaN(reps)||reps<=0){
+    var left=parseFloat(set.repsLeft),right=parseFloat(set.repsRight);
+    if(isNaN(left)&&isNaN(right))return null;
+    reps=(isNaN(left)?0:left)+(isNaN(right)?0:right);
+    if(reps<=0)return null;
+  }
+  return{reps:reps,volume:(isNaN(weight)||weight<=0)?0:weight*reps};
+}
+// Rolls a set of session log entries up by muscle group. Feeds the session
+// coverage readout and any weekly view — pass one entry for a single session,
+// or every entry in a week for the weekly picture.
+function summariseMuscleGroups(entries){
+  var byGroup={};
+  (entries||[]).forEach(function(entry){
+    if(!entry||typeof entry!=='object'||Array.isArray(entry))return;
+    Object.keys(entry).forEach(function(exerciseName){
+      if(exerciseName.indexOf('__')===0||!Array.isArray(entry[exerciseName]))return;
+      var group=exerciseMuscleGroup(exerciseName);
+      if(!group)return;
+      var bucket=byGroup[group.key]||(byGroup[group.key]={key:group.key,label:group.label,sets:0,reps:0,volume:0,exercises:[]});
+      var trained=false;
+      entry[exerciseName].forEach(function(set){
+        var work=strengthSetWorkload(set);
+        if(!work)return;
+        bucket.sets++;bucket.reps+=work.reps;bucket.volume+=work.volume;trained=true;
+      });
+      if(trained&&bucket.exercises.indexOf(exerciseName)<0)bucket.exercises.push(exerciseName);
+    });
+  });
+  return Object.keys(byGroup).map(function(key){
+    var bucket=byGroup[key];
+    bucket.volume=Math.round(bucket.volume);
+    return bucket;
+  }).sort(function(a,b){return b.sets-a.sets||a.label.localeCompare(b.label);});
+}
+// Which variation filled a programmed slot, session by session, newest first.
+// Reads the __slots map written at save time; logs recorded before that map
+// existed simply return nothing, so history stays quiet rather than wrong.
+function slotVariationHistory(allLogs,programmedExercise,limit){
+  var target=normaliseExerciseName(programmedExercise);
+  if(!target)return[];
+  var out=[];
+  Object.keys(allLogs||{}).forEach(function(sessionId){
+    if(sessionId.indexOf('__')===0)return;
+    var entry=allLogs[sessionId];
+    if(!entry||typeof entry!=='object'||Array.isArray(entry)||!entry.__slots)return;
+    var performed=null;
+    Object.keys(entry.__slots).forEach(function(slot){
+      if(normaliseExerciseName(slot)===target)performed=entry.__slots[slot];
+    });
+    if(!performed)return;
+    var sets=null;
+    Object.keys(entry).forEach(function(key){
+      if(key.indexOf('__')!==0&&normaliseExerciseName(key)===normaliseExerciseName(performed)&&Array.isArray(entry[key]))sets=entry[key];
+    });
+    if(!sets||!sets.some(function(set){return !!strengthSetWorkload(set);}))return;
+    out.push({sessionId:sessionId,date:String(entry.__sessionDate||'').slice(0,10)||null,exercise:performed});
+  });
+  out.sort(function(a,b){
+    if(a.date&&b.date&&a.date!==b.date)return a.date<b.date?1:-1;
+    if(a.date&&!b.date)return-1;
+    if(!a.date&&b.date)return 1;
+    return 0;
+  });
+  return limit?out.slice(0,limit):out;
+}
+// Progressive overload needs repetition to have anything to compare against.
+// An athlete rotating through a different variation every week never builds the
+// history the engine reads, so their numbers look flat no matter how hard they
+// train. This spots that pattern so the card can say so.
+function variationChurn(allLogs,programmedExercise){
+  var history=slotVariationHistory(allLogs,programmedExercise,MUSCLE_GROUP_CHURN_WINDOW);
+  var names=[],seen={};
+  history.forEach(function(item){
+    var key=normaliseExerciseName(item.exercise);
+    if(key&&!seen[key]){seen[key]=true;names.push(item.exercise);}
+  });
+  return{
+    sessions:history.length,
+    distinct:names.length,
+    variations:names,
+    current:history.length?history[0].exercise:null,
+    churning:history.length>=MUSCLE_GROUP_CHURN_LIMIT&&names.length>=MUSCLE_GROUP_CHURN_LIMIT
+  };
 }
 
 // ── RUN LIBRARY ───────────────────────────────────────────────────────────────

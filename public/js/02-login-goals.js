@@ -79,13 +79,17 @@ async function hydratePortalData(code){
     await loadCloudData(code,bootstrap.state);
     await loadStructuredBodyData(code,bootstrap.bodyLogs);
     await loadSessionLogs(bootstrap.sessionLogs);
+    // Which daily logs the coaches actually hold. Absent on older deployments,
+    // in which case the dock falls back to its own read below.
+    if(bootstrap.dailyLogged) hydrateConfirmedLogDates(bootstrap.dailyLogged);
+    else await loadConfirmedLogDates();
     return;
   }catch(e){
     console.warn('Combined portal bootstrap failed; using compatibility reads',e);
   }
   // Safe rollout/failure path: older deployments and transient bootstrap
   // failures retain the exact request sequence used before this optimisation.
-  await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);})(),loadSessionLogs()]);
+  await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);})(),loadSessionLogs(),loadConfirmedLogDates()]);
 }
 function hydrateLocalPortalState(code){
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');

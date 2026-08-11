@@ -277,6 +277,34 @@ async function bodyLogs(code) {
   return { rows: Array.isArray(rows) ? rows : [] };
 }
 
+// Which days the server has ACTUALLY received a body or nutrition log for.
+//
+// The quick-log dock used to tick from a local storage key written before the
+// request was even sent, so a submission that never left the phone looked
+// identical to one that landed: the athlete saw a tick, the coach saw nothing,
+// and neither had any way to tell. Confirmation has to come from the server.
+//
+// Dates only — the indicator needs nothing else, and nutrition notes run to
+// several hundred words each, so pulling whole rows to answer "did this
+// arrive?" would cost far more than it returns. Being server-side also makes
+// the state identical on every device the athlete signs into.
+export async function dailyLogDates(code, selectRows = select) {
+  const params = {
+    athlete_code: `eq.${code}`,
+    select: 'log_date',
+    order: 'log_date.desc',
+    limit: '60',
+  };
+  const [bodyRows, nutritionRows] = await Promise.all([
+    selectRows('daily_body_logs', params),
+    selectRows('daily_nutrition_logs', params),
+  ]);
+  const dates = rows => (Array.isArray(rows) ? rows : [])
+    .map(row => String(row?.log_date || '').slice(0, 10))
+    .filter(Boolean);
+  return { body: dates(bodyRows), nutrition: dates(nutritionRows) };
+}
+
 export async function bookingRead(code, selectRows = select) {
   const rows = await selectRows('athlete_data', {
     athlete_code: `eq.${code}`,
@@ -327,12 +355,16 @@ export async function bootstrapRead(code, readers = {}) {
   const readState = readers.stateRead || stateRead;
   const readBodyLogs = readers.bodyLogs || bodyLogs;
   const readSessionLogs = readers.sessionLogsRead || sessionLogsRead;
-  const [state, bodyLogRows, sessionLogs] = await Promise.all([
+  const readDailyLogDates = readers.dailyLogDates || dailyLogDates;
+  const [state, bodyLogRows, sessionLogs, dailyLogged] = await Promise.all([
     readState(code),
     readBodyLogs(code),
     readSessionLogs(code),
+    // Never let the confirmation lookup take the whole portal down with it: a
+    // missing indicator is a small loss, a blocked entry screen is not.
+    readDailyLogDates(code).catch(() => ({ body: [], nutrition: [] })),
   ]);
-  return { state, bodyLogs: bodyLogRows, sessionLogs };
+  return { state, bodyLogs: bodyLogRows, sessionLogs, dailyLogged };
 }
 
 async function dispatch(action, code, body) {
@@ -351,6 +383,7 @@ async function dispatch(action, code, body) {
   if (action === 'session-log-write') return sessionLogWrite(code, body);
   if (action === 'strava-match-reject') return rejectStravaMatch(code, body);
   if (action === 'body-logs') return bodyLogs(code);
+  if (action === 'daily-log-dates') return dailyLogDates(code);
 
   const error = new Error('Unknown portal action');
   error.status = 400;

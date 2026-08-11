@@ -507,6 +507,24 @@ html.strength-rpe-off .setrow.extra{grid-template-columns:22px 1fr 1fr 36px 26px
 .ex-swap-group-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
 .ex-swap-pills{display:flex;gap:6px;flex-wrap:wrap}
 .ex-pill-alt{white-space:normal;text-align:left}
+/* Variation churn warning. Amber, not red — swapping is allowed and often the
+   right call; this is coaching context, not an error. */
+.swap-churn-note{display:flex;gap:10px;align-items:flex-start;margin:0 14px 10px;padding:10px 12px;border:1px solid rgba(255,170,0,.35);background:rgba(255,170,0,.07);border-radius:10px}
+.swap-churn-badge{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#ffaa00;border:1px solid rgba(255,170,0,.4);border-radius:20px;padding:3px 7px;flex-shrink:0}
+.swap-churn-note strong{display:block;font-size:12px;line-height:1.4;margin-bottom:3px}
+.swap-churn-note span:not(.swap-churn-badge){display:block;font-size:11px;line-height:1.45;color:var(--dim)}
+/* Session muscle-group coverage */
+.muscle-coverage{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--border);border-radius:10px}
+.mcov-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px}
+.mcov-title{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.mcov-sum{font-family:var(--mono);font-size:10px;color:#92d2ed}
+.mcov-chips{display:flex;flex-wrap:wrap;gap:6px}
+.mcov-chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;padding:5px 9px;border-radius:20px;border:1px solid var(--border-mid);color:var(--muted)}
+.mcov-chip-sets{font-size:9px;opacity:.75}
+.mcov-chip.is-done{border-color:rgba(146,210,237,.5);color:#92d2ed}
+.mcov-chip.is-partial{border-color:rgba(255,170,0,.4);color:#ffaa00}
+.mcov-chip.is-todo{opacity:.6}
+.mcov-gap{font-size:11px;line-height:1.45;color:var(--dim);margin-top:9px}
 
 /* ── MOBILE POLISH ─────────────────────────────────────────────────────────── */
 /* Hero pills scroll horizontally instead of squeezing/clipping */
@@ -1672,6 +1690,15 @@ body{font-size:15px;line-height:1.55}
 .outdoor-mode .ex-swaps{background:rgba(255,255,255,.72);border-color:rgba(7,17,22,.18)}
 .outdoor-mode .ex-swaps-note strong{color:#087fae}
 .outdoor-mode .ex-swaps-note span,.outdoor-mode .ex-swap-group-label{color:rgba(7,17,22,.72)}
+.outdoor-mode .swap-churn-note{background:rgba(255,170,0,.14);border-color:rgba(150,100,0,.4)}
+.outdoor-mode .swap-churn-badge{color:#8a5a00;border-color:rgba(150,100,0,.45)}
+.outdoor-mode .swap-churn-note span:not(.swap-churn-badge){color:rgba(7,17,22,.72)}
+.outdoor-mode .muscle-coverage{background:rgba(255,255,255,.72);border-color:rgba(7,17,22,.18)}
+.outdoor-mode .mcov-title,.outdoor-mode .mcov-gap{color:rgba(7,17,22,.72)}
+.outdoor-mode .mcov-sum{color:#087fae}
+.outdoor-mode .mcov-chip{background:#fff;border-color:rgba(7,17,22,.25);color:#334750}
+.outdoor-mode .mcov-chip.is-done{border-color:#087fae;color:#087fae}
+.outdoor-mode .mcov-chip.is-partial{border-color:#8a5a00;color:#8a5a00}
 .outdoor-mode .plate-pill{background:#fff;border-color:rgba(7,17,22,.22);color:#334750}
 .outdoor-mode .st{background:#fff;border-color:rgba(7,17,22,.3)}
 .outdoor-mode .st.on{background:#23804b;border-color:#23804b}
@@ -4846,7 +4873,7 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 /* ── Daily log dock ────────────────────────────────────────────────────
    Pinned because both are daily. Only the next unlogged segment is
    filled; a completed segment drops to a quiet done state. */
-.quicklog-btn .ql-icon-done{display:none}
+.quicklog-btn .ql-icon-done,.quicklog-btn .ql-icon-sending{display:none}
 .quicklog-btn.is-done .ql-icon-todo{display:none}
 .quicklog-btn.is-done .ql-icon-done{display:inline-block}
 .quicklog-btn.is-done{background:transparent;border-color:transparent;color:var(--ok);opacity:.85}
@@ -4856,6 +4883,19 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .outdoor-mode .quicklog-btn.is-next{background:#1f7fa6;border-color:#1f7fa6;color:#fff}
 .outdoor-mode .quicklog-btn.is-next .icon{color:#fff}
 .outdoor-mode .quicklog-btn.is-done{color:#12794a}
+
+/* Saved here, not with the coaches yet. Deliberately louder than "to do" and
+   never green: the athlete has done the work, so the message is "this has not
+   arrived", not "you forgot". Colour alone would not carry that, so the icon
+   changes to an alert and a line of text spells it out underneath. */
+.quicklog-btn.is-sending .ql-icon-todo{display:none}
+.quicklog-btn.is-sending .ql-icon-sending{display:inline-block}
+.quicklog-btn.is-sending{background:rgba(240,173,78,.14);border-color:rgba(240,173,78,.55);color:#f0ad4e;font-weight:800}
+.quicklog-btn.is-sending .icon{color:#f0ad4e}
+.quicklog-hint{margin:6px 2px 0;font-size:11.5px;line-height:1.45;color:#f0ad4e}
+.outdoor-mode .quicklog-btn.is-sending{background:#fff4e2;border-color:#b5710f;color:#8a5406}
+.outdoor-mode .quicklog-btn.is-sending .icon{color:#8a5406}
+.outdoor-mode .quicklog-hint{color:#8a5406}
 
 /* ── Outdoor (light) mode parity ───────────────────────────────────────── */
 .outdoor-mode .metric-track{background:rgba(7,17,22,.1)}
