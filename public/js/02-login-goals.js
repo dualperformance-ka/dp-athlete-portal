@@ -42,9 +42,10 @@ function showPausedScreen(name){
 function pausedBackToLogin(){
   localStorage.removeItem('dp_auth_code');
   var el=document.getElementById('pausedScreen');if(el) el.style.display='none';
-  document.getElementById('loginScreen').style.display='block';
   var inp=document.getElementById('codeInput');if(inp) inp.value='';
   renderCode();
+  if(typeof showPrimaryLogin==='function')showPrimaryLogin();
+  document.getElementById('loginScreen').style.display='block';
 }
 function buildAthleteProfile(p,code,roster){
   var props=p?(p.properties||{}):{};

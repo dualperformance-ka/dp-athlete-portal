@@ -3,11 +3,12 @@ var urlCode=new URLSearchParams(location.search).get('code');
 // Session-aware boot: resolve the Supabase auth session FIRST so an
 // email-migrated athlete reopening the PWA goes straight to the portal (no
 // login flash). Legacy athletes have no session and fall through to the
-// exact pre-migration paths (?code= link or saved dp_auth_code).
+// exact pre-migration paths (?code= link or an active legacy session).
 async function bootPortal(){
-  // Client-side UI flag from config.js — the email toggle stays hidden until
-  // enabled, so shipping this code changes nothing visible by default.
-  if(typeof EMAIL_AUTH_UI!=='undefined'&&EMAIL_AUTH_UI){
+  // With email auth enabled, email is the primary logged-out experience and
+  // the coach-issued athlete code remains available as a one-tap fallback.
+  var emailPrimary=typeof EMAIL_AUTH_UI!=='undefined'&&EMAIL_AUTH_UI;
+  if(emailPrimary){
     var _emailToggle=document.getElementById('loginMethodToggle');
     if(_emailToggle)_emailToggle.style.display='';
   }
@@ -35,9 +36,9 @@ async function bootPortal(){
         doLogin(me.code,me);
         return;
       }
-      if(me&&me.error==='invalid_session') await authSignOut();
-      // no_linked_athlete: valid session but the coach hasn't enrolled this
-      // email — fall through so a legacy saved code (if any) still works.
+      if(me&&(me.error==='invalid_session'||me.error==='no_linked_athlete')) await authSignOut();
+      // no_linked_athlete: clear the unresolved session so the athlete can
+      // still choose the access-code fallback from the primary email screen.
     }
   }catch(e){console.warn('Auth boot failed, falling back to legacy login',e);}
   var legacyToken=localStorage.getItem('dp_legacy_session');
@@ -48,13 +49,11 @@ async function bootPortal(){
     _authToken=null;localStorage.removeItem('dp_legacy_session');
   }
   var savedCode=localStorage.getItem('dp_auth_code');
-  if(savedCode){doLogin(savedCode);return;}
+  // A stored code may silently resume only while email auth is disabled.
+  // Once email is primary, logged-out athletes must deliberately choose code.
+  if(savedCode&&!emailPrimary){doLogin(savedCode);return;}
+  if(typeof showPrimaryLogin==='function')showPrimaryLogin();
   document.getElementById('loginScreen').style.display='block';
-  // Email-migrated athletes land on the email panel by default (with a
-  // one-tap "send a new code" recovery when their session expired).
-  if(localStorage.getItem('dp_auth_method')==='email'&&typeof showEmailLogin==='function'){
-    showEmailLogin(true);
-  }
 }
 bootPortal();
 

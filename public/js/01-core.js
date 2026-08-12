@@ -174,10 +174,12 @@ async function authSignOut(){
 function handleAuthSessionLost(){
   var method=localStorage.getItem('dp_auth_method');
   logoutToLogin(true);
-  if(method==='email'&&typeof showEmailLogin==='function'){
-    showEmailLogin(true,'Your session expired — enter your email and we’ll send a new code.');
+  if(typeof isEmailLoginEnabled==='function'&&isEmailLoginEnabled()&&typeof showPrimaryLogin==='function'){
+    var notice=method==='email'
+      ?'Your session expired — enter your email and we’ll send a new code.'
+      :'Your access session expired — sign in with email, or use your athlete access code.';
+    showPrimaryLogin(notice);
   }else{
-    if(typeof showEmailLogin==='function')showEmailLogin(false);
     if(typeof showLoginError==='function')showLoginError('Your access session expired — enter your coach-issued code again.');
   }
 }
@@ -1062,13 +1064,13 @@ function logoutToLogin(preserveEmail){
   athlete=null;sessions=[];allSessions=[];ticked={};logs={};exPicks={};
   document.getElementById('portalScreen').style.display='none';
   document.getElementById('quicklogStrip').style.display='none';
-  document.getElementById('loginScreen').style.display='block';
   document.getElementById('codeInput').value='';
   clearLoginError();
   renderCode();
+  if(typeof showPrimaryLogin==='function')showPrimaryLogin();
+  document.getElementById('loginScreen').style.display='block';
 }
 function logout(){
   logoutToLogin(false);
   authSignOut(); // ends the Supabase session too (no-op for legacy code logins)
-  if(typeof showEmailLogin==='function') showEmailLogin(false);
 }

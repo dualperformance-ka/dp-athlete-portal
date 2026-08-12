@@ -50,7 +50,9 @@ function setLoginKeyboardState(active){
 function syncLoginViewport(){
   var screen=document.getElementById('loginScreen');if(!screen||!window.visualViewport)return;
   var keyboardOpen=window.visualViewport.height < window.innerHeight*0.78;
-  screen.classList.toggle('keyboard-open',keyboardOpen||document.activeElement===document.getElementById('codeInput'));
+  var active=document.activeElement;
+  var loginField=active===document.getElementById('codeInput')||active===document.getElementById('emailInput')||active===document.getElementById('otpInput');
+  screen.classList.toggle('keyboard-open',keyboardOpen||loginField);
 }
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize',syncLoginViewport);
@@ -97,7 +99,7 @@ function showEmailLogin(show,notice){
   if(!emailEl||!codeEl)return;
   emailEl.style.display=show?'block':'none';
   codeEl.style.display=show?'none':'block';
-  if(toggle)toggle.textContent=show?'Use an access code instead':'Sign in with email instead';
+  if(toggle)toggle.textContent=show?'Use athlete access code':'Sign in with email';
   clearEmailError();
   var noticeEl=document.getElementById('emailNotice');
   if(noticeEl){noticeEl.textContent=notice||'';noticeEl.style.display=notice?'block':'none';}
@@ -109,6 +111,8 @@ function showEmailLogin(show,notice){
     if(inp&&!inp.value&&remembered)inp.value=remembered;
   }
 }
+function isEmailLoginEnabled(){return typeof EMAIL_AUTH_UI!=='undefined'&&EMAIL_AUTH_UI;}
+function showPrimaryLogin(notice){showEmailLogin(isEmailLoginEnabled(),isEmailLoginEnabled()?notice:'');}
 function toggleLoginMethod(){showEmailLogin(!isEmailPanelVisible());}
 function clearEmailError(){var e=document.getElementById('emailErr');if(e)e.style.display='none';}
 function showEmailError(msg){

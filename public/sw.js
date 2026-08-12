@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v126'; // v126: recognize unilateral exercise options and keep per-side logs queryable for coaches
+const CACHE_NAME = 'dp-athlete-v127'; // v127: make email OTP the primary login while retaining athlete-code fallback
 const APP_SHELL = [
   '/index.html', '/styles.css?v=105', '/desktop.css?v=4', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=101',
-  '/js/02-login-goals.js?v=96',
+  '/js/01-core.js?v=102',
+  '/js/02-login-goals.js?v=97',
   '/js/03-nav-nudges.js?v=93',
   '/js/04-checkin.js?v=87',
   '/js/05-handbook.js?v=82',
@@ -13,8 +13,8 @@ const APP_SHELL = [
   '/js/08-training.js?v=109',
   '/js/09-logging.js?v=105',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=92',
-  '/login.js?v=47', '/icons.css?v=3',
+  '/js/10-boot.js?v=93',
+  '/login.js?v=48', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
 ];
