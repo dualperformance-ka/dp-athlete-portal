@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v128'; // v128: strength goals capture primary intent and priority areas
+const CACHE_NAME = 'dp-athlete-v129'; // v129: goals hints demoted out of mono, strength card split into focus / tracked lift
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=106', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=107', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=102',
   '/js/02-login-goals.js?v=99',

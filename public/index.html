@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=106">
+<link rel="stylesheet" href="/styles.css?v=107">
 <link rel="stylesheet" href="/desktop.css?v=5">
 <link rel="stylesheet" href="/icons.css?v=3">
 
@@ -418,12 +418,12 @@
         <div class="stat-field">
           <label>Target Peak Week</label>
           <input class="stat-input" id="gPeakWeek" type="number" placeholder="80" />
-          <div class="field-hint">km — highest week of your build</div>
+          <div class="field-hint">km, your biggest week</div>
         </div>
         <div class="stat-field">
           <label>Race Date</label>
           <input class="stat-input" id="gRaceDate" type="date" />
-          <div class="field-hint">your goal event date</div>
+          <div class="field-hint">race day</div>
         </div>
       </div>
     </div>
@@ -438,7 +438,7 @@
         <div class="stat-field">
           <label>Target Weight</label>
           <input class="stat-input" id="gTargetWeight" type="text" placeholder="68.0" />
-          <div class="field-hint">kg — your goal</div>
+          <div class="field-hint">kg, your goal</div>
         </div>
         <div class="stat-field">
           <label>Body Fat %</label>
@@ -479,7 +479,8 @@
     </div>
     <div class="card goals-section-card goals-strength-card">
       <div class="card-title">Strength Goals</div>
-      <div class="goals-card-note">Tell us what you want lifting to do for your running, then pick one lift to track. For loads, use a normal working set, not a one-rep max.</div>
+      <div class="goals-card-note">What do you want lifting to do for your running?</div>
+      <div class="goals-block-label">Focus</div>
       <div class="stat-grid">
         <div class="stat-field" style="grid-column:1/-1">
           <label>Primary Intent</label>
@@ -489,7 +490,7 @@
             <button class="race-opt" data-val="Build Muscle" onclick="selectGoalChip(this)">Build Muscle</button>
             <button class="race-opt" data-val="Keep Muscle" onclick="selectGoalChip(this)">Keep Muscle</button>
           </div>
-          <div class="field-hint">pick one — this sets your rep ranges and how hard we push load</div>
+          <div class="field-hint">sets your rep ranges</div>
         </div>
         <div class="stat-field" style="grid-column:1/-1">
           <label>Priority Areas</label>
@@ -502,27 +503,30 @@
             <button class="race-opt" data-val="Upper Body" onclick="toggleGoalChip(this,2)">Upper Body</button>
             <button class="race-opt" data-val="Back &amp; Posture" onclick="toggleGoalChip(this,2)">Back &amp; Posture</button>
           </div>
-          <div class="field-hint">choose up to 2 — everything still gets trained, these just get the extra work</div>
+          <div class="field-hint">up to 2 — the rest still gets trained</div>
         </div>
+      </div>
+      <div class="goals-block-label goals-block-label-split">Tracked Lift<span class="goals-block-note">normal working set, not a one-rep max</span></div>
+      <div class="stat-grid">
         <div class="stat-field" style="grid-column:1/-1">
           <label>Key Lift</label>
           <input class="stat-input" id="gStrengthLift" type="text" placeholder="e.g. trap-bar deadlift" />
-          <div class="field-hint">choose the movement that matters most to you</div>
+          <div class="field-hint">the one you want to track</div>
         </div>
         <div class="stat-field">
           <label>Current Load</label>
           <input class="stat-input" id="gStrengthCurrentLoad" type="number" min="0" step="0.5" inputmode="decimal" placeholder="60" />
-          <div class="field-hint">kg for your usual working set</div>
+          <div class="field-hint">kg, normal working set</div>
         </div>
         <div class="stat-field">
           <label>12-Week Target</label>
           <input class="stat-input" id="gStrengthTargetLoad" type="number" min="0" step="0.5" inputmode="decimal" placeholder="75" />
-          <div class="field-hint">kg with good form</div>
+          <div class="field-hint">kg, 12-week goal</div>
         </div>
         <div class="stat-field">
           <label>Reps Per Set</label>
           <input class="stat-input" id="gStrengthReps" type="number" min="1" max="30" step="1" inputmode="numeric" placeholder="6" />
-          <div class="field-hint">keep current and target comparable</div>
+          <div class="field-hint">keeps both loads comparable</div>
         </div>
       </div>
     </div>

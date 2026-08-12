@@ -288,6 +288,17 @@ html.strength-rpe-off .setrow.extra{grid-template-columns:22px 1fr 1fr 36px 26px
 .stat-input::placeholder{color:var(--dim);font-size:18px;font-weight:400}
 .field-hint{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:.04em}
 .goals-card-note{margin:-3px 0 14px;color:var(--muted);font-size:12px;line-height:1.5}
+/* Goals hints are guidance, not data. In DM Mono at full card width they read
+   with the same authority as the labels above them, which is what made the
+   longer cards feel like a wall of text. Body font, dimmer, tighter. */
+#tab-goals .field-hint{font-family:var(--body);letter-spacing:0;line-height:1.35;color:var(--dim);opacity:.75;margin-top:3px}
+#tab-goals .stat-field>label{color:var(--muted)}
+/* Sub-headings for a card that asks two different kinds of question. */
+.goals-block-label{display:flex;align-items:center;gap:9px;margin:0 0 9px;font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--run)}
+.goals-block-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.goals-block-label-split{margin-top:16px;padding-top:15px;border-top:1px solid var(--border)}
+.goals-block-label-split::after{display:none}
+.goals-block-note{flex:0 1 auto;margin-left:auto;font-family:var(--body);font-size:9px;letter-spacing:0;text-transform:none;color:var(--dim)}
 .why-textarea{width:100%;background:var(--surface2);border:1px solid var(--border-mid);border-radius:9px;padding:14px;font-size:14px;color:var(--text);font-family:var(--body);line-height:1.6;outline:none;resize:vertical;min-height:100px}
 .why-textarea:focus{border-color:#92d2ed;background:var(--surface3)}
 .why-textarea::placeholder{color:var(--dim);font-style:italic}
