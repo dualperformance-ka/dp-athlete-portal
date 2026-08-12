@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v127'; // v127: make email OTP the primary login while retaining athlete-code fallback
+const CACHE_NAME = 'dp-athlete-v128'; // v128: strength goals capture primary intent and priority areas
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=105', '/desktop.css?v=4', '/config.js',
+  '/index.html', '/styles.css?v=106', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=102',
-  '/js/02-login-goals.js?v=97',
+  '/js/02-login-goals.js?v=99',
   '/js/03-nav-nudges.js?v=93',
   '/js/04-checkin.js?v=87',
   '/js/05-handbook.js?v=82',

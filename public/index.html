@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=105">
-<link rel="stylesheet" href="/desktop.css?v=4">
+<link rel="stylesheet" href="/styles.css?v=106">
+<link rel="stylesheet" href="/desktop.css?v=5">
 <link rel="stylesheet" href="/icons.css?v=3">
 
 </head>
@@ -477,11 +477,60 @@
         </div>
       </div>
     </div>
+    <div class="card goals-section-card goals-strength-card">
+      <div class="card-title">Strength Goals</div>
+      <div class="goals-card-note">Tell us what you want lifting to do for your running, then pick one lift to track. For loads, use a normal working set, not a one-rep max.</div>
+      <div class="stat-grid">
+        <div class="stat-field" style="grid-column:1/-1">
+          <label>Primary Intent</label>
+          <div class="race-options" id="strengthIntentOptions">
+            <button class="race-opt" data-val="Injury Resilience" onclick="selectGoalChip(this)">Injury Resilience</button>
+            <button class="race-opt" data-val="Get Stronger" onclick="selectGoalChip(this)">Get Stronger</button>
+            <button class="race-opt" data-val="Build Muscle" onclick="selectGoalChip(this)">Build Muscle</button>
+            <button class="race-opt" data-val="Keep Muscle" onclick="selectGoalChip(this)">Keep Muscle</button>
+          </div>
+          <div class="field-hint">pick one — this sets your rep ranges and how hard we push load</div>
+        </div>
+        <div class="stat-field" style="grid-column:1/-1">
+          <label>Priority Areas</label>
+          <div class="race-options" id="strengthPriorityOptions">
+            <button class="race-opt" data-val="Glutes" onclick="toggleGoalChip(this,2)">Glutes</button>
+            <button class="race-opt" data-val="Hamstrings" onclick="toggleGoalChip(this,2)">Hamstrings</button>
+            <button class="race-opt" data-val="Quads" onclick="toggleGoalChip(this,2)">Quads</button>
+            <button class="race-opt" data-val="Calves &amp; Achilles" onclick="toggleGoalChip(this,2)">Calves &amp; Achilles</button>
+            <button class="race-opt" data-val="Core" onclick="toggleGoalChip(this,2)">Core</button>
+            <button class="race-opt" data-val="Upper Body" onclick="toggleGoalChip(this,2)">Upper Body</button>
+            <button class="race-opt" data-val="Back &amp; Posture" onclick="toggleGoalChip(this,2)">Back &amp; Posture</button>
+          </div>
+          <div class="field-hint">choose up to 2 — everything still gets trained, these just get the extra work</div>
+        </div>
+        <div class="stat-field" style="grid-column:1/-1">
+          <label>Key Lift</label>
+          <input class="stat-input" id="gStrengthLift" type="text" placeholder="e.g. trap-bar deadlift" />
+          <div class="field-hint">choose the movement that matters most to you</div>
+        </div>
+        <div class="stat-field">
+          <label>Current Load</label>
+          <input class="stat-input" id="gStrengthCurrentLoad" type="number" min="0" step="0.5" inputmode="decimal" placeholder="60" />
+          <div class="field-hint">kg for your usual working set</div>
+        </div>
+        <div class="stat-field">
+          <label>12-Week Target</label>
+          <input class="stat-input" id="gStrengthTargetLoad" type="number" min="0" step="0.5" inputmode="decimal" placeholder="75" />
+          <div class="field-hint">kg with good form</div>
+        </div>
+        <div class="stat-field">
+          <label>Reps Per Set</label>
+          <input class="stat-input" id="gStrengthReps" type="number" min="1" max="30" step="1" inputmode="numeric" placeholder="6" />
+          <div class="field-hint">keep current and target comparable</div>
+        </div>
+      </div>
+    </div>
     <div class="card goals-section-card">
       <div class="card-title">Your Why</div>
       <textarea class="why-textarea" id="gWhy" placeholder="Why did you join Dual Performance? What does success look like for you at the end of these 12 weeks? Be specific and honest — this is what we coach you toward."></textarea>
     </div>
-    <div class="card goals-section-card">
+    <div class="card goals-section-card goals-milestones-card">
       <div class="card-title">Milestones — What does success look like?</div>
       <div class="milestone-grid">
         <div class="milestone-field"><label>Week 4</label><textarea class="milestone-input" id="gM4" placeholder="e.g. Consistent with sessions, feeling stronger on runs..."></textarea></div>
@@ -1209,7 +1258,7 @@
 <script src="config.js"></script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=102"></script>
-<script src="js/02-login-goals.js?v=97"></script>
+<script src="js/02-login-goals.js?v=99"></script>
 <script src="js/03-nav-nudges.js?v=93"></script>
 <script src="js/04-checkin.js?v=87"></script>
 <script src="js/05-handbook.js?v=82"></script>

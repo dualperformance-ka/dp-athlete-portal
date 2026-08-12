@@ -492,7 +492,7 @@
     width:100%;
     align-self:stretch;
   }
-  #tab-goals>.goals-section-card:nth-of-type(8){grid-column:1/-1}
+  #tab-goals>.goals-milestones-card{grid-column:1/-1}
   #tab-goals .why-textarea{min-height:180px}
   #tab-goals .savebtn,
   #goalsSaveBtn{
@@ -534,7 +534,7 @@
   #tab-goals>.page-intro,
   #tab-goals>.goals-hero,
   #tab-goals>.goals-section-card,
-  #tab-goals>.goals-section-card:nth-of-type(8),
+  #tab-goals>.goals-milestones-card,
   #tab-goals .savebtn,
   #goalsSaveBtn{grid-column:1}
 }

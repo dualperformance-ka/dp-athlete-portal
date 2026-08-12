@@ -189,6 +189,12 @@ function populateStatic(){
   document.getElementById('gHalf').value=saved.timeHalf||athlete.timeHalf||'';
   document.getElementById('gMarathon').value=saved.timeMarathon||athlete.timeMarathon||'';
   document.getElementById('gLRPace').value=saved.lrPace||athlete.lrPace||'';
+  setGoalChipsFromValue('strengthIntentOptions',saved.strengthIntent||'');
+  setGoalChipsFromValue('strengthPriorityOptions',saved.strengthPriorities||'');
+  document.getElementById('gStrengthLift').value=saved.strengthLift||'';
+  document.getElementById('gStrengthCurrentLoad').value=saved.strengthCurrentLoad||'';
+  document.getElementById('gStrengthTargetLoad').value=saved.strengthTargetLoad||'';
+  document.getElementById('gStrengthReps').value=saved.strengthReps||'';
   document.getElementById('gWhy').value=saved.why||athlete.why||'';
   document.getElementById('gM4').value=saved.m4||athlete.m4||'';
   document.getElementById('gM8').value=saved.m8||athlete.m8||'';
@@ -208,16 +214,63 @@ function populateStatic(){
 }
 
 function selectRace(btn){
-  document.querySelectorAll('.race-opt').forEach(function(b){b.classList.remove('selected');});
+  document.querySelectorAll('#raceOptions .race-opt').forEach(function(b){b.classList.remove('selected');});
   btn.classList.add('selected');
   document.getElementById('otherRaceField').style.display=btn.dataset.val==='Other'?'':'none';
   if(btn.dataset.val!=='Other') document.getElementById('gRaceOther').value='';
 }
 function setRaceFromValue(val){
   if(!val) return;var v=val.trim();
-  var btns=document.querySelectorAll('.race-opt'),matched=false;
+  var btns=document.querySelectorAll('#raceOptions .race-opt'),matched=false;
   btns.forEach(function(b){if(b.dataset.val.toLowerCase().replace(/\s/g,'')=== v.toLowerCase().replace(/\s/g,'')){b.classList.add('selected');matched=true;}else{b.classList.remove('selected');}});
   if(!matched&&v){btns.forEach(function(b){if(b.dataset.val==='Other') b.classList.add('selected');});document.getElementById('otherRaceField').style.display='';document.getElementById('gRaceOther').value=v;}
+}
+
+// ── GOAL CHIP GROUPS ─────────────────────────────────────────────────────────
+// Generic chip helpers scoped to their own .race-options container so several
+// groups can share the chip styling without clearing each other's selection.
+function goalChipGroup(btn){return btn&&btn.closest?btn.closest('.race-options'):null;}
+function selectGoalChip(btn){
+  var group=goalChipGroup(btn);if(!group) return;
+  group.querySelectorAll('.race-opt').forEach(function(b){b.classList.remove('selected');});
+  btn.classList.add('selected');
+}
+// Multi-select with a cap. At the cap the earliest pick drops out rather than the
+// tap doing nothing, so an athlete changing their mind never has to deselect first.
+// Pick order is stamped on the chip because DOM order says nothing about it.
+var _goalChipPickSeq=0;
+function toggleGoalChip(btn,max){
+  var group=goalChipGroup(btn);if(!group) return;
+  var limit=Number(max)>0?Number(max):99;
+  if(btn.classList.contains('selected')){btn.classList.remove('selected');delete btn.dataset.pickOrder;return;}
+  var chosen=Array.prototype.slice.call(group.querySelectorAll('.race-opt.selected'));
+  chosen.sort(function(a,b){return (Number(a.dataset.pickOrder)||0)-(Number(b.dataset.pickOrder)||0);});
+  while(chosen.length>=limit){var earliest=chosen.shift();if(earliest){earliest.classList.remove('selected');delete earliest.dataset.pickOrder;}}
+  btn.classList.add('selected');btn.dataset.pickOrder=String(++_goalChipPickSeq);
+}
+function goalChipValue(groupId){
+  var group=document.getElementById(groupId);if(!group) return '';
+  var sel=group.querySelector('.race-opt.selected');
+  return sel?sel.dataset.val:'';
+}
+function goalChipValues(groupId){
+  var group=document.getElementById(groupId);if(!group) return '';
+  var chosen=Array.prototype.slice.call(group.querySelectorAll('.race-opt.selected'));
+  chosen.sort(function(a,b){return (Number(a.dataset.pickOrder)||0)-(Number(b.dataset.pickOrder)||0);});
+  return chosen.map(function(b){return b.dataset.val;}).join(', ');
+}
+function setGoalChipsFromValue(groupId,val){
+  var group=document.getElementById(groupId);if(!group) return;
+  var wanted=String(val||'').split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
+  // Stamp by saved position, not DOM position, so a reload keeps the order the
+  // athlete picked in and the cap still evicts the right chip afterwards.
+  var base=_goalChipPickSeq;
+  group.querySelectorAll('.race-opt').forEach(function(b){
+    var at=wanted.indexOf(String(b.dataset.val||'').toLowerCase());
+    if(at>=0){b.classList.add('selected');b.dataset.pickOrder=String(base+1+at);}
+    else{b.classList.remove('selected');delete b.dataset.pickOrder;}
+  });
+  _goalChipPickSeq=base+wanted.length;
 }
 
 // ── EXERCISE PICKS (persisted per-exercise memory) ───────────────────────────
@@ -330,13 +383,16 @@ function pickEx(exName,chosen){
 
 async function saveGoals(){
   var btn=document.getElementById('goalsSaveBtn');btn.textContent='Saving...';btn.disabled=true;
-  var selectedRaceBtn=document.querySelector('.race-opt.selected');
+  var selectedRaceBtn=document.querySelector('#raceOptions .race-opt.selected');
   var raceVal=selectedRaceBtn?(selectedRaceBtn.dataset.val==='Other'?document.getElementById('gRaceOther').value.trim():selectedRaceBtn.dataset.val):'';
   var goals={goalRace:raceVal,peakWeek:document.getElementById('gPeakWeek').value.trim(),raceDate:document.getElementById('gRaceDate').value.trim(),
     startWeight:document.getElementById('gWeight').value.trim(),weight:document.getElementById('gWeight').value.trim(),targetWeight:document.getElementById('gTargetWeight').value.trim(),
     bodyFat:document.getElementById('gBodyFat').value.trim(),time5k:document.getElementById('g5k').value.trim(),
     time10k:document.getElementById('g10k').value.trim(),timeHalf:document.getElementById('gHalf').value.trim(),
     timeMarathon:document.getElementById('gMarathon').value.trim(),lrPace:document.getElementById('gLRPace').value.trim(),
+    strengthIntent:goalChipValue('strengthIntentOptions'),strengthPriorities:goalChipValues('strengthPriorityOptions'),
+    strengthLift:document.getElementById('gStrengthLift').value.trim(),strengthCurrentLoad:document.getElementById('gStrengthCurrentLoad').value.trim(),
+    strengthTargetLoad:document.getElementById('gStrengthTargetLoad').value.trim(),strengthReps:document.getElementById('gStrengthReps').value.trim(),
     why:document.getElementById('gWhy').value.trim(),m4:document.getElementById('gM4').value.trim(),
     m8:document.getElementById('gM8').value.trim(),m12:document.getElementById('gM12').value.trim(),savedAt:new Date().toISOString()};
   localStorage.setItem('dp_goals_'+athlete.code,JSON.stringify(goals));

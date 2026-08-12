@@ -287,6 +287,7 @@ html.strength-rpe-off .setrow.extra{grid-template-columns:22px 1fr 1fr 36px 26px
 .stat-input:focus{border-color:#92d2ed;background:var(--surface3)}
 .stat-input::placeholder{color:var(--dim);font-size:18px;font-weight:400}
 .field-hint{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:.04em}
+.goals-card-note{margin:-3px 0 14px;color:var(--muted);font-size:12px;line-height:1.5}
 .why-textarea{width:100%;background:var(--surface2);border:1px solid var(--border-mid);border-radius:9px;padding:14px;font-size:14px;color:var(--text);font-family:var(--body);line-height:1.6;outline:none;resize:vertical;min-height:100px}
 .why-textarea:focus{border-color:#92d2ed;background:var(--surface3)}
 .why-textarea::placeholder{color:var(--dim);font-style:italic}
@@ -4187,6 +4188,7 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
     background:rgba(255,255,255,.035);font-family:var(--body);font-size:16px;
   }
   body.mobile-secondary-tab #tab-goals .field-hint{font-size:9px;line-height:1.25}
+  body.mobile-secondary-tab #tab-goals .goals-card-note{margin:-3px 0 11px;font-size:10px;line-height:1.4}
   body.mobile-secondary-tab #tab-goals .race-options{gap:6px}
   body.mobile-secondary-tab #tab-goals .race-opt{
     min-height:34px;padding:7px 10px;font-family:var(--body);font-size:10px;
