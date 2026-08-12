@@ -16,8 +16,8 @@
     "sha": "91ee8465188a"
   },
   "js/01-core.js": {
-    "version": 102,
-    "sha": "b86aea9f0aec"
+    "version": 103,
+    "sha": "8de6bf921185"
   },
   "js/02-login-goals.js": {
     "version": 99,
@@ -48,8 +48,8 @@
     "sha": "8a51ef4a0416"
   },
   "js/08-training.js": {
-    "version": 109,
-    "sha": "29d606be3218"
+    "version": 110,
+    "sha": "8c8c5ec65ed9"
   },
   "js/09-logging.js": {
     "version": 105,

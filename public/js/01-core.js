@@ -540,7 +540,7 @@ async function loadStructuredBodyData(code,preloaded){
 const STR = {
   "Lower A":[
     {"exercise":"Leg Extension","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up","alts":["Single Leg Extension"]},
-    {"exercise":"Bulgarian Split Squat","sets":"3","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Dumbbell Bulgarian Split Squat","Hack Squat"]},
+    {"exercise":"Bulgarian Split Squat","sets":"3","reps":"8","repRange":"8-12","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Barbell Split Squat","Hack Squat"]},
     {"exercise":"Seated Hamstring Curl","sets":"4","reps":"8","repRange":"8-12","warmupSets":"1","workingSets":"3","rest":"90s","notes":"First set warm-up","alts":["Lying Leg Curl"]},
     {"exercise":"Barbell Romanian Dead Lift","sets":"3","reps":"8","repRange":"6-10","warmupSets":"0","workingSets":"3","rest":"90s","notes":"","alts":["Dumbbell Romanian Deadlift"]},
     {"exercise":"Adduction Machine","sets":"2","reps":"8","repRange":"10-15","warmupSets":"0","workingSets":"2","rest":"90s","notes":"","alts":["Cable Hip Adduction"],"leftRightExercises":["Cable Hip Adduction"]},
@@ -665,7 +665,7 @@ var EX_PATTERNS={
   ]},
   unilateral_leg:{label:'Single leg — quads, glutes & stability',options:[
     {n:'Single Leg Press',e:'machine'},{n:'Smith Machine Split Squat',e:'machine'},
-    {n:'Bulgarian Split Squat',e:'free'},{n:'Dumbbell Bulgarian Split Squat',e:'free'},{n:'Walking Lunge',e:'free'},{n:'Reverse Lunge',e:'free'},{n:'Dumbbell Step Up',e:'free'},{n:'Front Foot Elevated Split Squat',e:'free'},
+    {n:'Bulgarian Split Squat',e:'free'},{n:'Barbell Split Squat',e:'free'},{n:'Walking Lunge',e:'free'},{n:'Reverse Lunge',e:'free'},{n:'Dumbbell Step Up',e:'free'},{n:'Front Foot Elevated Split Squat',e:'free'},
     {n:'Single Leg Step Down',e:'bodyweight'},{n:'Bodyweight Split Squat',e:'bodyweight'},{n:'Step Up',e:'bodyweight'},{n:'Skater Squat',e:'bodyweight'}
   ]},
   hamstring_curl:{label:'Hamstrings — knee flexion',options:[
@@ -739,7 +739,7 @@ var EX_PATTERN_BY_NAME={
   'dumbbell hammer curl':'biceps','bicep curl':'biceps','barbell curl':'biceps','preacher curl':'biceps',
   'leg extension':'quad_isolation','single leg extension':'quad_isolation',
   'lying down leg press':'squat_pattern','leg press':'squat_pattern','leg press feet high wide':'squat_pattern','hack squat':'squat_pattern','barbell back squat':'squat_pattern','back squat':'squat_pattern','goblet squat':'squat_pattern',
-  'bulgarian split squat':'unilateral_leg','dumbbell bulgarian split squat':'unilateral_leg','single leg step down':'unilateral_leg','walking lunge':'unilateral_leg','reverse lunge':'unilateral_leg','step up':'unilateral_leg',
+  'bulgarian split squat':'unilateral_leg','barbell split squat':'unilateral_leg','single leg step down':'unilateral_leg','walking lunge':'unilateral_leg','reverse lunge':'unilateral_leg','step up':'unilateral_leg',
   'seated hamstring curl':'hamstring_curl','lying hamstring curl':'hamstring_curl','lying leg curl':'hamstring_curl','standing hamstring curl':'hamstring_curl','nordic hamstring curl':'hamstring_curl',
   'barbell romanian dead lift':'hip_hinge','barbell romanian deadlift':'hip_hinge','dumbbell romanian deadlift':'hip_hinge','romanian deadlift':'hip_hinge','deadlift':'hip_hinge','good morning':'hip_hinge','back extension':'hip_hinge',
   'barbell hip thrust':'hip_thrust','dumbbell hip thrust':'hip_thrust','hip thrust':'hip_thrust','glute bridge':'hip_thrust','glute kickback':'hip_thrust','cable glute kickback':'hip_thrust',
@@ -995,7 +995,12 @@ async function fetchRunLibrary(){
 
 // ── SESSION TYPE ──────────────────────────────────────────────────────────────
 function normaliseExerciseName(exerciseName){
-  return String(exerciseName||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  var normalised=String(exerciseName||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  // The generic Bulgarian option has always been performed with dumbbells.
+  // Fold both historic dumbbell labels into that one choice, while keeping the
+  // barbell setup separate because its loading and progression are different.
+  if(normalised==='dumbbell split squat'||normalised==='dumbbell bulgarian split squat')return 'bulgarian split squat';
+  return normalised;
 }
 // Exercise names come from both the built-in swap bank and coach-managed
 // Supabase splits. Keep the obvious per-side cases here so a newly added

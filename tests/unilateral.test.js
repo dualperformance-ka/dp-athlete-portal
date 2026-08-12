@@ -21,6 +21,7 @@ vm.runInContext(`${source.slice(strengthStart, strengthEnd)};this.STR=STR;`, str
 test('female unilateral movements use left/right reps', () => {
   [
     'Bulgarian Split Squat',
+    'Barbell Split Squat',
     'Walking Lunge',
     'Reverse Lunge',
     'Dumbbell Step Up',

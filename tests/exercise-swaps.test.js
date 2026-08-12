@@ -71,6 +71,18 @@ test('swaps respect the muscle group rather than just the body part', () => {
   assert.ok(!soleusOptions.includes('Standing Calf Raise'), 'a soleus slot must not offer a straight-leg calf raise');
 });
 
+test('dumbbell split squat labels merge into Bulgarian while barbell stays separate', () => {
+  const result = context.getExerciseSwapOptions({
+    exercise: 'Bulgarian Split Squat',
+    alts: ['Dumbbell Bulgarian Split Squat', 'Dumbbell Split Squat'],
+  });
+  assert.deepEqual(plain(result.priority), ['Bulgarian Split Squat']);
+  const options = plain(result.groups).flatMap((group) => group.options);
+  assert.ok(options.includes('Barbell Split Squat'));
+  assert.ok(!options.includes('Dumbbell Bulgarian Split Squat'));
+  assert.ok(!options.includes('Dumbbell Split Squat'));
+});
+
 test('unseen Supabase exercises still get options through keyword inference', () => {
   assert.equal(context.exercisePatternKey('Half Kneeling Single Arm Cable Row'), 'horizontal_row');
   assert.equal(context.exercisePatternKey('Weighted Nordic Curl'), 'hamstring_curl');

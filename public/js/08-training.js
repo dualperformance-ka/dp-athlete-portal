@@ -1065,10 +1065,13 @@ function scrollToSession(idx){
 }
 
 // Exercise progress belongs to the athlete + exercise, never to a programme
-// split. Normalising only case and whitespace keeps genuine exercise variants
-// separate while allowing a coach to move/recase the same exercise safely.
+// split. Normalising case and whitespace keeps the same exercise stable when a
+// coach moves or recases it. The two historic dumbbell split-squat labels are
+// one movement; the barbell variation deliberately keeps its own progression.
 function exerciseHistoryKey(name){
-  return String(name==null?'':name).toLowerCase().replace(/\s+/g,' ').trim();
+  var key=String(name==null?'':name).toLowerCase().replace(/\s+/g,' ').trim();
+  if(key==='dumbbell split squat'||key==='dumbbell bulgarian split squat')return 'bulgarian split squat';
+  return key;
 }
 function getExerciseSetsFromLog(entry,exerciseName){
   if(!entry||typeof entry!=='object'||Array.isArray(entry)) return null;

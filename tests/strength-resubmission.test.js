@@ -66,6 +66,13 @@ test('the same exercise in the same session always writes to the same row', () =
   assert.notEqual(first, strengthClientWriteId('sess-2', 'Iso-Lateral Row'));
 });
 
+test('dumbbell split squat history merges with Bulgarian but not barbell', () => {
+  const bulgarian = strengthClientWriteId('sess-1', 'Bulgarian Split Squat');
+  assert.equal(bulgarian, strengthClientWriteId('sess-1', 'Dumbbell Split Squat'));
+  assert.equal(bulgarian, strengthClientWriteId('sess-1', 'Dumbbell Bulgarian Split Squat'));
+  assert.notEqual(bulgarian, strengthClientWriteId('sess-1', 'Barbell Split Squat'));
+});
+
 test('a write id stays within the column limit even for absurd exercise names', () => {
   const long = 'Iso-Lateral Plate Loaded Chest Supported Wide Grip Machine Row Variation Two Handed';
   const id = strengthClientWriteId('3ef24625-9cc4-4f47-99f4-1df058b7c3d8', long);
