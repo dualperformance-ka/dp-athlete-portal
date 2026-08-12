@@ -32,6 +32,19 @@ test('female unilateral movements use left/right reps', () => {
     'Dumbbell Row',
     'Copenhagen Plank',
     'Single Leg Curl',
+    'Single Arm Cable Row',
+    'Single Arm Cable Pushdown',
+    'Single Leg Press',
+    'Single Leg Cable Romanian Deadlift',
+    'Single Leg Hip Thrust',
+    'Single Leg Standing Calf Raise',
+    'Iso-Lateral Row',
+    'Cable Hip Flexion',
+    'Standing Cable Knee Drive',
+    'Side Lying Leg Raise',
+    'Side Lying Adduction Raise',
+    'Cable Woodchop',
+    'Pallof Press',
   ].forEach((name) => assert.equal(context.usesLeftRightReps(name), true, name));
 });
 
@@ -52,6 +65,7 @@ test('female bilateral movements keep one reps field', () => {
     'Lateral Dumbbell Raise',
     'Machine Lateral Raise',
     'Dumbbell Bicep Curl',
+    'Chest Supported Dumbbell Row',
     'Leg Press (feet high & wide)',
   ].forEach((name) => assert.equal(context.usesLeftRightReps(name), false, name));
 });
@@ -65,4 +79,11 @@ test('Supabase metadata can explicitly mark non-obvious unilateral variants', ()
   assert.equal(context.usesLeftRightReps('Contralateral Reach', prescription), true);
   assert.equal(context.usesLeftRightReps('Supported Reach', prescription), true);
   assert.equal(context.usesLeftRightReps('Hack Squat', prescription), false);
+});
+
+test('Supabase can explicitly keep an ambiguous exercise bilateral', () => {
+  assert.equal(context.usesLeftRightReps('Iso-Lateral Row', {
+    exercise: 'Iso-Lateral Row',
+    rep_mode: 'reps',
+  }), false);
 });

@@ -1,8 +1,8 @@
-const CACHE_NAME = 'dp-athlete-v125'; // v125: daily log confirmation — the dock ticks only once the server has the log, and shows an unsent state instead of a false tick
+const CACHE_NAME = 'dp-athlete-v126'; // v126: recognize unilateral exercise options and keep per-side logs queryable for coaches
 const APP_SHELL = [
   '/index.html', '/styles.css?v=105', '/desktop.css?v=4', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=100',
+  '/js/01-core.js?v=101',
   '/js/02-login-goals.js?v=96',
   '/js/03-nav-nudges.js?v=93',
   '/js/04-checkin.js?v=87',

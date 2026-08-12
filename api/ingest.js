@@ -59,6 +59,33 @@ function number(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function setHasValue(set, key) {
+  return set && has(set[key]);
+}
+
+// Make the stored mode describe the data that actually reached the server.
+// This protects the dashboard from an older cached client omitting repMode:
+// per-side sets still become queryable as left_right, and the normalized value
+// is written both to the dedicated column and raw_payload compatibility copy.
+export function normalizeStrengthPayload(payload = {}) {
+  const rawSets = Array.isArray(payload.rawSets) ? payload.rawSets : null;
+  const hasSideReps = !!rawSets?.some((set) =>
+    setHasValue(set, 'repsLeft') || setHasValue(set, 'repsRight')
+  );
+  const hasSharedReps = !!rawSets?.some((set) => setHasValue(set, 'reps'));
+  const requestedMode = text(payload.repMode, 20);
+  const repMode = hasSideReps
+    ? 'left_right'
+    : (requestedMode === 'left_right' || requestedMode === 'reps')
+      ? requestedMode
+      : hasSharedReps ? 'reps' : null;
+  return {
+    ...payload,
+    rawSets: rawSets ?? payload.rawSets ?? null,
+    repMode,
+  };
+}
+
 function date(value) {
   const v = text(value, 40);
   return /^\d{4}-\d{2}-\d{2}/.test(v || '') ? v.slice(0, 10) : null;
@@ -186,36 +213,37 @@ async function persistStructured(payload) {
   }
 
   if (type === 'Run' || type === 'Strength' || type === 'training_log') {
+    const storedPayload = type === 'Strength' ? normalizeStrengthPayload(payload) : payload;
     return upsertTolerant('training_session_logs', {
-      client_write_id: text(payload.clientWriteId, 120),
+      client_write_id: text(storedPayload.clientWriteId, 120),
       athlete_code: code,
-      athlete_name: athleteName(payload),
-      athlete_notion_id: text(payload.athleteId, 120),
-      session_name: text(payload.session, 240),
-      session_category: text(payload.sessionCategory || payload.type, 80),
-      session_date: date(payload.date),
-      exercise_log: text(payload.exerciseLog, 2000),
+      athlete_name: athleteName(storedPayload),
+      athlete_notion_id: text(storedPayload.athleteId, 120),
+      session_name: text(storedPayload.session, 240),
+      session_category: text(storedPayload.sessionCategory || storedPayload.type, 80),
+      session_date: date(storedPayload.date),
+      exercise_log: text(storedPayload.exerciseLog, 2000),
       // Strength swap context. Sets are stored under the exercise actually
       // performed so progression follows the real movement; these columns keep
       // the link back to what was prescribed, and give the coach dashboard a
       // muscle-group dimension that survives any substitution.
-      exercise_name: text(payload.exerciseName, 240),
-      programmed_exercise: text(payload.programmedExercise, 240),
-      muscle_group: text(payload.muscleGroup, 120),
-      is_swap: payload.isSwap === true,
+      exercise_name: text(storedPayload.exerciseName, 240),
+      programmed_exercise: text(storedPayload.programmedExercise, 240),
+      muscle_group: text(storedPayload.muscleGroup, 120),
+      is_swap: storedPayload.isSwap === true,
       // 'left_right' on unilateral work, 'reps' otherwise. The portal has always
       // sent this; giving it a column makes single-leg volume queryable instead
       // of buried in raw_payload.
-      rep_mode: text(payload.repMode, 20),
-      distance_km: number(payload.distanceKm ?? payload.distance),
-      duration_min: number(payload.durationMin ?? payload.duration),
-      pace: text(payload.pace, 80),
-      rpe: number(payload.rpe),
-      feel: number(payload.feel),
-      raw_sets: payload.rawSets ?? null,
-      notes: text(payload.notes, 2000),
-      raw_payload: payload,
-      submitted_at: submittedAt(payload),
+      rep_mode: text(storedPayload.repMode, 20),
+      distance_km: number(storedPayload.distanceKm ?? storedPayload.distance),
+      duration_min: number(storedPayload.durationMin ?? storedPayload.duration),
+      pace: text(storedPayload.pace, 80),
+      rpe: number(storedPayload.rpe),
+      feel: number(storedPayload.feel),
+      raw_sets: storedPayload.rawSets ?? null,
+      notes: text(storedPayload.notes, 2000),
+      raw_payload: storedPayload,
+      submitted_at: submittedAt(storedPayload),
       updated_at: new Date().toISOString(),
     }, 'client_write_id');
   }

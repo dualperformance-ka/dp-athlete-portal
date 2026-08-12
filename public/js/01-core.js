@@ -995,14 +995,41 @@ async function fetchRunLibrary(){
 function normaliseExerciseName(exerciseName){
   return String(exerciseName||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
+// Exercise names come from both the built-in swap bank and coach-managed
+// Supabase splits. Keep the obvious per-side cases here so a newly added
+// unilateral option gets Left / Right inputs even before its split metadata is
+// updated. Explicit metadata still wins for movements whose setup is ambiguous.
+var LEFT_RIGHT_REP_RULES=[
+  /\b(?:single|one) (?:leg|arm|side|limb)\b/,
+  /\biso lateral\b/,
+  /\bunilateral\b/,
+  /\bsplit squat\b/,
+  /\blunges?\b/,
+  /\bstep (?:up|down)\b/,
+  /\bkickbacks?\b/,
+  /\bcopenhagen plank\b/,
+  /^(?:one arm |single arm )?dumbbell row$/,
+  /\bcable (?:hip (?:abduction|adduction|flexion)|adduction|lateral raise|woodchop)\b/,
+  /\b(?:standing cable|banded standing) knee drive\b/,
+  /\b(?:weighted standing|single leg) knee raise\b/,
+  /\bside lying (?:leg|adduction) raise\b/,
+  /\bpallof press\b/,
+  /\bside plank\b/
+];
 function usesLeftRightReps(exerciseName,prescription){
   var normalised=normaliseExerciseName(exerciseName);
-  var tagged=prescription&&Array.isArray(prescription.leftRightExercises)?prescription.leftRightExercises:[];
+  var tagged=prescription&&Array.isArray(prescription.leftRightExercises)?prescription.leftRightExercises:
+    (prescription&&Array.isArray(prescription.left_right_exercises)?prescription.left_right_exercises:[]);
   if(tagged.some(function(name){return normaliseExerciseName(name)===normalised;}))return true;
-  if(prescription&&prescription.repMode==='left_right'&&normaliseExerciseName(prescription.exercise)===normalised)return true;
+  var prescribedName=normaliseExerciseName(prescription&&prescription.exercise);
+  var explicitMode=prescription&&(prescription.repMode||prescription.rep_mode);
+  if(prescribedName===normalised&&explicitMode==='left_right')return true;
+  // Coaches can force an ambiguous movement (for example a two-arm machine
+  // variant with "iso-lateral" in its product name) back to a single reps box.
+  if(prescribedName===normalised&&explicitMode==='reps')return false;
   // Backward-compatible fallback for older split data and athlete-specific
   // variants that have not yet received explicit Supabase rep-mode metadata.
-  return /(?:\bsingle (?:leg|arm)\b|\bone arm\b|\bunilateral\b|\bsplit squat\b|\blunges?\b|\bstep (?:up|down)\b|\bkickbacks?\b|\bcopenhagen plank\b|\bdumbbell row\b|\bcable (?:hip (?:abduction|adduction)|adduction|lateral raise)\b)/i.test(normalised);
+  return LEFT_RIGHT_REP_RULES.some(function(rule){return rule.test(normalised);});
 }
 function getType(s){
   var t=(s.sessionType||'').toLowerCase(),n=(s.name||'').toLowerCase();
