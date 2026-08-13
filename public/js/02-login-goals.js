@@ -97,6 +97,18 @@ function hydrateLocalPortalState(code){
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
   stravaMatchRejections=JSON.parse(localStorage.getItem('dp_strava_match_rejections_'+code)||'{}');
   exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
+  var picksChanged=false;
+  Object.keys(exPicks).forEach(function(programmed){
+    var canonical=canonicalExerciseName(exPicks[programmed]);
+    if(canonical!==exPicks[programmed]){exPicks[programmed]=canonical;picksChanged=true;}
+  });
+  // Existing clients may have persisted either historic dumbbell label. Repair
+  // both the device and cloud preference so the removed UI choice cannot return
+  // on the next hydration or on another device.
+  if(picksChanged){
+    localStorage.setItem('dp_ex_picks_'+code,JSON.stringify(exPicks));
+    if(athlete&&athlete.code===code)portalStateWrite('ex_picks',exPicks).catch(function(){});
+  }
 }
 async function doLogin(code,prevalidatedRoster){
   var btn=document.getElementById('loginBtn')||document.querySelector('.lbtn');

@@ -995,12 +995,16 @@ async function fetchRunLibrary(){
 
 // ── SESSION TYPE ──────────────────────────────────────────────────────────────
 function normaliseExerciseName(exerciseName){
-  var normalised=String(exerciseName||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  return canonicalExerciseName(exerciseName).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+function canonicalExerciseName(exerciseName){
+  var displayName=String(exerciseName||'').trim();
+  var normalised=displayName.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
   // The generic Bulgarian option has always been performed with dumbbells.
   // Fold both historic dumbbell labels into that one choice, while keeping the
   // barbell setup separate because its loading and progression are different.
-  if(normalised==='dumbbell split squat'||normalised==='dumbbell bulgarian split squat')return 'bulgarian split squat';
-  return normalised;
+  if(normalised==='dumbbell split squat'||normalised==='dumbbell bulgarian split squat')return 'Bulgarian Split Squat';
+  return displayName;
 }
 // Exercise names come from both the built-in swap bank and coach-managed
 // Supabase splits. Keep the obvious per-side cases here so a newly added

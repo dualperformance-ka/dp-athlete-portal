@@ -18,7 +18,7 @@ const context = {};
 vm.createContext(context);
 vm.runInContext(
   `${source.slice(helperStart, helperEnd)}\n${source.slice(libraryStart, libraryEnd)};` +
-  'this.STR=STR;this.getExerciseSwapOptions=getExerciseSwapOptions;this.exercisePatternKey=exercisePatternKey;this.EX_PATTERNS=EX_PATTERNS;',
+  'this.STR=STR;this.getExerciseSwapOptions=getExerciseSwapOptions;this.exercisePatternKey=exercisePatternKey;this.canonicalExerciseName=canonicalExerciseName;this.EX_PATTERNS=EX_PATTERNS;',
   context
 );
 
@@ -81,6 +81,9 @@ test('dumbbell split squat labels merge into Bulgarian while barbell stays separ
   assert.ok(options.includes('Barbell Split Squat'));
   assert.ok(!options.includes('Dumbbell Bulgarian Split Squat'));
   assert.ok(!options.includes('Dumbbell Split Squat'));
+  assert.equal(context.canonicalExerciseName('Dumbbell Split Squat'), 'Bulgarian Split Squat');
+  assert.equal(context.canonicalExerciseName('Dumbbell Bulgarian Split Squat'), 'Bulgarian Split Squat');
+  assert.equal(context.canonicalExerciseName('Barbell Split Squat'), 'Barbell Split Squat');
 });
 
 test('unseen Supabase exercises still get options through keyword inference', () => {
