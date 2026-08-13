@@ -63,6 +63,45 @@ function setHasValue(set, key) {
   return set && has(set[key]);
 }
 
+const SPLIT_SQUAT_ALIASES = new Set([
+  'bulgarian split squat',
+  'dumbbell split squat',
+  'dumbbell bulgarian split squat',
+]);
+
+function exerciseKey(value) {
+  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// Keep the dashboard, raw compatibility payload and write identity on the same
+// exercise taxonomy even when an athlete still has an older cached portal.
+export function canonicalStrengthExerciseName(value) {
+  if (!has(value)) return value ?? null;
+  const name = String(value).trim();
+  return SPLIT_SQUAT_ALIASES.has(exerciseKey(name)) ? 'Bulgarian Split Squat' : name;
+}
+
+export function canonicalStrengthClientWriteId(value) {
+  if (!has(value)) return value ?? null;
+  return String(value).trim()
+    .replace(/_dumbbell-bulgarian-split-squat$/i, '_bulgarian-split-squat')
+    .replace(/_dumbbell-split-squat$/i, '_bulgarian-split-squat');
+}
+
+function canonicalStrengthExerciseLog(value) {
+  if (!has(value)) return value ?? null;
+  const log = String(value).trim();
+  const marker = log.indexOf(': Set ');
+  if (marker < 0) return log;
+  const performed = log.slice(0, marker);
+  return canonicalStrengthExerciseName(performed) + log.slice(marker);
+}
+
+function canonicalStrengthDisplayText(value) {
+  if (!has(value)) return value ?? null;
+  return String(value).replace(/\bdumbbell(?:\s+bulgarian)?\s+split\s+squat\b/gi, 'Bulgarian Split Squat');
+}
+
 // Make the stored mode describe the data that actually reached the server.
 // This protects the dashboard from an older cached client omitting repMode:
 // per-side sets still become queryable as left_right, and the normalized value
@@ -79,8 +118,22 @@ export function normalizeStrengthPayload(payload = {}) {
     : (requestedMode === 'left_right' || requestedMode === 'reps')
       ? requestedMode
       : hasSharedReps ? 'reps' : null;
+  const originalExercise = has(payload.exerciseName) ? String(payload.exerciseName).trim() : null;
+  const originalProgrammed = has(payload.programmedExercise) ? String(payload.programmedExercise).trim() : null;
+  const exerciseName = canonicalStrengthExerciseName(originalExercise);
+  const programmedExercise = canonicalStrengthExerciseName(originalProgrammed);
+  const aliasChanged = exerciseName !== originalExercise || programmedExercise !== originalProgrammed;
+  const isSwap = aliasChanged && exerciseName && programmedExercise
+    ? exerciseKey(exerciseName) !== exerciseKey(programmedExercise)
+    : payload.isSwap;
   return {
     ...payload,
+    clientWriteId: canonicalStrengthClientWriteId(payload.clientWriteId),
+    name: canonicalStrengthDisplayText(payload.name),
+    exerciseName,
+    programmedExercise,
+    exerciseLog: canonicalStrengthExerciseLog(payload.exerciseLog),
+    isSwap,
     rawSets: rawSets ?? payload.rawSets ?? null,
     repMode,
   };

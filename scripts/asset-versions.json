@@ -16,12 +16,12 @@
     "sha": "91ee8465188a"
   },
   "js/01-core.js": {
-    "version": 103,
-    "sha": "8de6bf921185"
+    "version": 104,
+    "sha": "e2a543f9ae12"
   },
   "js/02-login-goals.js": {
-    "version": 99,
-    "sha": "a56f427cbf38"
+    "version": 100,
+    "sha": "42b2908ef5e0"
   },
   "js/03-nav-nudges.js": {
     "version": 93,
