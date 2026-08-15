@@ -7,6 +7,7 @@
 import { remove, select, upsert } from './_lib/supabase-rest.js';
 import { getRequestAthlete } from './_lib/auth.js';
 import { allowPortalRequest, safeError } from './_lib/http.js';
+import { dispatchCoachAction, isCoachAction, resolveCoachMode } from './_lib/coach-proxy.js';
 import { syncBookingsForAthlete } from './bookings.js';
 import crypto from 'node:crypto';
 
@@ -565,11 +566,24 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
 
   try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const action = text(body.action, 60);
+
+    // ── Coach mode ────────────────────────────────────────────────────────
+    // Resolved before, and completely separately from, athlete identity. A
+    // coach action needs a signed coach-edit token that an athlete session can
+    // never satisfy; an athlete action never consults the coach path. Two
+    // doors, neither opens the other.
+    if (isCoachAction(action)) {
+      const coach = resolveCoachMode(req);
+      if (!coach) return send(res, 403, { ok: false, error: 'coach_link_invalid' });
+      const result = await dispatchCoachAction(action, body, coach);
+      return send(res, 200, { ok: true, ...result });
+    }
+
     const identity = await getRequestAthlete(req);
     if (!identity) return send(res, 401, { ok: false, error: 'invalid_session' });
 
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const action = text(body.action, 60);
     const data = await dispatch(action, String(identity.athlete.code).toUpperCase(), body);
     return send(res, 200, { ok: true, ...data });
   } catch (error) {

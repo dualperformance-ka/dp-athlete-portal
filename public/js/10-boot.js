@@ -506,3 +506,35 @@ if('serviceWorker' in navigator){
     dpHadController=true;
   });
 }
+
+// ── Coach mode loader ────────────────────────────────────────────────────────
+// A coach opens a link the dashboard minted, carrying ?coach=<signed token>.
+// The coach UI is fetched ONLY in that case, so an athlete's app never
+// downloads it. The real guard is server-side: every coach call re-verifies the
+// token's signature, purpose, expiry and athlete.
+(function () {
+  var params = new URLSearchParams(location.search);
+  var token = params.get('coach');
+  if (!token) return;
+
+  // Never leave a coaching token sitting in the address bar or in history.
+  var clean = new URL(location.href);
+  clean.searchParams.delete('coach');
+  history.replaceState(null, '', clean.toString());
+
+  function load(src, isCss) {
+    return new Promise(function (resolve) {
+      var node = isCss ? document.createElement('link') : document.createElement('script');
+      if (isCss) { node.rel = 'stylesheet'; node.href = src; } else { node.src = src; }
+      node.onload = resolve;
+      node.onerror = resolve;
+      document.head.appendChild(node);
+    });
+  }
+
+  Promise.all([load('/coach-mode.css?v=1', true), load('/coach-mode.js?v=1', false)]).then(function () {
+    if (window.DP_COACH_MODE) {
+      window.DP_COACH_MODE.start(token, (window.athlete && window.athlete.code) || '');
+    }
+  });
+})();

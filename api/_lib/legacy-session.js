@@ -40,6 +40,10 @@ export function createPortalSession(code, options = {}) {
     exp: now + ttl,
     nonce: crypto.randomBytes(12).toString('base64url'),
   };
+  // Who is acting. Set only on coach-mode tokens, so an edit made from inside
+  // the athlete's app is still attributed to the coach in the audit trail.
+  // Additive: existing 'portal' tokens are unaffected.
+  if (options.actor) payload.actor = String(options.actor).trim().toUpperCase().slice(0, 40);
   const encoded = encode(JSON.stringify(payload));
   return `${TOKEN_PREFIX}.${encoded}.${signature(encoded)}`;
 }
@@ -54,7 +58,9 @@ export function verifyPortalSession(token, purpose = 'portal') {
     const now = Math.floor(Date.now() / 1000);
     if (payload.purpose !== purpose || !payload.exp || payload.exp <= now || payload.iat > now + 60) return null;
     const code = normCode(payload.sub);
-    return code ? { code, exp: payload.exp, purpose: payload.purpose } : null;
+    return code
+      ? { code, exp: payload.exp, purpose: payload.purpose, actor: payload.actor || null }
+      : null;
   } catch {
     return null;
   }
