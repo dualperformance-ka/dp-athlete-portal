@@ -1,16 +1,16 @@
-const CACHE_NAME = 'dp-athlete-v129'; // v129: goals hints demoted out of mono, strength card split into focus / tracked lift
+const CACHE_NAME = 'dp-athlete-v130'; // v130: read coach-built structured prescriptions (session_exercises / run_steps); drafts stay hidden
 const APP_SHELL = [
   '/index.html', '/styles.css?v=107', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=104',
-  '/js/02-login-goals.js?v=100',
+  '/js/01-core.js?v=105',
+  '/js/02-login-goals.js?v=101',
   '/js/03-nav-nudges.js?v=93',
   '/js/04-checkin.js?v=87',
   '/js/05-handbook.js?v=82',
   '/js/06-nutrition.js?v=86',
   '/js/07-progress.js?v=86',
   '/js/strava-match.js?v=4',
-  '/js/08-training.js?v=110',
+  '/js/08-training.js?v=111',
   '/js/09-logging.js?v=105',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=93',

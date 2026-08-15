@@ -3,6 +3,76 @@
 var SPLITS_BY_NAME={};
 function getSplit(key){return SPLITS_BY_NAME[key]||STR[key]||[];}
 
+// ── STRUCTURED PRESCRIPTIONS ─────────────────────────────────────────────────
+// A coach-built session carries its OWN exercise list rather than sharing a
+// named split with every other athlete. The server delivers it in exactly the
+// workout_splits shape, so the whole strength stack — rendering, set logging,
+// progression, swaps, PBs, muscle coverage — keeps reading it through
+// getSplit() with no other change.
+//
+// The mechanism: each structured session's exercises are registered in
+// SPLITS_BY_NAME under a synthetic, session-scoped key. Resolution then just
+// picks that key instead of the title-matched one.
+//
+// Keys are alphanumeric by construction. They are interpolated into inline
+// onclick attributes by the renderer (draftGym(i,'<key>')), so a session title
+// must never end up inside one.
+var SESSION_PRESCRIPTIONS={};   // sessionId -> synthetic split key
+var SESSION_RUN_STEPS={};       // sessionId -> ordered run step tree
+var SESSION_SPLIT_ALIAS={};     // synthetic split key -> real split name, for priority lookups
+
+function prescriptionSplitKey(sessionId){
+  return '__s_'+String(sessionId).replace(/[^A-Za-z0-9_-]/g,'-');
+}
+
+// Female priority slots are keyed by SPLIT NAME. A synthetic key would never
+// match, silently dropping the priority markers from a structured session, so
+// every priority lookup resolves back through the alias first.
+function splitPriorityKey(key){
+  return SESSION_SPLIT_ALIAS[key]||key;
+}
+
+function registerSessionPrescriptions(prescriptions,plannedRows){
+  SESSION_PRESCRIPTIONS={};SESSION_RUN_STEPS={};SESSION_SPLIT_ALIAS={};
+  if(!prescriptions)return;
+  var titleById={};
+  (plannedRows||[]).forEach(function(r){titleById[r.notion_page_id||r.id]=r.title||'';});
+  var exercises=prescriptions.exercises||{};
+  Object.keys(exercises).forEach(function(sessionId){
+    var list=exercises[sessionId];
+    if(!Array.isArray(list)||!list.length)return;
+    var key=prescriptionSplitKey(sessionId);
+    SPLITS_BY_NAME[key]=list;
+    SESSION_PRESCRIPTIONS[sessionId]=key;
+    // Alias to the split name this session would have matched by title, so
+    // female priority slots keep working for structured sessions too.
+    var title=titleById[sessionId]||'';
+    var matched=GYM_KEYS.find(function(k){return String(title).toLowerCase().indexOf(String(k).toLowerCase())>=0;});
+    SESSION_SPLIT_ALIAS[key]=matched||title;
+  });
+  var steps=prescriptions.runSteps||{};
+  Object.keys(steps).forEach(function(sessionId){
+    if(Array.isArray(steps[sessionId])&&steps[sessionId].length)SESSION_RUN_STEPS[sessionId]=steps[sessionId];
+  });
+}
+
+// THE resolution point for a session's strength work. A structured session
+// answers with its own prescription; everything else falls back to the legacy
+// title match against workout_splits, unchanged.
+function splitKeyForSession(s,fallback){
+  if(s&&s.id&&SESSION_PRESCRIPTIONS[s.id])return SESSION_PRESCRIPTIONS[s.id];
+  var name=String((s&&s.name)||'');
+  var matched=GYM_KEYS.find(function(k){return name.toLowerCase().indexOf(String(k).toLowerCase())>=0;});
+  return matched||(fallback===undefined?null:fallback);
+}
+
+function sessionHasPrescription(s){
+  return !!(s&&s.id&&SESSION_PRESCRIPTIONS[s.id]);
+}
+function sessionRunSteps(s){
+  return (s&&s.id&&SESSION_RUN_STEPS[s.id])||null;
+}
+
 // Female sessions keep their full exercise list, but the priority slots give
 // athletes a balanced minimum session when time is genuinely tight. Matching
 // the programmed slot (rather than the selected alternative) means a swap for
@@ -40,11 +110,11 @@ function priorityMatchKey(value){
   return String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
 function isFemaleSplit(splitKey){
-  return /(^|\s)female($|\s)/.test(priorityMatchKey(splitKey));
+  return /(^|\s)female($|\s)/.test(priorityMatchKey(splitPriorityKey(splitKey)));
 }
 function isFemalePriorityExercise(splitKey,exerciseName){
   if(!isFemaleSplit(splitKey))return false;
-  var priorities=FEMALE_TIME_CRUNCH_PRIORITIES[priorityMatchKey(splitKey)]||[];
+  var priorities=FEMALE_TIME_CRUNCH_PRIORITIES[priorityMatchKey(splitPriorityKey(splitKey))]||[];
   return priorities.indexOf(priorityMatchKey(exerciseName))>=0;
 }
 async function loadWorkoutSplits(preloaded){
@@ -376,6 +446,10 @@ async function loadPlannedSessions(startISO,endISO,preloaded){
     var plannedRows=(result.rows||[]).slice();
     if(result.next&&!plannedRows.some(function(existing){return existing.id===result.next.id;}))plannedRows.push(result.next);
     _sessionOverrides={};
+    // Register coach-built prescriptions before the rows are mapped, so every
+    // downstream resolution can already see them.
+    try{registerSessionPrescriptions(result.prescriptions,plannedRows);}
+    catch(e){console.warn('Prescription registration failed; falling back to named splits',e);}
     return plannedRows.map(function(r){
       var key=r.notion_page_id||r.id;
       if(r.distance_km!=null||r.target_pace||r.warm_up||r.intervals||r.working_pace||r.rest||r.cool_down||r.notes){
@@ -388,7 +462,10 @@ async function loadPlannedSessions(startISO,endISO,preloaded){
         sessionType:r.session_type||'',status:r.status||'Planned',
         runningSession:'',runningSessionIds:[],
         runningLibraryIds:r.library_id?[r.library_id]:[],
-        runDetails:r.run_details||'',intensity:r.intensity||'',week:r.week_label||''};
+        runDetails:r.run_details||'',intensity:r.intensity||'',week:r.week_label||'',
+        prescriptionMode:r.prescription_mode||'legacy',
+        partOfDay:r.part_of_day||'',dayOrder:r.day_order||0,
+        estimatedMinutes:r.estimated_minutes||null};
     });
   }catch(e){ console.warn('Planned sessions load failed',e); return null; }
 }
@@ -1045,6 +1122,10 @@ function usesLeftRightReps(exerciseName,prescription){
 function getType(s){
   var t=(s.sessionType||'').toLowerCase(),n=(s.name||'').toLowerCase();
   if(t==='note'||t==='notes'||t==='general'||t==='discovery'||t==='custom')return 'note';
+  // A coach-built strength session carries its own exercises, so it no longer
+  // has to be named after one of the four legacy splits to be recognised.
+  // Sessions that also carry run steps stay run-led, as they do today.
+  if(sessionHasPrescription(s)&&!sessionRunSteps(s))return 'strength';
   if(t==='strength'||GYM_KEYS.some(function(k){return n.indexOf(k.toLowerCase())>=0;}))return 'strength';
   if(t==='rest'||n==='rest')return 'rest';
   return 'run';

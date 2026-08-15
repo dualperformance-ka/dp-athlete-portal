@@ -387,7 +387,7 @@ function monthSessionDetail(s){
     return 'Run session';
   }
   if(type==='strength'){
-    var splitKey=GYM_KEYS.find(function(k){return String(s.name||'').toLowerCase().indexOf(String(k).toLowerCase())>=0;});
+    var splitKey=splitKeyForSession(s);
     var exercises=splitKey?getSplit(splitKey):[];
     return exercises.length?exercises.length+' exercises':(s.intensity||'Strength');
   }
@@ -1531,7 +1531,7 @@ function _nsBare(kg){if(kg==null)return '--';var n=Math.round(kg*100)/100;return
 // placeholders. Called after a variant swap so nothing shows the previous variant.
 function repaintOverload(i,ei){
   var s=sessions[i];if(!s) return;
-  var splitKey=GYM_KEYS.find(function(k){return((s.name||'').indexOf(k)>=0);})||'Upper A';
+  var splitKey=splitKeyForSession(s,'Upper A');
   var ex=getSplit(splitKey)[ei];if(!ex) return;
   var resolvedEx=exPicks[ex.exercise]||ex.exercise;
   var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
@@ -1949,7 +1949,7 @@ function buildBody(s,i,type){
     h+='</div>';
   }else if(type==='strength'){
 
-    var splitKey=GYM_KEYS.find(function(k){return(s.name||'').indexOf(k)>=0;})||'Upper A';
+    var splitKey=splitKeyForSession(s,'Upper A');
     var exercises=getSplit(splitKey),sl2=logs[s.id]||{};
     h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     if(exercises.length){
@@ -2008,6 +2008,7 @@ function buildBody(s,i,type){
         h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">';
         h+='<div style="min-width:0;flex:1">';
         h+='<div class="exm">'+esc(ex.sets)+' sets'+(ex.rest?' · '+formatRest(ex.rest):'')+'</div>';
+        if(ex.prescriptionLine) h+='<div class="exnotes exnotes-rx">'+esc(ex.prescriptionLine)+'</div>';
         if(ex.notes) h+='<div class="exnotes">'+esc(ex.notes)+'</div>';
         h+='</div>';
         h+='<div id="exstat_'+i+'_'+ei+'" style="text-align:right;flex-shrink:0">';

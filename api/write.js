@@ -110,6 +110,149 @@ async function stateWrite(code, body) {
   return { key, synced_at: new Date().toISOString() };
 }
 
+// The client keys every session by `notion_page_id || id` (see
+// loadPlannedSessions in js/01-core.js) — logs, drafts and reschedules all hang
+// off that key. Prescriptions must be keyed identically or nothing lines up.
+function sessionKey(row) {
+  return row.notion_page_id || row.id;
+}
+
+function joinReps(exercise) {
+  const min = exercise.rep_min;
+  const max = exercise.rep_max;
+  if (min == null && max == null) return '';
+  if (min != null && max != null && max !== min) return `${min}-${max}`;
+  return String(min != null ? min : max);
+}
+
+// One compact line describing everything the legacy split shape has no room
+// for: superset grouping, tempo, RPE/RIR target and load. Rendered by the
+// exercise card underneath the athlete note.
+function prescriptionLine(exercise) {
+  const parts = [];
+  if (exercise.superset_group) parts.push(`Superset ${exercise.superset_group}`);
+  if (exercise.circuit_group) parts.push(`Circuit ${exercise.circuit_group}`);
+  if (exercise.tempo) parts.push(`Tempo ${exercise.tempo}`);
+  if (exercise.rpe != null) parts.push(`RPE ${exercise.rpe}`);
+  if (exercise.rir != null) parts.push(`RIR ${exercise.rir}`);
+  if (exercise.percent_1rm != null) parts.push(`${exercise.percent_1rm}% 1RM`);
+  else if (exercise.target_load != null) parts.push(`${exercise.target_load} kg`);
+  return parts.join(' · ');
+}
+
+// Serialise a session_exercises row into EXACTLY the object shape the portal
+// already uses for workout_splits entries. Every strength screen — rendering,
+// set logging, progression, swaps, PB detection, muscle coverage — reads that
+// shape through getSplit(), so matching it means none of them need to change.
+//
+// Numeric fields are emitted as strings because the existing split data is
+// string-typed and consumers do esc(ex.sets) / parseInt(ex.workingSets, 10).
+function toSplitExercise(exercise) {
+  const reps = joinReps(exercise);
+  const working = exercise.working_sets != null ? exercise.working_sets : exercise.sets;
+  const line = prescriptionLine(exercise);
+  return {
+    exercise: exercise.exercise_name,
+    sets: exercise.sets != null ? String(exercise.sets) : (working != null ? String(working) : ''),
+    reps: exercise.rep_min != null ? String(exercise.rep_min) : '',
+    repRange: reps,
+    rest: exercise.rest_seconds != null ? `${exercise.rest_seconds}s` : '',
+    warmupSets: String(exercise.warmup_sets == null ? 0 : exercise.warmup_sets),
+    workingSets: working != null ? String(working) : '',
+    // ATHLETE-FACING ONLY. coach_notes is never selected from the database in
+    // this file — see the explicit column list in sessionPrescriptions().
+    notes: exercise.athlete_notes || '',
+    prescriptionLine: line,
+    cues: exercise.technique_cues || '',
+    progression: exercise.progression_rule || '',
+    supersetGroup: exercise.superset_group || '',
+    circuitGroup: exercise.circuit_group || '',
+    repMode: exercise.rep_mode || 'reps',
+    alts: Array.isArray(exercise.alternatives) ? exercise.alternatives : [],
+    leftRightExercises: Array.isArray(exercise.left_right_exercises) ? exercise.left_right_exercises : [],
+  };
+}
+
+function toRunStep(step) {
+  return {
+    id: step.id,
+    parentId: step.parent_step_id || null,
+    order: step.step_order,
+    type: step.step_type,
+    repeat: step.repeat_count || null,
+    distanceKm: step.distance_km,
+    durationSec: step.duration_sec,
+    intensityType: step.intensity_type || '',
+    paceMin: step.pace_min || '',
+    paceMax: step.pace_max || '',
+    hrZone: step.hr_zone || '',
+    rpe: step.rpe,
+    effort: step.effort || '',
+    instructions: step.instructions || '',
+  };
+}
+
+// Structured prescriptions for sessions the coach has built in the new builder.
+//
+// SECURITY: the session ids are derived here from rows already scoped to this
+// athlete's code. They are never taken from the request body — otherwise an
+// athlete could ask for another athlete's prescription by id.
+//
+// coach_notes is excluded from both column lists by hand. Never replace these
+// with select:'*'.
+export async function sessionPrescriptions(plannedRows, selectRows = select) {
+  const structured = (Array.isArray(plannedRows) ? plannedRows : [])
+    .filter((row) => row.prescription_mode === 'structured');
+
+  const empty = { exercises: {}, runSteps: {} };
+  if (!structured.length) return empty;
+
+  // Newest first, bounded. A long-running athlete accumulates hundreds of
+  // structured sessions and the portal only ever renders a few weeks of them.
+  const scoped = structured
+    .slice()
+    .sort((a, b) => String(b.planned_date || '').localeCompare(String(a.planned_date || '')))
+    .slice(0, 200);
+
+  const byId = new Map(scoped.map((row) => [row.id, row]));
+  const idList = `(${scoped.map((row) => row.id).join(',')})`;
+
+  const [exerciseRows, stepRows] = await Promise.all([
+    selectRows('session_exercises', {
+      planned_session_id: `in.${idList}`,
+      select: 'id,planned_session_id,exercise_name,position,superset_group,circuit_group,sets,warmup_sets,working_sets,rep_min,rep_max,rep_mode,target_load,percent_1rm,rpe,rir,tempo,rest_seconds,progression_rule,alternatives,left_right_exercises,athlete_notes,technique_cues',
+      order: 'position.asc',
+      limit: '2000',
+    }).catch(() => []),
+    selectRows('run_steps', {
+      planned_session_id: `in.${idList}`,
+      select: 'id,planned_session_id,parent_step_id,step_order,step_type,repeat_count,distance_km,duration_sec,intensity_type,pace_min,pace_max,hr_zone,rpe,effort,instructions',
+      order: 'step_order.asc',
+      limit: '2000',
+    }).catch(() => []),
+  ]);
+
+  const result = { exercises: {}, runSteps: {} };
+
+  (Array.isArray(exerciseRows) ? exerciseRows : []).forEach((row) => {
+    const session = byId.get(row.planned_session_id);
+    if (!session) return;
+    const key = sessionKey(session);
+    if (!result.exercises[key]) result.exercises[key] = [];
+    result.exercises[key].push(toSplitExercise(row));
+  });
+
+  (Array.isArray(stepRows) ? stepRows : []).forEach((row) => {
+    const session = byId.get(row.planned_session_id);
+    if (!session) return;
+    const key = sessionKey(session);
+    if (!result.runSteps[key]) result.runSteps[key] = [];
+    result.runSteps[key].push(toRunStep(row));
+  });
+
+  return result;
+}
+
 async function plannedSessions(code, body) {
   const start = date(body.start);
   const end = date(body.end);
@@ -123,18 +266,34 @@ async function plannedSessions(code, body) {
   // falls inside the visible week. Athlete reschedules are stored separately in
   // athlete_data, so a session moved across a week boundary must still reach the
   // browser before that override can be applied.
+  //
+  // publish_state filter: a coach building next week in draft mode must stay
+  // invisible here. This is the only place the portal learns a session exists,
+  // so filtering at the query is the whole of the draft guarantee.
   const programme = await select('planned_sessions', {
     athlete_code: `eq.${code}`,
-    select: 'id,notion_page_id,title,planned_date,session_type,status,library_id,run_details,intensity,week_label,distance_km,target_pace,warm_up,intervals,working_pace,rest,cool_down,notes',
+    publish_state: 'eq.published',
+    select: 'id,notion_page_id,title,planned_date,session_type,status,library_id,run_details,intensity,week_label,distance_km,target_pace,warm_up,intervals,working_pace,rest,cool_down,notes,prescription_mode,part_of_day,day_order,estimated_minutes',
     order: 'planned_date.asc',
     limit: '1000',
   });
   const rows = Array.isArray(programme) ? programme : [];
   const next = rows.find((row) => row.planned_date > end) || null;
 
+  // Never let a prescription lookup take the training plan down with it: a
+  // missing prescription degrades to the legacy title-matched split, which is
+  // exactly what every session used before this feature existed.
+  let prescriptions = { exercises: {}, runSteps: {} };
+  try {
+    prescriptions = await sessionPrescriptions(rows);
+  } catch (error) {
+    console.warn('[portal-data] prescription read failed:', error && error.message);
+  }
+
   return {
     rows,
     next,
+    prescriptions,
   };
 }
 
@@ -192,9 +351,11 @@ async function nutritionWeek(code, body) {
       select: '*',
       limit: '1',
     }),
+    // Drafts must not inflate the week's planned kilometres.
     select('planned_sessions', {
       athlete_code: `eq.${code}`,
       week_label: `eq.${label}`,
+      publish_state: 'eq.published',
       select: 'distance_km,title,session_type,library_id,week_label',
       order: 'planned_date.asc',
       limit: '100',
@@ -208,8 +369,10 @@ async function nutritionWeek(code, body) {
 
 async function programmeData(code) {
   const [planned, nutrition] = await Promise.all([
+    // Drafts must not appear in programme volume or the week strip.
     select('planned_sessions', {
       athlete_code: `eq.${code}`,
+      publish_state: 'eq.published',
       select: 'week_label,distance_km,title,session_type,library_id,planned_date,status',
       order: 'planned_date.asc',
       limit: '1000',

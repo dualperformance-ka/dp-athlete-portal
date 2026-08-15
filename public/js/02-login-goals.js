@@ -378,7 +378,7 @@ function pickEx(exName,chosen){
   if(m){
     var i=+m[1],ei=+m[2],s=sessions[i];
     if(s){
-      var splitKey=GYM_KEYS.find(function(k){return((s.name||'').indexOf(k)>=0);})||'Upper A';
+      var splitKey=splitKeyForSession(s,'Upper A');
       var ex=getSplit(splitKey)[ei]||null;
       syncStrengthRepMode(i,ei,ex,chosen,splitKey);
       refreshExerciseStat(i,ei,chosen,ex);
