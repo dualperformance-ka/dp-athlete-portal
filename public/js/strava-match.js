@@ -72,10 +72,36 @@ export function classifyPrescribedIntensity(session) {
   return 'unknown';
 }
 
+/**
+ * Strava's REST field for what the UI calls "Relative Effort" is `suffer_score`.
+ * `relative_effort` has never been a field on the REST SummaryActivity — it is
+ * what Strava's own MCP returns — so reading only that name yielded undefined on
+ * every activity, which silently disabled every check built on top of it:
+ * intensity_below_prescription and ran_above_prescription were both dead code.
+ * Read the REST name first and keep the other as a fallback, so a payload from
+ * either source works.
+ *
+ * Exported because "which field carries effort" is exactly the kind of thing
+ * that breaks silently, and a test should be able to pin it.
+ */
+export function activityEffort(activity) {
+  var raw = activity && (activity.suffer_score != null ? activity.suffer_score : activity.relative_effort);
+  var effort = Number(raw);
+  return Number.isFinite(effort) && effort > 0 ? effort : null;
+}
+
+/**
+ * Returns null for "cannot tell", which is NOT the same as "easy".
+ *
+ * suffer_score is heart-rate derived, so it is legitimately absent for any
+ * athlete who runs without a strap. Treating that absence as 'easy' would flag
+ * every one of their quality sessions as under-run, so an unknown effort leaves
+ * the match confidence untouched.
+ */
 function classifyExecutedIntensity(activity, threshold) {
-  var effort = Number(activity && activity.relative_effort);
+  var effort = activityEffort(activity);
   var distanceKm = Number(activity && activity.distance) / 1000;
-  if (!Number.isFinite(effort) || effort <= 0 || !Number.isFinite(distanceKm) || distanceKm <= 0) return null;
+  if (effort === null || !Number.isFinite(distanceKm) || distanceKm <= 0) return null;
   return effort / distanceKm >= threshold ? 'quality' : 'easy';
 }
 

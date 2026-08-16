@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import vm from 'node:vm';
 import {
   DEFAULT_RELATIVE_EFFORT_PER_KM_THRESHOLD,
+  activityEffort,
   classifyPrescribedIntensity,
   matchActivityToSession,
   stravaActivityKey,
@@ -139,6 +140,70 @@ test('missing relative effort leaves the previous result unchanged', () => {
 test('zero relative effort is treated as absent rather than easy', () => {
   const tempo = { ...session, name: 'Hill repeats — 12 x 90s' };
   const result = matchActivityToSession(tempo, [run(15, 12, { relative_effort: 0 })]);
+  assert.equal(result.confidence, 'high');
+  assert.deepEqual(result.reasons, []);
+});
+
+// ── The field-name regression that made all of the above dead code ───────────
+//
+// REST v3 SummaryActivity carries `suffer_score`. `relative_effort` is the UI
+// name and what Strava's MCP returns — it has never been on the REST payload.
+// The matcher read only `relative_effort`, so against real /athlete/activities
+// data every effort lookup was undefined, classifyExecutedIntensity always
+// returned null, and neither intensity reason could ever fire. The tests above
+// passed the whole time because their fixtures used the name the code read.
+//
+// These tests pin the REST name specifically, so the same class of break cannot
+// pass silently again.
+
+test('the REST field name (suffer_score) drives the intensity check', () => {
+  const tempo = { ...session, name: 'Tempo — 4 × 1500m' };
+  const result = matchActivityToSession(tempo, [run(21, 12, { suffer_score: 12 * 2.4 })]);
+  assert.equal(result.confidence, 'low');
+  assert.deepEqual(result.reasons, ['intensity_below_prescription']);
+});
+
+test('suffer_score above the threshold keeps a prescribed tempo at high confidence', () => {
+  const tempo = { ...session, name: 'Tempo — 4 x 1500m' };
+  const result = matchActivityToSession(tempo, [run(22, 12, { suffer_score: 12 * 5.4 })]);
+  assert.equal(result.confidence, 'high');
+  assert.deepEqual(result.reasons, []);
+});
+
+test('an easy prescription executed hard is flagged from suffer_score too', () => {
+  const easy = { ...session, name: 'Easy 12km' };
+  const result = matchActivityToSession(easy, [run(23, 12, { suffer_score: 12 * 5.4 })]);
+  assert.deepEqual(result.reasons, ['ran_above_prescription']);
+});
+
+test('suffer_score wins when both field names are present', () => {
+  const tempo = { ...session, name: 'Threshold intervals' };
+  // REST name says easy, UI name says hard. The REST name is the real payload.
+  const result = matchActivityToSession(tempo, [
+    run(24, 12, { suffer_score: 12 * 2.4, relative_effort: 12 * 9 }),
+  ]);
+  assert.equal(result.confidence, 'low');
+  assert.deepEqual(result.reasons, ['intensity_below_prescription']);
+});
+
+test('activityEffort reads either field and rejects unusable values', () => {
+  assert.equal(activityEffort({ suffer_score: 84 }), 84);
+  assert.equal(activityEffort({ relative_effort: 84 }), 84);
+  assert.equal(activityEffort({ suffer_score: 12, relative_effort: 99 }), 12);
+  // suffer_score is heart-rate derived, so null is normal for a strapless run.
+  // It must read as "unknown", never as zero effort.
+  assert.equal(activityEffort({ suffer_score: null }), null);
+  assert.equal(activityEffort({ suffer_score: 0 }), null);
+  assert.equal(activityEffort({}), null);
+  assert.equal(activityEffort(null), null);
+});
+
+// A null suffer_score is the common case for athletes without a HR strap. If it
+// were treated as 0 effort, every quality session they ran would be flagged as
+// under-run — a false accusation, every single time.
+test('a strapless athlete is never accused of under-running the session', () => {
+  const tempo = { ...session, name: 'Tempo — 4 × 1500m' };
+  const result = matchActivityToSession(tempo, [run(25, 12, { suffer_score: null })]);
   assert.equal(result.confidence, 'high');
   assert.deepEqual(result.reasons, []);
 });

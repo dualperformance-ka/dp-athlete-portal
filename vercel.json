@@ -130,6 +130,14 @@
       "destination": "/api/strava?mode=callback"
     },
     {
+      "source": "/api/strava-webhook",
+      "destination": "/api/strava?mode=webhook"
+    },
+    {
+      "source": "/api/strava-disconnect",
+      "destination": "/api/strava?mode=disconnect"
+    },
+    {
       "source": "/api/portal-data",
       "destination": "/api/write?mode=portal"
     }

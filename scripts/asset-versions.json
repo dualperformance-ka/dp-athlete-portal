@@ -44,8 +44,8 @@
     "sha": "b4fe068e7abd"
   },
   "js/strava-match.js": {
-    "version": 4,
-    "sha": "8a51ef4a0416"
+    "version": 5,
+    "sha": "19c5ac738226"
   },
   "js/08-training.js": {
     "version": 111,
@@ -60,7 +60,7 @@
     "sha": "3e9bf44307a4"
   },
   "js/10-boot.js": {
-    "version": 98,
-    "sha": "338480689d54"
+    "version": 99,
+    "sha": "f00dd657c043"
   }
 }

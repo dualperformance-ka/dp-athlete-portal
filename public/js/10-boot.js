@@ -377,20 +377,8 @@ window.closeEnhancedModal = closeEnhancedModal;
     stopRefresh();
     refreshTimer = setInterval(function(){
       if(document.hidden) return; // a backgrounded tab does not need a fresh link
-      refreshData({ silent: true });
+      load({ silent: true });
     }, REFRESH_MS);
-  }
-
-  // Keep the shared activity snapshot current. The matching and nutrition
-  // modules read window._stravaLoadPromise, so a background refresh must replace
-  // that promise and then rerun matching rather than only repainting the pill.
-  function refreshData(options){
-    var promise = load(options);
-    window._stravaLoadPromise = promise;
-    promise.then(function(){
-      if(typeof refreshStravaSessionMatches === 'function') refreshStravaSessionMatches();
-    }).catch(function(){});
-    return promise;
   }
 
   // A failure must stay visible. Hiding the button turns a broken endpoint into
@@ -433,6 +421,7 @@ window.closeEnhancedModal = closeEnhancedModal;
 
   function showConnected(activitiesAvailable, warning){
     if(!btn) return;
+    stopRefresh();
     btn.removeAttribute('href');
     btn.innerHTML = '<span class="btn-ic"><svg class="icon"><use href="#i-check"/></svg></span>Strava connected';
     btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:rgba(74,222,128,.9);border-color:rgba(74,222,128,.35);box-shadow:none;text-decoration:none;pointer-events:none;';
@@ -442,8 +431,24 @@ window.closeEnhancedModal = closeEnhancedModal;
           : 'Strava is connected. Activity sync is temporarily unavailable and will retry automatically.')
       : 'Strava is connected';
     btn.setAttribute('aria-label', btn.title);
-    // New activities can be recorded while the PWA remains open for days.
-    // Poll gently and also refresh immediately when the athlete returns.
+  }
+
+  // Connected, syncing runs fine, but linked before profile:read_all was
+  // required — so heart-rate and pace zones (time in zone, the easy/hard split)
+  // are unavailable until the athlete re-consents. This is deliberately NOT the
+  // red "reconnect" state: nothing is broken, and calling it broken would push
+  // athletes to disconnect something that is working. It is an offer, and it
+  // stays tappable so they can take it whenever.
+  function showScopeUpgrade(url, missing){
+    if(!btn) return;
+    if(!url) return showConnected(true);
+    btn.setAttribute('href', url);
+    mintedAt = Date.now();
+    btn.innerHTML = STRAVA_LOGO + ' Finish Strava setup';
+    btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:transparent;color:rgba(252,76,2,.95);border-color:rgba(252,76,2,.45);box-shadow:none;text-decoration:none;font-weight:700;';
+    btn.title = 'Your runs are syncing. Tap to also share your Strava heart-rate and pace zones, which unlocks effort and zone tracking.';
+    btn.setAttribute('aria-label', 'Strava connected. ' + btn.title);
+    window._stravaMissingScopes = missing || [];
     startRefresh();
   }
 
@@ -494,7 +499,11 @@ window.closeEnhancedModal = closeEnhancedModal;
     }
 
     if (data.connected) {
-      showConnected(data.activitiesAvailable, data.warning);
+      if (data.scopeComplete === false && data.reconnectUrl) {
+        showScopeUpgrade(data.reconnectUrl, data.missingScopes);
+      } else {
+        showConnected(data.activitiesAvailable, data.warning);
+      }
       showAckBannerIfNeeded();
     } else if (data.connectUrl) {
       // reconnectRequired: Strava rejected the stored token, so this is a
@@ -518,7 +527,9 @@ window.closeEnhancedModal = closeEnhancedModal;
     e.preventDefault();
     var tab = window.open('', '_blank');
     load({ silent: true }).then(function(data){
-      var url = data && data.connectUrl;
+      // reconnectUrl covers the scope-upgrade state, where the athlete is
+      // already connected so there is no connectUrl in the response.
+      var url = data && (data.connectUrl || data.reconnectUrl);
       if (!url) { if (tab) tab.close(); return; }
       if (tab) tab.location.href = url; else window.location.href = url;
     }).catch(function(){ if (tab) tab.close(); });
@@ -527,7 +538,7 @@ window.closeEnhancedModal = closeEnhancedModal;
   // Coming back from the Strava tab should flip the pill without a reload.
   document.addEventListener('visibilitychange', function(){
     if (document.hidden || !refreshTimer) return;
-    refreshData({ silent: true });
+    load({ silent: true });
   });
 
   window.initStrava = async function(code) {
@@ -536,6 +547,45 @@ window.closeEnhancedModal = closeEnhancedModal;
     hideButton();
     if (!bound) { btn.addEventListener('click', onClick); bound = true; }
     return load({});
+  };
+
+  // Revokes the app's access at Strava AND deletes the athlete's cached
+  // activities here. Both halves matter: revoking without purging would leave
+  // their Strava data in our database after they withdrew consent, which is the
+  // thing the API agreement is most explicit about.
+  //
+  // Confirmation is required, but deliberately not via confirm() — a native
+  // dialog blocks the extension bridge and is easy to dismiss by accident on
+  // mobile. Callers pass { confirmed: true } once their own UI has asked.
+  window.disconnectStrava = async function(options) {
+    if (!(options && options.confirmed)) {
+      return { ok: false, error: 'confirmation_required' };
+    }
+    try {
+      var res = await fetch('/api/strava-disconnect', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        cache: 'no-store',
+      });
+      var data = {};
+      try { data = await res.json(); } catch(e) { data = {}; }
+      if (!res.ok) {
+        console.warn('[strava] disconnect failed', res.status, data && data.error);
+        return { ok: false, error: (data && data.error) || ('http_' + res.status) };
+      }
+      // Local match state is meaningless once the activities are gone, and
+      // leaving it would resurrect "Not this run" rejections against ids that
+      // no longer exist if they reconnect later.
+      try {
+        if (athleteCode) localStorage.removeItem('dp_strava_match_rejections_' + athleteCode);
+      } catch(e) { /* private mode */ }
+      await load({});
+      if (typeof showToast === 'function') showToast('Strava disconnected');
+      return { ok: true };
+    } catch (e) {
+      console.warn('[strava] disconnect error', e);
+      return { ok: false, error: String(e && e.message || e) };
+    }
   };
 })();
 

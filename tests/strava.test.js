@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import {
-  mergeRefreshedTokens,
-  unavailableActivitiesResponse,
-  refreshRequiresReconnect,
-} from '../api/strava.js';
+import { unavailableActivitiesResponse, refreshRequiresReconnect } from '../api/strava.js';
 
-const boot = readFileSync(fileURLToPath(new URL('../public/js/10-boot.js', import.meta.url)), 'utf8');
+const read = (path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8');
+const boot = read('../public/js/10-boot.js');
+const stravaApi = read('../api/strava.js');
+const migration = read('../supabase/migrations/20260816120000_strava_activity_cache.sql');
+const vercelConfig = JSON.parse(read('../vercel.json'));
 
 test('Strava rate limits do not hide a valid connection', () => {
   assert.deepEqual(unavailableActivitiesResponse({ status: 429 }), {
@@ -83,39 +83,137 @@ test('transient Strava failures do not force a reconnect', () => {
   assert.equal(refreshRequiresReconnect(new Error('network error')), false);
 });
 
-test('a rotated Strava refresh token replaces the now-invalid stored token', () => {
-  assert.deepEqual(mergeRefreshedTokens({
-    id: 7,
-    access_token: 'old-access',
-    refresh_token: 'old-refresh',
-    expires_at: 100,
-    athlete: { id: 42 },
-  }, {
-    access_token: 'new-access',
-    refresh_token: 'new-refresh',
-    expires_at: 200,
-  }), {
-    access_token: 'new-access',
-    refresh_token: 'new-refresh',
-    expires_at: 200,
-    athlete: { id: 42 },
-  });
+// ── Compliance boundary ──────────────────────────────────────────────────────
+//
+// Strava's API Agreement permits a user's data to be displayed back to THAT USER
+// only. The whole integration is built around that line, and it is enforced in
+// two places at once: the tables grant nothing to a browser role, and the only
+// reader is a route that authenticates the athlete. Both must hold — a grant
+// added "just for the dashboard" would quietly undo it.
+
+test('the Strava cache tables are unreachable from any browser role', () => {
+  assert.match(migration, /revoke all on public\.strava_activities\s+from anon, authenticated/,
+    'strava_activities must revoke anon and authenticated');
+  assert.match(migration, /revoke all on public\.strava_webhook_events from anon, authenticated/,
+    'strava_webhook_events must revoke anon and authenticated');
+  assert.match(migration, /alter table public\.strava_activities\s+enable row level security/,
+    'RLS must be on, so a missing policy denies rather than allows');
+
+  const grantsToBrowser = migration.match(/grant[^;]*on\s+public\.strava_\w+[^;]*to[^;]*(anon|authenticated)/gi) || [];
+  assert.deepEqual(grantsToBrowser, [],
+    'no grant on a strava_* table may name anon or authenticated — reads go through /api/strava only');
 });
 
-test('connected Strava accounts keep refreshing and rematching new activities', () => {
-  const connectedStart = boot.indexOf('function showConnected');
-  const connectedEnd = boot.indexOf('async function showAckBannerIfNeeded', connectedStart);
-  const connectedSource = boot.slice(connectedStart, connectedEnd);
-  assert.match(connectedSource, /startRefresh\(\)/,
-    'showConnected must keep polling for activities recorded after login');
-  assert.doesNotMatch(connectedSource, /stopRefresh\(\)/,
-    'showConnected must not disable the activity refresh loop');
+// The callback page used to say "Your coach can now view your activity data".
+// That was both a compliance problem and untrue: what the coach sees is the
+// athlete's submitted log, not the Strava feed.
+test('the OAuth success page does not promise the coach access to Strava data', () => {
+  // Scoped to the rendered page, not the whole file: the comment above
+  // successPage() quotes the old wording on purpose so the reason it changed
+  // survives, and a whole-file match would flag that explanation as the bug.
+  const start = stravaApi.indexOf('function successPage()');
+  const page = stravaApi.slice(start, stravaApi.indexOf('function errorPage('));
+  assert.ok(start >= 0 && page.length > 0, 'successPage() should remain discoverable');
 
-  const refreshStart = boot.indexOf('function refreshData');
-  const refreshEnd = boot.indexOf('// A failure must stay visible', refreshStart);
-  const refreshSource = boot.slice(refreshStart, refreshEnd);
-  assert.match(refreshSource, /window\._stravaLoadPromise\s*=\s*promise/,
-    'background refreshes must replace the shared Strava activity snapshot');
-  assert.match(refreshSource, /refreshStravaSessionMatches\(\)/,
-    'background refreshes must rerun automatic activity matching');
+  assert.ok(!/coach can now view your activity/i.test(page),
+    'the success page must not tell athletes their coach can see their Strava data');
+  assert.match(page, /Sessions you confirm are shared with your coach/,
+    'the page should say what the coach actually receives: confirmed sessions');
+});
+
+test('the read route never accepts a coach or athlete-code override', () => {
+  // Every read is scoped to getRequestAthlete()'s own code. A query parameter
+  // that could name a different athlete is the one way this boundary breaks.
+  assert.ok(!/req\.query\.(athlete|athleteCode|code)\b/.test(stravaApi),
+    'the athlete must come from the authenticated session, never from the query string');
+});
+
+// ── Deployment shape ─────────────────────────────────────────────────────────
+
+// Vercel's Hobby plan caps a deployment at 12 serverless functions. Every Strava
+// mode shares one file for exactly this reason. Exceeding the cap fails the
+// deploy, not the build — so it is discovered in production.
+test('the api directory stays under the Vercel Hobby function cap', () => {
+  const functions = readdirSync(fileURLToPath(new URL('../api', import.meta.url)))
+    .filter((name) => name.endsWith('.js'));
+  assert.ok(functions.length <= 12,
+    `api/ has ${functions.length} functions; the Hobby cap is 12. Add a ?mode= branch to an existing file instead.`);
+});
+
+test('every Strava mode has a rewrite pointing at the one function', () => {
+  const rewrites = Object.fromEntries((vercelConfig.rewrites || []).map((r) => [r.source, r.destination]));
+  assert.equal(rewrites['/api/strava-callback'], '/api/strava?mode=callback');
+  assert.equal(rewrites['/api/strava-webhook'], '/api/strava?mode=webhook');
+  assert.equal(rewrites['/api/strava-disconnect'], '/api/strava?mode=disconnect');
+});
+
+// ── Front-end states ─────────────────────────────────────────────────────────
+
+// An athlete who linked before profile:read_all was required is fully working —
+// their runs sync. Showing them the red "reconnect" state would push them to
+// disconnect something that is not broken.
+test('the incomplete-scope state is an offer, not a broken-connection warning', () => {
+  assert.match(boot, /scopeComplete === false/,
+    'the boot script must branch on scopeComplete rather than guessing from an error');
+  assert.match(boot, /showScopeUpgrade\(/);
+  assert.ok(!/showScopeUpgrade\([^)]*\)\s*\{[^}]*Reconnect Strava/.test(boot),
+    'the scope-upgrade state must not reuse the reconnect copy');
+});
+
+test('the scope-upgrade link is server-minted like every other Strava URL', () => {
+  assert.match(boot, /data\.reconnectUrl/,
+    'the re-consent URL must come from the server, which signs the state token');
+});
+
+test('disconnecting requires explicit confirmation', () => {
+  assert.match(boot, /confirmation_required/,
+    'disconnectStrava must refuse to run without a confirmed flag');
+});
+
+// Revoking at Strava while keeping the cached activities would leave their data
+// here after consent was withdrawn — the exact thing the agreement forbids.
+test('disconnect revokes at Strava and purges locally', () => {
+  assert.match(stravaApi, /await deauthorize\(/);
+  assert.match(stravaApi, /await deleteAllActivities\(athleteCode\)/);
+  assert.match(stravaApi, /await deleteTokens\(athleteCode\)/);
+});
+
+// If Strava is down or the token is already dead, the athlete still asked to be
+// disconnected. Their data must not survive because a third party was slow.
+test('a failed deauthorize still purges the local copy', () => {
+  const disconnect = stravaApi.slice(stravaApi.indexOf('async function handleDisconnect'));
+  const catchBlock = disconnect.slice(disconnect.indexOf('catch (error)'), disconnect.indexOf('await deleteAllActivities'));
+  assert.ok(!/return|throw/.test(catchBlock),
+    'a deauthorize failure must fall through to the local purge, not return early');
+});
+
+// ── Migration safety ─────────────────────────────────────────────────────────
+
+// The read path serves from the cache. Every athlete who linked BEFORE the cache
+// existed has valid tokens and no rows, so without a catch-up backfill the day
+// this deploys their km rings, volume chart and session matching all go blank at
+// once — the integration would look broken to the entire cohort.
+test('a connected athlete with an empty cache triggers a catch-up backfill', () => {
+  assert.match(stravaApi, /!rows\.length && !tokenRow\.backfilled_at/,
+    'the read path must backfill for a connected athlete that has no cached rows');
+  assert.match(stravaApi, /rows = await listActivities/,
+    'the backfill must re-read so the athlete sees the result on this same load');
+});
+
+// Stamping on failure would leave the athlete permanently empty; never stamping
+// would re-pull their whole history on every single page load.
+test('the backfill stamp is set only after a successful pull', () => {
+  const read = stravaApi.slice(stravaApi.indexOf('async function handleRead'), stravaApi.indexOf('// ── Mode: webhook'));
+  const stamp = read.indexOf('backfilled_at: new Date()');
+  const save = read.indexOf('await saveActivities');
+  const failure = read.indexOf('catch (backfillError)');
+  assert.ok(save >= 0 && stamp > save, 'the stamp must come after the save');
+  assert.ok(stamp < failure, 'the stamp must be inside the success path, not the catch');
+});
+
+// A re-consent may widen scope or follow the athlete fixing old activities, so
+// it should be allowed to re-pull rather than being blocked by an old stamp.
+test('reconnecting clears the backfill stamp', () => {
+  assert.match(stravaApi, /backfilled_at: null/,
+    'saveTokens on the callback path must reset backfilled_at');
 });
