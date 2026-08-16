@@ -203,7 +203,7 @@ function renderCal(ws){
   var html='<div class="week-plan-shell"><div class="week-plan-heading-copy"><div class="week-plan-kicker">Training week <span class="week-plan-number">'+esc(programmeWeekLabel)+'</span></div><div class="week-plan-title"><span class="week-plan-title-desktop">Built for the week ahead</span><span class="week-plan-title-mobile">'+esc(weekTitle)+'</span></div><div class="week-plan-subtitle"><span class="week-plan-subtitle-desktop">'+esc(weekLabel)+' · '+sessions.length+' session'+(sessions.length===1?'':'s')+' loaded</span><span class="week-plan-subtitle-mobile">'+esc(weekSummary)+'</span></div></div><div class="month-calendar-actions"><button type="button" onclick="shiftWeek(-1)" aria-label="Previous week"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" class="month-today-btn" onclick="goToday()">Today</button><button type="button" onclick="shiftWeek(1)" aria-label="Next week"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div><div class="week-plan-meta"><span>'+runsThisWeek+' run'+(runsThisWeek===1?'':'s')+'</span><span>'+strengthThisWeek+' strength</span></div></div>';
   // WEEK AT A GLANCE — bird's-eye strip: one tile per day, dots per session
   // type, tick when the day is fully logged. Tapping a tile jumps to that day.
-  var sessionDone=function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];};
+  var sessionDone=function(s){return logHasRealData(logs[s.id])||s.status==='Completed';};
   if(mobileCalendar){
     trainingMonthGridStart=ws;trainingMonthGridEnd=we;
     html+='<div class="mobile-week-agenda" role="grid" aria-label="'+esc(weekTitle)+' training week">';
@@ -212,16 +212,14 @@ function renderCal(ws){
       var rawDaySessions=allSessions.filter(function(s){return s.date===miso;}),hasRecoveryOnly=rawDaySessions.length>0&&rawDaySessions.every(isCalendarPlaceholder);
       var daySessions=sortSessionsForDisplay(rawDaySessions.filter(function(s){return !isCalendarPlaceholder(s);}));
       var dayDone=daySessions.length>0&&daySessions.every(sessionDone),dayMissed=daySessions.length>0&&miso<todayISO&&!dayDone,labels='';
-      daySessions.forEach(function(s,si){
-        // Only label an AM/PM double when there are exactly two sessions.
-        // Three-plus sessions have no reliable time data, so show every card
-        // without inventing a schedule order.
-        var timing=daySessions.length===2?(si===0?'AM':'PM'):'';
-        labels+='<span class="mobile-week-session '+getType(s)+(timing?' has-time':'')+(s.rescheduled?' rescheduled':'')+'">'+(timing?'<b class="mobile-week-time">'+timing+'</b>':'')+'<span><strong>'+esc(s.name||monthSessionLabel(s))+'</strong><small>'+esc(monthSessionDetail(s))+'</small></span>'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session"><svg class="icon"><use href="#i-star-filled"/></svg></i>':'')+'</span>';
+      daySessions.forEach(function(s){
+        var si=interactiveSessionIndex(s),done=sessionDone(s),sessionName=s.name||monthSessionLabel(s),detail=monthSessionDetail(s);
+        var openLabel='Open '+sessionName+(detail?', '+detail:'')+(done?', completed':'');
+        labels+='<button type="button" class="mobile-week-session '+getType(s)+(done?' done':'')+(s.rescheduled?' rescheduled':'')+'" data-session-index="'+si+'" data-open-label="'+esc('Open '+sessionName+(detail?', '+detail:''))+'" onclick="openMobileWeekSession('+si+',this)" aria-label="'+esc(openLabel)+'"><span><strong>'+esc(sessionName)+'</strong><small>'+esc(detail)+'</small></span><span class="mobile-week-session-marks">'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session"><svg class="icon"><use href="#i-star-filled"/></svg></i>':'')+'<i class="mobile-week-complete" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></i><i class="mobile-week-chevron" aria-hidden="true">›</i></span></button>';
       });
-      if(!daySessions.length)labels='<span class="mobile-week-rest">'+(hasRecoveryOnly?'Recovery day':'No session planned')+'</span>';
-      var aria=cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+', '+(daySessions.length?(daySessions.length+' session'+(daySessions.length===1?'':'s')+': '+daySessions.map(function(s){return s.name||wgShortLabel(s);}).join(', ')):'no sessions');
-      html+='<button type="button" role="gridcell" class="mobile-week-day'+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(daySessions.length>1?' multi-session':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'"'+(isToday?' aria-current="date"':'')+' onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(aria)+'"><span class="mobile-week-date"><small>'+cellDate.toLocaleDateString('en-AU',{weekday:'short'})+'</small><strong>'+cellDate.getDate()+'</strong>'+(isToday?'<em>Today</em>':'')+'</span><span class="mobile-week-sessions">'+labels+'</span><span class="mobile-week-status">'+(dayDone?'<svg class="icon"><use href="#i-check"/></svg>':dayMissed?'!':'›')+'</span></button>';
+      var dayOpenLabel='Open '+cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+' day overview';
+      if(!daySessions.length)labels='<button type="button" class="mobile-week-rest" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'">'+(hasRecoveryOnly?'Recovery day':'No session planned')+'</button>';
+      html+='<div role="row" class="mobile-week-day'+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(daySessions.length>1?' multi-session':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'"'+(isToday?' aria-current="date"':'')+'><button type="button" class="mobile-week-date" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'"><small>'+cellDate.toLocaleDateString('en-AU',{weekday:'short'})+'</small><strong>'+cellDate.getDate()+'</strong>'+(isToday?'<em>Today</em>':'')+'</button><span role="gridcell" class="mobile-week-sessions">'+labels+'</span><button type="button" class="mobile-week-status" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'">'+(dayDone?'<svg class="icon"><use href="#i-check"/></svg>':dayMissed?'!':'›')+'</button></div>';
     }
     html+='</div>';
   }else{
@@ -343,7 +341,7 @@ function renderDayPlanDate(iso){
   content.innerHTML=html;
   daySessions.forEach(function(s){var body=document.getElementById('scb_'+interactiveSessionIndex(s));if(body)body.classList.add('open');});
   var prev=document.getElementById('dayPlanPrev'),next=document.getElementById('dayPlanNext');if(prev)prev.disabled=!!(trainingMonthGridStart&&d<=trainingMonthGridStart);if(next)next.disabled=!!(trainingMonthGridEnd&&d>=trainingMonthGridEnd);
-  document.querySelectorAll('.month-day,.mobile-week-day').forEach(function(day){var selected=day.dataset.date===iso;day.classList.toggle('selected',selected);day.setAttribute('aria-pressed',selected?'true':'false');});
+  document.querySelectorAll('.month-day,.mobile-week-day').forEach(function(day){var selected=day.dataset.date===iso;day.classList.toggle('selected',selected);if(day.classList.contains('mobile-week-day'))day.setAttribute('aria-selected',selected?'true':'false');else day.setAttribute('aria-pressed',selected?'true':'false');});
   content.scrollTop=0;return ov;
 }
 function openDayPlanDate(iso,trigger){
@@ -2135,7 +2133,7 @@ function buildBody(s,i,type){
   return h;
 }
 
-var focusedSessionIndex=null,focusedSessionGenerated=false;
+var focusedSessionIndex=null,focusedSessionGenerated=false,focusedSessionReturnFocus=null;
 function ensureFocusOverlay(){
   var ov=document.getElementById('focusOverlay');
   if(ov)return ov;
@@ -2176,7 +2174,11 @@ function startFocusedSession(i){
   document.body.classList.add('focus-session-open');
   void ov.offsetHeight;ov.classList.add('open');scroll.scrollTop=0;
 }
+function openMobileWeekSession(i,trigger){
+  focusedSessionReturnFocus=trigger||document.activeElement;startFocusedSession(i);
+}
 function closeFocusedSession(){
+  var returnFocus=focusedSessionReturnFocus;
   if(focusedSessionIndex!=null){
     var card=document.getElementById('sc_'+focusedSessionIndex),ph=document.getElementById('focusCardPlaceholder');
     if(card){
@@ -2186,10 +2188,23 @@ function closeFocusedSession(){
     }
   }
   var ov=document.getElementById('focusOverlay');if(ov)ov.classList.remove('open');
-  document.body.classList.remove('focus-session-open');focusedSessionIndex=null;focusedSessionGenerated=false;
+  document.body.classList.remove('focus-session-open');focusedSessionIndex=null;focusedSessionGenerated=false;focusedSessionReturnFocus=null;
+  if(returnFocus&&typeof returnFocus.focus==='function')setTimeout(function(){returnFocus.focus();},180);
 }
 document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(focusedSessionIndex!=null)closeFocusedSession();else if(dayPlanDateISO)closeDayPlan();});
 function togS(i){var el=document.getElementById('scb_'+i);if(el) el.classList.toggle('open');}
+function syncMobileWeekSessionCompletion(i,done){
+  document.querySelectorAll('.mobile-week-session[data-session-index="'+i+'"]').forEach(function(button){
+    button.classList.toggle('done',!!done);
+    var label=button.getAttribute('data-open-label')||'Open workout';button.setAttribute('aria-label',label+(done?', completed':''));
+  });
+  document.querySelectorAll('.mobile-week-day').forEach(function(day){
+    var workoutButtons=day.querySelectorAll('.mobile-week-session');if(!workoutButtons.length)return;
+    var allDone=Array.prototype.every.call(workoutButtons,function(button){return button.classList.contains('done');});
+    day.classList.toggle('done',allDone);if(allDone)day.classList.remove('missed');
+    var status=day.querySelector('.mobile-week-status');if(status)status.innerHTML=allDone?'<svg class="icon"><use href="#i-check"/></svg>':(day.classList.contains('missed')?'!':'›');
+  });
+}
 async function tickS(i){
   var s=sessions[i],on=!ticked[s.id];
   ticked[s.id]=on;localStorage.setItem('dp_ticked_'+athlete.code,JSON.stringify(ticked));
@@ -2203,6 +2218,7 @@ async function tickS(i){
   if(on&&!hasData){
     if(!nudge&&card){nudge=document.createElement('div');nudge.id='nudge_'+i;nudge.className='sc-nudge';nudge.innerHTML='Marked — tap to open &amp; log your data';var scb=document.getElementById('scb_'+i);card.insertBefore(nudge,scb);}
   }else if(nudge){nudge.remove();}
+  syncMobileWeekSessionCompletion(i,hasData);
   updateSessionCounter();
   // NOTE: a bare tick must NOT set Notion Status='Completed' — the coaches dashboard
   // treats Completed as Done. Only saveRun/saveGym mark a session Completed in Notion.
@@ -2213,8 +2229,9 @@ async function markSessionDone(i){
   try{await portalStateWrite('ticked',ticked);}catch(e){}
   var card=document.getElementById('sc_'+i),btn=document.getElementById('tick_'+i);
   if(card){card.classList.remove('marked');card.classList.add('done');}
-  if(btn){btn.classList.remove('marked');btn.classList.add('on');var sv=btn.querySelector('svg');if(sv) sv.style.opacity=1;}
+  if(btn){btn.classList.remove('marked');btn.classList.add('on');btn.setAttribute('aria-pressed','true');var sv=btn.querySelector('svg');if(sv) sv.style.opacity=1;}
   var nudge=document.getElementById('nudge_'+i);if(nudge) nudge.remove();
+  syncMobileWeekSessionCompletion(i,true);
   updateSessionCounter();
   // Completion lives in Supabase: the ticked state is saved to athlete_data above,
   // and the saved run/gym log is the source-of-truth record the coach dashboard reads.

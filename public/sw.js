@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v135'; // v135: a refused Strava activities read no longer breaks the portal
+const CACHE_NAME = 'dp-athlete-v136'; // v136: mobile workouts open individually and show completion state
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=108', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=109', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=105',
   '/js/02-login-goals.js?v=101',
@@ -10,7 +10,7 @@ const APP_SHELL = [
   '/js/06-nutrition.js?v=87',
   '/js/07-progress.js?v=86',
   '/js/strava-match.js?v=5',
-  '/js/08-training.js?v=111',
+  '/js/08-training.js?v=112',
   '/js/09-logging.js?v=105',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=99',
