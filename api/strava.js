@@ -52,16 +52,28 @@ async function getTokens(athleteCode) {
   return { id: rows[0].id, ...rows[0].value };
 }
 
-async function updateTokens(athleteCode, accessToken, expiresAt) {
+export function mergeRefreshedTokens(current, refreshed) {
+  const updated = {
+    ...current,
+    access_token: refreshed.access_token,
+    // Strava may rotate this value on every refresh and invalidates the old
+    // token immediately. Always persist the newest token when one is returned.
+    refresh_token: refreshed.refresh_token || current.refresh_token,
+    expires_at: refreshed.expires_at,
+  };
+  delete updated.id;
+  return updated;
+}
+
+async function updateTokens(athleteCode, refreshed) {
   // Fetch current value first to merge
   const current = await getTokens(athleteCode);
   if (!current) return;
 
-  const updated = { ...current, access_token: accessToken, expires_at: expiresAt };
-  delete updated.id;
+  const updated = mergeRefreshedTokens(current, refreshed);
 
   const base = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-  await fetch(
+  const res = await fetch(
     `${base}/rest/v1/athlete_data?athlete_code=eq.${encodeURIComponent(athleteCode)}&key=eq.strava_tokens`,
     {
       method: 'PATCH',
@@ -74,6 +86,10 @@ async function updateTokens(athleteCode, accessToken, expiresAt) {
       body: JSON.stringify({ value: updated, updated_at: new Date().toISOString() }),
     }
   );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Supabase token update failed: ${res.status}: ${text.slice(0, 200)}`);
+  }
 }
 
 // ── Strava helpers ────────────────────────────────────────────────────────────
@@ -211,7 +227,7 @@ export default async function handler(req, res) {
       try {
         const refreshed = await refreshStravaToken(refresh_token);
         access_token = refreshed.access_token;
-        await updateTokens(athleteCode, access_token, refreshed.expires_at);
+        await updateTokens(athleteCode, refreshed);
       } catch (refreshError) {
         if (!refreshRequiresReconnect(refreshError)) throw refreshError;
         console.warn(JSON.stringify({

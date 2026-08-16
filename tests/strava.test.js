@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { unavailableActivitiesResponse, refreshRequiresReconnect } from '../api/strava.js';
+import {
+  mergeRefreshedTokens,
+  unavailableActivitiesResponse,
+  refreshRequiresReconnect,
+} from '../api/strava.js';
 
 const boot = readFileSync(fileURLToPath(new URL('../public/js/10-boot.js', import.meta.url)), 'utf8');
 
@@ -77,4 +81,41 @@ test('transient Strava failures do not force a reconnect', () => {
   assert.equal(refreshRequiresReconnect({ status: 500 }), false);
   assert.equal(refreshRequiresReconnect({ status: 503 }), false);
   assert.equal(refreshRequiresReconnect(new Error('network error')), false);
+});
+
+test('a rotated Strava refresh token replaces the now-invalid stored token', () => {
+  assert.deepEqual(mergeRefreshedTokens({
+    id: 7,
+    access_token: 'old-access',
+    refresh_token: 'old-refresh',
+    expires_at: 100,
+    athlete: { id: 42 },
+  }, {
+    access_token: 'new-access',
+    refresh_token: 'new-refresh',
+    expires_at: 200,
+  }), {
+    access_token: 'new-access',
+    refresh_token: 'new-refresh',
+    expires_at: 200,
+    athlete: { id: 42 },
+  });
+});
+
+test('connected Strava accounts keep refreshing and rematching new activities', () => {
+  const connectedStart = boot.indexOf('function showConnected');
+  const connectedEnd = boot.indexOf('async function showAckBannerIfNeeded', connectedStart);
+  const connectedSource = boot.slice(connectedStart, connectedEnd);
+  assert.match(connectedSource, /startRefresh\(\)/,
+    'showConnected must keep polling for activities recorded after login');
+  assert.doesNotMatch(connectedSource, /stopRefresh\(\)/,
+    'showConnected must not disable the activity refresh loop');
+
+  const refreshStart = boot.indexOf('function refreshData');
+  const refreshEnd = boot.indexOf('// A failure must stay visible', refreshStart);
+  const refreshSource = boot.slice(refreshStart, refreshEnd);
+  assert.match(refreshSource, /window\._stravaLoadPromise\s*=\s*promise/,
+    'background refreshes must replace the shared Strava activity snapshot');
+  assert.match(refreshSource, /refreshStravaSessionMatches\(\)/,
+    'background refreshes must rerun automatic activity matching');
 });

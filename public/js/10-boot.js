@@ -377,8 +377,20 @@ window.closeEnhancedModal = closeEnhancedModal;
     stopRefresh();
     refreshTimer = setInterval(function(){
       if(document.hidden) return; // a backgrounded tab does not need a fresh link
-      load({ silent: true });
+      refreshData({ silent: true });
     }, REFRESH_MS);
+  }
+
+  // Keep the shared activity snapshot current. The matching and nutrition
+  // modules read window._stravaLoadPromise, so a background refresh must replace
+  // that promise and then rerun matching rather than only repainting the pill.
+  function refreshData(options){
+    var promise = load(options);
+    window._stravaLoadPromise = promise;
+    promise.then(function(){
+      if(typeof refreshStravaSessionMatches === 'function') refreshStravaSessionMatches();
+    }).catch(function(){});
+    return promise;
   }
 
   // A failure must stay visible. Hiding the button turns a broken endpoint into
@@ -421,7 +433,6 @@ window.closeEnhancedModal = closeEnhancedModal;
 
   function showConnected(activitiesAvailable, warning){
     if(!btn) return;
-    stopRefresh();
     btn.removeAttribute('href');
     btn.innerHTML = '<span class="btn-ic"><svg class="icon"><use href="#i-check"/></svg></span>Strava connected';
     btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:rgba(74,222,128,.9);border-color:rgba(74,222,128,.35);box-shadow:none;text-decoration:none;pointer-events:none;';
@@ -431,6 +442,9 @@ window.closeEnhancedModal = closeEnhancedModal;
           : 'Strava is connected. Activity sync is temporarily unavailable and will retry automatically.')
       : 'Strava is connected';
     btn.setAttribute('aria-label', btn.title);
+    // New activities can be recorded while the PWA remains open for days.
+    // Poll gently and also refresh immediately when the athlete returns.
+    startRefresh();
   }
 
   async function showAckBannerIfNeeded(){
@@ -513,7 +527,7 @@ window.closeEnhancedModal = closeEnhancedModal;
   // Coming back from the Strava tab should flip the pill without a reload.
   document.addEventListener('visibilitychange', function(){
     if (document.hidden || !refreshTimer) return;
-    load({ silent: true });
+    refreshData({ silent: true });
   });
 
   window.initStrava = async function(code) {
