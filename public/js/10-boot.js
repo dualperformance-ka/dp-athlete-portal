@@ -358,54 +358,141 @@ window.closeEnhancedModal = closeEnhancedModal;
 // ============================================================================
 // STRAVA CONNECT BUTTON
 // ============================================================================
+// The connect URL is minted server-side by /api/strava and carries a signed,
+// short-lived `state` token identifying which athlete is connecting. The client
+// must never build that URL itself: a hand-made link has no state, so the OAuth
+// callback rejects it with "Missing code or athlete identifier". The button is
+// therefore hidden until the server answers, and is never given a fallback URL.
 (function(){
   var btn = document.getElementById('dp-strava-btn');
+  var REFRESH_MS = 5 * 60 * 1000; // re-mint well inside the state token's 10-minute TTL
+  var STRAVA_LOGO = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg>';
+  var mintedAt = 0, refreshTimer = null, athleteCode = null, bound = false;
 
-  window.initStrava = async function(code) {
-    if (!code) return;
-    var connectUrl = 'https://www.strava.com/oauth/authorize'
-      + '?client_id=254938'
-      + '&response_type=code'
-      + '&redirect_uri=' + encodeURIComponent(window.location.origin + '/api/strava-callback')
-      + '&scope=activity:read_all'
-      + '&state=' + encodeURIComponent('');
+  function stopRefresh(){ if(refreshTimer){ clearInterval(refreshTimer); refreshTimer = null; } }
 
-    btn.href = connectUrl;
-    btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg> Connect Strava';
+  function startRefresh(){
+    stopRefresh();
+    refreshTimer = setInterval(function(){
+      if(document.hidden) return; // a backgrounded tab does not need a fresh link
+      load({ silent: true });
+    }, REFRESH_MS);
+  }
+
+  // Showing nothing beats showing a link that cannot work.
+  function hideButton(){
+    if(!btn) return;
+    stopRefresh();
+    mintedAt = 0;
+    btn.style.display = 'none';
+    btn.removeAttribute('href');
+    btn.removeAttribute('title');
+  }
+
+  function showConnect(url){
+    if(!btn) return;
+    if(!url) return hideButton();
+    btn.setAttribute('href', url);
+    mintedAt = Date.now();
+    btn.innerHTML = STRAVA_LOGO + ' Connect Strava';
     btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#fc4c02;color:#fff;border-color:#fc4c02;box-shadow:0 0 12px rgba(252,76,2,.6);text-decoration:none;font-weight:700;';
+    btn.title = 'Connect your Strava account';
+    btn.setAttribute('aria-label', btn.title);
+    startRefresh();
+  }
 
+  function showConnected(activitiesAvailable){
+    if(!btn) return;
+    stopRefresh();
+    btn.removeAttribute('href');
+    btn.innerHTML = '<span class="btn-ic"><svg class="icon"><use href="#i-check"/></svg></span>Strava connected';
+    btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:rgba(74,222,128,.9);border-color:rgba(74,222,128,.35);box-shadow:none;text-decoration:none;pointer-events:none;';
+    btn.title = activitiesAvailable === false
+      ? 'Strava is connected. Activity sync is temporarily unavailable and will retry automatically.'
+      : 'Strava is connected';
+    btn.setAttribute('aria-label', btn.title);
+  }
+
+  async function showAckBannerIfNeeded(){
+    window._stravaAthCode = athleteCode;
+    if(!_authToken) return;
     try {
-      var res  = await fetch('/api/strava',{headers:authHeaders({}),cache:'no-store'});
-      var data = await res.json();
-      if(data.authorizeUrl)btn.href=data.authorizeUrl;
-      if (data.connected) {
-        btn.innerHTML = '<span class="btn-ic"><svg class="icon"><use href="#i-check"/></svg></span>Strava connected';
-        btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:rgba(74,222,128,.9);border-color:rgba(74,222,128,.35);box-shadow:none;text-decoration:none;pointer-events:none;';
-        btn.title = data.activitiesAvailable === false
-          ? 'Strava is connected. Activity sync is temporarily unavailable and will retry automatically.'
-          : 'Strava is connected';
-        btn.setAttribute('aria-label', btn.title);
-        // Check if the athlete has acknowledged the connection.
-        window._stravaAthCode = code;
-        if (_authToken) {
-          try {
-            var state = await portalRequest('state-read');
-            var ackRow = (state.rows||[]).find(function(row){return row.key==='strava_ack';});
-            if (!ackRow || !ackRow.value || !ackRow.value.acked) {
-              var banner = document.getElementById('strava-ack-banner');
-              if (banner) banner.style.display = 'flex';
-              if (typeof syncWeekCardState === 'function') syncWeekCardState();
-            }
-          } catch(e) { /* silently skip banner on error */ }
-        }
-      } else {
-        btn.href = data.connectUrl || connectUrl;
+      var state = await portalRequest('state-read');
+      var ackRow = (state.rows||[]).find(function(row){ return row.key === 'strava_ack'; });
+      if (!ackRow || !ackRow.value || !ackRow.value.acked) {
+        var banner = document.getElementById('strava-ack-banner');
+        if (banner) banner.style.display = 'flex';
+        if (typeof syncWeekCardState === 'function') syncWeekCardState();
       }
-      return data;
+    } catch(e) { /* silently skip banner on error */ }
+  }
+
+  // Reads the athlete's real Strava state. Every failure path hides the button
+  // rather than falling back to a client-built URL.
+  async function load(options){
+    var silent = !!(options && options.silent), res, data = {};
+    try {
+      res = await fetch('/api/strava', { headers: authHeaders({}), cache: 'no-store' });
     } catch(e) {
-      btn.href = connectUrl; // keep orange connect state on error
+      // Offline or blocked. Leave a working "connected" pill alone; otherwise hide.
+      if(!silent) hideButton();
       return { connected:false, activities:[] };
     }
+    try { data = await res.json(); } catch(e) { data = {}; }
+
+    if (res.status === 401) {
+      // The session is gone, so the server cannot sign a state token. Anything
+      // we offered here would fail at the callback.
+      hideButton();
+      if (!silent && typeof handleAuthSessionLost === 'function'
+          && localStorage.getItem('dp_auth_method') === 'email') handleAuthSessionLost();
+      return { connected:false, activities:[] };
+    }
+
+    if (!res.ok) {
+      console.warn('[strava] /api/strava responded ' + res.status, data && data.error);
+      hideButton();
+      return { connected:false, activities:[] };
+    }
+
+    if (data.connected) {
+      showConnected(data.activitiesAvailable);
+      showAckBannerIfNeeded();
+    } else if (data.connectUrl) {
+      showConnect(data.connectUrl);
+    } else {
+      hideButton();
+    }
+    return data;
+  }
+
+  // A state token older than its TTL lands on "The connection link expired", so
+  // re-mint on click when the cached one is stale. The blank tab is opened
+  // synchronously so the pop-up blocker still credits the user's gesture.
+  function onClick(e){
+    if (!btn.getAttribute('href')) { e.preventDefault(); return; }
+    if (Date.now() - mintedAt < REFRESH_MS) return; // fresh enough to follow directly
+    e.preventDefault();
+    var tab = window.open('', '_blank');
+    load({ silent: true }).then(function(data){
+      var url = data && data.connectUrl;
+      if (!url) { if (tab) tab.close(); return; }
+      if (tab) tab.location.href = url; else window.location.href = url;
+    }).catch(function(){ if (tab) tab.close(); });
+  }
+
+  // Coming back from the Strava tab should flip the pill without a reload.
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden || !refreshTimer) return;
+    load({ silent: true });
+  });
+
+  window.initStrava = async function(code) {
+    if (!code || !btn) return { connected:false, activities:[] };
+    athleteCode = code;
+    hideButton();
+    if (!bound) { btn.addEventListener('click', onClick); bound = true; }
+    return load({});
   };
 })();
 

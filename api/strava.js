@@ -332,6 +332,18 @@ async function handleCallback(req, res) {
   }
 
   if (!code || !state) {
+    // Never log `code` itself. Which parameter is missing is what identifies the
+    // broken link: no state at all means the authorize URL was not the one this
+    // API minted, since every minted URL carries a signed state token.
+    console.warn(JSON.stringify({
+      level: 'warning',
+      message: 'Strava callback missing OAuth parameters',
+      route: '/api/strava-callback',
+      requestId: req.headers && req.headers['x-vercel-id'],
+      hasCode: !!code,
+      hasState: !!state,
+      queryKeys: Object.keys(req.query || {}),
+    }));
     res.setHeader('Content-Type', 'text/html');
     return res.status(400).send(errorPage('Missing code or athlete identifier'));
   }
