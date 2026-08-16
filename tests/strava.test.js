@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { unavailableActivitiesResponse } from '../api/strava.js';
+import { unavailableActivitiesResponse, refreshRequiresReconnect } from '../api/strava.js';
 
 const boot = readFileSync(fileURLToPath(new URL('../public/js/10-boot.js', import.meta.url)), 'utf8');
 
@@ -16,9 +16,24 @@ test('Strava rate limits do not hide a valid connection', () => {
   });
 });
 
-test('non-rate-limit activity errors are not masked', () => {
-  assert.equal(unavailableActivitiesResponse({ status: 401 }), null);
+test('unexpected activity errors are not masked', () => {
+  assert.equal(unavailableActivitiesResponse({ status: 500 }), null);
   assert.equal(unavailableActivitiesResponse(new Error('network error')), null);
+});
+
+// Strava refusing to hand over activities does not mean the athlete unlinked.
+// Telling them to reconnect would be a lie: reconnecting cannot grant an app
+// permission it no longer has.
+test('a refused activities read keeps the athlete connected', () => {
+  for (const status of [401, 403]) {
+    assert.deepEqual(unavailableActivitiesResponse({ status }), {
+      connected: true,
+      activities: [],
+      activitiesAvailable: false,
+      warning: 'strava_access_denied',
+      stravaStatus: status,
+    });
+  }
 });
 
 // The OAuth callback identifies the athlete from the signed `state` token in the
@@ -47,4 +62,19 @@ test('every /api/strava failure path leaves a visible, diagnosable state', () =>
     'each failure path must call showUnavailable() rather than hiding the button');
   assert.ok(/window\._stravaDebug = /.test(boot),
     'the last failure reason must be readable from the console');
+});
+
+// A refresh token Strava rejects is dead. Returning 500 leaves the athlete with
+// a broken button and no way to re-link; they must be offered a reconnect.
+test('a rejected refresh token is treated as "reconnect", not as a server error', () => {
+  assert.equal(refreshRequiresReconnect({ status: 400 }), true);
+  assert.equal(refreshRequiresReconnect({ status: 401 }), true);
+});
+
+// Transient failures must NOT wipe a working connection off the screen.
+test('transient Strava failures do not force a reconnect', () => {
+  assert.equal(refreshRequiresReconnect({ status: 429 }), false);
+  assert.equal(refreshRequiresReconnect({ status: 500 }), false);
+  assert.equal(refreshRequiresReconnect({ status: 503 }), false);
+  assert.equal(refreshRequiresReconnect(new Error('network error')), false);
 });

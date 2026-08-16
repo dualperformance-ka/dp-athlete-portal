@@ -405,26 +405,30 @@ window.closeEnhancedModal = closeEnhancedModal;
     btn.removeAttribute('title');
   }
 
-  function showConnect(url){
+  function showConnect(url, reconnect){
     if(!btn) return;
     if(!url) return hideButton();
     btn.setAttribute('href', url);
     mintedAt = Date.now();
-    btn.innerHTML = STRAVA_LOGO + ' Connect Strava';
+    btn.innerHTML = STRAVA_LOGO + (reconnect ? ' Reconnect Strava' : ' Connect Strava');
     btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#fc4c02;color:#fff;border-color:#fc4c02;box-shadow:0 0 12px rgba(252,76,2,.6);text-decoration:none;font-weight:700;';
-    btn.title = 'Connect your Strava account';
+    btn.title = reconnect
+      ? 'Strava disconnected this app. Tap to link it again.'
+      : 'Connect your Strava account';
     btn.setAttribute('aria-label', btn.title);
     startRefresh();
   }
 
-  function showConnected(activitiesAvailable){
+  function showConnected(activitiesAvailable, warning){
     if(!btn) return;
     stopRefresh();
     btn.removeAttribute('href');
     btn.innerHTML = '<span class="btn-ic"><svg class="icon"><use href="#i-check"/></svg></span>Strava connected';
     btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:rgba(74,222,128,.9);border-color:rgba(74,222,128,.35);box-shadow:none;text-decoration:none;pointer-events:none;';
     btn.title = activitiesAvailable === false
-      ? 'Strava is connected. Activity sync is temporarily unavailable and will retry automatically.'
+      ? (warning === 'strava_access_denied'
+          ? 'Strava is connected, but is refusing to share activities with this app. Your logs still work.'
+          : 'Strava is connected. Activity sync is temporarily unavailable and will retry automatically.')
       : 'Strava is connected';
     btn.setAttribute('aria-label', btn.title);
   }
@@ -470,16 +474,18 @@ window.closeEnhancedModal = closeEnhancedModal;
     if (!res.ok) {
       console.warn('[strava] /api/strava responded ' + res.status, data && data.error);
       window._stravaDebug = { status:res.status, error:(data&&data.error)||null, at:new Date().toISOString() };
-      showUnavailable({ friendly:'Strava unavailable', debug:'Strava ' + res.status },
+      showUnavailable({ friendly:'Strava unavailable', debug:'Strava ' + res.status + (data&&data.error ? ': ' + String(data.error).slice(0,80) : '') },
         'Strava lookup failed (' + res.status + (data&&data.error ? ': ' + data.error : '') + '). Tap to retry.');
       return { connected:false, activities:[] };
     }
 
     if (data.connected) {
-      showConnected(data.activitiesAvailable);
+      showConnected(data.activitiesAvailable, data.warning);
       showAckBannerIfNeeded();
     } else if (data.connectUrl) {
-      showConnect(data.connectUrl);
+      // reconnectRequired: Strava rejected the stored token, so this is a
+      // re-link rather than a first connection. Say so.
+      showConnect(data.connectUrl, !!data.reconnectRequired);
     } else {
       // 200 with neither flag: the endpoint answered but gave us nothing usable.
       window._stravaDebug = { status:200, error:'no connectUrl in response', at:new Date().toISOString() };

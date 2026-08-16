@@ -89,8 +89,25 @@ async function refreshStravaToken(refreshToken) {
       refresh_token: refreshToken,
     }),
   });
-  if (!res.ok) throw new Error(`Strava token refresh failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    const error = new Error(`Strava token refresh failed: ${res.status}`);
+    error.status = res.status;
+    error.body = body.slice(0, 300);
+    throw error;
+  }
   return res.json();
+}
+
+// A stored refresh token that Strava rejects outright is dead: the athlete
+// revoked the app, the client secret was rotated, or the app lost API access.
+// None of those are retryable, and all of them are fixed by reconnecting — so
+// they must not surface as a 500 that leaves the athlete with no way back.
+// Transient failures (429, 5xx) are NOT this: those should keep the existing
+// connection and be retried.
+export function refreshRequiresReconnect(error) {
+  const status = Number(error && error.status);
+  return status === 400 || status === 401;
 }
 
 async function fetchActivities(accessToken, perPage = 100) {
@@ -99,22 +116,56 @@ async function fetchActivities(accessToken, perPage = 100) {
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!res.ok) {
+    const body = await res.text().catch(() => '');
     const error = new Error(`Strava activities fetch failed: ${res.status}`);
     error.status = res.status;
+    error.body = body.slice(0, 300);
     error.retryAfter = res.headers.get('retry-after');
     throw error;
   }
   return res.json();
 }
 
+// An activities fetch that fails is NOT a broken connection. The athlete's
+// OAuth link is intact — only the data sync is unavailable — so the portal
+// should keep its normal portal-log fallback rather than telling the athlete to
+// reconnect (which would not fix any of these) or 500-ing into a dead button.
+//   429      — rate limited, retries on its own.
+//   401/403  — the app is not permitted to read activities: revoked scope, or
+//              developer API access that has lapsed. Not fixable by reconnecting.
+// Anything else is a genuine error and is allowed to throw.
 export function unavailableActivitiesResponse(error) {
-  if (!error || Number(error.status) !== 429) return null;
-  return {
-    connected: true,
-    activities: [],
-    activitiesAvailable: false,
-    warning: 'strava_rate_limited',
-  };
+  const status = Number(error && error.status);
+  if (status === 429) {
+    return {
+      connected: true,
+      activities: [],
+      activitiesAvailable: false,
+      warning: 'strava_rate_limited',
+    };
+  }
+  if (status === 401 || status === 403) {
+    return {
+      connected: true,
+      activities: [],
+      activitiesAvailable: false,
+      warning: 'strava_access_denied',
+      stravaStatus: status,
+    };
+  }
+  return null;
+}
+
+// The only place a connect URL is ever built. The `state` token is what tells
+// the OAuth callback which athlete is connecting, so a URL without it is
+// guaranteed to fail — clients must use this one, never their own.
+function buildConnectUrl(athleteCode) {
+  return `https://www.strava.com/oauth/authorize` +
+    `?client_id=${process.env.STRAVA_CLIENT_ID}` +
+    `&response_type=code` +
+    `&redirect_uri=${encodeURIComponent(portalUrl() + '/api/strava-callback')}` +
+    `&scope=activity:read_all` +
+    `&state=${encodeURIComponent(createPortalSession(athleteCode, { purpose: 'strava', ttlSeconds: 10 * 60 }))}`;
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -151,23 +202,32 @@ export default async function handler(req, res) {
 
     // Not connected — return OAuth URL
     if (!tokenRow || !tokenRow.access_token) {
-      const connectUrl =
-        `https://www.strava.com/oauth/authorize` +
-        `?client_id=${process.env.STRAVA_CLIENT_ID}` +
-        `&response_type=code` +
-        `&redirect_uri=${encodeURIComponent(portalUrl() + '/api/strava-callback')}` +
-        `&scope=activity:read_all` +
-        `&state=${encodeURIComponent(createPortalSession(athleteCode, { purpose: 'strava', ttlSeconds: 10 * 60 }))}`;
-
-      return res.status(200).json({ connected: false, connectUrl });
+      return res.status(200).json({ connected: false, connectUrl: buildConnectUrl(athleteCode) });
     }
 
     // Refresh token if expired (5-min buffer)
     let { access_token, refresh_token, expires_at } = tokenRow;
     if (Date.now() / 1000 > expires_at - 300) {
-      const refreshed = await refreshStravaToken(refresh_token);
-      access_token = refreshed.access_token;
-      await updateTokens(athleteCode, access_token, refreshed.expires_at);
+      try {
+        const refreshed = await refreshStravaToken(refresh_token);
+        access_token = refreshed.access_token;
+        await updateTokens(athleteCode, access_token, refreshed.expires_at);
+      } catch (refreshError) {
+        if (!refreshRequiresReconnect(refreshError)) throw refreshError;
+        console.warn(JSON.stringify({
+          level: 'warning',
+          message: 'Strava refresh token rejected — athlete must reconnect',
+          route: '/api/strava',
+          requestId: req.headers && req.headers['x-vercel-id'],
+          stravaStatus: refreshError.status,
+          stravaBody: refreshError.body || null,
+        }));
+        return res.status(200).json({
+          connected: false,
+          reconnectRequired: true,
+          connectUrl: buildConnectUrl(athleteCode),
+        });
+      }
     }
 
     try {
@@ -181,9 +241,13 @@ export default async function handler(req, res) {
       if (fallback) {
         console.warn(JSON.stringify({
           level: 'warning',
-          message: 'Strava activity sync rate limited',
+          message: fallback.warning === 'strava_rate_limited'
+            ? 'Strava activity sync rate limited'
+            : 'Strava refused the activities read — check the app\'s API access and granted scope',
           route: '/api/strava',
           requestId: req.headers && req.headers['x-vercel-id'],
+          stravaStatus: activityError.status || null,
+          stravaBody: activityError.body || null,
           retryAfter: activityError.retryAfter || null,
         }));
         return res.status(200).json(fallback);
