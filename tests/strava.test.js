@@ -33,9 +33,18 @@ test('the portal never builds a Strava authorize URL client-side', () => {
 });
 
 test('the connect button has no fallback URL when /api/strava fails', () => {
-  const failurePaths = boot.match(/hideButton\(\);/g) || [];
-  assert.ok(failurePaths.length >= 4,
-    'every /api/strava failure path must hide the button rather than offer a link');
   assert.ok(/if \(res\.status === 401\)/.test(boot),
     'a 401 must be handled explicitly instead of being parsed as a normal response');
+  assert.ok(/if \(!res\.ok\)/.test(boot),
+    'a non-2xx response must not be parsed as if it were normal data');
+});
+
+// A silent failure is how a broken endpoint stays broken: the button vanishes
+// and nobody can tell whether it is a bug or an athlete who never connected.
+test('every /api/strava failure path leaves a visible, diagnosable state', () => {
+  const reported = boot.match(/showUnavailable\(/g) || [];
+  assert.ok(reported.length >= 5,
+    'each failure path must call showUnavailable() rather than hiding the button');
+  assert.ok(/window\._stravaDebug = /.test(boot),
+    'the last failure reason must be readable from the console');
 });

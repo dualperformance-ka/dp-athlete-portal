@@ -368,6 +368,8 @@ window.closeEnhancedModal = closeEnhancedModal;
   var REFRESH_MS = 5 * 60 * 1000; // re-mint well inside the state token's 10-minute TTL
   var STRAVA_LOGO = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".7"/></svg>';
   var mintedAt = 0, refreshTimer = null, athleteCode = null, bound = false;
+  // Append ?dpdebug=1 to see the raw failure reason on the button itself.
+  var DEBUG = /[?&]dpdebug=1/.test(window.location.search);
 
   function stopRefresh(){ if(refreshTimer){ clearInterval(refreshTimer); refreshTimer = null; } }
 
@@ -377,6 +379,20 @@ window.closeEnhancedModal = closeEnhancedModal;
       if(document.hidden) return; // a backgrounded tab does not need a fresh link
       load({ silent: true });
     }, REFRESH_MS);
+  }
+
+  // A failure must stay visible. Hiding the button turns a broken endpoint into
+  // an invisible one, which is harder to diagnose than a button that says so.
+  // This state is deliberately NOT a link: it retries the lookup on tap.
+  function showUnavailable(label, reason){
+    if(!btn) return;
+    stopRefresh();
+    mintedAt = 0;
+    btn.removeAttribute('href');
+    btn.innerHTML = STRAVA_LOGO + ' ' + (DEBUG ? label.debug : label.friendly);
+    btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:transparent;color:rgba(255,255,255,.45);border-color:rgba(255,255,255,.18);box-shadow:none;text-decoration:none;cursor:pointer;';
+    btn.title = reason;
+    btn.setAttribute('aria-label', 'Strava: ' + reason);
   }
 
   // Showing nothing beats showing a link that cannot work.
@@ -434,8 +450,8 @@ window.closeEnhancedModal = closeEnhancedModal;
     try {
       res = await fetch('/api/strava', { headers: authHeaders({}), cache: 'no-store' });
     } catch(e) {
-      // Offline or blocked. Leave a working "connected" pill alone; otherwise hide.
-      if(!silent) hideButton();
+      window._stravaDebug = { status:'network-error', error:String(e&&e.message||e), at:new Date().toISOString() };
+      if(!silent) showUnavailable({ friendly:'Strava \u2014 tap to retry', debug:'Strava network error' }, 'Could not reach the portal. Tap to try again.');
       return { connected:false, activities:[] };
     }
     try { data = await res.json(); } catch(e) { data = {}; }
@@ -443,7 +459,9 @@ window.closeEnhancedModal = closeEnhancedModal;
     if (res.status === 401) {
       // The session is gone, so the server cannot sign a state token. Anything
       // we offered here would fail at the callback.
-      hideButton();
+      window._stravaDebug = { status:401, error:(data&&data.error)||'invalid_session', at:new Date().toISOString() };
+      showUnavailable({ friendly:'Strava \u2014 sign in again', debug:'Strava 401 ' + ((data&&data.error)||'') },
+        'Your session expired, so a Strava link cannot be signed. Sign in again.');
       if (!silent && typeof handleAuthSessionLost === 'function'
           && localStorage.getItem('dp_auth_method') === 'email') handleAuthSessionLost();
       return { connected:false, activities:[] };
@@ -451,7 +469,9 @@ window.closeEnhancedModal = closeEnhancedModal;
 
     if (!res.ok) {
       console.warn('[strava] /api/strava responded ' + res.status, data && data.error);
-      hideButton();
+      window._stravaDebug = { status:res.status, error:(data&&data.error)||null, at:new Date().toISOString() };
+      showUnavailable({ friendly:'Strava unavailable', debug:'Strava ' + res.status },
+        'Strava lookup failed (' + res.status + (data&&data.error ? ': ' + data.error : '') + '). Tap to retry.');
       return { connected:false, activities:[] };
     }
 
@@ -461,7 +481,10 @@ window.closeEnhancedModal = closeEnhancedModal;
     } else if (data.connectUrl) {
       showConnect(data.connectUrl);
     } else {
-      hideButton();
+      // 200 with neither flag: the endpoint answered but gave us nothing usable.
+      window._stravaDebug = { status:200, error:'no connectUrl in response', at:new Date().toISOString() };
+      showUnavailable({ friendly:'Strava unavailable', debug:'Strava 200 no-url' },
+        'The portal answered but returned no connect link. Tap to retry.');
     }
     return data;
   }
@@ -470,7 +493,7 @@ window.closeEnhancedModal = closeEnhancedModal;
   // re-mint on click when the cached one is stale. The blank tab is opened
   // synchronously so the pop-up blocker still credits the user's gesture.
   function onClick(e){
-    if (!btn.getAttribute('href')) { e.preventDefault(); return; }
+    if (!btn.getAttribute('href')) { e.preventDefault(); load({}); return; }
     if (Date.now() - mintedAt < REFRESH_MS) return; // fresh enough to follow directly
     e.preventDefault();
     var tab = window.open('', '_blank');

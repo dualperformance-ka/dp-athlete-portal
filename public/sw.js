@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v132'; // v132: Strava connect button never falls back to a client-built URL
+const CACHE_NAME = 'dp-athlete-v133'; // v133: Strava button reports failures instead of hiding
 const APP_SHELL = [
   '/index.html', '/styles.css?v=107', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -13,7 +13,7 @@ const APP_SHELL = [
   '/js/08-training.js?v=111',
   '/js/09-logging.js?v=105',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=95',
+  '/js/10-boot.js?v=96',
   '/login.js?v=48', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

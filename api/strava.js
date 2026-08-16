@@ -126,7 +126,20 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const identity = await getRequestAthlete(req);
-  if (!identity) return res.status(401).json({ error: 'invalid_session' });
+  if (!identity) {
+    // Never log the token. Whether a header arrived, and which credential shape
+    // it was, is what separates "athlete never sent one" from "we rejected it".
+    const authHeader = String((req.headers && (req.headers.authorization || req.headers.Authorization)) || '');
+    console.warn(JSON.stringify({
+      level: 'warning',
+      message: 'Strava lookup rejected: no resolvable athlete',
+      route: '/api/strava',
+      requestId: req.headers && req.headers['x-vercel-id'],
+      hasAuthHeader: !!authHeader,
+      credentialShape: !authHeader ? 'none' : (/^Bearer\s+dp1\./i.test(authHeader) ? 'legacy' : 'supabase-jwt'),
+    }));
+    return res.status(401).json({ error: 'invalid_session' });
+  }
   const athleteCode = String(identity.athlete.code).toUpperCase();
 
   if (!process.env.STRAVA_CLIENT_ID || !process.env.STRAVA_CLIENT_SECRET) {
