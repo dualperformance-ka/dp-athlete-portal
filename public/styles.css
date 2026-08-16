@@ -4630,7 +4630,7 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 }
 .vstrip-scroll::-webkit-scrollbar{display:none}
 .vstrip-week{
-  flex:0 0 auto;width:34px;display:flex;flex-direction:column;align-items:center;gap:5px;
+  flex:0 0 auto;width:40px;display:flex;flex-direction:column;align-items:center;gap:5px;
   padding:4px 2px 5px;border:1px solid transparent;border-radius:10px;background:transparent;
   cursor:pointer;font:inherit;color:inherit;transition:background .15s,border-color .15s
 }
@@ -4646,6 +4646,27 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .vstrip-week.is-future .vstrip-bar i{opacity:.6}
 .vstrip-km{font-family:var(--body);font-size:10px;font-weight:600;line-height:1;color:var(--muted)}
 .vstrip-wk{font-family:var(--body);font-size:9px;line-height:1;color:var(--dim)}
+/* Completed weeks label what the athlete actually ran; this line says how that
+   compared to the plan. Rendered on every week (empty when there is nothing to
+   say) so all the bars keep a shared baseline. Tabular figures stop the number
+   jittering as the strip re-renders. */
+.vstrip-delta{
+  font-family:var(--body);font-size:9px;font-weight:700;line-height:1;
+  color:var(--dim);min-height:9px;font-variant-numeric:tabular-nums;
+  white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis
+}
+/* Over or on target. Under target stays recessive on purpose: a 1km miss is not
+   worth a warning colour, and the signed number already says which way it went. */
+.vstrip-delta.over{color:var(--ok)}
+.vstrip-week.is-current .vstrip-delta{color:var(--run-strong);font-weight:600}
+/* The unit, stated once, so nine bar labels can stay bare numbers. */
+.vstrip-titlewrap{display:flex;align-items:baseline;gap:5px;min-width:0}
+.vstrip-unit{
+  font-family:var(--body);font-size:10px;font-weight:600;line-height:1;color:var(--dim);
+  border:1px solid var(--border);border-radius:5px;padding:2px 5px;flex:0 0 auto
+}
+.vstrip-toggle .vstrip-titlewrap{flex:1;min-width:0}
+.vstrip-toggle .vstrip-titlewrap>.vstrip-title{flex:0 1 auto}
 .vstrip-week.is-current{background:var(--run-bg);border-color:var(--run-border)}
 .vstrip-week.is-current .vstrip-km{color:var(--run-strong)}
 .vstrip-week.is-current .vstrip-wk{color:var(--run-strong);font-weight:700}
@@ -4659,7 +4680,7 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .pgvol-scroll svg{display:block;max-width:none}
 .outdoor-mode .vstrip-bar{background:rgba(7,17,22,.07)}
 @media(max-width:400px){
-  .vstrip-week{width:30px}
+  .vstrip-week{width:36px}
   .vstrip-bar{width:14px;height:48px}
   .vstrip-foot{flex-direction:column;align-items:flex-start;gap:3px}
 }

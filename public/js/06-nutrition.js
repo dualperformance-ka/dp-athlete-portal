@@ -137,6 +137,52 @@ function toggleVolumeStrip(btn){
     if(cur&&sc) sc.scrollLeft=Math.max(0,cur.offsetLeft-sc.clientWidth/2+cur.offsetWidth/2);
   }
 }
+// A completed week's headline number is what the athlete ACTUALLY RAN, not what
+// was planned for them. The strip used to print `planned` under every bar while
+// the bar above it was drawn from `actual` — so a week planned at 75km and run at
+// 85.6km displayed "75", and the ten kilometres of overreach a coach most wants
+// to see were the one thing the chart hid.
+//
+// Rules, in the order they matter:
+//   past + actual known  → actual, plus a signed delta against the plan
+//   current week         → planned (the target), with actual-so-far underneath.
+//                          Flipping to actual here would show a bare "0" every
+//                          Monday morning, which reads as failure rather than as
+//                          a week that has not happened yet.
+//   future, or no Strava → planned, no delta
+//
+// The delta is a signed NUMBER, not only a colour, so it survives colourblindness,
+// greyscale, and the outdoor high-contrast theme.
+//
+// No unit on the labels: at 38px wide, nine repetitions of "km" is noise. The
+// unit is stated once in the card heading instead.
+function volumeWeekDisplay(w){
+  w=w||{};
+  var showActual=(w.actual!=null)&&!w.isFuture&&!w.isCurrent;
+  var value=showActual?w.actual:w.planned;
+  var delta='',deltaClass='';
+
+  if(showActual&&w.planned){
+    var diff=Math.round((w.actual-w.planned)*10)/10;
+    if(Math.abs(diff)<0.05){
+      // Landing exactly on the target deserves better than "+0".
+      delta='✓';deltaClass=' over';
+    }else if(diff>0){
+      delta='+'+fmtKmVal(diff);deltaClass=' over';
+    }else{
+      // U+2212 minus, not a hyphen: it sits on the digit baseline at 9px.
+      delta='−'+fmtKmVal(Math.abs(diff));
+    }
+  }else if(w.isCurrent&&w.actual!=null){
+    delta=fmtKmVal(w.actual)+' so far';
+  }
+
+  // A completed week with genuinely zero running still shows "0" — hiding it
+  // would be the same class of lie the planned-only label was.
+  var hasValue=(value!=null)&&(value>0||showActual);
+  return {value:hasValue?fmtKmVal(value):'',delta:delta,deltaClass:deltaClass,showActual:showActual};
+}
+
 function volumeStripHtml(data,mode,collapsible){
   var weeks=(data&&data.weeks)||[];
   var withPlan=weeks.filter(function(w){return w.planned;});
@@ -146,6 +192,12 @@ function volumeStripHtml(data,mode,collapsible){
   if(max<=0) return '';
   var peak=withPlan.reduce(function(a,b){return (b.planned>a.planned)?b:a;});
   var totalPlanned=Math.round(withPlan.reduce(function(t,w){return t+w.planned;},0));
+  // The footer used to report only the plan, so the one line summarising the
+  // whole block never mentioned what the athlete had actually done.
+  var totalActual=Math.round(weeks.reduce(function(t,w){
+    return t+((w.actual!=null&&!w.isFuture)?w.actual:0);
+  },0));
+  var anyActual=weeks.some(function(w){return w.actual!=null&&!w.isFuture;});
   var bars='';
   weeks.forEach(function(w){
     var ph=w.planned?Math.max(6,Math.round(w.planned/max*100)):0;
@@ -153,31 +205,43 @@ function volumeStripHtml(data,mode,collapsible){
     var cls='vstrip-week'+(w.isCurrent?' is-current':'')+(w.isPast?' is-past':'')+(w.isFuture?' is-future':'');
     if(!w.planned) cls+=' is-empty';
     if(w.actual!=null&&w.planned&&w.actual>=w.planned) cls+=' is-hit';
+    var disp=volumeWeekDisplay(w);
+    // Screen readers get the full picture — both numbers, named — because the
+    // visual shortcut of "big number is what you ran" is not available to them.
     var aria='Week '+w.week+(w.planned?', '+fmtKmVal(w.planned)+' km planned':', no target')
       +(w.actual!=null?', '+fmtKmVal(w.actual)+' km run':'');
     bars+='<button type="button" class="'+cls+'" onclick="jumpToProgrammeWeek('+w.week+',\''+mode+'\')" aria-label="'+esc(aria)+'">'
       +'<span class="vstrip-bar">'+(ph?'<i style="height:'+ph+'%"></i>':'')+(ah?'<b style="height:'+ah+'%"></b>':'')+'</span>'
       // No target for this week reads as broken with a dash, so leave it blank.
-      +'<span class="vstrip-km">'+(w.planned?fmtKmVal(w.planned):'')+'</span>'
+      +'<span class="vstrip-km">'+disp.value+'</span>'
+      // Always rendered, even when empty, so every bar keeps the same baseline.
+      +'<span class="vstrip-delta'+disp.deltaClass+'" aria-hidden="true">'+disp.delta+'</span>'
       +'<span class="vstrip-wk">W'+w.week+'</span>'
     +'</button>';
   });
   var summary='Peak W'+peak.week+' · '+fmtKmVal(peak.planned)+' km';
+  // The unit lives here, once, so the bar labels can stay bare numbers. Wrapped
+  // so the pair stays together when the head lays out with space-between.
+  var title='<span class="vstrip-titlewrap"><span class="vstrip-title">Volume by week</span>'
+    +'<span class="vstrip-unit">km</span></span>';
   var head=collapsible
     ? '<button type="button" class="vstrip-head vstrip-toggle" onclick="toggleVolumeStrip(this)" aria-expanded="false">'
-        +'<span class="vstrip-title">Volume by week</span>'
+        +title
         +'<span class="vstrip-sum">'+summary+'</span>'
         +'<svg class="icon vstrip-chev"><use href="#i-chevron-left"/></svg>'
       +'</button>'
     : '<div class="vstrip-head">'
-        +'<span class="vstrip-title">Volume by week</span>'
+        +title
         +'<span class="vstrip-legend"><span><i class="key-planned"></i>planned</span><span><i class="key-actual"></i>run</span></span>'
       +'</div>';
+  var foot=anyActual
+    ? '<span><b>'+totalActual+' km</b> run so far</span><span>'+totalPlanned+' km planned across the block</span>'
+    : '<span>Peak · Week '+peak.week+' at '+fmtKmVal(peak.planned)+' km</span><span>'+totalPlanned+' km planned across the block</span>';
   return head
     +'<div class="vstrip-body">'
       +(collapsible?'<div class="vstrip-legend vstrip-legend-row"><span><i class="key-planned"></i>planned</span><span><i class="key-actual"></i>run</span></div>':'')
       +'<div class="vstrip-scroll">'+bars+'</div>'
-      +'<div class="vstrip-foot"><span>Peak · Week '+peak.week+' at '+fmtKmVal(peak.planned)+' km</span><span>'+totalPlanned+' km planned across the block</span></div>'
+      +'<div class="vstrip-foot">'+foot+'</div>'
     +'</div>';
 }
 // mode drives what a week tap navigates: 'training' or 'nutrition'.
