@@ -6,6 +6,26 @@ import { join } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
 const source = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
+const styles = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
+
+test('mobile week workouts are separate controls without invented AM or PM slots', () => {
+  const renderStart = source.indexOf('function renderCal');
+  const renderEnd = source.indexOf('// ── WEEKLY PLAN KM TARGET', renderStart);
+  const renderSource = source.slice(renderStart, renderEnd);
+
+  assert.match(renderSource, /<button type="button" class="mobile-week-session/);
+  assert.match(renderSource, /onclick="openMobileWeekSession\(/);
+  assert.match(renderSource, /data-session-index=/);
+  assert.doesNotMatch(renderSource, /mobile-week-time|has-time|\?\s*'AM'\s*:\s*'PM'/);
+});
+
+test('completed mobile workouts get their own colour and tick', () => {
+  assert.match(source, /getType\(s\)\+\(done\?' done':''\)/);
+  assert.match(source, /class="mobile-week-complete"[\s\S]*#i-check/);
+  assert.match(source, /function syncMobileWeekSessionCompletion\(i,done\)/);
+  assert.match(styles, /\.mobile-week-session\.done\{background:[^}]+var\(--ok\)/);
+  assert.match(styles, /\.mobile-week-session\.done \.mobile-week-complete\{display:grid\}/);
+});
 
 test('Strava match controls stay inside the opened session, not the Home card', () => {
   const buildCardStart=source.indexOf('function buildCard');
