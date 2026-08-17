@@ -9,6 +9,7 @@ import {
   fetchAllActivities,
   hasRequiredScopes,
   isRunActivity,
+  isMobileUserAgent,
   missingScopes,
   normaliseActivity,
   parseScopes,
@@ -58,6 +59,20 @@ test('the authorize URL forces re-consent and requests every required scope', ()
   assert.match(url, /client_id=12345/);
   // The secret must never travel in a URL the athlete's browser follows.
   assert.ok(!url.includes('secret'), 'client_secret must never appear in the authorize URL');
+});
+
+test('mobile athletes use Strava mobile OAuth while desktop keeps web OAuth', () => {
+  process.env.STRAVA_CLIENT_ID = '12345';
+  process.env.STRAVA_CLIENT_SECRET = 'secret';
+
+  assert.equal(isMobileUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'), true);
+  assert.equal(isMobileUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9)'), true);
+  assert.equal(isMobileUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'), false);
+
+  const mobile = buildAuthorizeUrl('https://portal.test/api/strava-callback', 'state', REQUIRED_SCOPES, { mobile: true });
+  const desktop = buildAuthorizeUrl('https://portal.test/api/strava-callback', 'state');
+  assert.ok(mobile.startsWith('https://www.strava.com/oauth/mobile/authorize?'));
+  assert.ok(desktop.startsWith('https://www.strava.com/oauth/authorize?'));
 });
 
 // ── Effort ───────────────────────────────────────────────────────────────────

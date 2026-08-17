@@ -7,6 +7,7 @@ import { unavailableActivitiesResponse, refreshRequiresReconnect } from '../api/
 
 const read = (path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8');
 const boot = read('../public/js/10-boot.js');
+const index = read('../public/index.html');
 const stravaApi = read('../api/strava.js');
 const migration = read('../supabase/migrations/20260816120000_strava_activity_cache.sql');
 const vercelConfig = JSON.parse(read('../vercel.json'));
@@ -111,7 +112,7 @@ test('the OAuth success page does not promise the coach access to Strava data', 
   // Scoped to the rendered page, not the whole file: the comment above
   // successPage() quotes the old wording on purpose so the reason it changed
   // survives, and a whole-file match would flag that explanation as the bug.
-  const start = stravaApi.indexOf('function successPage()');
+  const start = stravaApi.indexOf('function successPage(');
   const page = stravaApi.slice(start, stravaApi.indexOf('function errorPage('));
   assert.ok(start >= 0 && page.length > 0, 'successPage() should remain discoverable');
 
@@ -163,6 +164,30 @@ test('the incomplete-scope state is an offer, not a broken-connection warning', 
 test('the scope-upgrade link is server-minted like every other Strava URL', () => {
   assert.match(boot, /data\.reconnectUrl/,
     'the re-consent URL must come from the server, which signs the state token');
+});
+
+test('Strava OAuth stays in one window on mobile and records the hand-off', () => {
+  assert.ok(!/id="dp-strava-btn"[^>]*target="_blank"/.test(index),
+    'the Strava link must not create an orphan tab in an installed iOS PWA');
+  assert.ok(!/window\.open\(/.test(boot),
+    'the stale-link refresh path must not pre-open an empty tab');
+  assert.match(boot, /window\.location\.assign\(url\)/,
+    'OAuth should navigate the current browsing context');
+  assert.match(boot, /\/api\/strava\?mode=attempt/,
+    'the click marker is needed to distinguish device hand-off failures from callback failures');
+});
+
+test('the OAuth callback responds immediately after durable token storage', () => {
+  const callback = stravaApi.slice(stravaApi.indexOf('async function handleCallback'));
+  const saved = callback.indexOf('await saveTokens');
+  const response = callback.indexOf('send(successPage');
+  assert.ok(saved >= 0 && response > saved, 'tokens must be durable before reporting success');
+  assert.equal(callback.includes('fetchAllActivities'), false,
+    'history backfill must not hold the mobile OAuth callback open');
+  assert.match(callback, /Strava OAuth callback received/,
+    'callback arrival must be visible in production diagnostics');
+  assert.match(callback, /Strava OAuth connection saved/,
+    'successful token persistence must be visible in production diagnostics');
 });
 
 test('disconnecting requires explicit confirmation', () => {
