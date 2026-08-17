@@ -695,6 +695,11 @@ header{background:rgba(6,8,10,.92);backdrop-filter:blur(12px)}
 .today-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
 .today-action{border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(255,255,255,.045);color:rgba(247,250,252,.76);font-family:var(--display);font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:10px 12px;cursor:pointer}
 .today-action.primary{background:var(--run);border-color:var(--run);color:#041015;box-shadow:0 8px 22px rgba(146,210,237,.18)}
+.todayitem.done{border-color:var(--ok-border);background:var(--ok-bg)}
+.todayitem.done .todaydot{background:var(--ok)}
+.todayitem.done .todayname{color:var(--ok)}
+.today-action.completed{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--ok-bg);border-color:var(--ok-border);color:var(--ok);box-shadow:none}
+.today-action.completed .icon{width:14px;height:14px}
 .today-action.secondary-blue{border-color:rgba(146,210,237,.22);color:rgba(183,230,247,.88);background:rgba(146,210,237,.065)}
 .week-plan-title{font-family:var(--mono);font-size:10px;color:rgba(247,250,252,.42);text-transform:uppercase;letter-spacing:.12em;margin:0 0 12px}
 .week-plan-shell{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:0 0 18px;padding:0 0 18px;border-bottom:1px solid rgba(255,255,255,.08)}

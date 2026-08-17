@@ -243,7 +243,7 @@ function renderCal(ws){
   var html='<div class="week-plan-shell"><div class="week-plan-heading-copy"><div class="week-plan-kicker">Training week <span class="week-plan-number">'+esc(programmeWeekLabel)+'</span></div><div class="week-plan-title"><span class="week-plan-title-desktop">Built for the week ahead</span><span class="week-plan-title-mobile">'+esc(weekTitle)+'</span></div><div class="week-plan-subtitle"><span class="week-plan-subtitle-desktop">'+esc(weekLabel)+' · '+sessions.length+' session'+(sessions.length===1?'':'s')+' loaded</span><span class="week-plan-subtitle-mobile">'+esc(weekSummary)+'</span></div></div><div class="month-calendar-actions"><button type="button" onclick="shiftWeek(-1)" aria-label="Previous week"><svg class="icon"><use href="#i-chevron-left"/></svg></button><button type="button" class="month-today-btn" onclick="goToday()">Today</button><button type="button" onclick="shiftWeek(1)" aria-label="Next week"><svg class="icon"><use href="#i-chevron-right"/></svg></button></div><div class="week-plan-meta"><span>'+runsThisWeek+' run'+(runsThisWeek===1?'':'s')+'</span><span>'+strengthThisWeek+' strength</span></div></div>';
   // WEEK AT A GLANCE — bird's-eye strip: one tile per day, dots per session
   // type, tick when the day is fully logged. Tapping a tile jumps to that day.
-  var sessionDone=function(s){return logHasRealData(logs[s.id])||s.status==='Completed';};
+  var sessionDone=trainingSessionIsComplete;
   if(mobileCalendar){
     trainingMonthGridStart=ws;trainingMonthGridEnd=we;
     html+='<div class="mobile-week-agenda" role="grid" aria-label="'+esc(weekTitle)+' training week">';
@@ -471,10 +471,13 @@ function logHasRealData(v){
     return val!==''&&val!=null; // run: distance/pace/rpe/...
   });
 }
+function trainingSessionIsComplete(s){
+  return !!(s&&(logHasRealData(logs[s.id])||s.status==='Completed'));
+}
 function buildCard(s,i){
   var type=getType(s);
   var logged=logHasRealData(logs[s.id]);
-  var done=logged||s.status==='Completed';
+  var done=trainingSessionIsComplete(s);
   var marked=!done&&!!ticked[s.id];
   var displayName=s.name||'Session';
   var metaLine='';
@@ -975,12 +978,13 @@ function renderTodaySection(){
   }else{
     html+='<div class="todaylist">';
     todaySessions.forEach(function(s){
-      var type=getType(s),meta=[],resolved=type==='run'?resolveRunDisplay(s):null;
+      var type=getType(s),meta=[],resolved=type==='run'?resolveRunDisplay(s):null,done=trainingSessionIsComplete(s);
       if(s.intensity) meta.push(s.intensity);
       if(s.week) meta.push(s.week);
-      if(s.status) meta.push(s.status);
+      if(done) meta.push('Completed');
+      else if(s.status) meta.push(s.status);
       var displayName=s.name||'Session';
-      html+='<div class="todayitem"><div class="todaytop"><div class="todaydot '+type+'"></div><div class="todaymain">';
+      html+='<div class="todayitem'+(done?' done':'')+'"><div class="todaytop"><div class="todaydot '+type+'"></div><div class="todaymain">';
       html+='<div class="todayname '+type+'">'+esc(displayName)+'</div>';
       if(meta.length) html+='<div class="todaymeta">'+esc(meta.join(' · '))+'</div>';
       var sessionIdx=-1;sessions.forEach(function(ws,wi){if(ws.id===s.id) sessionIdx=wi;});
@@ -1039,7 +1043,7 @@ function renderTodaySection(){
         html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
       }
       if(type!=='rest'&&sessionIdx>=0){
-        html+='<button type="button" class="today-action primary" onclick="startFocusedSession('+sessionIdx+')" style="width:100%;margin-top:12px">Open session <svg class="icon"><use href="#i-arrow-right"/></svg></button>';
+        html+='<button type="button" class="today-action '+(done?'completed':'primary')+'" onclick="startFocusedSession('+sessionIdx+')" style="width:100%;margin-top:12px" aria-label="Open '+(done?'completed ':'')+esc(displayName)+'">'+(done?'Completed <svg class="icon"><use href="#i-check"/></svg>':'Open session <svg class="icon"><use href="#i-arrow-right"/></svg>')+'</button>';
       }
       html+='</div></div></div>';
     });

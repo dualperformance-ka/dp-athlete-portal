@@ -203,14 +203,23 @@ function volumeSportRows(week){
   var targets=(week&&week.coachTargets)||[],actualBySport=(week&&week.actualBySport)||{};
   return COACH_SPORT_ORDER.map(function(sport){
     var target=targets.find(function(row){return row.sport===sport;})||null;
+    // Running always has an authoritative programme fallback: the same weekly
+    // total used by the volume bars. Keep it separate from a published coach
+    // override so the UI never calls a calculated plan "Coach target · Locked".
+    var plannedTargetMetres=!target&&sport==='running'&&week&&week.planned!=null
+      ?Math.max(0,Number(week.planned)||0)*1000:null;
     var metrics=actualBySport[sport]||null;
-    return {sport:sport,target:target,metrics:metrics};
-  }).filter(function(row){return !!row.target||sportMetricsHaveActivity(row.metrics);});
+    return {sport:sport,target:target,plannedTargetMetres:plannedTargetMetres,metrics:metrics};
+  }).filter(function(row){return !!row.target||row.plannedTargetMetres!=null||sportMetricsHaveActivity(row.metrics);});
 }
 function coachTargetSummary(week){
   return volumeSportRows(week).map(function(row){
     var target=row.target,metrics=row.metrics;
     var actual=metrics?metrics.distanceMetres:0;
+    if(!target&&row.plannedTargetMetres!=null){
+      return COACH_SPORT_SHORT_LABELS[row.sport]+' '+coachDistanceText(actual,row.sport).replace(' ','\u00a0')
+        +'/'+coachDistanceText(row.plannedTargetMetres,row.sport).replace(' ','\u00a0')+' planned';
+    }
     if(!target) return COACH_SPORT_SHORT_LABELS[row.sport]+' '+coachDistanceText(actual,row.sport).replace(' ','\u00a0')+' · no target';
     return COACH_SPORT_SHORT_LABELS[row.sport]+' '+coachDistanceText(actual,row.sport).replace(' ','\u00a0')
       +'/'+coachDistanceText(target.distanceTargetMetres,row.sport).replace(' ','\u00a0');
@@ -223,6 +232,21 @@ function coachTargetsHtml(week){
     +rows.map(function(row){
       var target=row.target,metrics=row.metrics,sport=row.sport;
       var actualDistance=metrics?metrics.distanceMetres:0;
+      if(!target&&row.plannedTargetMetres!=null){
+        var plannedDistance=Number(row.plannedTargetMetres)||0;
+        var plannedPct=plannedDistance>0?Math.min(100,Math.round(actualDistance/plannedDistance*100)):(actualDistance===0?100:0);
+        var plannedDetails=[];
+        if(metrics&&metrics.sessions>0) plannedDetails.push(metrics.sessions+' '+(metrics.sessions===1?'session':'sessions'));
+        if(metrics&&metrics.durationMinutes>0) plannedDetails.push(metrics.durationMinutes+' min');
+        return '<section class="sport-target sport-target-'+sport+' sport-target-planned">'
+          +'<div class="sport-target-head"><span class="sport-target-name">'+COACH_SPORT_LABELS[sport]+'</span>'
+            +'<span class="sport-target-status">Planned target</span></div>'
+          +'<div class="sport-target-distance"><strong>'+coachDistanceText(actualDistance,sport)+'</strong>'
+            +'<span>/ '+coachDistanceText(plannedDistance,sport)+'</span></div>'
+          +'<div class="sport-target-track" role="progressbar" aria-label="'+COACH_SPORT_LABELS[sport]+' weekly planned distance" aria-valuemin="0" aria-valuenow="'+Math.round(actualDistance)+'" aria-valuemax="'+plannedDistance+'"><i style="width:'+plannedPct+'%"></i></div>'
+          +(plannedDetails.length?'<div class="sport-target-meta">'+plannedDetails.map(function(detail){return '<span>'+esc(detail)+'</span>';}).join('')+'</div>':'')
+        +'</section>';
+      }
       if(!target){
         var actualDetails=[];
         if(metrics&&metrics.sessions>0) actualDetails.push(metrics.sessions+' '+(metrics.sessions===1?'session':'sessions'));
