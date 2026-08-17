@@ -1,10 +1,10 @@
-const CACHE_NAME = 'dp-athlete-v143'; // v143: keep Home and Training completion states consistent
+const CACHE_NAME = 'dp-athlete-v144'; // v144: guide installed-PWA notification setup and enable every reminder together
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=113', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=114', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=108',
-  '/js/02-login-goals.js?v=102',
-  '/js/03-nav-nudges.js?v=93',
+  '/js/02-login-goals.js?v=103',
+  '/js/03-nav-nudges.js?v=94',
   '/js/04-checkin.js?v=87',
   '/js/05-handbook.js?v=84',
   '/js/06-nutrition.js?v=91',

@@ -169,6 +169,9 @@ async function doLogin(code,prevalidatedRoster){
       retryPendingCoachWrites(true);
       initCallNudge();
       syncPushSubscription();
+      // Installed PWAs get one friendly in-app explanation first. The native
+      // permission sheet is still opened only by the athlete's button tap.
+      if(typeof maybePromptPwaNotifications==='function')setTimeout(maybePromptPwaNotifications,700);
     },0);
   });
   // A persisted week paints immediately. Refresh it without clearing the

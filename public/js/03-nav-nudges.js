@@ -482,19 +482,78 @@ var REMINDER_OPTIONS=[
   {key:'coach',icon:'chat',label:'Coach replies',sub:'When coaching feedback arrives'}
 ];
 function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp_reminders_'+((athlete&&athlete.code)||'default'))||'{}');}catch(e){return{};}}
-function openPreferences(){
-  toggleMoreMenu(false);var prefs=getReminderPreferences(),list=document.getElementById('notificationPreferences');
-  list.innerHTML=REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span class="preference-icon"><svg class="icon"><use href="#i-'+o.icon+'"/></svg></span><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
+function reminderStorageKey(){return'dp_reminders_'+((athlete&&athlete.code)||'default');}
+function notificationOnboardingKey(){return'dp_notification_onboarding_'+((athlete&&athlete.code)||'default');}
+function isInstalledPortalPwa(){
+  return !!((window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true);
+}
+function setAllReminderPreferences(enabled){
+  var prefs={};REMINDER_OPTIONS.forEach(function(o){prefs[o.key]=!!enabled;});
+  localStorage.setItem(reminderStorageKey(),JSON.stringify(prefs));
+  return prefs;
+}
+var _notificationOnboardingOpen=false;
+function renderReminderPreferences(showOnboarding){
+  var prefs=getReminderPreferences(),list=document.getElementById('notificationPreferences');if(!list)return;
+  var onboarding=showOnboarding&&'Notification'in window&&Notification.permission!=='denied'
+    ?'<div class="notification-onboarding"><span class="preference-icon"><svg class="icon"><use href="#i-alert"/></svg></span><div><strong>Turn on portal notifications</strong><p>One tap enables training, check-in, photo and coach reminders. Your phone will ask you to confirm.</p><button id="enableAllNotificationsBtn" type="button" onclick="enableAllReminderNotifications()">Enable all notifications</button></div></div>'
+    :'';
+  list.innerHTML=onboarding+REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span class="preference-icon"><svg class="icon"><use href="#i-'+o.icon+'"/></svg></span><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
     +'<div id="pushStatus" class="push-status">Notifications · '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>';
+}
+function openPreferences(options){
+  options=options||{};toggleMoreMenu(false);_notificationOnboardingOpen=!!options.onboarding;
+  renderReminderPreferences(_notificationOnboardingOpen);
   syncPushSubscription();
   setMobileNav('more');document.getElementById('preferencesModal').classList.add('open');document.body.style.overflow='hidden';
 }
-function closePreferences(){document.getElementById('preferencesModal').classList.remove('open');document.body.style.overflow='';restoreMobileNavContext();}
+function closePreferences(){
+  if(_notificationOnboardingOpen){localStorage.setItem(notificationOnboardingKey(),'dismissed');_notificationOnboardingOpen=false;}
+  document.getElementById('preferencesModal').classList.remove('open');document.body.style.overflow='';restoreMobileNavContext();
+}
+function maybePromptPwaNotifications(){
+  if(!athlete||!isInstalledPortalPwa()||!('Notification'in window)||!('PushManager'in window))return;
+  if(Notification.permission==='denied'||localStorage.getItem(notificationOnboardingKey()))return;
+  var prefs=getReminderPreferences();
+  if(REMINDER_OPTIONS.some(function(o){return !!prefs[o.key];}))return;
+  openPreferences({onboarding:true});
+}
+async function enableAllReminderNotifications(){
+  var btn=document.getElementById('enableAllNotificationsBtn');
+  if(btn){btn.disabled=true;btn.textContent='Waiting for permission…';}
+  var permission=Notification.permission;
+  if(permission==='default'){try{permission=await Notification.requestPermission();}catch(e){permission='denied';}}
+  if(permission!=='granted'){
+    localStorage.setItem(notificationOnboardingKey(),'declined');
+    _notificationOnboardingOpen=false;renderReminderPreferences(false);
+    showToast('Notifications were not enabled — you can allow them later in phone settings','error');
+    return;
+  }
+  setAllReminderPreferences(true);
+  localStorage.setItem(notificationOnboardingKey(),'enabled');
+  _notificationOnboardingOpen=false;renderReminderPreferences(false);
+  await syncPushSubscription();
+  showToast('All notifications enabled ✓');
+}
 async function setReminderPreference(key,enabled){
   var wanted=enabled;
-  if(enabled&&'Notification'in window&&Notification.permission==='default'){try{var permission=await Notification.requestPermission();if(permission!=='granted')enabled=false;}catch(e){enabled=false;}}
+  if(enabled&&!('Notification'in window))enabled=false;
+  if(enabled&&'Notification'in window&&Notification.permission==='default'){
+    try{
+      var permission=await Notification.requestPermission();
+      if(permission==='granted'){
+        setAllReminderPreferences(true);
+        localStorage.setItem(notificationOnboardingKey(),'enabled');
+        _notificationOnboardingOpen=false;renderReminderPreferences(false);
+        await syncPushSubscription();
+        showToast('All notifications enabled ✓');
+        return;
+      }
+      enabled=false;
+    }catch(e){enabled=false;}
+  }
   if(enabled&&'Notification'in window&&Notification.permission==='denied')enabled=false;
-  var prefs=getReminderPreferences();prefs[key]=enabled;localStorage.setItem('dp_reminders_'+athlete.code,JSON.stringify(prefs));
+  var prefs=getReminderPreferences();prefs[key]=enabled;localStorage.setItem(reminderStorageKey(),JSON.stringify(prefs));
   if(wanted&&!enabled){
     // Permission was refused — keep the toggle honest.
     var idx=REMINDER_OPTIONS.map(function(o){return o.key;}).indexOf(key);
