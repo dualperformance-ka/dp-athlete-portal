@@ -26,7 +26,9 @@ athlete rows are ever created by the auth flow.
 | `EMAIL_AUTH_UI` const | `public/config.js` | Shows/hides the "Sign in with email" toggle on the login screen. |
 | `athletes.auth_mode` column | Supabase, per athlete | `'code'` (default) = legacy only. `'both'` = email enabled, code still works (use during migration). `'email'` = migrated (code login still physically works until global retirement — this value is bookkeeping + future enforcement). |
 
-Access-code login now creates a server-signed, expiring portal session. Email
+Access-code login now creates a server-signed, expiring portal session. The
+browser transparently renews that token from the remembered successful code
+login, so expiry never sends an active client back to the login screen. Email
 OTP and code login therefore share the same authenticated data boundary.
 
 ## One-time setup
@@ -95,7 +97,7 @@ have them sign in again (and delete the stale auth user in Supabase if unused).
 | 10 | Direct Supabase REST with A's session token querying `athlete_data` for B's code | Empty result (RLS: `athlete_code = current_athlete_code()`). |
 | 11 | Mixed rollout | One migrated + one legacy athlete simultaneously; both fully functional. |
 | 12 | History continuity | Migrated athlete sees all pre-migration logs/goals/photos/check-ins; new writes appear in the coach dashboard under the same code. |
-| 13 | Legacy `?code=` coach link | Exchanges the code for a 24-hour signed portal session, then opens the portal. |
+| 13 | Legacy `?code=` coach link | Exchanges the code for a 24-hour signed portal session, then opens the portal; later expiry renews silently on that device. |
 | 14 | Paused/archived athlete via email | Paused screen / no access — same as code path. Archived athletes never resolve. |
 
 ## Verifying PWA persistence (test 4/5 details)

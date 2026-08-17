@@ -49,8 +49,13 @@ async function bootPortal(){
     _authToken=null;localStorage.removeItem('dp_legacy_session');
   }
   var savedCode=localStorage.getItem('dp_auth_code');
-  // A stored code may silently resume only while email auth is disabled.
-  // Once email is primary, logged-out athletes must deliberately choose code.
+  var savedMethod=localStorage.getItem('dp_auth_method');
+  // A previously authenticated access-code client stays signed in even after
+  // its short-lived server token expires: doLogin exchanges the remembered
+  // code for a fresh signed session. Explicit logout clears both values.
+  if(savedCode&&savedMethod==='code'){doLogin(savedCode);return;}
+  // Pre-migration remembered codes (which have no method marker) retain the old
+  // automatic behaviour only when email auth is not the primary login.
   if(savedCode&&!emailPrimary){doLogin(savedCode);return;}
   if(typeof showPrimaryLogin==='function')showPrimaryLogin();
   document.getElementById('loginScreen').style.display='block';

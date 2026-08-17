@@ -200,16 +200,68 @@ function authHeaders(base){
   if(_authToken)h['Authorization']='Bearer '+_authToken;
   return h;
 }
+// Access-code sessions are deliberately short-lived server-signed tokens, but
+// the portal has always remembered a successful access-code login on this
+// device. Transparently exchange that remembered credential for a fresh token
+// when needed so expiry protects API requests without logging the client out.
+// Explicit logout removes dp_auth_code/dp_auth_method, so it cannot auto-renew.
+var _legacyRenewPromise=null;
+function renewLegacySession(){
+  var method='',code='';
+  try{method=localStorage.getItem('dp_auth_method')||'';code=localStorage.getItem('dp_auth_code')||'';}catch(e){}
+  if(method!=='code'||!code)return Promise.resolve(null);
+  if(_legacyRenewPromise)return _legacyRenewPromise;
+  _legacyRenewPromise=(async function(){
+    try{
+      var r=await fetch('/api/auth-athlete',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'legacy-login',code:code}),
+        cache:'no-store'
+      });
+      var result={};try{result=await r.json();}catch(e){}
+      if(!r.ok||!result.access_token||String(result.code||'').toUpperCase()!==String(code).toUpperCase()){
+        // A definitive credential/account rejection must not loop forever.
+        // Keep remembered state on network/5xx failures so a later retry can
+        // recover without asking the client to sign in again.
+        if(r.status===401||r.status===403){
+          localStorage.removeItem('dp_legacy_session');
+          localStorage.removeItem('dp_auth_code');
+          localStorage.removeItem('dp_auth_method');
+        }
+        return null;
+      }
+      _authToken=result.access_token;
+      localStorage.setItem('dp_legacy_session',_authToken);
+      localStorage.setItem('dp_auth_method','code');
+      return result;
+    }catch(e){return null;}
+  })().finally(function(){_legacyRenewPromise=null;});
+  return _legacyRenewPromise;
+}
 async function portalRequest(action,payload,options){
-  if(!_authToken)throw new Error('Your session has expired. Please sign in again.');
+  if(!_authToken){
+    var restored=await renewLegacySession();
+    if(!restored)throw new Error('Your session has expired. Please sign in again.');
+  }
   var body=Object.assign({action:action},payload||{});
-  var response=await fetch('/api/portal-data',{
-    method:'POST',
-    headers:authHeaders({'Content-Type':'application/json'}),
-    body:JSON.stringify(body),
-    cache:'no-store',
-    keepalive:!!(options&&options.keepalive)
-  });
+  var encodedBody=JSON.stringify(body);
+  function send(){
+    return fetch('/api/portal-data',{
+      method:'POST',
+      headers:authHeaders({'Content-Type':'application/json'}),
+      body:encodedBody,
+      cache:'no-store',
+      keepalive:!!(options&&options.keepalive)
+    });
+  }
+  var response=await send();
+  // A code-login token may expire while the PWA remains open. Renew once and
+  // replay the request; Supabase email sessions refresh through supabase-js.
+  if(response.status===401&&localStorage.getItem('dp_auth_method')==='code'){
+    var renewed=await renewLegacySession();
+    if(renewed)response=await send();
+  }
   var data={};
   try{data=await response.json();}catch(e){}
   if(response.status===401){handleAuthSessionLost();throw new Error('Your session has expired. Please sign in again.');}
