@@ -18,7 +18,8 @@ test('email OTP is the primary logged-out sign-in when enabled', () => {
   assert.match(boot, /if\(typeof showPrimaryLogin==='function'\)showPrimaryLogin\(\);\s*document\.getElementById\('loginScreen'\)\.style\.display='block';/);
 });
 
-test('a remembered code cannot silently bypass email-first login', () => {
+test('authenticated access-code clients resume while stale pre-migration codes cannot bypass email-first login', () => {
+  assert.match(boot, /if\(savedCode&&savedMethod==='code'\)\{doLogin\(savedCode\);return;\}/);
   assert.match(boot, /if\(savedCode&&!emailPrimary\)\{doLogin\(savedCode\);return;\}/);
   assert.doesNotMatch(boot, /if\(savedCode\)\{doLogin\(savedCode\);return;\}/);
 });
