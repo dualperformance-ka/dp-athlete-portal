@@ -185,6 +185,7 @@ function volumeWeekDisplay(w){
 
 var COACH_SPORT_LABELS={running:'Running',cycling:'Cycling',swimming:'Swimming'};
 var COACH_SPORT_SHORT_LABELS={running:'Run',cycling:'Ride',swimming:'Swim'};
+var COACH_SPORT_ORDER=['running','cycling','swimming'];
 function coachDistanceText(metres,sport){
   var value=Number(metres);if(isNaN(value)||value<0)value=0;
   if(sport==='swimming') return Math.round(value)+' m';
@@ -195,32 +196,55 @@ function selectedVolumeWeek(data,mode){
   var selected=baseProgrammeWeek()+offset;
   return ((data&&data.weeks)||[]).find(function(week){return week.week===selected;})||null;
 }
+function sportMetricsHaveActivity(metrics){
+  return !!(metrics&&(Number(metrics.distanceMetres)>0||Number(metrics.sessions)>0||Number(metrics.durationMinutes)>0));
+}
+function volumeSportRows(week){
+  var targets=(week&&week.coachTargets)||[],actualBySport=(week&&week.actualBySport)||{};
+  return COACH_SPORT_ORDER.map(function(sport){
+    var target=targets.find(function(row){return row.sport===sport;})||null;
+    var metrics=actualBySport[sport]||null;
+    return {sport:sport,target:target,metrics:metrics};
+  }).filter(function(row){return !!row.target||sportMetricsHaveActivity(row.metrics);});
+}
 function coachTargetSummary(week){
-  return ((week&&week.coachTargets)||[]).map(function(target){
-    var metrics=week.actualBySport&&week.actualBySport[target.sport];
+  return volumeSportRows(week).map(function(row){
+    var target=row.target,metrics=row.metrics;
     var actual=metrics?metrics.distanceMetres:0;
-    return COACH_SPORT_SHORT_LABELS[target.sport]+' '+coachDistanceText(actual,target.sport).replace(' ','\u00a0')
-      +'/'+coachDistanceText(target.distanceTargetMetres,target.sport).replace(' ','\u00a0');
+    if(!target) return COACH_SPORT_SHORT_LABELS[row.sport]+' '+coachDistanceText(actual,row.sport).replace(' ','\u00a0')+' · no target';
+    return COACH_SPORT_SHORT_LABELS[row.sport]+' '+coachDistanceText(actual,row.sport).replace(' ','\u00a0')
+      +'/'+coachDistanceText(target.distanceTargetMetres,row.sport).replace(' ','\u00a0');
   }).join(' · ');
 }
 function coachTargetsHtml(week){
-  var targets=(week&&week.coachTargets)||[];
-  if(!targets.length) return '';
-  return '<div class="sport-targets" aria-label="Coach prescribed weekly training targets">'
-    +targets.map(function(target){
-      var metrics=week.actualBySport&&week.actualBySport[target.sport];
+  var rows=volumeSportRows(week);
+  if(!rows.length) return '';
+  return '<div class="sport-targets" aria-label="Weekly sport activity and coach targets">'
+    +rows.map(function(row){
+      var target=row.target,metrics=row.metrics,sport=row.sport;
       var actualDistance=metrics?metrics.distanceMetres:0;
+      if(!target){
+        var actualDetails=[];
+        if(metrics&&metrics.sessions>0) actualDetails.push(metrics.sessions+' '+(metrics.sessions===1?'session':'sessions'));
+        if(metrics&&metrics.durationMinutes>0) actualDetails.push(metrics.durationMinutes+' min');
+        return '<section class="sport-target sport-target-'+sport+' sport-target-unprescribed">'
+          +'<div class="sport-target-head"><span class="sport-target-name">'+COACH_SPORT_LABELS[sport]+'</span>'
+            +'<span class="sport-target-status">No weekly target</span></div>'
+          +'<div class="sport-target-distance"><strong>'+coachDistanceText(actualDistance,sport)+'</strong><span>completed</span></div>'
+          +(actualDetails.length?'<div class="sport-target-meta">'+actualDetails.map(function(detail){return '<span>'+esc(detail)+'</span>';}).join('')+'</div>':'')
+        +'</section>';
+      }
       var targetDistance=Number(target.distanceTargetMetres)||0;
       var pct=targetDistance>0?Math.min(100,Math.round(actualDistance/targetDistance*100)):(actualDistance===0?100:0);
       var details=[];
       if(target.sessionTarget!=null) details.push((metrics?metrics.sessions:0)+' / '+target.sessionTarget+' sessions');
       if(target.durationTargetMinutes!=null) details.push((metrics?metrics.durationMinutes:0)+' / '+target.durationTargetMinutes+' min');
-      return '<section class="sport-target sport-target-'+target.sport+'">'
-        +'<div class="sport-target-head"><span class="sport-target-name">'+COACH_SPORT_LABELS[target.sport]+'</span>'
+      return '<section class="sport-target sport-target-'+sport+'">'
+        +'<div class="sport-target-head"><span class="sport-target-name">'+COACH_SPORT_LABELS[sport]+'</span>'
           +'<span class="sport-target-lock" aria-label="Coach target, locked">Coach target · Locked</span></div>'
-        +'<div class="sport-target-distance"><strong>'+coachDistanceText(actualDistance,target.sport)+'</strong>'
-          +'<span>/ '+coachDistanceText(targetDistance,target.sport)+'</span></div>'
-        +'<div class="sport-target-track" role="progressbar" aria-label="'+COACH_SPORT_LABELS[target.sport]+' weekly distance" aria-valuemin="0" aria-valuenow="'+Math.round(actualDistance)+'" aria-valuemax="'+targetDistance+'"><i style="width:'+pct+'%"></i></div>'
+        +'<div class="sport-target-distance"><strong>'+coachDistanceText(actualDistance,sport)+'</strong>'
+          +'<span>/ '+coachDistanceText(targetDistance,sport)+'</span></div>'
+        +'<div class="sport-target-track" role="progressbar" aria-label="'+COACH_SPORT_LABELS[sport]+' weekly distance" aria-valuemin="0" aria-valuenow="'+Math.round(actualDistance)+'" aria-valuemax="'+targetDistance+'"><i style="width:'+pct+'%"></i></div>'
         +(details.length?'<div class="sport-target-meta">'+details.map(function(detail){return '<span>'+esc(detail)+'</span>';}).join('')+'</div>':'')
         +(target.coachNote?'<div class="sport-target-note">'+esc(target.coachNote)+'</div>':'')
       +'</section>';
@@ -237,9 +261,10 @@ function volumeStripHtml(data,mode,collapsible){
   var weeks=(data&&data.weeks)||[];
   var selectedWeek=selectedVolumeWeek(data,mode);
   var selectedTargets=(selectedWeek&&selectedWeek.coachTargets)||[];
+  var selectedSports=volumeSportRows(selectedWeek);
   var targetError=data&&data.targetState==='error';
   var withPlan=weeks.filter(function(w){return w.planned;});
-  if(!withPlan.length&&!selectedTargets.length&&!targetError) return '';
+  if(!withPlan.length&&!selectedSports.length&&!targetError) return '';
   var max=0;
   weeks.forEach(function(w){max=Math.max(max,w.planned||0,w.actual||0);});
   var peak=withPlan.length?withPlan.reduce(function(a,b){return (b.planned>a.planned)?b:a;}):null;
@@ -271,12 +296,12 @@ function volumeStripHtml(data,mode,collapsible){
       +'<span class="vstrip-wk">W'+w.week+'</span>'
     +'</button>';
   });
-  var summary=selectedTargets.length?coachTargetSummary(selectedWeek):
-    (targetError?'Coach targets unavailable':(peak?'Peak W'+peak.week+' · '+fmtKmVal(peak.planned)+' km':''));
+  var summary=targetError?'Coach targets unavailable':
+    (selectedSports.length?coachTargetSummary(selectedWeek):(peak?'Peak W'+peak.week+' · '+fmtKmVal(peak.planned)+' km':''));
   // The unit lives here, once, so the bar labels can stay bare numbers. Wrapped
   // so the pair stays together when the head lays out with space-between.
-  var title='<span class="vstrip-titlewrap"><span class="vstrip-title">'+(selectedTargets.length||targetError?'Weekly volume':'Volume by week')+'</span>'
-    +(!selectedTargets.length&&!targetError?'<span class="vstrip-unit">km</span>':'')+'</span>';
+  var title='<span class="vstrip-titlewrap"><span class="vstrip-title">'+(selectedSports.length||targetError?'Weekly volume':'Volume by week')+'</span>'
+    +(!selectedSports.length&&!targetError?'<span class="vstrip-unit">km</span>':'')+'</span>';
   var head=collapsible
     ? '<button type="button" class="vstrip-head vstrip-toggle" onclick="toggleVolumeStrip(this)" aria-expanded="false">'
         +title

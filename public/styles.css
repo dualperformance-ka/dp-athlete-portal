@@ -4800,6 +4800,11 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   font-family:var(--mono);font-size:8px;font-weight:650;line-height:1.2;letter-spacing:.035em;
   color:var(--dim);text-transform:uppercase;white-space:nowrap
 }
+.sport-target-status{
+  font-family:var(--mono);font-size:8px;font-weight:650;line-height:1.2;letter-spacing:.035em;
+  color:var(--muted);text-transform:uppercase;white-space:nowrap
+}
+.sport-target-unprescribed{border-style:dashed;background:transparent}
 .sport-target-distance{display:flex;align-items:baseline;gap:4px;font-family:var(--body);font-variant-numeric:tabular-nums}
 .sport-target-distance strong{font-size:20px;letter-spacing:-.035em;color:var(--text)}
 .sport-target-distance span{font-size:11px;color:var(--dim)}

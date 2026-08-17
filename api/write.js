@@ -18,6 +18,7 @@ const ALLOWED_STATE_KEYS = [
   /^reschedules$/,
   /^photos$/,
   /^ex_picks$/,
+  /^strength_rpe_enabled$/,
   /^pending_writes$/,
   /^strava_ack$/,
   /^strava_match_rejections$/,

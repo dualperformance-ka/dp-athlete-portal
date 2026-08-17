@@ -218,7 +218,7 @@ function collectSlotMap(exercises){
   });
   return slots;
 }
-function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;var previous=logs[s.id]||{};var exercises=getSplit(splitKey);var current={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;current[useName]=arr;});var gnEl=document.getElementById('gn_'+i);var meta={__sessionDate:strengthSessionDate(i,s),__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises)};if(gnEl)meta.__notes=gnEl.value;if(previous.__submittedAt)meta.__submittedAt=previous.__submittedAt;if(previous.__submittedSig)meta.__submittedSig=previous.__submittedSig;var log=mergeStrengthLog(previous,current,meta);logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);refreshGymSubmitState(i,s.id,log);try{markInlinePbs(i,splitKey);}catch(e){}}
+function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;var previous=logs[s.id]||{};var exercises=getSplit(splitKey);var current={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;current[useName]=arr;});var gnEl=document.getElementById('gn_'+i);var meta={__sessionDate:strengthSessionDate(i,s),__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises),__rpeEnabled:strengthLogRequiresRpe(previous,isSessionLogged(s.id))};if(gnEl)meta.__notes=gnEl.value;if(previous.__submittedAt)meta.__submittedAt=previous.__submittedAt;if(previous.__submittedSig)meta.__submittedSig=previous.__submittedSig;var log=mergeStrengthLog(previous,current,meta);logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);refreshGymSubmitState(i,s.id,log);try{markInlinePbs(i,splitKey);}catch(e){}}
 
 // ── NOTE-ONLY SESSION (discovery week "train as normal" + log notes) ──────────
 function draftNote(i){
@@ -720,7 +720,7 @@ async function saveGym(i,splitKey){
   var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
   if(gymNotes) log.__notes=gymNotes;
   var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:(s.date||new Date().toISOString().slice(0,10));
-  var storedLog=mergeStrengthLog(previous,log,{__notes:gymNotes,__sessionDate:gymDate,__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises)});
+  var storedLog=mergeStrengthLog(previous,log,{__notes:gymNotes,__sessionDate:gymDate,__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises),__rpeEnabled:strengthLogRequiresRpe(previous,isSessionLogged(s.id))});
   logs[s.id]=storedLog;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
   try{await portalStateWrite('logs',logs);}catch(e){}
   var pbHits=[];try{pbHits=detectSessionPBs(s.id,log);}catch(e){console.warn('PB detection failed:',e);}
@@ -760,11 +760,16 @@ async function saveGym(i,splitKey){
   var gymCoachResults=await Promise.all(fetches);
   await markSessionLogged(s.id);
   stampSessionSubmitted(s.id);
+  // The submitted marker/signature must reach the same cloud snapshot as the
+  // sets before success is shown. This closes the brief window where deleting
+  // or replacing the PWA could leave another device with an older draft view.
+  var gymStateQueued=false;
+  try{await portalStateWrite('logs',logs);}catch(e){gymStateQueued=true;setSaveState('offline');}
   var gymStatusResult=await markSessionDone(i);
   refreshStrengthFeedback(i,splitKey);
   refreshStrengthExerciseStates(i);
   try{markInlinePbs(i,splitKey);}catch(e){}
-  var gymQueued=gymCoachResults.some(function(r){return r&&r.queued;})||(gymStatusResult&&gymStatusResult.queued);
+  var gymQueued=gymStateQueued||gymCoachResults.some(function(r){return r&&r.queued;})||(gymStatusResult&&gymStatusResult.queued);
   showToast(gymQueued?'Session submitted - coach dashboard sync pending':(pbHits.length?(pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session submitted ✓'));
   var gymSavedBanner=document.getElementById('gym_saved_'+i);
   if(!gymSavedBanner){

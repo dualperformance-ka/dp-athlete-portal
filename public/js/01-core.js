@@ -350,6 +350,7 @@ window.addEventListener('offline',function(){setSaveState('offline');});
     if(key==='dp_goals_'+code) sbKey='goals';
     else if(key==='dp_logs_'+code) sbKey='logs';
     else if(key==='dp_ticked_'+code) sbKey='ticked';
+    else if(key==='dp_strength_rpe_enabled') sbKey='strength_rpe_enabled';
     else if(key==='dp_reschedules_'+code) sbKey='reschedules';
     else if(key==='dp_strava_match_rejections_'+code) sbKey='strava_match_rejections';
     else if(key==='dp_photos_'+code) sbKey='photos';
@@ -564,6 +565,7 @@ async function loadCloudData(code,preloaded){
       if(row.key==='goals') lsKey='dp_goals_'+code;
       else if(row.key==='logs') lsKey='dp_logs_'+code;
       else if(row.key==='ticked') lsKey='dp_ticked_'+code;
+      else if(row.key==='strength_rpe_enabled') lsKey='dp_strength_rpe_enabled';
       else if(row.key==='reschedules') lsKey='dp_reschedules_'+code;
       else if(row.key==='strava_match_rejections') lsKey='dp_strava_match_rejections_'+code;
       else if(row.key==='photos') lsKey='dp_photos_'+code;

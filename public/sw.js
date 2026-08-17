@@ -1,17 +1,17 @@
-const CACHE_NAME = 'dp-athlete-v139'; // v139: read-only coach-owned multi-sport targets
+const CACHE_NAME = 'dp-athlete-v141'; // v141: keep strength completion consistent across devices
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=111', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=112', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=107',
+  '/js/01-core.js?v=108',
   '/js/02-login-goals.js?v=102',
   '/js/03-nav-nudges.js?v=93',
   '/js/04-checkin.js?v=87',
   '/js/05-handbook.js?v=84',
-  '/js/06-nutrition.js?v=89',
+  '/js/06-nutrition.js?v=90',
   '/js/07-progress.js?v=86',
   '/js/strava-match.js?v=5',
-  '/js/08-training.js?v=112',
-  '/js/09-logging.js?v=105',
+  '/js/08-training.js?v=113',
+  '/js/09-logging.js?v=106',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=101',
   '/login.js?v=48', '/icons.css?v=3',
