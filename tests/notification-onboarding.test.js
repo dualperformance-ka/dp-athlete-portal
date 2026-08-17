@@ -41,11 +41,12 @@ test('an already-granted device can enable every portal category without a secon
 });
 
 test('new shell versions publish onboarding changes to installed PWAs', () => {
-  assert.match(index, /styles\.css\?v=114/);
-  assert.match(index, /02-login-goals\.js\?v=103/);
-  assert.match(index, /03-nav-nudges\.js\?v=94/);
-  assert.match(sw, /dp-athlete-v144/);
-  assert.match(sw, /styles\.css\?v=114/);
-  assert.match(sw, /02-login-goals\.js\?v=103/);
-  assert.match(sw, /03-nav-nudges\.js\?v=94/);
+  for (const [asset, minimum] of [['styles.css', 114], ['02-login-goals.js', 103], ['03-nav-nudges.js', 94]]) {
+    const match = index.match(new RegExp(asset.replace('.', '\\.') + '\\?v=(\\d+)'));
+    assert.ok(match, `${asset} should remain versioned`);
+    assert.ok(Number(match[1]) >= minimum, `${asset} must not roll back before its onboarding release`);
+    assert.ok(sw.includes(`${asset}?v=${match[1]}`), `${asset} should match the installed-PWA shell`);
+  }
+  const cache = sw.match(/dp-athlete-v(\d+)/);
+  assert.ok(cache && Number(cache[1]) >= 144);
 });
