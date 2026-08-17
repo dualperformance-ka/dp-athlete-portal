@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 109,
-    "sha": "067d4be6ff21"
+    "version": 111,
+    "sha": "97dcece8116a"
   },
   "desktop.css": {
     "version": 5,
@@ -16,12 +16,12 @@
     "sha": "91ee8465188a"
   },
   "js/01-core.js": {
-    "version": 106,
-    "sha": "8febf2f94eba"
+    "version": 107,
+    "sha": "71dbc3f79d49"
   },
   "js/02-login-goals.js": {
-    "version": 101,
-    "sha": "b009b818c85b"
+    "version": 102,
+    "sha": "48a01f1e9352"
   },
   "js/03-nav-nudges.js": {
     "version": 93,
@@ -32,12 +32,12 @@
     "sha": "3bf40de6ecee"
   },
   "js/05-handbook.js": {
-    "version": 82,
-    "sha": "70252f0852de"
+    "version": 84,
+    "sha": "42fef24591b9"
   },
   "js/06-nutrition.js": {
-    "version": 87,
-    "sha": "a593cca917f2"
+    "version": 89,
+    "sha": "666be57ddeec"
   },
   "js/07-progress.js": {
     "version": 86,
