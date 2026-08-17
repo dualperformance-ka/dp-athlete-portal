@@ -183,14 +183,66 @@ function volumeWeekDisplay(w){
   return {value:hasValue?fmtKmVal(value):'',delta:delta,deltaClass:deltaClass,showActual:showActual};
 }
 
+var COACH_SPORT_LABELS={running:'Running',cycling:'Cycling',swimming:'Swimming'};
+var COACH_SPORT_SHORT_LABELS={running:'Run',cycling:'Ride',swimming:'Swim'};
+function coachDistanceText(metres,sport){
+  var value=Number(metres);if(isNaN(value)||value<0)value=0;
+  if(sport==='swimming') return Math.round(value)+' m';
+  return fmtKmVal(value/1000)+' km';
+}
+function selectedVolumeWeek(data,mode){
+  var offset=mode==='nutrition'?nutWeekOffset:weekOffset;
+  var selected=baseProgrammeWeek()+offset;
+  return ((data&&data.weeks)||[]).find(function(week){return week.week===selected;})||null;
+}
+function coachTargetSummary(week){
+  return ((week&&week.coachTargets)||[]).map(function(target){
+    var metrics=week.actualBySport&&week.actualBySport[target.sport];
+    var actual=metrics?metrics.distanceMetres:0;
+    return COACH_SPORT_SHORT_LABELS[target.sport]+' '+coachDistanceText(actual,target.sport).replace(' ','\u00a0')
+      +'/'+coachDistanceText(target.distanceTargetMetres,target.sport).replace(' ','\u00a0');
+  }).join(' · ');
+}
+function coachTargetsHtml(week){
+  var targets=(week&&week.coachTargets)||[];
+  if(!targets.length) return '';
+  return '<div class="sport-targets" aria-label="Coach prescribed weekly training targets">'
+    +targets.map(function(target){
+      var metrics=week.actualBySport&&week.actualBySport[target.sport];
+      var actualDistance=metrics?metrics.distanceMetres:0;
+      var targetDistance=Number(target.distanceTargetMetres)||0;
+      var pct=targetDistance>0?Math.min(100,Math.round(actualDistance/targetDistance*100)):(actualDistance===0?100:0);
+      var details=[];
+      if(target.sessionTarget!=null) details.push((metrics?metrics.sessions:0)+' / '+target.sessionTarget+' sessions');
+      if(target.durationTargetMinutes!=null) details.push((metrics?metrics.durationMinutes:0)+' / '+target.durationTargetMinutes+' min');
+      return '<section class="sport-target sport-target-'+target.sport+'">'
+        +'<div class="sport-target-head"><span class="sport-target-name">'+COACH_SPORT_LABELS[target.sport]+'</span>'
+          +'<span class="sport-target-lock" aria-label="Coach target, locked">Coach target · Locked</span></div>'
+        +'<div class="sport-target-distance"><strong>'+coachDistanceText(actualDistance,target.sport)+'</strong>'
+          +'<span>/ '+coachDistanceText(targetDistance,target.sport)+'</span></div>'
+        +'<div class="sport-target-track" role="progressbar" aria-label="'+COACH_SPORT_LABELS[target.sport]+' weekly distance" aria-valuemin="0" aria-valuenow="'+Math.round(actualDistance)+'" aria-valuemax="'+targetDistance+'"><i style="width:'+pct+'%"></i></div>'
+        +(details.length?'<div class="sport-target-meta">'+details.map(function(detail){return '<span>'+esc(detail)+'</span>';}).join('')+'</div>':'')
+        +(target.coachNote?'<div class="sport-target-note">'+esc(target.coachNote)+'</div>':'')
+      +'</section>';
+    }).join('')
+  +'</div>';
+}
+function retryProgrammeVolume(){
+  invalidateProgrammeVolume();
+  if(typeof renderTrainingVolumeStrips==='function')renderTrainingVolumeStrips();
+  if(document.getElementById('nutVolumeStrip'))renderVolumeStrip('nutVolumeStrip','nutrition');
+}
+
 function volumeStripHtml(data,mode,collapsible){
   var weeks=(data&&data.weeks)||[];
+  var selectedWeek=selectedVolumeWeek(data,mode);
+  var selectedTargets=(selectedWeek&&selectedWeek.coachTargets)||[];
+  var targetError=data&&data.targetState==='error';
   var withPlan=weeks.filter(function(w){return w.planned;});
-  if(!withPlan.length) return '';
+  if(!withPlan.length&&!selectedTargets.length&&!targetError) return '';
   var max=0;
   weeks.forEach(function(w){max=Math.max(max,w.planned||0,w.actual||0);});
-  if(max<=0) return '';
-  var peak=withPlan.reduce(function(a,b){return (b.planned>a.planned)?b:a;});
+  var peak=withPlan.length?withPlan.reduce(function(a,b){return (b.planned>a.planned)?b:a;}):null;
   var totalPlanned=Math.round(withPlan.reduce(function(t,w){return t+w.planned;},0));
   // The footer used to report only the plan, so the one line summarising the
   // whole block never mentioned what the athlete had actually done.
@@ -199,7 +251,7 @@ function volumeStripHtml(data,mode,collapsible){
   },0));
   var anyActual=weeks.some(function(w){return w.actual!=null&&!w.isFuture;});
   var bars='';
-  weeks.forEach(function(w){
+  if(max>0) weeks.forEach(function(w){
     var ph=w.planned?Math.max(6,Math.round(w.planned/max*100)):0;
     var ah=(w.actual!=null&&w.actual>0)?Math.max(4,Math.round(Math.min(w.actual,max)/max*100)):0;
     var cls='vstrip-week'+(w.isCurrent?' is-current':'')+(w.isPast?' is-past':'')+(w.isFuture?' is-future':'');
@@ -219,11 +271,12 @@ function volumeStripHtml(data,mode,collapsible){
       +'<span class="vstrip-wk">W'+w.week+'</span>'
     +'</button>';
   });
-  var summary='Peak W'+peak.week+' · '+fmtKmVal(peak.planned)+' km';
+  var summary=selectedTargets.length?coachTargetSummary(selectedWeek):
+    (targetError?'Coach targets unavailable':(peak?'Peak W'+peak.week+' · '+fmtKmVal(peak.planned)+' km':''));
   // The unit lives here, once, so the bar labels can stay bare numbers. Wrapped
   // so the pair stays together when the head lays out with space-between.
-  var title='<span class="vstrip-titlewrap"><span class="vstrip-title">Volume by week</span>'
-    +'<span class="vstrip-unit">km</span></span>';
+  var title='<span class="vstrip-titlewrap"><span class="vstrip-title">'+(selectedTargets.length||targetError?'Weekly volume':'Volume by week')+'</span>'
+    +(!selectedTargets.length&&!targetError?'<span class="vstrip-unit">km</span>':'')+'</span>';
   var head=collapsible
     ? '<button type="button" class="vstrip-head vstrip-toggle" onclick="toggleVolumeStrip(this)" aria-expanded="false">'
         +title
@@ -232,16 +285,23 @@ function volumeStripHtml(data,mode,collapsible){
       +'</button>'
     : '<div class="vstrip-head">'
         +title
-        +'<span class="vstrip-legend"><span><i class="key-planned"></i>planned</span><span><i class="key-actual"></i>run</span></span>'
+        +(selectedTargets.length?'<span class="sport-target-lock">Coach target · Locked</span>':'<span class="vstrip-legend"><span><i class="key-planned"></i>planned</span><span><i class="key-actual"></i>run</span></span>')
       +'</div>';
   var foot=anyActual
     ? '<span><b>'+totalActual+' km</b> run so far</span><span>'+totalPlanned+' km planned across the block</span>'
-    : '<span>Peak · Week '+peak.week+' at '+fmtKmVal(peak.planned)+' km</span><span>'+totalPlanned+' km planned across the block</span>';
-  return head
-    +'<div class="vstrip-body">'
+    : (peak?'<span>Peak · Week '+peak.week+' at '+fmtKmVal(peak.planned)+' km</span><span>'+totalPlanned+' km planned across the block</span>':'');
+  var targetBody=targetError
+    ? '<div class="sport-target-error" role="status"><span>Coach targets are unavailable. Existing targets stay locked.</span><button type="button" onclick="retryProgrammeVolume()">Retry</button></div>'
+    : coachTargetsHtml(selectedWeek);
+  var runningBlock=withPlan.length&&max>0
+    ? '<div class="vstrip-running-block">'+(selectedTargets.length?'<div class="vstrip-subtitle">Running block</div>':'')
       +(collapsible?'<div class="vstrip-legend vstrip-legend-row"><span><i class="key-planned"></i>planned</span><span><i class="key-actual"></i>run</span></div>':'')
       +'<div class="vstrip-scroll">'+bars+'</div>'
-      +'<div class="vstrip-foot">'+foot+'</div>'
+      +'<div class="vstrip-foot">'+foot+'</div></div>'
+    : '';
+  return head
+    +'<div class="vstrip-body">'
+      +targetBody+runningBlock
     +'</div>';
 }
 // mode drives what a week tap navigates: 'training' or 'nutrition'.
@@ -271,6 +331,18 @@ async function renderVolumeStrip(id,mode){
     if(cur&&scroller) scroller.scrollLeft=Math.max(0,cur.offsetLeft-scroller.clientWidth/2+cur.offsetWidth/2);
   }
 }
+var _volumeVisibleTimer=null;
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState!=='visible'||!athlete||!_authToken)return;
+  clearTimeout(_volumeVisibleTimer);
+  _volumeVisibleTimer=setTimeout(function(){
+    loadProgrammeVolume(true).then(function(){
+      if(typeof renderTrainingVolumeStrips==='function')renderTrainingVolumeStrips();
+      var nutritionTab=document.getElementById('tab-nutrition');
+      if(nutritionTab&&nutritionTab.classList.contains('active'))renderVolumeStrip('nutVolumeStrip','nutrition');
+    }).catch(function(){});
+  },250);
+});
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 
 async function loadNutrition(){
@@ -290,6 +362,7 @@ async function loadNutrition(){
   // Kick off the completed-KM tracker scan now — it's the slowest fetch and is
   // independent of the nutrition row, so it runs in parallel.
   var trackerPromise=getWeeklyCompletedKmFromTracker(nutWeekOffset).catch(function(){return null;});
+  var volumePromise=loadProgrammeVolume().catch(function(){return null;});
 
   // Nutrition plans now live in Supabase (nutrition_plans) — single source of
   // truth shared with the coaches dashboard. One row per athlete per week.
@@ -313,9 +386,18 @@ async function loadNutrition(){
   _nutLastLoad=Date.now();
   document.getElementById('nutLoadingEl').style.display='none';
 
+  var volumeData=await volumePromise;
+  var volumeWeek=volumeData&&volumeData.weeks&&volumeData.weeks.find(function(item){return item.week===displayWeek;});
+  var coachRunTarget=volumeWeek&&targetForProgrammeWeek(volumeWeek.coachTargets,volumeWeek.weekIdentifier,'running');
+
   if(!row){
     document.getElementById('nutNoplan').style.display='block';
-    document.getElementById('kmBar').style.display='none';
+    if(coachRunTarget&&volumeData.targetState!=='error'){
+      var noPlanMetrics=volumeWeek.actualBySport&&volumeWeek.actualBySport.running;
+      currentWeekKmData={week:weekLabel,target:coachRunTarget.distanceTargetMetres/1000,
+        completed:noPlanMetrics?noPlanMetrics.distanceMetres/1000:0,source:'strava',locked:true};
+      renderKmTracker(currentWeekKmData);
+    }else document.getElementById('kmBar').style.display='none';
     renderWeeklyKmCard('nutKmCard',null);
     // No nutrition row still leaves a planned-session km target for the week list.
     if(typeof renderTrainingVolumeStrips==='function') renderTrainingVolumeStrips();
@@ -360,9 +442,11 @@ async function loadNutrition(){
 
   // Weekly KM: manual target wins; otherwise auto-sum this week's planned
   // session distances (with "Weekly KM Total: 65km" rows as a floor).
-  var manualKmTarget=row.weekly_km_target!=null;
-  var kmTarget=manualKmTarget?Number(row.weekly_km_target):null;
-  if(kmTarget==null&&nutritionPlanned.length){
+  var coachTargetsUnavailable=volumeData&&volumeData.targetState==='error';
+  var manualKmTarget=coachTargetsUnavailable||!!coachRunTarget||row.weekly_km_target!=null;
+  var kmTarget=coachRunTarget?coachRunTarget.distanceTargetMetres/1000:(row.weekly_km_target!=null?Number(row.weekly_km_target):null);
+  if(coachTargetsUnavailable)kmTarget=null;
+  if(!manualKmTarget&&kmTarget==null&&nutritionPlanned.length){
     try{
       if(nutritionPlanned.length){
         var sum=0,declared=0;
@@ -404,10 +488,14 @@ async function loadNutrition(){
   var kmCompleted=hasStrava ? stravaCompleted :
     (trackerCompleted!=null&&trackerCompleted>0 ? trackerCompleted :
       (localCompleted>0 ? localCompleted : nutritionCompleted));
+  if(coachRunTarget&&volumeWeek&&volumeWeek.actualBySport&&volumeWeek.actualBySport.running){
+    kmCompleted=volumeWeek.actualBySport.running.distanceMetres/1000;
+  }
 
   currentWeekKmData.target=kmTarget;
   currentWeekKmData.completed=kmCompleted;
   currentWeekKmData.source=hasStrava?'strava':(trackerCompleted>0?'portal':(localCompleted>0?'local':'nutrition_row'));
+  currentWeekKmData.locked=!!coachRunTarget;
 
   if(kmTarget!=null){
     renderKmTracker({target:kmTarget,completed:kmCompleted,source:currentWeekKmData.source});

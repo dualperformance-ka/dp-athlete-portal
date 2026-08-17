@@ -111,6 +111,7 @@ function hydrateLocalPortalState(code){
   }
 }
 async function doLogin(code,prevalidatedRoster){
+  if(typeof invalidateProgrammeVolume==='function')invalidateProgrammeVolume();
   var btn=document.getElementById('loginBtn')||document.querySelector('.lbtn');
   btn.textContent='Authenticating...';btn.disabled=true;btn.classList.add('loading');
   clearLoginError();

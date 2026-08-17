@@ -85,22 +85,67 @@ function plannedKmFromRow(r){
 }
 var _programmeVolume=null,_programmeVolumePromise=null;
 function invalidateProgrammeVolume(){_programmeVolume=null;_programmeVolumePromise=null;}
-// One pass over the whole programme: planned km per week (coach target wins,
-// else the sum of that week's planned runs) and actual km per week from Strava.
-// Weeks before the athlete's Strava history start report actual=null ("no data")
-// rather than a misleading 0.
+function coachTargetKey(weekIdentifier,sport){return String(weekIdentifier||'')+'|'+String(sport||'').toLowerCase();}
+function targetForProgrammeWeek(targets,weekIdentifier,sport){
+  var key=coachTargetKey(weekIdentifier,sport);
+  return (targets||[]).find(function(target){return coachTargetKey(target.weekIdentifier,target.sport)===key;})||null;
+}
+function sportForStravaActivity(activity){
+  var type=String(activity&&((activity.sport_type||activity.type))||'').toLowerCase();
+  if(type.indexOf('swim')>=0) return 'swimming';
+  if(type.indexOf('ride')>=0||type.indexOf('cycl')>=0||type.indexOf('bike')>=0) return 'cycling';
+  if(type.indexOf('run')>=0) return 'running';
+  return null;
+}
+function completedSportMetrics(activities,sport,startISO,endISO){
+  var metrics={distanceMetres:0,sessions:0,durationMinutes:0};
+  (activities||[]).forEach(function(activity){
+    if(sportForStravaActivity(activity)!==sport) return;
+    var activityDate=String(activity.start_date_local||activity.start_date||'').slice(0,10);
+    if(!activityDate||activityDate<startISO||activityDate>endISO) return;
+    var metres=Number(activity.distance);
+    var seconds=Number(activity.moving_time!=null?activity.moving_time:activity.elapsed_time);
+    metrics.distanceMetres+=isNaN(metres)||metres<0?0:metres;
+    metrics.durationMinutes+=isNaN(seconds)||seconds<0?0:seconds/60;
+    metrics.sessions++;
+  });
+  metrics.distanceMetres=Math.round(metrics.distanceMetres);
+  metrics.durationMinutes=Math.round(metrics.durationMinutes);
+  return metrics;
+}
+function rangeFromProgrammeWeek(programmeWeek,offset){
+  var start=programmeWeek&&String(programmeWeek.startDate||'').slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)) return getWeekDateRangeFromOffset(offset);
+  var bits=start.split('-'),dateObj=new Date(Number(bits[0]),Number(bits[1])-1,Number(bits[2]));
+  var end=new Date(dateObj.getFullYear(),dateObj.getMonth(),dateObj.getDate()+6);
+  return {start:dateObj,end:end,startISO:start,endISO:localISO(end)};
+}
+// One pass over the whole programme. Canonical programme-week UUIDs join the
+// read-only coach targets to the athlete's calendar; a row's presence is the
+// lock, including an explicit zero. Legacy running targets remain a display
+// fallback only when the dashboard returned a successful empty result.
 async function loadProgrammeVolume(force){
   if(force) invalidateProgrammeVolume();
   if(_programmeVolume) return _programmeVolume;
   if(_programmeVolumePromise) return _programmeVolumePromise;
   _programmeVolumePromise=(async function(){
     var code=(athlete&&athlete.code||'').toUpperCase().trim();
-    var planned={},manual={};
+    var planned={},manual={},programmeWeekRows=[],coachTargets=[],targetState='empty',targetError='';
     if(_authToken&&code){
+      var programmeResult=null,targetResult=null;
+      try{programmeResult=await portalRequest('programme-data');}
+      catch(e){console.warn('Programme volume load failed',e);}
       try{
-        var snapshot=window._trainingReadSnapshot;
-        var hasSnapshot=!!(snapshot&&Array.isArray(snapshot.plannedRows)&&Array.isArray(snapshot.nutritionRows));
-        var res=hasSnapshot?{planned:snapshot.plannedRows,nutrition:snapshot.nutritionRows}:await portalRequest('programme-data');
+        targetResult=await portalRequest('weekly-sport-targets');
+        coachTargets=Array.isArray(targetResult.targets)?targetResult.targets:[];
+        targetState=coachTargets.length?'ready':'empty';
+      }catch(e){
+        targetState='error';targetError='Coach targets are temporarily unavailable';
+        console.warn('Coach target load failed',e);
+      }
+      try{
+        var res=programmeResult||{};
+        programmeWeekRows=Array.isArray(res.programmeWeeks)?res.programmeWeeks:[];
         (res.planned||[]).forEach(function(r){
           var m=String(r.week_label||'').match(/\d+/);
           if(!m) return;
@@ -118,37 +163,65 @@ async function loadProgrammeVolume(force){
           var m=String(r.week_label||'').match(/\d+/);
           if(m&&r.weekly_km_target!=null) manual[parseInt(m[0],10)]=Number(r.weekly_km_target);
         });
-      }catch(e){console.warn('Programme volume load failed',e);}
+      }catch(e){console.warn('Programme volume mapping failed',e);}
     }
     var strava=null;
     try{strava=window._stravaLoadPromise?await window._stravaLoadPromise:null;}catch(e){}
     var hasStrava=!!(strava&&strava.connected&&strava.activitiesAvailable!==false),activities=(strava&&strava.activities)||[];
-    // Oldest Strava run: anything before it is "unknown", not zero.
-    var firstStravaISO=null;
+    var firstStravaBySport={running:null,cycling:null,swimming:null};
     if(hasStrava){
       activities.forEach(function(a){
-        if(String((a.sport_type||a.type)||'').toLowerCase().indexOf('run')<0) return;
+        var sport=sportForStravaActivity(a);if(!sport)return;
         var d=String(a.start_date_local||a.start_date||'').slice(0,10);
-        if(d&&(!firstStravaISO||d<firstStravaISO)) firstStravaISO=d;
+        if(d&&(!firstStravaBySport[sport]||d<firstStravaBySport[sport])) firstStravaBySport[sport]=d;
       });
     }
     var base=baseProgrammeWeek(),total=Math.max(programmeWeeks||12,base),weeks=[];
-    for(var wk=1;wk<=total;wk++){
+    var canonicalByNumber={};
+    programmeWeekRows.forEach(function(row){canonicalByNumber[Number(row.weekNumber)]=row;});
+    if(programmeWeekRows.length){
+      total=Math.max(total,programmeWeekRows.reduce(function(max,row){return Math.max(max,Number(row.weekNumber)||0);},0));
+    }
+    var firstWeek=(canonicalByNumber[0]||base===0)?0:1;
+    for(var wk=firstWeek;wk<=total;wk++){
       var p=planned[wk]||{sum:0,declared:0};
       var auto=Math.round(Math.max(p.sum,p.declared)*10)/10;
-      // Coach's weekly_km_target is the intent and always wins — same rule the
-      // current-week card uses, so the strip can never disagree with it.
-      var target=manual[wk]!=null?manual[wk]:(auto>0?auto:null);
-      var range=getWeekDateRangeFromOffset(wk-base);
-      var actual=null;
-      if(hasStrava&&firstStravaISO&&range.endISO>=firstStravaISO&&range.startISO<=localISO(new Date())){
-        actual=deriveCompletedKmFromStrava(activities,wk-base);
+      var canonical=canonicalByNumber[wk]||null;
+      var weekIdentifier=canonical&&canonical.id||null;
+      if(!weekIdentifier){
+        var plannedRow=(programmeResult&&programmeResult.planned||[]).find(function(row){
+          var m=String(row.week_label||'').match(/\d+/);return m&&Number(m[0])===wk&&row.programme_week_id;
+        });
+        weekIdentifier=plannedRow&&plannedRow.programme_week_id||null;
       }
-      weeks.push({week:wk,label:'Week '+wk,planned:(target!=null&&target>0)?Math.round(target*10)/10:null,
-        actual:actual,isCurrent:wk===base,isPast:wk<base,isFuture:wk>base,
-        startISO:range.startISO,endISO:range.endISO});
+      var sportOrder={running:0,cycling:1,swimming:2};
+      var weekCoachTargets=weekIdentifier?coachTargets.filter(function(target){return target.weekIdentifier===weekIdentifier;})
+        .sort(function(a,b){return sportOrder[a.sport]-sportOrder[b.sport];}):[];
+      var coachRun=targetForProgrammeWeek(weekCoachTargets,weekIdentifier,'running');
+      var target=targetState==='error'?null:(coachRun?coachRun.distanceTargetMetres/1000:(manual[wk]!=null?manual[wk]:(auto>0?auto:null)));
+      var range=rangeFromProgrammeWeek(canonical,wk-base);
+      var actual=null;
+      var actualBySport={running:null,cycling:null,swimming:null};
+      ['running','cycling','swimming'].forEach(function(sport){
+        var first=firstStravaBySport[sport];
+        if(hasStrava&&range.startISO<=localISO(new Date())&&(!first||range.endISO>=first)){
+          actualBySport[sport]=completedSportMetrics(activities,sport,range.startISO,range.endISO);
+        }
+      });
+      if(actualBySport.running) actual=Math.round(actualBySport.running.distanceMetres/100)/10;
+      else if(hasStrava&&firstStravaBySport.running&&range.endISO>=firstStravaBySport.running&&range.startISO<=localISO(new Date())) actual=0;
+      var hasTarget=target!=null&&!isNaN(Number(target));
+      var plannedTarget=hasTarget?Math.round(Number(target)*10)/10:null;
+      var isCurrent=wk===base,isPast=wk<base,isFuture=wk>base;
+      if(canonical&&canonical.startDate){
+        var today=localISO(new Date());isPast=range.endISO<today;isFuture=range.startISO>today;isCurrent=!isPast&&!isFuture;
+      }
+      weeks.push({week:wk,label:canonical&&canonical.weekLabel||'Week '+wk,weekIdentifier:weekIdentifier,
+        planned:plannedTarget,actual:actual,actualBySport:actualBySport,coachTargets:weekCoachTargets,
+        isCurrent:isCurrent,isPast:isPast,isFuture:isFuture,startISO:range.startISO,endISO:range.endISO});
     }
-    _programmeVolume={weeks:weeks,base:base,source:hasStrava?'strava':'plan',hasActual:hasStrava};
+    _programmeVolume={weeks:weeks,base:base,source:hasStrava?'strava':'plan',hasActual:hasStrava,
+      targets:coachTargets,targetState:targetState,targetError:targetError};
     return _programmeVolume;
   })();
   try{return await _programmeVolumePromise;}
@@ -163,14 +236,7 @@ function deriveCompletedKmFromSessions(sessionList){
 }
 function deriveCompletedKmFromStrava(activities,offset){
   var range=getWeekDateRangeFromOffset(offset||0);
-  return Math.round((activities||[]).reduce(function(total,activity){
-    var type=String(activity&&((activity.sport_type||activity.type))||'');
-    if(type.toLowerCase().indexOf('run')<0) return total;
-    var date=String(activity.start_date_local||activity.start_date||'').slice(0,10);
-    if(!date||date<range.startISO||date>range.endISO) return total;
-    var metres=Number(activity.distance);
-    return total+(isNaN(metres)||metres<0?0:metres/1000);
-  },0)*10)/10;
+  return Math.round(completedSportMetrics(activities,'running',range.startISO,range.endISO).distanceMetres/100)/10;
 }
 
 function formatDateTimeDMY(dateStr){

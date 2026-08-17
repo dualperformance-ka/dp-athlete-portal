@@ -16,6 +16,7 @@ Keep real values in Vercel or an ignored local `.env` file; never commit them.
 - `SUPABASE_SERVICE_KEY`: Supabase service role key, server-side only
 - `PORTAL_SESSION_SECRET`: random secret of at least 32 characters used to sign expiring access-code sessions
 - `ALLOWED_ORIGINS`: comma-separated production origins, for example `https://your-portal.vercel.app`
+- `COACHES_API_BASE`: origin of the deployed coaches dashboard, for example `https://your-coaches-dashboard.vercel.app` (server-side only; no trailing path)
 - `GHL_API_KEY`: (optional) enables the weekly check-in `checkin_done` GHL tag
 - `EMAIL_AUTH_ENABLED`: set to `true` to enable email OTP sign-in for enrolled athletes (see `docs/auth-migration.md`; leave unset for legacy code login only)
 - `REMINDERS_CRON_SECRET` or `CRON_SECRET`: required bearer secret for scheduled reminder delivery
@@ -28,6 +29,14 @@ Keep real values in Vercel or an ignored local `.env` file; never commit them.
 `NOTION_TOKEN` is no longer used and should be deleted from the Vercel project.
 
 Do not commit real tokens, athlete codes, or private database credentials to GitHub.
+
+The portal reads published weekly running, cycling, and swimming targets from
+the coaches dashboard through its authenticated server gateway. Both
+deployments must use the same Supabase project and compatible
+`PORTAL_SESSION_SECRET` values so the dashboard can verify either email or
+access-code athlete sessions. If the coaches endpoint is ever called directly
+from another allowed frontend, add that frontend origin to the dashboard's
+`ALLOWED_ORIGINS`; the portal integration itself is server-to-server.
 
 ### Public Client Configuration
 

@@ -5,7 +5,7 @@
 // Notion writes cannot be revived accidentally.
 
 import { remove, select, upsert } from './_lib/supabase-rest.js';
-import { getRequestAthlete } from './_lib/auth.js';
+import { bearerToken, getRequestAthlete } from './_lib/auth.js';
 import { allowPortalRequest, safeError } from './_lib/http.js';
 import { dispatchCoachAction, isCoachAction, resolveCoachMode } from './_lib/coach-proxy.js';
 import { syncBookingsForAthlete } from './bookings.js';
@@ -52,6 +52,75 @@ function weekLabel(value) {
 function safeStateKey(value) {
   const key = text(value, 120);
   return ALLOWED_STATE_KEYS.some((pattern) => pattern.test(key)) ? key : null;
+}
+
+const COACH_TARGET_SPORTS = new Set(['running', 'cycling', 'swimming']);
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function requestError(message, status) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+function optionalWholeNumber(value, field) {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) throw requestError(`Invalid ${field}`, 502);
+  return parsed;
+}
+
+export function normalisePublishedCoachTarget(row) {
+  const sport = String(row?.sport || '').toLowerCase();
+  const weekIdentifier = String(row?.weekIdentifier || '');
+  if (!COACH_TARGET_SPORTS.has(sport)) throw requestError('Invalid coach target sport', 502);
+  if (!UUID_PATTERN.test(weekIdentifier)) throw requestError('Invalid coach target programme week', 502);
+  // Row presence is the authority. The flags are still validated so a broken
+  // dashboard contract fails closed instead of accidentally exposing future
+  // athlete editing controls.
+  if (row?.source !== 'coach' || row?.locked !== true) throw requestError('Invalid coach target lock', 502);
+  const distanceTargetMetres = optionalWholeNumber(row.distanceTargetMetres, 'coach distance target');
+  if (distanceTargetMetres === null) throw requestError('Coach distance target is required', 502);
+  return {
+    sport,
+    weekIdentifier,
+    distanceTargetMetres,
+    sessionTarget: optionalWholeNumber(row.sessionTarget, 'coach session target'),
+    durationTargetMinutes: optionalWholeNumber(row.durationTargetMinutes, 'coach duration target'),
+    coachNote: text(row.coachNote, 2000) || null,
+    source: 'coach',
+    locked: true,
+    publishedAt: row.publishedAt || null,
+    updatedAt: row.updatedAt || null,
+  };
+}
+
+export async function weeklySportTargetsRead(req, fetchImpl = fetch) {
+  const token = bearerToken(req);
+  if (!token) throw requestError('invalid_session', 401);
+  const base = String(process.env.COACHES_API_BASE || process.env.COACH_API_URL || '').replace(/\/+$/, '');
+  if (!/^https?:\/\//i.test(base)) throw requestError('Coach target service is not configured', 503);
+  let response;
+  try {
+    response = await fetchImpl(`${base}/api/my-logs?resource=weekly-sport-targets`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-store',
+      },
+      cache: 'no-store',
+    });
+  } catch {
+    throw requestError('Coach targets are temporarily unavailable', 502);
+  }
+  let payload = {};
+  try { payload = await response.json(); } catch { payload = {}; }
+  if (response.status === 401) throw requestError('invalid_session', 401);
+  if (!response.ok || payload.ok !== true || !Array.isArray(payload.targets)) {
+    throw requestError('Coach targets are temporarily unavailable', 502);
+  }
+  return { targets: payload.targets.map(normalisePublishedCoachTarget) };
 }
 
 function assertValueSize(value) {
@@ -274,7 +343,7 @@ async function plannedSessions(code, body) {
   const programme = await select('planned_sessions', {
     athlete_code: `eq.${code}`,
     publish_state: 'eq.published',
-    select: 'id,notion_page_id,title,planned_date,session_type,status,library_id,run_details,intensity,week_label,distance_km,target_pace,warm_up,intervals,working_pace,rest,cool_down,notes,prescription_mode,part_of_day,day_order,estimated_minutes',
+    select: 'id,notion_page_id,title,planned_date,session_type,status,library_id,run_details,intensity,week_label,programme_week_id,distance_km,target_pace,warm_up,intervals,working_pace,rest,cool_down,notes,prescription_mode,part_of_day,day_order,estimated_minutes',
     order: 'planned_date.asc',
     limit: '1000',
   });
@@ -369,12 +438,12 @@ async function nutritionWeek(code, body) {
 }
 
 async function programmeData(code) {
-  const [planned, nutrition] = await Promise.all([
+  const [planned, nutrition, programmes] = await Promise.all([
     // Drafts must not appear in programme volume or the week strip.
     select('planned_sessions', {
       athlete_code: `eq.${code}`,
       publish_state: 'eq.published',
-      select: 'week_label,distance_km,title,session_type,library_id,planned_date,status',
+      select: 'week_label,programme_week_id,distance_km,title,session_type,library_id,planned_date,status',
       order: 'planned_date.asc',
       limit: '1000',
     }),
@@ -384,10 +453,31 @@ async function programmeData(code) {
       order: 'week_label.asc',
       limit: '100',
     }),
+    select('athlete_programmes', {
+      athlete_code: `eq.${code}`,
+      status: 'eq.active',
+      select: 'id',
+      order: 'updated_at.desc',
+      limit: '1',
+    }),
   ]);
+  const programme = Array.isArray(programmes) ? programmes[0] : null;
+  const programmeWeeks = programme ? await select('athlete_programme_weeks', {
+    programme_id: `eq.${programme.id}`,
+    select: 'id,programme_id,week_number,week_label,start_date',
+    order: 'week_number.asc',
+    limit: '100',
+  }) : [];
   return {
     planned: Array.isArray(planned) ? planned : [],
     nutrition: Array.isArray(nutrition) ? nutrition : [],
+    programmeWeeks: Array.isArray(programmeWeeks) ? programmeWeeks.map((week) => ({
+      id: week.id,
+      programmeId: week.programme_id,
+      weekNumber: week.week_number,
+      weekLabel: week.week_label,
+      startDate: week.start_date,
+    })) : [],
   };
 }
 
@@ -584,7 +674,9 @@ export default async function handler(req, res) {
     const identity = await getRequestAthlete(req);
     if (!identity) return send(res, 401, { ok: false, error: 'invalid_session' });
 
-    const data = await dispatch(action, String(identity.athlete.code).toUpperCase(), body);
+    const data = action === 'weekly-sport-targets'
+      ? await weeklySportTargetsRead(req)
+      : await dispatch(action, String(identity.athlete.code).toUpperCase(), body);
     return send(res, 200, { ok: true, ...data });
   } catch (error) {
     console.error('[portal-data]', error && error.message);

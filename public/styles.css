@@ -4627,7 +4627,7 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
    Nutrition; the Progress tab draws the same data as a full-width SVG. */
 .vstrip-card{padding-bottom:14px}
 .vstrip-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-.vstrip-title{font-family:var(--body);font-size:13px;font-weight:650;letter-spacing:-.01em;color:var(--text)}
+.vstrip-title{font-family:var(--body);font-size:13px;font-weight:650;letter-spacing:-.01em;color:var(--text);white-space:nowrap}
 .vstrip-legend{display:flex;align-items:center;gap:10px;font-family:var(--body);font-size:10px;color:var(--dim)}
 .vstrip-legend span{display:inline-flex;align-items:center;gap:4px}
 .vstrip-legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
@@ -4790,6 +4790,41 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 /* Weeks with no target yet: keep the column for alignment, drop the empty track. */
 .vstrip-week.is-empty .vstrip-bar{background:transparent;border:1px dashed var(--border)}
 .vstrip-week.is-empty .vstrip-km{min-height:11px}
+.sport-targets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:12px}
+.sport-target{
+  min-width:0;padding:11px;border:1px solid var(--border);border-radius:11px;background:var(--surface2)
+}
+.sport-target-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+.sport-target-name{font-family:var(--body);font-size:12px;font-weight:750;color:var(--text)}
+.sport-target-lock{
+  font-family:var(--mono);font-size:8px;font-weight:650;line-height:1.2;letter-spacing:.035em;
+  color:var(--dim);text-transform:uppercase;white-space:nowrap
+}
+.sport-target-distance{display:flex;align-items:baseline;gap:4px;font-family:var(--body);font-variant-numeric:tabular-nums}
+.sport-target-distance strong{font-size:20px;letter-spacing:-.035em;color:var(--text)}
+.sport-target-distance span{font-size:11px;color:var(--dim)}
+.sport-target-track{height:5px;margin-top:8px;border-radius:999px;background:var(--border);overflow:hidden}
+.sport-target-track i{display:block;height:100%;border-radius:inherit;background:var(--run)}
+.sport-target-cycling .sport-target-track i{background:var(--strength)}
+.sport-target-swimming .sport-target-track i{background:#43b7cf}
+.sport-target-meta{display:flex;flex-wrap:wrap;gap:5px 9px;margin-top:8px;font-size:10px;color:var(--muted)}
+.sport-target-note{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10.5px;line-height:1.4;color:var(--muted)}
+.sport-target-error{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;
+  border:1px solid var(--border);border-radius:10px;background:var(--surface2);font-size:11px;color:var(--muted)
+}
+.sport-target-error button{
+  flex:0 0 auto;border:1px solid var(--border);border-radius:7px;padding:6px 9px;background:var(--surface);
+  color:var(--text);font:600 10px var(--body);cursor:pointer
+}
+.vstrip-subtitle{margin:12px 0 5px;font:650 10px var(--body);color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+.vstrip-running-block:first-child .vstrip-subtitle{margin-top:0}
+.vstrip-card.is-collapsible .sport-targets{margin-top:1px}
+@media(max-width:640px){
+  .sport-targets{grid-template-columns:1fr}
+  .vstrip-sum{max-width:52vw}
+  .sport-target{padding:10px 11px}
+}
 :root{scroll-behavior:smooth}
 .skip-link{position:fixed;left:12px;top:10px;z-index:9999;transform:translateY(-160%);padding:10px 14px;border-radius:8px;background:#92d2ed;color:#071015;font-weight:800;text-decoration:none;transition:transform .15s}
 .skip-link:focus{transform:translateY(0)}

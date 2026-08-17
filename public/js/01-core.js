@@ -515,6 +515,7 @@ async function loadPlannedSessions(startISO,endISO,preloaded){
         runningSession:'',runningSessionIds:[],
         runningLibraryIds:r.library_id?[r.library_id]:[],
         runDetails:r.run_details||'',intensity:r.intensity||'',week:r.week_label||'',
+        programmeWeekIdentifier:r.programme_week_id||null,
         prescriptionMode:r.prescription_mode||'legacy',
         partOfDay:r.part_of_day||'',dayOrder:r.day_order||0,
         estimatedMinutes:r.estimated_minutes||null};
@@ -1197,6 +1198,8 @@ function sortSessionsForDisplay(list){
 // preserveEmail=true keeps the remembered email/method so the recovery path
 // ("send a new code") is one tap; explicit logout clears everything.
 function logoutToLogin(preserveEmail){
+  if(typeof invalidateProgrammeVolume==='function')invalidateProgrammeVolume();
+  window._trainingReadSnapshot=null;
   localStorage.removeItem('dp_auth_code');
   localStorage.removeItem('dp_legacy_session');
   if(!preserveEmail){
