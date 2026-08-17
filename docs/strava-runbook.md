@@ -168,6 +168,22 @@ serving from the cache; it just stops updating.
 
 ## Operating notes
 
+**OAuth hand-off.** Mobile user agents receive Strava's
+`/oauth/mobile/authorize` endpoint, while desktop keeps `/oauth/authorize`.
+The portal navigates in the same window; do not restore `target="_blank"`, which
+can leave installed iOS PWAs or embedded browsers on an empty page when Strava
+returns to the HTTPS callback. The callback saves tokens and immediately returns
+the athlete to the portal. History backfill belongs to the authenticated read
+path below, not the callback.
+
+**Connection diagnostics.** A normal connection produces these structured
+Vercel log messages in order: `Strava connect URL minted`, `Strava connect
+clicked`, `Strava OAuth callback received`, and `Strava OAuth connection saved`.
+If `clicked` is the last marker, the device/Strava hand-off failed before the
+portal callback. If `callback received` is last, inspect the callback error and
+Supabase token write. OAuth codes, access tokens, refresh tokens, signed state,
+and full authorization URLs must never be logged.
+
 **Where activities come from.** `GET /api/strava` never calls Strava for
 activities. It reads `strava_activities`. The only outbound calls on that path
 are a token refresh when the stored one has expired (a liveness check — without

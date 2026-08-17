@@ -1,13 +1,14 @@
 /**
- * Strava integration — single serverless function, four modes.
+ * Strava integration — single serverless function, five modes.
  *
  *   GET  /api/strava                  athlete's cached activities
  *   GET  /api/strava-callback         OAuth callback      (→ ?mode=callback)
  *   GET  /api/strava-webhook          Strava's validation (→ ?mode=webhook)
  *   POST /api/strava-webhook          Strava's events     (→ ?mode=webhook)
  *   POST /api/strava-disconnect       revoke + purge      (→ ?mode=disconnect)
+ *   POST /api/strava?mode=attempt     connect-click telemetry
  *
- * All four live in one file because Vercel's Hobby plan caps a deployment at 12
+ * All five live in one file because Vercel's Hobby plan caps a deployment at 12
  * serverless functions and api/ is at 10. The rewrites in vercel.json give each
  * mode a real URL; the pattern matches api/bookings.js.
  *
@@ -46,6 +47,7 @@ import {
   fetchActivityById,
   fetchAllActivities,
   hasRequiredScopes,
+  isMobileUserAgent,
   missingScopes,
   refreshRequiresReconnect,
   refreshStravaToken,
@@ -71,8 +73,9 @@ import {
 export { refreshRequiresReconnect };
 
 function portalUrl() {
-  return process.env.PORTAL_URL ||
+  const configured = process.env.PORTAL_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+  return String(configured).replace(/\/+$/, '');
 }
 
 function requestId(req) {
@@ -81,6 +84,10 @@ function requestId(req) {
 
 function warn(payload) {
   console.warn(JSON.stringify({ level: 'warning', ...payload }));
+}
+
+function info(payload) {
+  console.info(JSON.stringify({ level: 'info', ...payload }));
 }
 
 function backfillAfterEpoch() {
@@ -119,9 +126,15 @@ export function unavailableActivitiesResponse(error) {
 // The only place a connect URL is ever built. The `state` token is what tells
 // the callback which athlete is connecting, so a URL without it always fails —
 // clients must use this one, never their own.
-function buildConnectUrl(athleteCode) {
+function buildConnectUrl(athleteCode, req) {
   const state = createPortalSession(athleteCode, { purpose: 'strava', ttlSeconds: 10 * 60 });
-  return buildAuthorizeUrl(`${portalUrl()}/api/strava-callback`, state);
+  const userAgent = String((req && req.headers && req.headers['user-agent']) || '');
+  return buildAuthorizeUrl(
+    `${portalUrl()}/api/strava-callback`,
+    state,
+    REQUIRED_SCOPES,
+    { mobile: isMobileUserAgent(userAgent) },
+  );
 }
 
 /**
@@ -253,7 +266,33 @@ export default async function handler(req, res) {
   if (mode === 'callback')   return handleCallback(req, res);
   if (mode === 'webhook')    return handleWebhook(req, res);
   if (mode === 'disconnect') return handleDisconnect(req, res);
+  if (mode === 'attempt')    return handleConnectAttempt(req, res);
   return handleRead(req, res);
+}
+
+// ── Mode: connect attempt ───────────────────────────────────────────────────
+
+// OAuth failures that happen inside Strava or a mobile browser never reach the
+// callback. This small authenticated marker closes that observability gap: a
+// "clicked" log without a later "callback received" log identifies a device or
+// Strava hand-off failure without recording tokens, codes, or signed state.
+async function handleConnectAttempt(req, res) {
+  if (!allowPortalRequest(req, res, 'POST, OPTIONS')) return;
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const identity = await getRequestAthlete(req);
+  if (!identity) return res.status(401).json({ error: 'invalid_session' });
+
+  const userAgent = String((req.headers && req.headers['user-agent']) || '');
+  info({
+    message: 'Strava connect clicked',
+    route: '/api/strava',
+    requestId: requestId(req),
+    athleteCode: String(identity.athlete.code).toUpperCase(),
+    oauthSurface: isMobileUserAgent(userAgent) ? 'mobile' : 'web',
+  });
+  return res.status(204).end();
 }
 
 // ── Mode: read ───────────────────────────────────────────────────────────────
@@ -287,7 +326,15 @@ async function handleRead(req, res) {
     const tokenRow = await getTokens(athleteCode);
 
     if (!tokenRow || !tokenRow.access_token) {
-      return res.status(200).json({ connected: false, connectUrl: buildConnectUrl(athleteCode) });
+      const connectUrl = buildConnectUrl(athleteCode, req);
+      info({
+        message: 'Strava connect URL minted',
+        route: '/api/strava',
+        requestId: requestId(req),
+        athleteCode,
+        oauthSurface: isMobileUserAgent(req.headers && req.headers['user-agent']) ? 'mobile' : 'web',
+      });
+      return res.status(200).json({ connected: false, connectUrl });
     }
 
     // Athletes who linked before profile:read_all was required are still fully
@@ -322,8 +369,8 @@ async function handleRead(req, res) {
     // and session matching all go blank until they happen to run again — the
     // integration would look broken to the whole cohort at once.
     //
-    // It also covers the athlete who connects and opens the portal before the
-    // callback's backfill has finished.
+    // It also performs the first-connect import after the short OAuth callback
+    // has returned the athlete to the portal.
     //
     // backfilled_at is stamped only on success, so a failure retries on the next
     // load instead of leaving them permanently empty; and once stamped, an
@@ -368,7 +415,7 @@ async function handleRead(req, res) {
         // Re-consent URL. approval_prompt=force is set inside
         // buildAuthorizeUrl, without which Strava silently returns the old
         // scope set and the zones calls keep 403-ing.
-        reconnectUrl: buildConnectUrl(athleteCode),
+        reconnectUrl: buildConnectUrl(athleteCode, req),
       }),
     });
   } catch (err) {
@@ -397,7 +444,7 @@ async function handleRead(req, res) {
       return res.status(200).json({
         connected: false,
         reconnectRequired: true,
-        connectUrl: buildConnectUrl(athleteCode),
+        connectUrl: buildConnectUrl(athleteCode, req),
       });
     }
     console.error('[strava]', err);
@@ -527,12 +574,16 @@ async function handleDisconnect(req, res) {
 
 // ── Mode: callback ───────────────────────────────────────────────────────────
 
-function shell(title, body, accent = 'rgba(255,255,255,.1)') {
+function shell(title, body, accent = 'rgba(255,255,255,.1)', redirectUrl = '') {
+  const refresh = redirectUrl
+    ? `<meta http-equiv="refresh" content="1;url=${escapeHtml(redirectUrl)}">`
+    : '';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+${refresh}
 <title>${escapeHtml(title)} — Dual Performance</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -548,6 +599,8 @@ function shell(title, body, accent = 'rgba(255,255,255,.1)') {
   .brand{display:inline-flex;align-items:center;gap:6px;background:#fc4c02;
          color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;
          letter-spacing:.1em;padding:5px 12px;border-radius:20px;margin-top:20px}
+  .action{display:inline-flex;margin-top:20px;padding:10px 16px;border-radius:9px;
+          background:#92d2ed;color:#0a0d10;text-decoration:none;font-size:13px;font-weight:800}
 </style>
 </head>
 <body><div class="card">${body}</div></body>
@@ -559,7 +612,7 @@ function shell(title, body, accent = 'rgba(255,255,255,.1)') {
 // that user only, so that promise was both a compliance problem and inaccurate.
 // What the coach actually sees is the athlete's submitted training log. Keep the
 // distinction — it is the whole basis of the boundary in this integration.
-function successPage() {
+function successPage(returnUrl) {
   return shell('Strava Connected', `
   <div class="icon">✅</div>
   <h1>Strava Connected</h1>
@@ -567,22 +620,25 @@ function successPage() {
      sessions will be marked off for you.</p>
   <p>Sessions you confirm are shared with your coach. You can disconnect at any
      time from the portal.</p>
-  <p>You can close this tab.</p>
+  <p>Returning you to the portal now.</p>
+  <a class="action" href="${escapeHtml(returnUrl)}">Return to portal</a>
   <div class="brand">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
       <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/>
       <path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/>
     </svg>
     Powered by Strava
-  </div>`);
+  </div>`, 'rgba(255,255,255,.1)', returnUrl);
 }
 
 function errorPage(message) {
+  const returnUrl = `${portalUrl()}/?strava=error`;
   return shell('Connection Failed', `
   <h1 style="color:#f87171">Connection Failed</h1>
   <p>Something went wrong connecting your Strava account.</p>
   <p><code>${escapeHtml(message)}</code></p>
-  <p>Contact your coach to get a new connect link.</p>`, 'rgba(248,113,113,.25)');
+  <p>Return to the portal and try again. If it still fails, contact your coach.</p>
+  <a class="action" href="${escapeHtml(returnUrl)}">Return to portal</a>`, 'rgba(248,113,113,.25)');
 }
 
 function escapeHtml(value) {
@@ -597,9 +653,19 @@ function escapeHtml(value) {
 
 async function handleCallback(req, res) {
   if (req.method !== 'GET') return res.status(405).send('Method not allowed');
-  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
 
   const { code, state, error } = req.query;
+
+  info({
+    message: 'Strava OAuth callback received',
+    route: '/api/strava-callback',
+    requestId: requestId(req),
+    hasCode: !!code,
+    hasState: !!state,
+    hasError: !!error,
+  });
 
   if (error) return res.status(400).send(errorPage('Strava access was denied'));
 
@@ -651,32 +717,18 @@ async function handleCallback(req, res) {
       backfilled_at: null,
     });
 
-    // Backfill so the athlete sees history immediately rather than an empty
-    // portal until their next run. Failure here is not a failed connection —
-    // the link works and the webhook will keep it current from now on.
-    try {
-      const { activities, truncated } = await fetchAllActivities(access_token, { after: backfillAfterEpoch() });
-      await saveActivities(athleteCode, activities);
-      await mergeTokens(athleteCode, { backfilled_at: new Date().toISOString() });
-      if (truncated) {
-        warn({
-          message: 'Strava backfill hit the page ceiling; older history not imported',
-          route: '/api/strava-callback',
-          athleteCode,
-          imported: activities.length,
-        });
-      }
-    } catch (backfillError) {
-      warn({
-        message: 'Strava connected but backfill failed; webhook will populate from the next activity',
-        route: '/api/strava-callback',
-        athleteCode,
-        stravaStatus: backfillError.status || null,
-        error: String(backfillError.message || backfillError).slice(0, 200),
-      });
-    }
-
-    return res.status(200).send(successPage());
+    // Respond as soon as the durable OAuth tokens are saved. The authenticated
+    // read path already performs a one-time self-healing backfill when it sees
+    // an empty cache, so holding this mobile callback open for up to ten Strava
+    // pages plus several Supabase writes only makes the consent hand-off fragile.
+    info({
+      message: 'Strava OAuth connection saved',
+      route: '/api/strava-callback',
+      requestId: requestId(req),
+      athleteCode,
+      scopeComplete: hasRequiredScopes(scope || ''),
+    });
+    return res.status(200).send(successPage(`${portalUrl()}/?strava=connected`));
   } catch (err) {
     console.error('[strava-callback]', err);
     return res.status(500).send(errorPage(err.message));

@@ -13,6 +13,7 @@ export const STRAVA_API = (process.env.STRAVA_API_BASE || 'https://www.strava.co
 export const STRAVA_AUTH = 'https://www.strava.com/oauth/token';
 export const STRAVA_DEAUTH = 'https://www.strava.com/oauth/deauthorize';
 export const STRAVA_AUTHORIZE = 'https://www.strava.com/oauth/authorize';
+export const STRAVA_MOBILE_AUTHORIZE = 'https://www.strava.com/oauth/mobile/authorize';
 
 // activity:read_all — private activities included, which matters because
 //   plenty of athletes default their runs to private.
@@ -169,9 +170,18 @@ function credentials() {
   return { client_id: id, client_secret: secret };
 }
 
-export function buildAuthorizeUrl(redirectUri, state, scopes = REQUIRED_SCOPES) {
+export function isMobileUserAgent(userAgent) {
+  return /android|iphone|ipad|ipod|mobile/i.test(String(userAgent || ''));
+}
+
+export function buildAuthorizeUrl(redirectUri, state, scopes = REQUIRED_SCOPES, options = {}) {
   const { client_id } = credentials();
-  return `${STRAVA_AUTHORIZE}` +
+  // Strava publishes a dedicated mobile endpoint that hands off to the native
+  // Strava app when available and falls back to mobile web otherwise. Using the
+  // desktop endpoint from an installed iOS PWA can strand the athlete between
+  // the consent screen and our HTTPS callback.
+  const authorizeEndpoint = options.mobile ? STRAVA_MOBILE_AUTHORIZE : STRAVA_AUTHORIZE;
+  return `${authorizeEndpoint}` +
     `?client_id=${encodeURIComponent(client_id)}` +
     `&response_type=code` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +

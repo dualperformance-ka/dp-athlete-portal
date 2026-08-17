@@ -523,21 +523,43 @@ window.closeEnhancedModal = closeEnhancedModal;
     return data;
   }
 
+  // Record that the athlete actually followed the consent link. If Vercel later
+  // has this marker without a callback marker, the failure happened in Strava or
+  // the device hand-off rather than in Supabase. Fire-and-forget plus keepalive
+  // lets the same-window OAuth navigation start immediately.
+  function markConnectAttempt(){
+    try {
+      fetch('/api/strava?mode=attempt', {
+        method:'POST', headers:authHeaders({}), cache:'no-store', keepalive:true
+      }).catch(function(){});
+    } catch(e) {}
+  }
+
+  function followConnectUrl(url){
+    if(!url)return;
+    markConnectAttempt();
+    window.location.assign(url);
+  }
+
   // A state token older than its TTL lands on "The connection link expired", so
-  // re-mint on click when the cached one is stale. The blank tab is opened
-  // synchronously so the pop-up blocker still credits the user's gesture.
+  // re-mint on click when the cached one is stale. OAuth always uses the current
+  // window: iOS PWAs and embedded browsers can strand target=_blank on an empty
+  // page when Strava hands control back to our HTTPS callback.
   function onClick(e){
     if (!btn.getAttribute('href')) { e.preventDefault(); load({}); return; }
-    if (Date.now() - mintedAt < REFRESH_MS) return; // fresh enough to follow directly
     e.preventDefault();
-    var tab = window.open('', '_blank');
-    load({ silent: true }).then(function(data){
+    if (Date.now() - mintedAt < REFRESH_MS) {
+      followConnectUrl(btn.getAttribute('href'));
+      return;
+    }
+    btn.setAttribute('aria-busy','true');
+    load({ silent: false }).then(function(data){
       // reconnectUrl covers the scope-upgrade state, where the athlete is
       // already connected so there is no connectUrl in the response.
       var url = data && (data.connectUrl || data.reconnectUrl);
-      if (!url) { if (tab) tab.close(); return; }
-      if (tab) tab.location.href = url; else window.location.href = url;
-    }).catch(function(){ if (tab) tab.close(); });
+      btn.removeAttribute('aria-busy');
+      if (url) followConnectUrl(url);
+    }).catch(function(){ btn.removeAttribute('aria-busy'); });
   }
 
   // Coming back from the Strava tab should flip the pill without a reload.

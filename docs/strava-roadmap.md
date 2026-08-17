@@ -153,7 +153,7 @@ Subscription is created once, out of band: `POST /push_subscriptions` with `clie
 
 `GET /api/strava` stops calling Strava and reads `strava_activities` instead. It keeps its existing response shape, so `10-boot.js`, `09-logging.js`, `05-handbook.js` and `06-nutrition.js` need no changes. `activitiesAvailable: false` stays as the fallback for "connected but nothing synced yet."
 
-Keep one live pull: a backfill on first connect (the OAuth callback fires a paged fetch from the block start date).
+Keep one live pull: a backfill on the first authenticated portal read after connect. The OAuth callback only saves tokens and returns immediately; it must not hold a mobile consent hand-off open while paging and storing history.
 
 ### 4.4 What this fixes immediately
 
