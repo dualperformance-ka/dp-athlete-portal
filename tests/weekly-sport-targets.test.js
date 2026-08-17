@@ -176,9 +176,33 @@ test('recorded sports remain visible when no weekly target was prescribed', () =
   assert.match(coachTargetSummary(week), /Swim 1800\u00a0m · no target/);
 });
 
+test('the planned running total is the weekly target fallback when no coach override exists', () => {
+  const { coachTargetsHtml, coachTargetSummary } = targetDisplayHelpers();
+  const week = {
+    planned: 86,
+    coachTargets: [],
+    actualBySport: {
+      running: { distanceMetres: 11400, sessions: 1, durationMinutes: 62 },
+      cycling: null,
+      swimming: null,
+    },
+  };
+  const html = coachTargetsHtml(week);
+  assert.match(html, /Running/);
+  assert.match(html, /Planned target/);
+  assert.match(html, />11\.4 km</);
+  assert.match(html, />\/ 86 km</);
+  assert.match(html, /1 session/);
+  assert.match(html, /62 min/);
+  assert.match(html, /role="progressbar"/);
+  assert.doesNotMatch(html, /No weekly target|Coach target · Locked/);
+  assert.match(coachTargetSummary(week), /Run 11\.4\u00a0km\/86\u00a0km planned/);
+});
+
 test('targeted and activity-only sports share the weekly dropdown without changing authority', () => {
   const { coachTargetsHtml } = targetDisplayHelpers();
   const html = coachTargetsHtml({
+    planned: 86,
     coachTargets: [target({ sport: 'running', distanceTargetMetres: 45000 })],
     actualBySport: {
       running: { distanceMetres: 10000, sessions: 1, durationMinutes: 55 },
@@ -187,6 +211,8 @@ test('targeted and activity-only sports share the weekly dropdown without changi
     },
   });
   assert.match(html, /Running[\s\S]*Coach target · Locked/);
+  assert.match(html, /Running[\s\S]*\/ 45 km/);
+  assert.doesNotMatch(html, /Planned target/);
   assert.match(html, /Cycling[\s\S]*No weekly target[\s\S]*30 km/);
   assert.equal((html.match(/Coach target · Locked/g) || []).length, 1);
 });

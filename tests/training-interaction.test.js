@@ -27,6 +27,24 @@ test('completed mobile workouts get their own colour and tick', () => {
   assert.match(styles, /\.mobile-week-session\.done \.mobile-week-complete\{display:grid\}/);
 });
 
+test('Home uses the Training tab completion state and marks completed sessions consistently', () => {
+  const calendarStart = source.indexOf('function renderCal');
+  const calendarEnd = source.indexOf('// ── WEEKLY PLAN KM TARGET', calendarStart);
+  const homeStart = source.indexOf('function renderTodaySection');
+  const homeEnd = source.indexOf('// Readiness is strictly', homeStart);
+  const calendarSource = source.slice(calendarStart, calendarEnd);
+  const homeSource = source.slice(homeStart, homeEnd);
+
+  assert.match(source, /function trainingSessionIsComplete\(s\)/);
+  assert.match(calendarSource, /var sessionDone=trainingSessionIsComplete/);
+  assert.match(homeSource, /done=trainingSessionIsComplete\(s\)/);
+  assert.match(homeSource, /todayitem'\+\(done\?' done':''\)/);
+  assert.match(homeSource, /meta\.push\('Completed'\)/);
+  assert.match(homeSource, /done\?'Completed <svg class="icon"><use href="#i-check"\/>/);
+  assert.match(styles, /\.todayitem\.done\{border-color:var\(--ok-border\);background:var\(--ok-bg\)\}/);
+  assert.match(styles, /\.today-action\.completed\{/);
+});
+
 test('Strava match controls stay inside the opened session, not the Home card', () => {
   const buildCardStart=source.indexOf('function buildCard');
   const buildCardEnd=source.indexOf('function resolveRunDisplay',buildCardStart);

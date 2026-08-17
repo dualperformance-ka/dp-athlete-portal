@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 111,
-    "sha": "97dcece8116a"
+    "version": 113,
+    "sha": "9f01163d7769"
   },
   "desktop.css": {
     "version": 5,
@@ -36,8 +36,8 @@
     "sha": "42fef24591b9"
   },
   "js/06-nutrition.js": {
-    "version": 89,
-    "sha": "666be57ddeec"
+    "version": 91,
+    "sha": "d97a25edc5d2"
   },
   "js/07-progress.js": {
     "version": 86,
@@ -48,8 +48,8 @@
     "sha": "19c5ac738226"
   },
   "js/08-training.js": {
-    "version": 113,
-    "sha": "27e2673c7676"
+    "version": 114,
+    "sha": "aa4d5d3a451f"
   },
   "js/09-logging.js": {
     "version": 106,
