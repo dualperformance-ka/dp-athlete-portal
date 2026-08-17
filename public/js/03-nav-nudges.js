@@ -208,12 +208,14 @@ function initCheckinNudge(){
   var done=!!localStorage.getItem(checkinWeekKey());
   nudge.style.display=done?'none':'';
   var mobileDot=document.getElementById('mobileCheckinDot');if(mobileDot)mobileDot.classList.toggle('visible',!done);
+  var moreDue=document.getElementById('moreCheckinDue');if(moreDue)moreDue.classList.toggle('visible',!done);
   syncWeekCardState();
 }
 function hideCheckinNudge(){
   localStorage.setItem(checkinWeekKey(),'1');
   dismissNudge(document.getElementById('checkinNudge'));
   var mobileDot=document.getElementById('mobileCheckinDot');if(mobileDot)mobileDot.classList.remove('visible');
+  var moreDue=document.getElementById('moreCheckinDue');if(moreDue)moreDue.classList.remove('visible');
 }
 function initPhotoNudge(){
   var nudge=document.getElementById('photoNudge');
@@ -358,7 +360,7 @@ function switchTab(tab){
   var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
   var secondaryTabs=['nutrition','goals','handbook','comms'];
   var isMobileSecondary=!isDesktop&&secondaryTabs.indexOf(tab)>=0;
-  setMobileNav(tab==='weekly'?'training':(tab==='training'?'home':(isMobileSecondary?'more':tab)));
+  setMobileNav(tab==='weekly'?'training':(tab==='training'?'home':(tab==='nutrition'?'nutrition':(tab==='checkin'||isMobileSecondary?'more':tab))));
   var showWeekBar=(tab==='weekly')||(!isDesktop&&tab==='training'&&trainingView==='plan');
   document.body.classList.toggle('mobile-training-calendar',!isDesktop&&tab==='training'&&trainingView==='plan');
   document.body.classList.toggle('mobile-portal-home',!isDesktop&&tab==='training'&&trainingView==='home');
@@ -629,7 +631,8 @@ function restoreMobileNavContext(){
   var tab=active.id.replace('tab-','');
   if(tab==='training'){setMobileNav(trainingView==='home'?'home':'training');return;}
   if(tab==='weekly'){setMobileNav('training');return;}
-  if(['nutrition','goals','handbook','comms'].indexOf(tab)>=0){setMobileNav('more');return;}
+  if(tab==='nutrition'){setMobileNav('nutrition');return;}
+  if(tab==='checkin'||['goals','handbook','comms'].indexOf(tab)>=0){setMobileNav('more');return;}
   setMobileNav(tab);
 }
 function applyOutdoorMode(enabled){
