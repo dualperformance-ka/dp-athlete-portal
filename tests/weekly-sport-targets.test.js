@@ -155,6 +155,42 @@ test('null optional fields are omitted and activity never changes the prescripti
   assert.match(html, /&lt;b>Keep it easy&lt;\/b>/, 'coach notes are escaped');
 });
 
+test('recorded sports remain visible when no weekly target was prescribed', () => {
+  const { coachTargetsHtml, coachTargetSummary } = targetDisplayHelpers();
+  const week = {
+    coachTargets: [],
+    actualBySport: {
+      running: null,
+      cycling: null,
+      swimming: { distanceMetres: 1800, sessions: 1, durationMinutes: 42 },
+    },
+  };
+  const html = coachTargetsHtml(week);
+  assert.match(html, /Swimming/);
+  assert.match(html, />1800 m</);
+  assert.match(html, /completed/);
+  assert.match(html, /No weekly target/);
+  assert.match(html, /1 session/);
+  assert.match(html, /42 min/);
+  assert.doesNotMatch(html, /Coach target · Locked|role="progressbar"/);
+  assert.match(coachTargetSummary(week), /Swim 1800\u00a0m · no target/);
+});
+
+test('targeted and activity-only sports share the weekly dropdown without changing authority', () => {
+  const { coachTargetsHtml } = targetDisplayHelpers();
+  const html = coachTargetsHtml({
+    coachTargets: [target({ sport: 'running', distanceTargetMetres: 45000 })],
+    actualBySport: {
+      running: { distanceMetres: 10000, sessions: 1, durationMinutes: 55 },
+      cycling: { distanceMetres: 30000, sessions: 1, durationMinutes: 70 },
+      swimming: null,
+    },
+  });
+  assert.match(html, /Running[\s\S]*Coach target · Locked/);
+  assert.match(html, /Cycling[\s\S]*No weekly target[\s\S]*30 km/);
+  assert.equal((html.match(/Coach target · Locked/g) || []).length, 1);
+});
+
 test('an empty response and a failed target request produce different UI states', () => {
   const start = nutritionSource.indexOf('function volumeStripHtml');
   const end = nutritionSource.indexOf('// mode drives what a week tap navigates');
@@ -163,6 +199,7 @@ test('an empty response and a failed target request produce different UI states'
     volumeWeekDisplay: () => ({ value: '', delta: '', deltaClass: '' }),
     fmtKmVal: String,
     esc: String,
+    volumeSportRows: () => [],
     coachTargetSummary: () => '',
     coachTargetsHtml: () => '',
   };
