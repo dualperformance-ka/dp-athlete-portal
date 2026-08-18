@@ -172,6 +172,8 @@ test('a confirmed daily log becomes an unmistakable green button', () => {
   assert.match(stylesSource, /\.quicklog-btn\.is-done\{[^}]*background:var\(--ok\)[^}]*border-color:var\(--ok\)/);
   assert.match(stylesSource, /\.quicklog-btn\.is-done \.icon\{color:#06150f\}/);
   assert.match(stylesSource, /\.quicklog-btn\.is-done \.ql-icon-done\{display:inline-block\}/);
+  assert.match(stylesSource, /\.quicklog-btn\.ql-body\.is-done,.quicklog-btn\.ql-nut\.is-done\{[\s\S]*?background:var\(--ok\)/);
+  assert.match(stylesSource, /\.outdoor-mode \.quicklog-btn\.ql-body\.is-done,.outdoor-mode \.quicklog-btn\.ql-nut\.is-done\{[\s\S]*?background:#158a52/);
 });
 
 test('an unconfirmed daily log stays amber rather than looking successful', () => {

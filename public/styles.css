@@ -4983,6 +4983,20 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .outdoor-mode .quicklog-btn.is-done{background:#158a52;border-color:#158a52;color:#fff}
 .outdoor-mode .quicklog-btn.is-done .icon{color:#fff}
 
+/* Keep the persistent dock actions authoritative over their earlier body and
+   nutrition base colours. These higher-specificity rules also protect the
+   completed treatment as the dark/light themes evolve. */
+.quicklog-btn.ql-body.is-done,.quicklog-btn.ql-nut.is-done{
+  background:var(--ok);border-color:var(--ok);color:#06150f;
+  box-shadow:0 8px 22px rgba(115,209,167,.22)
+}
+.quicklog-btn.ql-body.is-done .icon,.quicklog-btn.ql-nut.is-done .icon{color:#06150f}
+.outdoor-mode .quicklog-btn.ql-body.is-done,.outdoor-mode .quicklog-btn.ql-nut.is-done{
+  background:#158a52;border-color:#158a52;color:#fff;
+  box-shadow:0 8px 20px rgba(21,138,82,.2)
+}
+.outdoor-mode .quicklog-btn.ql-body.is-done .icon,.outdoor-mode .quicklog-btn.ql-nut.is-done .icon{color:#fff}
+
 /* Saved here, not with the coaches yet. Deliberately louder than "to do" and
    never green: the athlete has done the work, so the message is "this has not
    arrived", not "you forgot". Colour alone would not carry that, so the icon
