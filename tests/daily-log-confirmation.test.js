@@ -6,6 +6,11 @@ import { join } from 'node:path';
 
 import { dailyLogDates, bootstrapRead } from '../api/write.js';
 
+const root = new URL('..', import.meta.url).pathname;
+const indexSource = readFileSync(join(root, 'public', 'index.html'), 'utf8');
+const stylesSource = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
+const loggingSource = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
+
 // The quick-log dock used to tick from a local key written before the request
 // was even sent. A submission that never left the phone looked exactly like one
 // that landed: the athlete saw a tick, the coach saw nothing, and nobody could
@@ -51,8 +56,7 @@ test('a confirmation failure never blocks portal entry', async () => {
 // ── Dock state resolution ───────────────────────────────────────────────────
 
 function loadDock() {
-  const root = new URL('..', import.meta.url).pathname;
-  const source = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
+  const source = loggingSource;
   const start = source.indexOf('// Days the SERVER has confirmed');
   const end = source.indexOf('document.addEventListener(\'DOMContentLoaded\',function(){try{syncQuickLogDock();}catch(e){}});', start);
   assert.ok(start > 0 && end > start, 'dock state block should exist in 09-logging.js');
@@ -132,4 +136,24 @@ test('hydrating replaces prior state rather than accumulating it', () => {
   assert.equal(dock.quickLogState('body'), 'logged');
   dock.hydrateConfirmedLogDates({ body: [], nutrition: [] });
   assert.equal(dock.quickLogState('body'), 'none', 'a deleted log must not linger as confirmed');
+});
+
+test('the two daily actions keep distinct, purpose-led names', () => {
+  assert.match(indexSource, /id="qlDockBody"[\s\S]*?<span>Body check-in<\/span>/);
+  assert.match(indexSource, /id="qlDockNut"[\s\S]*?<span>Nutrition log<\/span>/);
+  assert.match(indexSource, /id="qlbSubmitBtn"[^>]*>Save body check-in<\/button>/);
+  assert.match(indexSource, /id="qlnSubmitBtn"[^>]*>Save nutrition log<\/button>/);
+  assert.match(loggingSource, /logged:'Body checked in'/);
+  assert.match(loggingSource, /logged:'Nutrition logged'/);
+});
+
+test('a confirmed daily log becomes an unmistakable green button', () => {
+  assert.match(stylesSource, /\.quicklog-btn\.is-done\{[^}]*background:var\(--ok\)[^}]*border-color:var\(--ok\)/);
+  assert.match(stylesSource, /\.quicklog-btn\.is-done \.icon\{color:#06150f\}/);
+  assert.match(stylesSource, /\.quicklog-btn\.is-done \.ql-icon-done\{display:inline-block\}/);
+});
+
+test('an unconfirmed daily log stays amber rather than looking successful', () => {
+  assert.match(stylesSource, /\.quicklog-btn\.is-sending\{[^}]*background:rgba\(240,173,78/);
+  assert.doesNotMatch(stylesSource, /\.quicklog-btn\.is-sending\{[^}]*background:var\(--ok\)/);
 });

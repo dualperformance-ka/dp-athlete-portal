@@ -57,6 +57,60 @@ test('Strava match controls stay inside the opened session, not the Home card', 
   assert.doesNotMatch(homeSource,/strava-complete/);
 });
 
+test('mobile week calendar shows matched Strava distance without waiting for RPE', () => {
+  const helperStart=source.indexOf('function calendarStravaDistanceKm');
+  const helperEnd=source.indexOf('function calendarSessionIsKey',helperStart);
+  assert.ok(helperStart>=0&&helperEnd>helperStart,'calendar Strava distance helpers should remain discoverable');
+
+  const context={
+    logs:{
+      tempo:{
+        distance:'14',
+        rpe:'',
+        __stravaMatch:{activity:{distance:14000}}
+      }
+    },
+    _sessionOverrides:{},
+    getType:()=> 'run',
+    resolveRunDisplay:()=>({meta:{distance:'13km'}})
+  };
+  vm.createContext(context);
+  vm.runInContext(source.slice(helperStart,helperEnd),context);
+
+  assert.equal(context.calendarStravaDistanceKm({id:'tempo'}),14);
+  assert.equal(context.monthSessionDetail({id:'tempo'}),'14km · Strava');
+});
+
+test('mobile week calendar keeps planned distance when there is no Strava match', () => {
+  const helperStart=source.indexOf('function calendarStravaDistanceKm');
+  const helperEnd=source.indexOf('function calendarSessionIsKey',helperStart);
+  const context={
+    logs:{},
+    _sessionOverrides:{},
+    getType:()=> 'run',
+    resolveRunDisplay:()=>({meta:{distance:'13km'}})
+  };
+  vm.createContext(context);
+  vm.runInContext(source.slice(helperStart,helperEnd),context);
+
+  assert.equal(context.monthSessionDetail({id:'tempo'}),'13km');
+});
+
+test('mobile week calendar does not label a manual run log as Strava', () => {
+  const helperStart=source.indexOf('function calendarStravaDistanceKm');
+  const helperEnd=source.indexOf('function calendarSessionIsKey',helperStart);
+  const context={
+    logs:{tempo:{distance:'14',rpe:''}},
+    _sessionOverrides:{},
+    getType:()=> 'run',
+    resolveRunDisplay:()=>({meta:{distance:'13km'}})
+  };
+  vm.createContext(context);
+  vm.runInContext(source.slice(helperStart,helperEnd),context);
+
+  assert.equal(context.monthSessionDetail({id:'tempo'}),'13km');
+});
+
 function classList(initial = []) {
   const classes = new Set(initial);
   return {
