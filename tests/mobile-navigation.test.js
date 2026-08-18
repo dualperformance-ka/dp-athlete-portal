@@ -56,7 +56,7 @@ test('Check-in remains prominent on Home and at the top of More when due', () =>
 test('installed PWAs receive the new navigation shell', () => {
   assert.match(index, /styles\.css\?v=118/);
   assert.match(index, /03-nav-nudges\.js\?v=96/);
-  assert.match(sw, /dp-athlete-v149/);
+  assert.match(sw, /dp-athlete-v150/);
   assert.match(sw, /styles\.css\?v=118/);
   assert.match(sw, /03-nav-nudges\.js\?v=96/);
 });

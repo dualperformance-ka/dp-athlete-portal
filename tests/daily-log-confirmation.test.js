@@ -21,25 +21,44 @@ const loggingSource = readFileSync(join(root, 'public', 'js', '09-logging.js'), 
 // So "logged" has to mean the server holds it, and the state in between —
 // written here, not yet acknowledged — has to be visible rather than silent.
 
-test('confirmation reads only the dates, from both daily tables', async () => {
+test('confirmation reads dates from structured and legacy Supabase records', async () => {
   const asked = [];
-  const rows = table => {
-    asked.push(table);
-    return table === 'daily_body_logs'
-      ? [{ log_date: '2026-08-11' }, { log_date: '2026-08-10' }]
-      : [{ log_date: '2026-08-09' }];
+  const rows = (table, params) => {
+    asked.push([table, params]);
+    if (table === 'daily_body_logs') {
+      return [{ log_date: '2026-08-11' }, { log_date: '2026-08-10' }];
+    }
+    if (table === 'daily_nutrition_logs') return [{ log_date: '2026-08-09' }];
+    if (params.key === 'like.daily_body_*') return [{ key: 'daily_body_2026-08-08' }];
+    return [{ key: 'daily_nut_2026-08-07' }];
   };
   const result = await dailyLogDates('THOMAS', async (table, params) => {
-    assert.equal(params.select, 'log_date', 'nutrition notes run to hundreds of words — never pull whole rows for this');
     assert.equal(params.athlete_code, 'eq.THOMAS');
-    return rows(table);
+    assert.ok(['log_date', 'key'].includes(params.select), 'never pull whole log rows for confirmation');
+    return rows(table, params);
   });
-  assert.deepEqual(asked.sort(), ['daily_body_logs', 'daily_nutrition_logs']);
-  assert.deepEqual(result, { body: ['2026-08-11', '2026-08-10'], nutrition: ['2026-08-09'] });
+  assert.equal(asked.filter(([table]) => table === 'athlete_data').length, 2);
+  assert.deepEqual(result, {
+    body: ['2026-08-11', '2026-08-10', '2026-08-08'],
+    nutrition: ['2026-08-09', '2026-08-07'],
+  });
 });
 
 test('timestamps are trimmed to plain dates so the client can compare them', async () => {
-  const result = await dailyLogDates('ALVIN', async () => [{ log_date: '2026-08-10T00:00:00+00:00' }]);
+  const result = await dailyLogDates('ALVIN', async (table) => table === 'daily_body_logs'
+    ? [{ log_date: '2026-08-10T00:00:00+00:00' }]
+    : []);
+  assert.deepEqual(result.body, ['2026-08-10']);
+});
+
+test('one failed confirmation source does not hide dates from the others', async () => {
+  const result = await dailyLogDates('ALVIN', async (table, params) => {
+    if (table === 'daily_body_logs') throw new Error('temporary table read failure');
+    if (table === 'athlete_data' && params.key === 'like.daily_body_*') {
+      return [{ key: 'daily_body_2026-08-10' }];
+    }
+    return [];
+  });
   assert.deepEqual(result.body, ['2026-08-10']);
 });
 
@@ -69,7 +88,8 @@ function loadDock() {
       getItem(k) { return Object.prototype.hasOwnProperty.call(this._v, k) ? this._v[k] : null; },
       setItem(k, v) { this._v[k] = String(v); },
     },
-    document: { getElementById: () => null },
+    document: { getElementById: () => null, addEventListener: () => {}, visibilityState: 'visible' },
+    addEventListener: () => {},
     console,
     todayISO2: () => '2026-08-10',
   };
@@ -164,4 +184,10 @@ test('the form submit button shows its delivery colour before the modal closes',
   assert.match(stylesSource, /\.ql-modal \.savebtn\.is-sending\{background:#f0ad4e/);
   assert.match(checkinSource, /await showQuickLogSubmitFeedback\(btn,'body',[^;]+\);[\s\S]*closeQuickLog\('body'\)/);
   assert.match(checkinSource, /await showQuickLogSubmitFeedback\(btn,'nut',[^;]+\);[\s\S]*closeQuickLog\('nut'\)/);
+});
+
+test('returning to an installed app refreshes Supabase confirmation state', () => {
+  assert.match(loggingSource, /document\.addEventListener\('visibilitychange',refreshConfirmedLogDatesOnResume\)/);
+  assert.match(loggingSource, /window\.addEventListener\('focus',refreshConfirmedLogDatesOnResume\)/);
+  assert.match(loggingSource, /loadConfirmedLogDates\(\)/);
 });
