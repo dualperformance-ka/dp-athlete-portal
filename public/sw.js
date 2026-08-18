@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v150'; // v150: refresh and backfill daily-log confirmation state
+const CACHE_NAME = 'dp-athlete-v151'; // v151: publish dark/light completed daily-log buttons
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=118', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=119', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=108',
   '/js/02-login-goals.js?v=103',
