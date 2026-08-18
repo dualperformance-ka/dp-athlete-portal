@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v149'; // v149: show daily-log delivery colour before closing the form
+const CACHE_NAME = 'dp-athlete-v150'; // v150: refresh and backfill daily-log confirmation state
 const APP_SHELL = [
   '/index.html', '/styles.css?v=118', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -11,7 +11,7 @@ const APP_SHELL = [
   '/js/07-progress.js?v=86',
   '/js/strava-match.js?v=5',
   '/js/08-training.js?v=115',
-  '/js/09-logging.js?v=108',
+  '/js/09-logging.js?v=109',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=101',
   '/login.js?v=48', '/icons.css?v=3',

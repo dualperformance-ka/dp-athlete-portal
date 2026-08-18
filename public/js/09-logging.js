@@ -831,6 +831,19 @@ async function loadConfirmedLogDates(){
     return hydrateConfirmedLogDates(res||{});
   }catch(e){console.warn('daily log confirmation read failed:',e);return _confirmedLogDates;}
 }
+// Installed PWAs can remain alive through a deployment. Re-check when the app
+// returns to the foreground so a log submitted earlier (or on another device)
+// turns green without requiring the athlete to sign out. Focus and visibility
+// often fire together on mobile, so keep the refresh deliberately throttled.
+var _confirmedLogRefreshAt=0;
+function refreshConfirmedLogDatesOnResume(){
+  if(document.visibilityState==='hidden'||!window.athlete||!athlete.code)return;
+  var now=Date.now();if(now-_confirmedLogRefreshAt<15000)return;
+  _confirmedLogRefreshAt=now;
+  loadConfirmedLogDates();
+}
+document.addEventListener('visibilitychange',refreshConfirmedLogDatesOnResume);
+window.addEventListener('focus',refreshConfirmedLogDatesOnResume);
 function markLogConfirmed(kind,date){
   var k=(kind==='body'?'body':'nut');
   _confirmedLogDates[k][String(date).slice(0,10)]=true;
@@ -867,8 +880,8 @@ function syncQuickLogDock(){
       :{logged:'Nutrition logged',sending:'Nutrition log sending',none:'Nutrition log'};
     if(text)text.textContent=copy[s]||copy.none;
   });
-  // Exactly one segment may be filled. Body leads because readiness shapes
-  // how the session should be executed. Anything unconfirmed still counts as
+  // Exactly one segment may be filled. Body leads because the check-in shapes
+  // how the day should be approached. Anything unconfirmed still counts as
   // outstanding: it is not with the coaches yet.
   var bodySettled=state.body==='logged',nutSettled=state.nut==='logged';
   var nextUp=bodySettled?(nutSettled?null:'nut'):'body';

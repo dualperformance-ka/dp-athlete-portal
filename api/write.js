@@ -544,20 +544,40 @@ async function bodyLogs(code) {
 // arrive?" would cost far more than it returns. Being server-side also makes
 // the state identical on every device the athlete signs into.
 export async function dailyLogDates(code, selectRows = select) {
-  const params = {
+  const structuredParams = {
     athlete_code: `eq.${code}`,
     select: 'log_date',
     order: 'log_date.desc',
     limit: '60',
   };
-  const [bodyRows, nutritionRows] = await Promise.all([
-    selectRows('daily_body_logs', params),
-    selectRows('daily_nutrition_logs', params),
+  const legacyParams = key => ({
+    athlete_code: `eq.${code}`,
+    key: `like.${key}_*`,
+    select: 'key',
+    order: 'key.desc',
+    limit: '60',
+  });
+  const settled = await Promise.allSettled([
+    selectRows('daily_body_logs', structuredParams),
+    selectRows('daily_nutrition_logs', structuredParams),
+    // Logs submitted by an older portal build may only exist in athlete_data.
+    // Include those keys so deploying the confirmation UI also backfills the
+    // green state for athletes who already checked in earlier that day.
+    selectRows('athlete_data', legacyParams('daily_body')),
+    selectRows('athlete_data', legacyParams('daily_nut')),
   ]);
+  const rowsAt = index => settled[index].status === 'fulfilled' ? settled[index].value : [];
   const dates = rows => (Array.isArray(rows) ? rows : [])
     .map(row => String(row?.log_date || '').slice(0, 10))
     .filter(Boolean);
-  return { body: dates(bodyRows), nutrition: dates(nutritionRows) };
+  const legacyDates = (rows, prefix) => (Array.isArray(rows) ? rows : [])
+    .map(row => String(row?.key || '').replace(`${prefix}_`, '').slice(0, 10))
+    .filter(Boolean);
+  const unique = values => [...new Set(values)];
+  return {
+    body: unique([...dates(rowsAt(0)), ...legacyDates(rowsAt(2), 'daily_body')]),
+    nutrition: unique([...dates(rowsAt(1)), ...legacyDates(rowsAt(3), 'daily_nut')]),
+  };
 }
 
 export async function bookingRead(code, selectRows = select) {
