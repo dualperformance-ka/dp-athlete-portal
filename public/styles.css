@@ -4996,6 +4996,13 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .outdoor-mode .quicklog-btn.is-sending .icon{color:#8a5406}
 .outdoor-mode .quicklog-hint{color:#8a5406}
 
+/* Keep the submitted form visible long enough for the athlete to see the
+   delivery result before it closes: green only when the server has it. */
+.ql-modal .savebtn.saved{background:var(--ok);color:#06150f;box-shadow:0 10px 26px rgba(115,209,167,.24)}
+.ql-modal .savebtn.is-sending{background:#f0ad4e;color:#211405;box-shadow:0 10px 26px rgba(240,173,78,.22)}
+.outdoor-mode .ql-modal .savebtn.saved{background:#158a52;color:#fff}
+.outdoor-mode .ql-modal .savebtn.is-sending{background:#b5710f;color:#fff}
+
 /* ── Outdoor (light) mode parity ───────────────────────────────────────── */
 .outdoor-mode .metric-track{background:rgba(7,17,22,.1)}
 .outdoor-mode .metric-val{color:#071015}

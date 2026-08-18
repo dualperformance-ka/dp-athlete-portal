@@ -310,6 +310,17 @@ function updateNutFeedback(){
   fb.innerHTML=html;
   fb.style.display='block';
 }
+function showQuickLogSubmitFeedback(btn,kind,queued){
+  if(!btn)return Promise.resolve();
+  btn.classList.toggle('saved',!queued);
+  btn.classList.toggle('is-sending',!!queued);
+  btn.textContent=queued?'Saved on this device':(kind==='body'?'Body check-in saved ✓':'Nutrition logged ✓');
+  return new Promise(function(resolve){setTimeout(resolve,750);});
+}
+function resetQuickLogSubmitButton(btn,label){
+  if(!btn)return;
+  btn.classList.remove('saved','is-sending');btn.textContent=label;btn.disabled=false;
+}
 async function submitQuickBody(){
   var btn=document.getElementById('qlbSubmitBtn');btn.textContent='Saving body check-in...';btn.disabled=true;
   var bodyDate=document.getElementById('qlbDate').value||todayISO2();
@@ -326,9 +337,10 @@ async function submitQuickBody(){
   var bodyResult=await coachWrite(DAILY_BODY_WEBHOOK,payload);
   if(!bodyResult||!bodyResult.queued) markLogConfirmed('body',payload.date);
   try{syncQuickLogDock();}catch(e){}
-  closeQuickLog('body');
   showToast(bodyResult.queued?'Body check-in saved on this device - not sent to your coaches yet':'Body check-in saved ✓');
-  btn.textContent='Save body check-in';btn.disabled=false;
+  await showQuickLogSubmitFeedback(btn,'body',!!bodyResult.queued);
+  closeQuickLog('body');
+  resetQuickLogSubmitButton(btn,'Save body check-in');
   // Reset for next use
   document.getElementById('qlbDate').value='';document.getElementById('qlbWeight').value='';
   document.getElementById('qlbSleep').value='5';document.getElementById('qlbSleepVal').textContent='5';
@@ -356,9 +368,10 @@ async function submitQuickNut(){
   var nutResult=await coachWrite(DAILY_NUT_WEBHOOK,payload);
   if(!nutResult||!nutResult.queued) markLogConfirmed('nut',nutDate);
   try{syncQuickLogDock();}catch(e){}
-  closeQuickLog('nut');
   showToast(nutResult.queued?'Nutrition log saved on this device - not sent to your coaches yet':'Nutrition logged ✓');
-  btn.textContent='Save nutrition log';btn.disabled=false;
+  await showQuickLogSubmitFeedback(btn,'nut',!!nutResult.queued);
+  closeQuickLog('nut');
+  resetQuickLogSubmitButton(btn,'Save nutrition log');
   // Reset for next use
   document.getElementById('qlnDate').value='';document.getElementById('qlnCal').value='';
   document.getElementById('qlnPro').value='';document.getElementById('qlnCarbs').value='';

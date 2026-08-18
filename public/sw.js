@@ -1,11 +1,11 @@
-const CACHE_NAME = 'dp-athlete-v148'; // v148: separate Body check-in and Nutrition log language
+const CACHE_NAME = 'dp-athlete-v149'; // v149: show daily-log delivery colour before closing the form
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=117', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=118', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=108',
   '/js/02-login-goals.js?v=103',
   '/js/03-nav-nudges.js?v=96',
-  '/js/04-checkin.js?v=89',
+  '/js/04-checkin.js?v=90',
   '/js/05-handbook.js?v=84',
   '/js/06-nutrition.js?v=91',
   '/js/07-progress.js?v=86',
