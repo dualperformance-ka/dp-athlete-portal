@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=116">
+<link rel="stylesheet" href="/styles.css?v=117">
 <link rel="stylesheet" href="/desktop.css?v=5">
 <link rel="stylesheet" href="/icons.css?v=3">
 
@@ -941,8 +941,8 @@
   </div>
 
   <!-- QUICK LOG DOCK — pinned because both are daily actions. Only the next
-       thing you have not logged is filled; once logged a segment drops to a
-       quiet done state so exactly one accent shows at a time. State is set
+       thing you have not logged is blue; once logged a segment turns green so
+       completion is unambiguous. State is set
        by syncQuickLogDock() in 09-logging.js.
 
        Three states, not two. A tick means the COACHES have it, confirmed by
@@ -950,17 +950,17 @@
        this device, never acknowledged — which read as success to the athlete
        and as nothing at all to the coach. -->
   <div class="quicklog-strip" id="quicklogStrip">
-    <button class="quicklog-btn ql-body" id="qlDockBody" onclick="openQuickLog('body')" aria-label="Daily body log">
+    <button class="quicklog-btn ql-body" id="qlDockBody" onclick="openQuickLog('body')" aria-label="Body check-in">
       <svg class="icon ql-icon-todo" aria-hidden="true"><use href="#i-bars"/></svg>
       <svg class="icon ql-icon-done" aria-hidden="true"><use href="#i-check"/></svg>
       <svg class="icon ql-icon-sending" aria-hidden="true"><use href="#i-alert"/></svg>
-      <span>Body</span>
+      <span>Body check-in</span>
     </button>
-    <button class="quicklog-btn ql-nut" id="qlDockNut" onclick="openQuickLog('nut')" aria-label="Daily nutrition log">
+    <button class="quicklog-btn ql-nut" id="qlDockNut" onclick="openQuickLog('nut')" aria-label="Nutrition log">
       <svg class="icon ql-icon-todo" aria-hidden="true"><use href="#i-utensils"/></svg>
       <svg class="icon ql-icon-done" aria-hidden="true"><use href="#i-check"/></svg>
       <svg class="icon ql-icon-sending" aria-hidden="true"><use href="#i-alert"/></svg>
-      <span>Nutrition</span>
+      <span>Nutrition log</span>
     </button>
   </div>
   <div class="quicklog-hint" id="quicklogHint" role="status" style="display:none"></div>
@@ -969,7 +969,7 @@
   <div class="ql-modal" id="qlBodyModal" onclick="if(event.target===this)closeQuickLog('body')">
     <div class="ql-modal-inner">
       <div class="ql-modal-header">
-        <div class="ql-modal-title">Daily Body Log</div>
+        <div class="ql-modal-title">Body Check-in</div>
         <button class="ql-modal-close" onclick="closeQuickLog('body')" aria-label="Close body log">×</button>
       </div>
       <div class="ql-modal-body">
@@ -1035,7 +1035,7 @@
           <div class="pain-help">Sharp, sudden or worsening pain is automatically flagged for coach review.</div>
         </div>
         <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
-        <button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Log Body</button>
+        <button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Save body check-in</button>
       </div>
     </div>
   </div>
@@ -1044,7 +1044,7 @@
   <div class="ql-modal" id="qlNutModal" onclick="if(event.target===this)closeQuickLog('nut')">
     <div class="ql-modal-inner">
       <div class="ql-modal-header">
-        <div class="ql-modal-title">Daily Nutrition Log</div>
+        <div class="ql-modal-title">Nutrition Log</div>
         <button class="ql-modal-close" onclick="closeQuickLog('nut')" aria-label="Close nutrition log">×</button>
       </div>
       <div class="ql-modal-body">
@@ -1125,7 +1125,7 @@
         <!-- Live macro vs target feedback -->
         <div id="qlnFeedback" class="qln-feedback"></div>
         <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
-        <button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Log Nutrition</button>
+        <button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Save nutrition log</button>
       </div>
     </div>
   </div>
@@ -1264,13 +1264,13 @@
 <script src="js/01-core.js?v=108"></script>
 <script src="js/02-login-goals.js?v=103"></script>
 <script src="js/03-nav-nudges.js?v=96"></script>
-<script src="js/04-checkin.js?v=87"></script>
+<script src="js/04-checkin.js?v=89"></script>
 <script src="js/05-handbook.js?v=84"></script>
 <script src="js/06-nutrition.js?v=91"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=86" hidden></span>
 <script type="module" src="js/strava-match.js?v=5"></script>
-<script src="js/08-training.js?v=114"></script>
-<script src="js/09-logging.js?v=106"></script>
+<script src="js/08-training.js?v=115"></script>
+<script src="js/09-logging.js?v=108"></script>
 <script src="accessibility.js?v=1"></script>
 <script src="js/10-boot.js?v=101"></script>
 </body>

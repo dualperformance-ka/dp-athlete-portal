@@ -4969,17 +4969,19 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 
 /* ── Daily log dock ────────────────────────────────────────────────────
    Pinned because both are daily. Only the next unlogged segment is
-   filled; a completed segment drops to a quiet done state. */
+   blue; a server-confirmed segment becomes a clear green done state. */
 .quicklog-btn .ql-icon-done,.quicklog-btn .ql-icon-sending{display:none}
 .quicklog-btn.is-done .ql-icon-todo{display:none}
 .quicklog-btn.is-done .ql-icon-done{display:inline-block}
-.quicklog-btn.is-done{background:transparent;border-color:transparent;color:var(--ok);opacity:.85}
+.quicklog-btn.is-done{background:var(--ok);border-color:var(--ok);color:#06150f;opacity:1;font-weight:800}
+.quicklog-btn.is-done .icon{color:#06150f}
 .quicklog-btn.is-next{background:var(--run);border-color:var(--run);color:#071015;font-weight:800}
 .quicklog-btn.is-next .icon{color:#071015}
-.quicklog-strip.all-logged{opacity:.72}
+.quicklog-strip.all-logged{opacity:1}
 .outdoor-mode .quicklog-btn.is-next{background:#1f7fa6;border-color:#1f7fa6;color:#fff}
 .outdoor-mode .quicklog-btn.is-next .icon{color:#fff}
-.outdoor-mode .quicklog-btn.is-done{color:#12794a}
+.outdoor-mode .quicklog-btn.is-done{background:#158a52;border-color:#158a52;color:#fff}
+.outdoor-mode .quicklog-btn.is-done .icon{color:#fff}
 
 /* Saved here, not with the coaches yet. Deliberately louder than "to do" and
    never green: the athlete has done the work, so the message is "this has not

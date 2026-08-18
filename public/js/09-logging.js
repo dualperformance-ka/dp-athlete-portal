@@ -861,6 +861,11 @@ function syncQuickLogDock(){
     var s=state[pair[0]],el=pair[1];
     el.classList.toggle('is-done',s==='logged');
     el.classList.toggle('is-sending',s==='sending');
+    var text=el.querySelector('span');
+    var copy=pair[0]==='body'
+      ?{logged:'Body checked in',sending:'Body check-in sending',none:'Body check-in'}
+      :{logged:'Nutrition logged',sending:'Nutrition log sending',none:'Nutrition log'};
+    if(text)text.textContent=copy[s]||copy.none;
   });
   // Exactly one segment may be filled. Body leads because readiness shapes
   // how the session should be executed. Anything unconfirmed still counts as
@@ -876,8 +881,8 @@ function syncQuickLogDock(){
     sending:function(n){return n+', saved on this device but not yet sent — tap to resend';},
     none:function(n){return n+', not logged yet today';}
   };
-  body.setAttribute('aria-label',label[state.body]('Daily body log'));
-  nut.setAttribute('aria-label',label[state.nut]('Daily nutrition log'));
+  body.setAttribute('aria-label',label[state.body]('Body check-in'));
+  nut.setAttribute('aria-label',label[state.nut]('Nutrition log'));
   var hint=document.getElementById('quicklogHint');
   if(hint){
     var stuck=[state.body==='sending'?'body':null,state.nut==='sending'?'nutrition':null].filter(Boolean);

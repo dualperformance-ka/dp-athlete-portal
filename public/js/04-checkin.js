@@ -311,7 +311,7 @@ function updateNutFeedback(){
   fb.style.display='block';
 }
 async function submitQuickBody(){
-  var btn=document.getElementById('qlbSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
+  var btn=document.getElementById('qlbSubmitBtn');btn.textContent='Saving body check-in...';btn.disabled=true;
   var bodyDate=document.getElementById('qlbDate').value||todayISO2();
   var pain=document.getElementById('qlbPain').value||'0',painLocation=document.getElementById('qlbPainLocation').value||'',notes=document.getElementById('qlbNotes').value||'';
   if(Number(pain)>0)notes=('Pain '+pain+'/10'+(painLocation?' · '+painLocation:'')+(notes?' · '+notes:''));
@@ -327,8 +327,8 @@ async function submitQuickBody(){
   if(!bodyResult||!bodyResult.queued) markLogConfirmed('body',payload.date);
   try{syncQuickLogDock();}catch(e){}
   closeQuickLog('body');
-  showToast(bodyResult.queued?'Body saved on this device - not sent to your coaches yet':'Body logged ✓');
-  btn.textContent='Log Body';btn.disabled=false;
+  showToast(bodyResult.queued?'Body check-in saved on this device - not sent to your coaches yet':'Body check-in saved ✓');
+  btn.textContent='Save body check-in';btn.disabled=false;
   // Reset for next use
   document.getElementById('qlbDate').value='';document.getElementById('qlbWeight').value='';
   document.getElementById('qlbSleep').value='5';document.getElementById('qlbSleepVal').textContent='5';
@@ -341,7 +341,7 @@ async function submitQuickBody(){
   if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();
 }
 async function submitQuickNut(){
-  var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Logging...';btn.disabled=true;
+  var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Saving nutrition log...';btn.disabled=true;
   var nutDate=document.getElementById('qlnDate').value||todayISO2();
   var payload={type:'daily_nutrition',athleteName:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,
     date:nutDate,notes:document.getElementById('qlnNotes').value||''};
@@ -357,8 +357,8 @@ async function submitQuickNut(){
   if(!nutResult||!nutResult.queued) markLogConfirmed('nut',nutDate);
   try{syncQuickLogDock();}catch(e){}
   closeQuickLog('nut');
-  showToast(nutResult.queued?'Nutrition saved on this device - not sent to your coaches yet':'Nutrition logged ✓');
-  btn.textContent='Log Nutrition';btn.disabled=false;
+  showToast(nutResult.queued?'Nutrition log saved on this device - not sent to your coaches yet':'Nutrition logged ✓');
+  btn.textContent='Save nutrition log';btn.disabled=false;
   // Reset for next use
   document.getElementById('qlnDate').value='';document.getElementById('qlnCal').value='';
   document.getElementById('qlnPro').value='';document.getElementById('qlnCarbs').value='';

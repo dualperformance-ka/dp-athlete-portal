@@ -415,9 +415,27 @@ function calendarRunDistance(s){
   var resolved=resolveRunDisplay(s),meta=resolved.meta||{},raw=meta.distance||((_sessionOverrides[s.id]||{}).distance_km)||'';
   var value=parseFloat(String(raw).replace(',','.'));return isNaN(value)?0:value;
 }
+// A high-confidence Strava match completes the run before the athlete adds RPE.
+// Use the matched activity itself as the calendar's source of truth so a 14 km
+// execution does not keep looking like the 13 km prescription. The prescription
+// remains unchanged inside the opened session.
+function calendarStravaDistanceKm(s){
+  if(getType(s)!=='run')return 0;
+  var entry=logs&&logs[s.id],match=entry&&entry.__stravaMatch,activity=match&&match.activity;
+  if(!match)return 0;
+  var metres=Number(activity&&activity.distance);
+  if(Number.isFinite(metres)&&metres>0)return Math.round(metres/100)/10;
+  var logged=Number(entry&&entry.distance);
+  return Number.isFinite(logged)&&logged>0?Math.round(logged*10)/10:0;
+}
+function calendarKmLabel(km){
+  return (Math.round(km*10)/10).toFixed(1).replace(/\.0$/,'')+'km';
+}
 function monthSessionDetail(s){
   var type=getType(s);
   if(type==='run'){
+    var actualKm=calendarStravaDistanceKm(s);
+    if(actualKm)return calendarKmLabel(actualKm)+' · Strava';
     var resolved=resolveRunDisplay(s),meta=resolved.meta||{},distance=meta.distance||'',duration=meta.duration||'',intensity=meta.intensity||s.intensity||'';
     if(distance)return String(distance).replace(/\s+/g,'');
     if(duration){var dur=String(duration);return /^\d+$/.test(dur)?dur+' min':dur;}
