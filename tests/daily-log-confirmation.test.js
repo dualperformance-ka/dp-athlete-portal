@@ -9,6 +9,7 @@ import { dailyLogDates, bootstrapRead } from '../api/write.js';
 const root = new URL('..', import.meta.url).pathname;
 const indexSource = readFileSync(join(root, 'public', 'index.html'), 'utf8');
 const stylesSource = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
+const checkinSource = readFileSync(join(root, 'public', 'js', '04-checkin.js'), 'utf8');
 const loggingSource = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
 
 // The quick-log dock used to tick from a local key written before the request
@@ -156,4 +157,11 @@ test('a confirmed daily log becomes an unmistakable green button', () => {
 test('an unconfirmed daily log stays amber rather than looking successful', () => {
   assert.match(stylesSource, /\.quicklog-btn\.is-sending\{[^}]*background:rgba\(240,173,78/);
   assert.doesNotMatch(stylesSource, /\.quicklog-btn\.is-sending\{[^}]*background:var\(--ok\)/);
+});
+
+test('the form submit button shows its delivery colour before the modal closes', () => {
+  assert.match(stylesSource, /\.ql-modal \.savebtn\.saved\{background:var\(--ok\)/);
+  assert.match(stylesSource, /\.ql-modal \.savebtn\.is-sending\{background:#f0ad4e/);
+  assert.match(checkinSource, /await showQuickLogSubmitFeedback\(btn,'body',[^;]+\);[\s\S]*closeQuickLog\('body'\)/);
+  assert.match(checkinSource, /await showQuickLogSubmitFeedback\(btn,'nut',[^;]+\);[\s\S]*closeQuickLog\('nut'\)/);
 });
