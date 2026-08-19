@@ -815,6 +815,15 @@ document.addEventListener('input',function(e){
 // Days the SERVER has confirmed, hydrated from /api/portal bootstrap and kept
 // current as writes land. A local key only ever means "this device tried".
 var _confirmedLogDates={body:{},nut:{}};
+// `athlete` is declared with `let` in 01-core.js, which makes it a
+// script-scoped binding and NEVER a property of window. So `window.athlete`
+// is permanently undefined in a browser, and every guard written against it
+// failed closed — pinning the dock to "none" no matter what the server had
+// confirmed. Resolve the lexical binding instead. The typeof guard covers the
+// pre-login window, where the binding exists but is still null.
+function currentAthleteCode(){
+  try{return (typeof athlete!=='undefined'&&athlete&&athlete.code)||'';}catch(e){return '';}
+}
 function hydrateConfirmedLogDates(dailyLogged){
   var next={body:{},nut:{}};
   (dailyLogged&&dailyLogged.body||[]).forEach(function(d){next.body[String(d).slice(0,10)]=true;});
@@ -837,7 +846,7 @@ async function loadConfirmedLogDates(){
 // often fire together on mobile, so keep the refresh deliberately throttled.
 var _confirmedLogRefreshAt=0;
 function refreshConfirmedLogDatesOnResume(){
-  if(document.visibilityState==='hidden'||!window.athlete||!athlete.code)return;
+  if(document.visibilityState==='hidden'||!currentAthleteCode())return;
   var now=Date.now();if(now-_confirmedLogRefreshAt<15000)return;
   _confirmedLogRefreshAt=now;
   loadConfirmedLogDates();
@@ -855,11 +864,12 @@ function markLogConfirmed(kind,date){
 // coach can see.
 function quickLogState(kind){
   try{
-    if(!window.athlete||!athlete.code) return 'none';
+    var code=currentAthleteCode();
+    if(!code) return 'none';
     var k=(kind==='body'?'body':'nut');
     var today=todayISO2();
     if(_confirmedLogDates[k]&&_confirmedLogDates[k][today]) return 'logged';
-    var key='dp_daily_'+k+'_'+athlete.code+'_'+today;
+    var key='dp_daily_'+k+'_'+code+'_'+today;
     return localStorage.getItem(key)?'sending':'none';
   }catch(e){return 'none';}
 }

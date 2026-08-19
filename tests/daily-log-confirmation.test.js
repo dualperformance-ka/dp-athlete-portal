@@ -93,7 +93,13 @@ function loadDock() {
     console,
     todayISO2: () => '2026-08-10',
   };
-  context.window = context;
+  // The browser is NOT `window === globalThis` for this code. `athlete` is a
+  // `let` in 01-core.js, so it is a script-scoped binding that never lands on
+  // window. The old harness aliased window to the whole context, which handed
+  // the dock a `window.athlete` that does not exist in production — the suite
+  // passed while every athlete saw a permanently grey dock. Model the real
+  // split: `athlete` reachable lexically, absent from window.
+  context.window = { addEventListener: () => {} };
   vm.createContext(context);
   vm.runInContext(
     source.slice(start, end) +
@@ -192,4 +198,23 @@ test('returning to an installed app refreshes Supabase confirmation state', () =
   assert.match(loggingSource, /document\.addEventListener\('visibilitychange',refreshConfirmedLogDatesOnResume\)/);
   assert.match(loggingSource, /window\.addEventListener\('focus',refreshConfirmedLogDatesOnResume\)/);
   assert.match(loggingSource, /loadConfirmedLogDates\(\)/);
+});
+
+// The regression that shipped a green tick nobody could ever see: the dock
+// guarded on `window.athlete`, which is undefined for a `let` binding, so
+// quickLogState returned 'none' for a day the server had already confirmed.
+test('dock state survives athlete living outside window, as it does in a browser', () => {
+  assert.equal(dock.window.athlete, undefined, 'production has no window.athlete — do not reintroduce it');
+  dock.localStorage._v = {};
+  dock.hydrateConfirmedLogDates({ body: ['2026-08-10'], nutrition: [] });
+  assert.equal(dock.quickLogState('body'), 'logged', 'a server-confirmed day must read as logged');
+});
+
+test('no dock guard reads athlete off window', () => {
+  const guarded = loggingSource.slice(
+    loggingSource.indexOf('// Days the SERVER has confirmed'),
+    loggingSource.indexOf("document.addEventListener('DOMContentLoaded',function(){try{syncQuickLogDock();}catch(e){}});")
+  );
+  const code = guarded.split('\n').filter(line => !/^\s*\/\//.test(line)).join('\n');
+  assert.ok(!/window\.athlete/.test(code), 'window.athlete is always undefined here — use the lexical binding');
 });

@@ -741,7 +741,10 @@ if('serviceWorker' in navigator){
 
   Promise.all([load('/coach-mode.css?v=1', true), load('/coach-mode.js?v=1', false)]).then(function () {
     if (window.DP_COACH_MODE) {
-      window.DP_COACH_MODE.start(token, (window.athlete && window.athlete.code) || '');
+      // Same trap as the daily-log dock: `athlete` is a `let` binding, so it
+      // never appears on window and this always handed coach mode an empty
+      // code. Read the lexical binding.
+      window.DP_COACH_MODE.start(token, (typeof athlete !== 'undefined' && athlete && athlete.code) || '');
     }
   });
 })();

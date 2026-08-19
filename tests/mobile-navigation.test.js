@@ -53,10 +53,20 @@ test('Check-in remains prominent on Home and at the top of More when due', () =>
   assert.match(nav, /moreCheckinDue[\s\S]*classList\.toggle\('visible',!done\)/);
 });
 
+// This used to pin literal version numbers, so it failed on every deploy that
+// changed a shell file — which trains you to edit the assertion rather than
+// read it. What actually matters is that index.html and the service worker
+// agree: a mismatch means the PWA precaches one file and the page requests
+// another, and athletes sit on a stale build with no signal that they are.
 test('installed PWAs receive the new navigation shell', () => {
-  assert.match(index, /styles\.css\?v=119/);
-  assert.match(index, /03-nav-nudges\.js\?v=96/);
-  assert.match(sw, /dp-athlete-v151/);
-  assert.match(sw, /styles\.css\?v=119/);
-  assert.match(sw, /03-nav-nudges\.js\?v=96/);
+  const served = (source, file) => {
+    const match = source.match(new RegExp(file.replace(/[.]/g, '\\.') + '\\?v=(\\d+)'));
+    assert.ok(match, `${file} should be served with a version in this file`);
+    return match[1];
+  };
+  for (const file of ['styles.css', '03-nav-nudges.js', '09-logging.js', '10-boot.js']) {
+    assert.equal(served(index, file), served(sw, file),
+      `${file}: index.html and sw.js must request the same version`);
+  }
+  assert.match(sw, /const CACHE_NAME = 'dp-athlete-v\d+'/);
 });

@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v151'; // v151: publish dark/light completed daily-log buttons
+const CACHE_NAME = 'dp-athlete-v152'; // v152: dock reads athlete lexically — window.athlete never existed
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=119', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=120', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=108',
   '/js/02-login-goals.js?v=103',
@@ -11,9 +11,9 @@ const APP_SHELL = [
   '/js/07-progress.js?v=86',
   '/js/strava-match.js?v=5',
   '/js/08-training.js?v=115',
-  '/js/09-logging.js?v=109',
+  '/js/09-logging.js?v=110',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=101',
+  '/js/10-boot.js?v=102',
   '/login.js?v=48', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
