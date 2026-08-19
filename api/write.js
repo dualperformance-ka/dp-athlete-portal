@@ -532,6 +532,25 @@ async function bodyLogs(code) {
   return { rows: Array.isArray(rows) ? rows : [] };
 }
 
+// Body logs come back in full so the portal can reopen a submitted day; until
+// now nutrition only ever returned DATES, so an athlete who logged breakfast on
+// their phone opened a blank form on their laptop and could not tell whether
+// the morning's entry existed. The values have to travel too.
+//
+// Deliberately a short window, not the 400 rows body uses: nutrition notes run
+// to several hundred words each, and the only screens that read these are
+// "today" and the yesterday-for-reference panel. Three weeks covers both with
+// room for a missed sync, and keeps the bootstrap payload small.
+export async function nutritionLogs(code, selectRows = select) {
+  const rows = await selectRows('daily_nutrition_logs', {
+    athlete_code: `eq.${code}`,
+    select: 'log_date,calories,protein,carbs,fat,fibre,notes,raw_payload,submitted_at',
+    order: 'log_date.desc',
+    limit: '21',
+  });
+  return { rows: Array.isArray(rows) ? rows : [] };
+}
+
 // Which days the server has ACTUALLY received a body or nutrition log for.
 //
 // The quick-log dock used to tick from a local storage key written before the
@@ -631,15 +650,19 @@ export async function bootstrapRead(code, readers = {}) {
   const readBodyLogs = readers.bodyLogs || bodyLogs;
   const readSessionLogs = readers.sessionLogsRead || sessionLogsRead;
   const readDailyLogDates = readers.dailyLogDates || dailyLogDates;
-  const [state, bodyLogRows, sessionLogs, dailyLogged] = await Promise.all([
+  const readNutritionLogs = readers.nutritionLogs || nutritionLogs;
+  const [state, bodyLogRows, sessionLogs, dailyLogged, nutritionRows] = await Promise.all([
     readState(code),
     readBodyLogs(code),
     readSessionLogs(code),
     // Never let the confirmation lookup take the whole portal down with it: a
     // missing indicator is a small loss, a blocked entry screen is not.
     readDailyLogDates(code).catch(() => ({ body: [], nutrition: [] })),
+    // Same rule for the nutrition values: worst case the athlete reopens a form
+    // that does not know today's macros yet, which is where they already were.
+    readNutritionLogs(code).catch(() => ({ rows: [] })),
   ]);
-  return { state, bodyLogs: bodyLogRows, sessionLogs, dailyLogged };
+  return { state, bodyLogs: bodyLogRows, sessionLogs, dailyLogged, nutritionLogs: nutritionRows };
 }
 
 async function dispatch(action, code, body) {
@@ -659,6 +682,7 @@ async function dispatch(action, code, body) {
   if (action === 'strava-match-reject') return rejectStravaMatch(code, body);
   if (action === 'body-logs') return bodyLogs(code);
   if (action === 'daily-log-dates') return dailyLogDates(code);
+  if (action === 'nutrition-logs') return nutritionLogs(code);
 
   const error = new Error('Unknown portal action');
   error.status = 400;

@@ -667,6 +667,35 @@ async function loadStructuredBodyData(code,preloaded){
   }catch(e){console.warn('Body log cloud hydration failed',e);}
   finally{_skipSbSync=wasSkipping;}
 }
+// The nutrition twin of the above. Both daily logs are supposed to mirror into
+// athlete_data on write, but that mirror has quietly stopped landing for
+// several athletes — THOMAS logs most days and has zero rows there — so it
+// cannot be trusted to repopulate a submitted form. daily_nutrition_logs is
+// what the coaches actually read, so hydrate from that and let every device
+// agree on what was sent.
+async function loadStructuredNutritionData(code,preloaded){
+  if(!code) return;
+  var wasSkipping=_skipSbSync;
+  try{
+    var result=preloaded||await portalRequest('nutrition-logs');
+    if(!result||!Array.isArray(result.rows)) return;
+    _skipSbSync=true;
+    var num=function(v){return v==null?'':String(v);};
+    result.rows.forEach(function(row){
+      var logDate=String(row.log_date||'').slice(0,10);if(!logDate)return;
+      var raw=row.raw_payload&&typeof row.raw_payload==='object'?row.raw_payload:{};
+      var value=Object.assign({},raw,{
+        type:'daily_nutrition',athleteCode:code,date:logDate,
+        calories:num(row.calories),protein:num(row.protein),carbs:num(row.carbs),
+        fat:num(row.fat),fibre:num(row.fibre),
+        notes:row.notes||raw.notes||'',
+        submittedAt:row.submitted_at||raw.submittedAt||''
+      });
+      localStorage.setItem('dp_daily_nut_'+code+'_'+logDate,JSON.stringify(value));
+    });
+  }catch(e){console.warn('Nutrition log cloud hydration failed',e);}
+  finally{_skipSbSync=wasSkipping;}
+}
 
 // ── STRENGTH LIBRARY ──────────────────────────────────────────────────────────
 const STR = {

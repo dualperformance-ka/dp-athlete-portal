@@ -179,11 +179,150 @@ function updateSessionCounter(){
 }
 
 // ── QUICK LOG ─────────────────────────────────────────────────────────────────
+// ── SUBMITTED-DAY RECALL ────────────────────────────────────────────────────
+// Clearing the form on submit meant a reopened log looked exactly like one that
+// was never filled in — the same ambiguity the dock colours were meant to kill,
+// just moved one tap deeper. A day the coaches already hold now reopens showing
+// what they hold, and saving again updates that row rather than adding one
+// (the write upserts on athlete_code + log_date).
+function storedDailyLog(kind,date){
+  try{
+    var code=(typeof athlete!=='undefined'&&athlete&&athlete.code)||'';
+    if(!code||!date) return null;
+    var raw=localStorage.getItem('dp_daily_'+kind+'_'+code+'_'+date);
+    return raw?JSON.parse(raw):null;
+  }catch(e){return null;}
+}
+// Pain used to be folded into the notes string at submit time, so a naive
+// prefill would show "Pain 4/10 · left knee · felt ok" in the notes box and
+// then fold it in AGAIN on the next save. Newer payloads carry the raw note
+// separately; strip the prefix for rows written before that.
+function rawBodyNote(entry){
+  if(!entry) return '';
+  if(typeof entry.noteText==='string') return entry.noteText;
+  var notes=String(entry.notes||'');
+  if(!(Number(entry.pain||0)>0)) return notes;
+  // Rebuild the exact prefix this payload would have generated rather than
+  // pattern-matching it. "Pain 4/10 · left knee" and "Pain 4/10 · felt flat"
+  // are indistinguishable by shape, and guessing wrong silently eats either
+  // the athlete's note or their pain location.
+  var prefix='Pain '+entry.pain+'/10'+(entry.painLocation?' · '+entry.painLocation:'');
+  if(notes.indexOf(prefix)!==0) return notes;
+  var rest=notes.slice(prefix.length);
+  return rest.indexOf(' · ')===0?rest.slice(3):rest;
+}
+function setFieldValue(id,value){
+  var el=document.getElementById(id);
+  if(el) el.value=value==null?'':String(value);
+}
+function setSliderValue(id,valId,value,fallback){
+  var el=document.getElementById(id);if(!el) return;
+  var v=(value===''||value==null)?fallback:String(value);
+  el.value=v;
+  var out=document.getElementById(valId);if(out) out.textContent=v;
+  // Sliders dim until touched so an untouched wall of 5s is visible. A value
+  // the athlete already submitted is not untouched.
+  if(value!==''&&value!=null) el.classList.remove('sl-untouched');
+  else el.classList.add('sl-untouched');
+}
+function describeSubmittedAt(entry){
+  var stamp=entry&&(entry.submittedAt||entry.submitted_at);
+  if(!stamp) return '';
+  var d=new Date(stamp);
+  if(isNaN(d.getTime())) return '';
+  var h=d.getHours(),m=String(d.getMinutes()).padStart(2,'0');
+  var suffix=h<12?'am':'pm';var hr=h%12;if(hr===0)hr=12;
+  return ' at '+hr+':'+m+suffix;
+}
+// Only a SERVER-confirmed day may present itself as submitted. A local key
+// means this device tried, which is exactly the claim that caused the original
+// problem — so an unsent log keeps its plain "Save" wording.
+function applyQuickLogSubmittedState(kind,date){
+  var noteEl=document.getElementById(kind==='body'?'qlbSubmittedNote':'qlnSubmittedNote');
+  var btn=document.getElementById(kind==='body'?'qlbSubmitBtn':'qlnSubmitBtn');
+  var saveLabel=kind==='body'?'Save body check-in':'Save nutrition log';
+  var updateLabel=kind==='body'?'Update body check-in':'Update nutrition log';
+  // 09-logging.js owns the confirmation map and loads after this file, so read
+  // it defensively rather than assuming the global is there.
+  var confirmed=false;
+  try{confirmed=!!(_confirmedLogDates&&_confirmedLogDates[kind]&&_confirmedLogDates[kind][date]);}catch(e){}
+  var entry=storedDailyLog(kind==='body'?'body':'nut',date);
+  if(btn&&!btn.disabled) btn.textContent=confirmed?updateLabel:saveLabel;
+  if(!noteEl) return confirmed;
+  if(confirmed){
+    noteEl.textContent='Your coaches have this'+describeSubmittedAt(entry)+'. Change anything below and save to update it.';
+    noteEl.style.display='block';
+  }else{
+    noteEl.style.display='none';
+  }
+  return confirmed;
+}
+// Prefill and clear are the same operation: whatever day is selected, the form
+// must show that day and nothing else. Keeping values around without this would
+// trade one confusion for a worse one — yesterday's numbers sitting in today's
+// form, ready to be saved as today's.
+function prefillQuickBody(date){
+  var entry=storedDailyLog('body',date);
+  if(!entry){
+    setFieldValue('qlbWeight','');
+    setSliderValue('qlbSleep','qlbSleepVal','','5');
+    setSliderValue('qlbEnergy','qlbEnergyVal','','5');
+    setSliderValue('qlbStress','qlbStressVal','','5');
+    setSliderValue('qlbSore','qlbSoreVal','','5');
+    setSliderValue('qlbPain','qlbPainVal','','0');
+    setFieldValue('qlbPainLocation','');
+    var emptyWrap=document.getElementById('qlbPainLocationWrap');
+    if(emptyWrap) emptyWrap.style.display='none';
+    setFieldValue('qlbNotes','');
+    return;
+  }
+  setFieldValue('qlbWeight',entry.weight);
+  setSliderValue('qlbSleep','qlbSleepVal',entry.sleep,'5');
+  setSliderValue('qlbEnergy','qlbEnergyVal',entry.energy,'5');
+  setSliderValue('qlbStress','qlbStressVal',entry.stress,'5');
+  setSliderValue('qlbSore','qlbSoreVal',entry.soreness,'5');
+  setSliderValue('qlbPain','qlbPainVal',entry.pain,'0');
+  setFieldValue('qlbPainLocation',entry.painLocation||'');
+  var wrap=document.getElementById('qlbPainLocationWrap');
+  if(wrap) wrap.style.display=Number(entry.pain||0)>0?'':'none';
+  setFieldValue('qlbNotes',rawBodyNote(entry));
+}
+function prefillQuickNut(date){
+  var entry=storedDailyLog('nut',date);
+  if(!entry){
+    ['qlnCal','qlnPro','qlnCarbs','qlnFat','qlnFibre','qlnNotes'].forEach(function(id){setFieldValue(id,'');});
+    return;
+  }
+  setFieldValue('qlnCal',entry.calories);
+  setFieldValue('qlnPro',entry.protein);
+  setFieldValue('qlnCarbs',entry.carbs);
+  setFieldValue('qlnFat',entry.fat);
+  setFieldValue('qlnFibre',entry.fibre);
+  setFieldValue('qlnNotes',entry.notes||'');
+}
+// Backdating is supported, so the form has to follow the date picker rather
+// than only the moment the modal opened.
+document.addEventListener('change',function(e){
+  if(!e.target) return;
+  if(e.target.id==='qlbDate'){
+    var bodyDate=e.target.value||todayISO2();
+    prefillQuickBody(bodyDate);applyQuickLogSubmittedState('body',bodyDate);
+  }else if(e.target.id==='qlnDate'){
+    var nutDate=e.target.value||todayISO2();
+    prefillQuickNut(nutDate);applyQuickLogSubmittedState('nut',nutDate);
+    if(typeof updateNutFeedback==='function')updateNutFeedback();
+  }
+});
 function openQuickLog(type){
   var today=todayISO2();
   if(type==='body'){
+    // Always reopen on today. The form now keeps its values, so leaving a
+    // previously chosen date in place would silently point today's entry at
+    // yesterday's row.
     var dateEl=document.getElementById('qlbDate');
-    if(dateEl&&!dateEl.value) dateEl.value=today;
+    if(dateEl) dateEl.value=today;
+    prefillQuickBody(today);
+    applyQuickLogSubmittedState('body',today);
     // Load previous day body data for reference
     (function(){
       var prevPanel=document.getElementById('qlbPrevDay');
@@ -215,7 +354,9 @@ function openQuickLog(type){
     document.body.style.overflow='hidden';
   } else {
     var dateEl=document.getElementById('qlnDate');
-    if(dateEl&&!dateEl.value) dateEl.value=today;
+    if(dateEl) dateEl.value=today;
+    prefillQuickNut(today);
+    applyQuickLogSubmittedState('nut',today);
     // Load previous day nutrition for reference
     (function(){
       var prevPanel=document.getElementById('qlnPrevDay');
@@ -329,7 +470,12 @@ async function submitQuickBody(){
   var payload={type:'daily_body',athleteName:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,
     date:bodyDate,weight:document.getElementById('qlbWeight').value||'',
     sleep:document.getElementById('qlbSleep').value,energy:document.getElementById('qlbEnergy').value,
-    stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,pain:pain,painLocation:painLocation,coachAlert:Number(pain)>=5,notes:notes};
+    stress:document.getElementById('qlbStress').value,soreness:document.getElementById('qlbSore').value,pain:pain,painLocation:painLocation,coachAlert:Number(pain)>=5,notes:notes,
+    // The athlete's note before pain is folded into it, so reopening this day
+    // can restore the box they actually typed in instead of the coach-facing
+    // summary — and a second save cannot fold the pain prefix in twice.
+    noteText:document.getElementById('qlbNotes').value||'',
+    submittedAt:new Date().toISOString()};
   // The local copy is this device's record of the attempt, nothing more. The
   // dock only turns green once the server confirms — see quickLogState.
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
@@ -340,23 +486,19 @@ async function submitQuickBody(){
   showToast(bodyResult.queued?'Body check-in saved on this device - not sent to your coaches yet':'Body check-in saved ✓');
   await showQuickLogSubmitFeedback(btn,'body',!!bodyResult.queued);
   closeQuickLog('body');
+  // The form deliberately keeps what was submitted. Wiping it made a saved day
+  // indistinguishable from an untouched one the moment the modal reopened, so
+  // athletes re-entered logs the coaches already had. The button becomes
+  // "Update" and the date stays put; a new day picks up a fresh date on open.
   resetQuickLogSubmitButton(btn,'Save body check-in');
-  // Reset for next use
-  document.getElementById('qlbDate').value='';document.getElementById('qlbWeight').value='';
-  document.getElementById('qlbSleep').value='5';document.getElementById('qlbSleepVal').textContent='5';
-  document.getElementById('qlbEnergy').value='5';document.getElementById('qlbEnergyVal').textContent='5';
-  document.getElementById('qlbStress').value='5';document.getElementById('qlbStressVal').textContent='5';
-  document.getElementById('qlbSore').value='5';document.getElementById('qlbSoreVal').textContent='5';
-  document.getElementById('qlbPain').value='0';document.getElementById('qlbPainVal').textContent='0';document.getElementById('qlbPainLocation').value='';document.getElementById('qlbPainLocationWrap').style.display='none';
-  document.getElementById('qlbNotes').value='';
-  var prevPanel=document.getElementById('qlbPrevDay');if(prevPanel) prevPanel.style.display='none';
+  applyQuickLogSubmittedState('body',payload.date);
   if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();
 }
 async function submitQuickNut(){
   var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Saving nutrition log...';btn.disabled=true;
   var nutDate=document.getElementById('qlnDate').value||todayISO2();
   var payload={type:'daily_nutrition',athleteName:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,
-    date:nutDate,notes:document.getElementById('qlnNotes').value||''};
+    date:nutDate,notes:document.getElementById('qlnNotes').value||'',submittedAt:new Date().toISOString()};
   // Only send numeric macros that actually have a value — empty strings break Notion number fields
   [['calories','qlnCal'],['protein','qlnPro'],['carbs','qlnCarbs'],['fat','qlnFat'],['fibre','qlnFibre']].forEach(function(_f){
     var _v=document.getElementById(_f[1]).value;
@@ -371,11 +513,9 @@ async function submitQuickNut(){
   showToast(nutResult.queued?'Nutrition log saved on this device - not sent to your coaches yet':'Nutrition logged ✓');
   await showQuickLogSubmitFeedback(btn,'nut',!!nutResult.queued);
   closeQuickLog('nut');
+  // Kept, not cleared — see submitQuickBody. Nutrition matters more here: macros
+  // get logged in stages through the day, and a blank form after saving lunch
+  // invites re-entering the whole day rather than adding dinner to it.
   resetQuickLogSubmitButton(btn,'Save nutrition log');
-  // Reset for next use
-  document.getElementById('qlnDate').value='';document.getElementById('qlnCal').value='';
-  document.getElementById('qlnPro').value='';document.getElementById('qlnCarbs').value='';
-  document.getElementById('qlnFat').value='';document.getElementById('qlnFibre').value='';
-  document.getElementById('qlnNotes').value='';
-  var prevPanel=document.getElementById('qlnPrevDay');if(prevPanel) prevPanel.style.display='none';
+  applyQuickLogSubmittedState('nut',nutDate);
 }

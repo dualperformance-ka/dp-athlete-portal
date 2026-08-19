@@ -5027,6 +5027,16 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .quicklog-btn.ql-nut:not(.is-next):not(.is-done):not(.is-sending) .icon,
 .quicklog-btn.ql-body:not(.is-next):not(.is-done):not(.is-sending) .icon{color:var(--run)}
 
+/* Reopening a submitted day. Green, because it means the same thing the dock's
+   green means: the coaches have it. Sits directly above the save button so the
+   "Update" wording is read in context rather than as a second Save. */
+.ql-submitted{
+  margin:0 0 10px;padding:9px 12px;border-radius:var(--r-sm);
+  background:var(--ok-bg);border:1px solid var(--ok-border);
+  color:var(--ok);font-size:12.5px;line-height:1.45
+}
+.outdoor-mode .ql-submitted{background:#e8f6ef;border-color:#158a52;color:#0f6b3f}
+
 /* Keep the submitted form visible long enough for the athlete to see the
    delivery result before it closes: green only when the server has it. */
 .ql-modal .savebtn.saved{background:var(--ok);color:#06150f;box-shadow:0 10px 26px rgba(115,209,167,.24)}

@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=120">
+<link rel="stylesheet" href="/styles.css?v=121">
 <link rel="stylesheet" href="/desktop.css?v=5">
 <link rel="stylesheet" href="/icons.css?v=3">
 
@@ -1035,6 +1035,10 @@
           <div class="pain-help">Sharp, sudden or worsening pain is automatically flagged for coach review.</div>
         </div>
         <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
+        <!-- Shown only once the server holds this day, so the form reads as a
+             record you can correct rather than an empty box you might not have
+             filled in. Populated by applyQuickLogSubmittedState(). -->
+        <div class="ql-submitted" id="qlbSubmittedNote" role="status" style="display:none"></div>
         <button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Save body check-in</button>
       </div>
     </div>
@@ -1125,6 +1129,7 @@
         <!-- Live macro vs target feedback -->
         <div id="qlnFeedback" class="qln-feedback"></div>
         <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
+        <div class="ql-submitted" id="qlnSubmittedNote" role="status" style="display:none"></div>
         <button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Save nutrition log</button>
       </div>
     </div>
@@ -1261,10 +1266,10 @@
 
 <script src="config.js"></script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=108"></script>
-<script src="js/02-login-goals.js?v=103"></script>
+<script src="js/01-core.js?v=109"></script>
+<script src="js/02-login-goals.js?v=104"></script>
 <script src="js/03-nav-nudges.js?v=96"></script>
-<script src="js/04-checkin.js?v=90"></script>
+<script src="js/04-checkin.js?v=91"></script>
 <script src="js/05-handbook.js?v=84"></script>
 <script src="js/06-nutrition.js?v=91"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=86" hidden></span>

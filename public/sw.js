@@ -1,11 +1,11 @@
-const CACHE_NAME = 'dp-athlete-v152'; // v152: dock reads athlete lexically — window.athlete never existed
+const CACHE_NAME = 'dp-athlete-v153'; // v153: submitted daily logs reopen with their values
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=120', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=121', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=108',
-  '/js/02-login-goals.js?v=103',
+  '/js/01-core.js?v=109',
+  '/js/02-login-goals.js?v=104',
   '/js/03-nav-nudges.js?v=96',
-  '/js/04-checkin.js?v=90',
+  '/js/04-checkin.js?v=91',
   '/js/05-handbook.js?v=84',
   '/js/06-nutrition.js?v=91',
   '/js/07-progress.js?v=86',

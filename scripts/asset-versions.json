@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 120,
-    "sha": "dfe37e4f2409"
+    "version": 121,
+    "sha": "e3b672034aa4"
   },
   "desktop.css": {
     "version": 5,
@@ -16,20 +16,20 @@
     "sha": "91ee8465188a"
   },
   "js/01-core.js": {
-    "version": 108,
-    "sha": "16b35434c2e5"
+    "version": 109,
+    "sha": "6bf337c990ef"
   },
   "js/02-login-goals.js": {
-    "version": 103,
-    "sha": "c5e5d176dbbf"
+    "version": 104,
+    "sha": "b763c476ad07"
   },
   "js/03-nav-nudges.js": {
     "version": 96,
     "sha": "f4056479ce90"
   },
   "js/04-checkin.js": {
-    "version": 90,
-    "sha": "b60af7a333cb"
+    "version": 91,
+    "sha": "8bba9ed5ea0e"
   },
   "js/05-handbook.js": {
     "version": 84,

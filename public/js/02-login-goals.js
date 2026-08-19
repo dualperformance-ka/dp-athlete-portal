@@ -79,6 +79,9 @@ async function hydratePortalData(code){
     // identical while removing two browser/server round trips.
     await loadCloudData(code,bootstrap.state);
     await loadStructuredBodyData(code,bootstrap.bodyLogs);
+    // Older deployments have no nutritionLogs in the bootstrap; passing
+    // undefined makes the loader fetch it itself rather than skip silently.
+    await loadStructuredNutritionData(code,bootstrap.nutritionLogs);
     await loadSessionLogs(bootstrap.sessionLogs);
     // Which daily logs the coaches actually hold. Absent on older deployments,
     // in which case the dock falls back to its own read below.
@@ -90,7 +93,7 @@ async function hydratePortalData(code){
   }
   // Safe rollout/failure path: older deployments and transient bootstrap
   // failures retain the exact request sequence used before this optimisation.
-  await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);})(),loadSessionLogs(),loadConfirmedLogDates()]);
+  await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);await loadStructuredNutritionData(code);})(),loadSessionLogs(),loadConfirmedLogDates()]);
 }
 function hydrateLocalPortalState(code){
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');

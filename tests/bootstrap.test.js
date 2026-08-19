@@ -25,6 +25,12 @@ test('bootstrap combines read-only startup data without changing response shapes
       calls.push(['dailyLogged', code]);
       return { body: ['2026-08-04'], nutrition: [] };
     },
+    // Values, not just dates: the quick-log form reopens from these so a day
+    // the coaches already hold does not present itself as an empty form.
+    nutritionLogs: async (code) => {
+      calls.push(['nutritionLogs', code]);
+      return { rows: [{ log_date: '2026-08-04', calories: 2100 }] };
+    },
   });
 
   assert.deepEqual(result, {
@@ -32,10 +38,12 @@ test('bootstrap combines read-only startup data without changing response shapes
     bodyLogs: { rows: [{ log_date: '2026-08-04', sleep: 8 }] },
     sessionLogs: { rows: [{ session_key: 'session_ATHLETE1_1' }] },
     dailyLogged: { body: ['2026-08-04'], nutrition: [] },
+    nutritionLogs: { rows: [{ log_date: '2026-08-04', calories: 2100 }] },
   });
   assert.deepEqual(calls.sort(), [
     ['body', 'ATHLETE1'],
     ['dailyLogged', 'ATHLETE1'],
+    ['nutritionLogs', 'ATHLETE1'],
     ['sessions', 'ATHLETE1'],
     ['state', 'ATHLETE1'],
   ]);
