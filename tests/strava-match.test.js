@@ -215,3 +215,67 @@ test('an unparseable session name is unknown and does not downgrade', () => {
   assert.equal(result.confidence, 'high');
   assert.deepEqual(result.reasons, []);
 });
+
+// Strides are how an easy run finishes, not a quality session. The coach note
+// "finish with 4-6 × 20s strides" reads as rep notation to the classifier, so
+// every easy run carrying that note was prescribed 'quality', executed 'easy'
+// and flagged as under-run — Karl's 10.3 km easy run scored 16 relative effort,
+// 1.55/km against a 3.0 threshold, so the flag was certain rather than close.
+test('strides in a coach note do not make an easy run a quality session', () => {
+  const strideNotes = [
+    'Easy aerobic. Finish with 4-6 × 20s strides.',
+    '6 x 20s strides',
+    'finish with 4 × 100m strides',
+    '4 x 15s hill strides',
+    'add strides at the end',
+  ];
+  for (const description of strideNotes) {
+    assert.equal(
+      classifyPrescribedIntensity({ name: 'Easy + Strides', type: 'Easy Run', resolvedDescription: description }),
+      'easy',
+      `"${description}" describes an easy run`
+    );
+  }
+});
+
+test('real quality work is still caught, including alongside strides', () => {
+  const qualityNotes = [
+    '5 x 1km @ threshold',
+    '20min at tempo',
+    '8 x 45s hill reps',
+    'easy 8km then 5 x 1km @ threshold',
+    // Strides stripped, reps survive: never drop the whole sentence.
+    '4 x 20s strides then 5 x 1km reps',
+  ];
+  for (const description of qualityNotes) {
+    assert.equal(
+      classifyPrescribedIntensity({ name: 'Session', resolvedDescription: description }),
+      'quality',
+      `"${description}" is quality work`
+    );
+  }
+});
+
+test('an easy run with strides no longer trips the under-run flag', () => {
+  const session = {
+    id: 'S1',
+    date: '2026-08-19',
+    name: 'Easy + Strides',
+    type: 'Easy Run',
+    resolvedDescription: 'Easy aerobic. Finish with 4-6 × 20s strides.',
+  };
+  // The real activity: 10.301 km, relative effort 16 → 1.55 per km.
+  const activity = run(10.301, 60, { relative_effort: 16 });
+  activity.start_date_local = '2026-08-19T06:16:03';
+  const result = matchActivityToSession(session, [activity], { plannedKm: 10 });
+  assert.equal(result.matched, true);
+  assert.ok(!result.reasons.includes('intensity_below_prescription'),
+    'an easy run finished with strides is not an under-run quality session');
+  assert.equal(result.confidence, 'high');
+});
+
+test('the under-run prompt does not name a session shape it cannot know', () => {
+  const code = loggingSource.split('\n').filter(line => !/^\s*\/\//.test(line)).join('\n');
+  assert.ok(!/did you do the intervals/.test(code),
+    'the flag fires for tempo and hill sessions too, which have no intervals');
+});

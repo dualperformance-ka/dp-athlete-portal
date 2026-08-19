@@ -305,7 +305,11 @@ function stravaMatchHtml(session,i,context){
   }
   var sum=stravaActivitySummary(match.activity),distance=sum.distance.toFixed(1).replace(/\.0$/,''),minutes=Math.round(sum.duration);
   if(match.confidence==='low'&&!isSessionLogged(session.id)){
-    var prompt=stravaMatchHasReason(match,'intensity_below_prescription')?'This looks easier than the session you had planned — did you do the intervals?':('Looks like you ran this — '+distance+' km, '+minutes+' min. Mark it done?');
+    // "did you do the intervals?" was wrong whenever the prescription was a
+    // tempo, hill or threshold run rather than reps — and wrong every time for
+    // the easy-run-with-strides case this used to misfire on. Ask about the
+    // session, which holds whatever the prescription was.
+    var prompt=stravaMatchHasReason(match,'intensity_below_prescription')?'This looks easier than the session you had planned — did you complete the full session?':('Looks like you ran this — '+distance+' km, '+minutes+' min. Mark it done?');
     return '<div class="strava-match-suggestion '+(context||'')+'">'+stravaLogoSvg()+'<span>'+prompt+'</span><button type="button" onclick="event.stopPropagation();confirmStravaMatch('+i+')">Confirm</button></div>';
   }
   if(!isSessionLogged(session.id))return '';

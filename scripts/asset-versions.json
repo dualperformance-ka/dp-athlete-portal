@@ -44,16 +44,16 @@
     "sha": "b4fe068e7abd"
   },
   "js/strava-match.js": {
-    "version": 5,
-    "sha": "19c5ac738226"
+    "version": 6,
+    "sha": "ef4ae7d30ee9"
   },
   "js/08-training.js": {
     "version": 115,
     "sha": "37c153207197"
   },
   "js/09-logging.js": {
-    "version": 110,
-    "sha": "260306d0fb16"
+    "version": 111,
+    "sha": "c6594ce3597e"
   },
   "accessibility.js": {
     "version": 1,

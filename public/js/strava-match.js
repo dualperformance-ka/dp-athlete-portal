@@ -64,10 +64,22 @@ export function classifyPrescribedIntensity(session) {
   addPrescriptionObject(parts, session.coachOverride || session.override);
   addPrescriptionObject(parts, session.resolvedMeta || session.meta);
   var text = parts.join(' ').toLowerCase();
+  // Strides are not intervals. They are the standard finish to an easy run, and
+  // the coach note that prescribes them ("finish with 4-6 × 20s strides") looks
+  // exactly like rep notation to the regex below — which flagged every easy run
+  // carrying that note as an under-run quality session. A 10 km easy run with
+  // strides came back at 1.55 effort/km against a 3.0 threshold, so the flag was
+  // guaranteed, not marginal.
+  //
+  // Remove the stride phrase and any rep count attached to it before
+  // classifying. Genuine work in the same note still counts: strip only the
+  // strides, never the whole sentence.
+  var STRIDE_PHRASE = /(?:\b\d+\s*(?:[-–—]\s*\d+)?\s*[x×]\s*\d+\s*(?:s|sec|secs|seconds|m|min|mins)?\s*)?(?:\bhill\s+)?\bstrides?\b/gi;
+  var classifiable = text.replace(STRIDE_PHRASE, ' ');
   var repNotation = /\b\d+\s*[x×]\s*\d+(?:\.\d+)?\s*(?:km|m|s|sec|secs|seconds|min|mins|minutes)?\b/i;
   var quality = /\b(?:tempo|threshold|intervals?|reps?|repeats?|hill|fartlek|track|race)\b|\btime[ -]?trial\b/i;
   var easy = /\b(?:easy|recovery|steady|shakeout)\b|\blong\s+run\b/i;
-  if (repNotation.test(text) || quality.test(text)) return 'quality';
+  if (repNotation.test(classifiable) || quality.test(classifiable)) return 'quality';
   if (easy.test(text)) return 'easy';
   return 'unknown';
 }

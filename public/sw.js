@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v153'; // v153: submitted daily logs reopen with their values
+const CACHE_NAME = 'dp-athlete-v154'; // v154: strides are not intervals; submitted logs reopen with values
 const APP_SHELL = [
   '/index.html', '/styles.css?v=121', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -9,9 +9,9 @@ const APP_SHELL = [
   '/js/05-handbook.js?v=84',
   '/js/06-nutrition.js?v=91',
   '/js/07-progress.js?v=86',
-  '/js/strava-match.js?v=5',
+  '/js/strava-match.js?v=6',
   '/js/08-training.js?v=115',
-  '/js/09-logging.js?v=110',
+  '/js/09-logging.js?v=111',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=102',
   '/login.js?v=48', '/icons.css?v=3',
