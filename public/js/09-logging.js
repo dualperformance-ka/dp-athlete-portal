@@ -168,7 +168,26 @@ function showRunSaved(i,d){
   // Keep the form visible so athletes can see their saved data for reassurance
   lockSaveButton(i,'Save session');
 }
-var _draftGymTimer=null;
+var _draftGymTimer=null,_draftGymPending=null;
+// The debounced strength write can outlive the card it was reading from — the
+// focused session overlay REMOVES generated cards on close, and Escape / "Done
+// — back to plan" / the × all land there. A write that fires against a dead DOM
+// reads zero sets for every exercise and merges empty arrays over a full
+// session, so the athlete comes back to nothing. Anything that tears the card
+// down must flush the pending draft FIRST, while the inputs still exist.
+function flushGymDraft(){
+  if(!_draftGymTimer) return;
+  clearTimeout(_draftGymTimer);_draftGymTimer=null;
+  var p=_draftGymPending;_draftGymPending=null;
+  if(!p) return;
+  try{persistGymDraft(p.i,p.splitKey);}catch(e){}
+  // 01-core registers its Supabase flush before this file loads, so on pagehide
+  // it has already run by the time we get here. Push again or the rescued sets
+  // sit on this device until the next login.
+  try{if(typeof _flushAllSb==='function')_flushAllSb();}catch(e){}
+}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')flushGymDraft();});
+window.addEventListener('pagehide',flushGymDraft);
 function strengthSessionDate(i,s){
   var el=document.getElementById('gym_date_'+i);
   return (el&&el.value)||(s&&s.date)||new Date().toISOString().slice(0,10);
@@ -203,7 +222,8 @@ function draftGym(i,splitKey){
   refreshGymSubmitState(i,sessions[i]&&sessions[i].id,null);
   // Persisting to storage stays debounced so we are not writing on every keypress.
   if(_draftGymTimer) clearTimeout(_draftGymTimer);
-  _draftGymTimer=setTimeout(function(){persistGymDraft(i,splitKey);},250);
+  _draftGymPending={i:i,splitKey:splitKey};
+  _draftGymTimer=setTimeout(function(){_draftGymTimer=null;_draftGymPending=null;persistGymDraft(i,splitKey);},250);
 }
 // Which programmed slot each logged exercise actually filled. Sets are stored
 // under the performed name so progression follows the real movement, which on
@@ -218,7 +238,18 @@ function collectSlotMap(exercises){
   });
   return slots;
 }
-function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;var previous=logs[s.id]||{};var exercises=getSplit(splitKey);var current={};exercises.forEach(function(ex,ei){var arr=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;current[useName]=arr;});var gnEl=document.getElementById('gn_'+i);var meta={__sessionDate:strengthSessionDate(i,s),__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises),__rpeEnabled:strengthLogRequiresRpe(previous,isSessionLogged(s.id))};if(gnEl)meta.__notes=gnEl.value;if(previous.__submittedAt)meta.__submittedAt=previous.__submittedAt;if(previous.__submittedSig)meta.__submittedSig=previous.__submittedSig;var log=mergeStrengthLog(previous,current,meta);logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);refreshGymSubmitState(i,s.id,log);try{markInlinePbs(i,splitKey);}catch(e){}}
+function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;
+  // Never write from a card that is no longer on the page. collectExerciseSets
+  // cannot tell "this exercise was cleared" from "this exercise is not
+  // rendered" — both read as zero sets — so the check has to happen here,
+  // before the merge treats an unrendered session as an emptied one.
+  if(!document.getElementById('scb_'+i)) return;
+  var previous=logs[s.id]||{};var exercises=getSplit(splitKey);var current={};exercises.forEach(function(ex,ei){
+    // Same rule per exercise: a missing container means not rendered, so leave
+    // whatever is already saved alone. A container that IS present and holds no
+    // sets is a real deletion and must still clear.
+    if(!document.getElementById('sets_'+i+'_'+ei)) return;
+    var arr=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;current[useName]=arr;});var gnEl=document.getElementById('gn_'+i);var meta={__sessionDate:strengthSessionDate(i,s),__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises),__rpeEnabled:strengthLogRequiresRpe(previous,isSessionLogged(s.id))};if(gnEl)meta.__notes=gnEl.value;if(previous.__submittedAt)meta.__submittedAt=previous.__submittedAt;if(previous.__submittedSig)meta.__submittedSig=previous.__submittedSig;var log=mergeStrengthLog(previous,current,meta);logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);refreshGymSubmitState(i,s.id,log);try{markInlinePbs(i,splitKey);}catch(e){}}
 
 // ── NOTE-ONLY SESSION (discovery week "train as normal" + log notes) ──────────
 function draftNote(i){

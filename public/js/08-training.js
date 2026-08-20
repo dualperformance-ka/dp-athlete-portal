@@ -2243,6 +2243,10 @@ function openMobileWeekSession(i,trigger){
 }
 function closeFocusedSession(){
   var returnFocus=focusedSessionReturnFocus;
+  // Flush before anything is torn down. A generated card is REMOVED below, and
+  // a debounced draft firing afterwards would overwrite the session with empty
+  // sets read from a card that no longer exists.
+  try{if(typeof flushGymDraft==='function')flushGymDraft();}catch(e){}
   if(focusedSessionIndex!=null){
     var card=document.getElementById('sc_'+focusedSessionIndex),ph=document.getElementById('focusCardPlaceholder');
     if(card){
