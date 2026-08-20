@@ -477,11 +477,17 @@ function rescheduleSession(i,date,options){
   var s=sessions[i];if(!s)return false;
   return setSessionDateOverride(s.id,date,options);
 }
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+// Reminders are part of the coaching, not a feature athletes opt into, so this
+// list describes what arrives — it is not a set of switches. The only choice
+// left is the one we cannot take away: the operating system's own permission
+// prompt. Per-athlete exemptions live server-side
+// (athletes.notifications_managed), never in the portal UI.
 var REMINDER_OPTIONS=[
-  {key:'sessions',icon:'calendar',label:'Training sessions',sub:'Before planned training'},
-  {key:'checkins',icon:'clipboard',label:'Weekly check-ins',sub:'When your review is due'},
-  {key:'photos',icon:'camera',label:'Progress photos',sub:'On your scheduled photo week'},
-  {key:'coach',icon:'chat',label:'Coach replies',sub:'When coaching feedback arrives'}
+  {key:'sessions',icon:'calendar',label:'Training sessions',sub:'Each morning you have a session'},
+  {key:'checkins',icon:'clipboard',label:'Weekly check-ins',sub:'Sunday, until your review is in'},
+  {key:'photos',icon:'camera',label:'Progress photos',sub:'Monday on photo weeks'},
+  {key:'coach',icon:'chat',label:'Programme changes',sub:'When we update your plan'}
 ];
 function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp_reminders_'+((athlete&&athlete.code)||'default'))||'{}');}catch(e){return{};}}
 function reminderStorageKey(){return'dp_reminders_'+((athlete&&athlete.code)||'default');}
@@ -495,12 +501,26 @@ function setAllReminderPreferences(enabled){
   return prefs;
 }
 var _notificationOnboardingOpen=false;
+// Shown until the athlete has granted permission. There is nothing to enable
+// afterwards, so the panel becomes a plain description of what they receive.
+function notificationsGranted(){
+  return 'Notification'in window&&Notification.permission==='granted';
+}
 function renderReminderPreferences(showOnboarding){
-  var prefs=getReminderPreferences(),list=document.getElementById('notificationPreferences');if(!list)return;
-  var onboarding=showOnboarding&&'Notification'in window&&Notification.permission!=='denied'
-    ?'<div class="notification-onboarding"><span class="preference-icon"><svg class="icon"><use href="#i-alert"/></svg></span><div><strong>Turn on portal notifications</strong><p>One tap enables training, check-in, photo and coach reminders. Your phone will ask you to confirm.</p><button id="enableAllNotificationsBtn" type="button" onclick="enableAllReminderNotifications()">Enable all notifications</button></div></div>'
-    :'';
-  list.innerHTML=onboarding+REMINDER_OPTIONS.map(function(o){return '<label class="preference-row"><span class="preference-icon"><svg class="icon"><use href="#i-'+o.icon+'"/></svg></span><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span><input type="checkbox" '+(prefs[o.key]?'checked':'')+' onchange="setReminderPreference(\''+o.key+'\',this.checked)"><i></i></label>';}).join('')
+  var list=document.getElementById('notificationPreferences');if(!list)return;
+  var granted=notificationsGranted();
+  var blocked='Notification'in window&&Notification.permission==='denied';
+  var prompt='';
+  if(!granted&&!blocked&&'Notification'in window){
+    prompt='<div class="notification-onboarding"><span class="preference-icon"><svg class="icon"><use href="#i-alert"/></svg></span><div><strong>Turn on portal notifications</strong><p>Your training reminders, check-in prompts and programme updates come through here. Your phone will ask you to confirm.</p><button id="enableAllNotificationsBtn" type="button" onclick="enableAllReminderNotifications()">Enable notifications</button></div></div>';
+  }else if(blocked){
+    prompt='<div class="notification-onboarding"><span class="preference-icon"><svg class="icon"><use href="#i-alert"/></svg></span><div><strong>Notifications are blocked</strong><p>Your coaching reminders can\'t reach you. Allow notifications for the portal in your phone settings to turn them back on.</p></div></div>';
+  }
+  list.innerHTML=prompt
+    +'<div class="preference-note">'+(granted
+      ?'You\'ll receive these from your coach:'
+      :'Once enabled, you\'ll receive these from your coach:')+'</div>'
+    +REMINDER_OPTIONS.map(function(o){return '<div class="preference-row is-static"><span class="preference-icon"><svg class="icon"><use href="#i-'+o.icon+'"/></svg></span><span><strong>'+o.label+'</strong><small>'+o.sub+'</small></span></div>';}).join('')
     +'<div id="pushStatus" class="push-status">Notifications · '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>';
 }
 function openPreferences(options){
@@ -516,8 +536,8 @@ function closePreferences(){
 function maybePromptPwaNotifications(){
   if(!athlete||!isInstalledPortalPwa()||!('Notification'in window)||!('PushManager'in window))return;
   if(Notification.permission==='denied'||localStorage.getItem(notificationOnboardingKey()))return;
-  var prefs=getReminderPreferences();
-  if(REMINDER_OPTIONS.some(function(o){return !!prefs[o.key];}))return;
+  // Permission itself is the only thing left to ask for.
+  if(notificationsGranted())return;
   openPreferences({onboarding:true});
 }
 async function enableAllReminderNotifications(){
@@ -531,41 +551,13 @@ async function enableAllReminderNotifications(){
     showToast('Notifications were not enabled — you can allow them later in phone settings','error');
     return;
   }
+  // Kept only so an exported copy of the athlete's data still reflects what
+  // they receive; delivery itself is decided server-side.
   setAllReminderPreferences(true);
   localStorage.setItem(notificationOnboardingKey(),'enabled');
   _notificationOnboardingOpen=false;renderReminderPreferences(false);
   await syncPushSubscription();
-  showToast('All notifications enabled ✓');
-}
-async function setReminderPreference(key,enabled){
-  var wanted=enabled;
-  if(enabled&&!('Notification'in window))enabled=false;
-  if(enabled&&'Notification'in window&&Notification.permission==='default'){
-    try{
-      var permission=await Notification.requestPermission();
-      if(permission==='granted'){
-        setAllReminderPreferences(true);
-        localStorage.setItem(notificationOnboardingKey(),'enabled');
-        _notificationOnboardingOpen=false;renderReminderPreferences(false);
-        await syncPushSubscription();
-        showToast('All notifications enabled ✓');
-        return;
-      }
-      enabled=false;
-    }catch(e){enabled=false;}
-  }
-  if(enabled&&'Notification'in window&&Notification.permission==='denied')enabled=false;
-  var prefs=getReminderPreferences();prefs[key]=enabled;localStorage.setItem(reminderStorageKey(),JSON.stringify(prefs));
-  if(wanted&&!enabled){
-    // Permission was refused — keep the toggle honest.
-    var idx=REMINDER_OPTIONS.map(function(o){return o.key;}).indexOf(key);
-    var inputs=document.querySelectorAll('#notificationPreferences input');
-    if(idx>-1&&inputs[idx])inputs[idx].checked=false;
-    showToast('Notifications are blocked — allow them in your browser or phone settings','error');
-  } else {
-    showToast(enabled?'Reminder enabled':'Reminder disabled');
-  }
-  syncPushSubscription();
+  showToast('Notifications enabled ✓');
 }
 function getWeeklySummary(){
   var insight=getHomeInsights(),volume=0,wins=[];

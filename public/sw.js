@@ -1,19 +1,19 @@
-const CACHE_NAME = 'dp-athlete-v154'; // v154: strides are not intervals; submitted logs reopen with values
+const CACHE_NAME = 'dp-athlete-v156'; // v156: coaching reminders are managed server-side, no athlete toggles
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=121', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=122', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=109',
   '/js/02-login-goals.js?v=104',
-  '/js/03-nav-nudges.js?v=96',
+  '/js/03-nav-nudges.js?v=97',
   '/js/04-checkin.js?v=91',
   '/js/05-handbook.js?v=84',
   '/js/06-nutrition.js?v=91',
   '/js/07-progress.js?v=86',
   '/js/strava-match.js?v=6',
   '/js/08-training.js?v=116',
-  '/js/09-logging.js?v=112',
+  '/js/09-logging.js?v=113',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=102',
+  '/js/10-boot.js?v=103',
   '/login.js?v=48', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

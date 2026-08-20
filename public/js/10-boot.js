@@ -632,10 +632,16 @@ window.acknowledgeStrava = async function() {
 
 
 // ── PUSH REMINDERS ───────────────────────────────────────────────────────────
-// Keeps the browser push subscription in sync with the athlete's reminder
-// preferences. Subscriptions are stored in Supabase via /api/reminders and a
-// daily Vercel cron sends whatever is due. On iPhone the portal must be added
-// to the home screen before notifications are available.
+// Registers this device for coaching reminders. Subscriptions are stored in
+// Supabase via /api/reminders and the cron sends whatever is due. On iPhone the
+// portal must be added to the home screen before notifications are available.
+//
+// There are no per-category preferences to sync: which reminders an athlete
+// receives is decided server-side (see MANAGED_CATEGORIES in api/reminders.js).
+// This deliberately sends no `prefs` at all, so the rare athlete carrying an
+// agreed exemption keeps their stored choice through every re-subscribe.
+// Permission is the one thing the athlete still controls, because the OS owns
+// it — so the only question here is whether it has been granted.
 function urlB64ToUint8(base64String){
   var padding='='.repeat((4-base64String.length%4)%4);
   var base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
@@ -654,8 +660,7 @@ async function syncPushSubscription(){
     if(!('serviceWorker'in navigator)){setPushStatus('not supported in this browser',false);return;}
     if(!('PushManager'in window)){setPushStatus('not available — on iPhone, open from the home-screen icon',false);return;}
     if(typeof VAPID_PUBLIC_KEY==='undefined'||!VAPID_PUBLIC_KEY){setPushStatus('app update pending — close and reopen the portal',false);return;}
-    var prefs=getReminderPreferences();
-    var anyOn=REMINDER_OPTIONS.some(function(o){return !!prefs[o.key];});
+    var granted='Notification'in window&&Notification.permission==='granted';
     setPushStatus('setting up\u2026',false);
     // Robust service-worker acquisition: iOS PWAs can leave .ready hanging on a
     // fresh install, so register explicitly and time out instead of stalling.
@@ -673,17 +678,17 @@ async function syncPushSubscription(){
       reg=ready;
     }
     var sub=await reg.pushManager.getSubscription();
-    if(!anyOn){
-      if(sub){
-        try{await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'unsubscribe',endpoint:sub.endpoint})});}catch(e){}
-        try{await sub.unsubscribe();}catch(e){}
-      }
-      setPushStatus('off',false);
+    if(!granted){
+      // Blocked or not yet asked. Leave any existing subscription in place —
+      // the browser stops delivering on its own, and tearing the row down here
+      // would lose this device the moment permission is restored.
+      setPushStatus(('Notification'in window&&Notification.permission==='denied')
+        ?'blocked — allow them for the portal in your phone settings'
+        :'tap Enable notifications to finish setup',false);
       return;
     }
-    if(!('Notification'in window)||Notification.permission!=='granted'){setPushStatus('waiting for permission — toggle a reminder and tap Allow',false);return;}
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(VAPID_PUBLIC_KEY)});
-    var resp=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'subscribe',subscription:sub.toJSON(),prefs:prefs,userAgent:navigator.userAgent,timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone||'')})});
+    var resp=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'subscribe',subscription:sub.toJSON(),userAgent:navigator.userAgent,timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone||'')})});
     var data=await resp.json().catch(function(){return{};});
     if(resp.ok&&data.ok){setPushStatus('active on this device ✓',true);}
     else{setPushStatus('server rejected: '+(data.error||resp.status),false);}

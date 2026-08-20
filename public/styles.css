@@ -1882,6 +1882,8 @@ body.focus-session-open{overflow:hidden}
 .focus-done-btn:active{opacity:.85}
 
 .modal-subtitle{font-size:12px;color:var(--muted);margin-top:2px}.preferences-modal-inner,.summary-modal-inner{max-width:560px}.preference-list{display:grid;gap:8px}.preference-row{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);cursor:pointer}.preference-row>span{flex:1}.preference-row strong,.preference-row small{display:block}.preference-row strong{font-size:14px}.preference-row small{font-size:12px;color:var(--muted);margin-top:2px}.preference-row input{position:absolute;opacity:0}.preference-row i{width:40px;height:23px;border-radius:20px;background:var(--border-strong);position:relative}.preference-row i::after{content:"";position:absolute;left:3px;top:3px;width:17px;height:17px;border-radius:50%;background:#fff;transition:transform .2s}.preference-row input:checked+i{background:var(--run)}.preference-row input:checked+i::after{transform:translateX(17px)}
+.preference-note{font-size:11px;color:var(--muted);margin:2px 0 -2px;letter-spacing:.02em}
+.preference-row.is-static{cursor:default}
 .notification-onboarding{display:flex;align-items:flex-start;gap:12px;padding:15px;border:1px solid var(--run-border);border-radius:13px;background:var(--run-bg)}
 .notification-onboarding>div{min-width:0;flex:1}.notification-onboarding strong{display:block;font-size:14px}.notification-onboarding p{margin:4px 0 12px;color:var(--muted);font-size:11px;line-height:1.45}
 .notification-onboarding button{width:100%;min-height:42px;border:0;border-radius:10px;background:var(--run);color:#061117;font-family:var(--body);font-size:12px;font-weight:750;cursor:pointer}

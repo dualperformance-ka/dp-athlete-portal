@@ -1,9 +1,93 @@
 // ── REST TIMER ────────────────────────────────────────────────────────────────
 // Single global countdown, fired when a set is completed. The absolute deadline
 // keeps the timer accurate when the browser throttles intervals in another app.
+//
+// iOS reality check: this countdown runs in the PAGE, so when the screen locks
+// or the athlete switches to their music app, WebKit freezes our JavaScript
+// outright — the interval stops and the alert cannot fire at the deadline. Two
+// defences, in order:
+//
+//   1. A screen wake lock for the length of the rest, so the common case (phone
+//      sitting on the bench) never freezes and the cue lands exactly on time.
+//   2. An audible chime, because Safari has never shipped the Vibration API —
+//      navigator.vibrate is a no-op on every device our athletes use, which
+//      left a silent on-screen toast as the only completion cue in a gym.
+//
+// Neither survives the athlete locking the phone and walking off; that needs a
+// server-scheduled push (see docs/notification-flow.md). When it does happen,
+// the late alert says how long ago rest ended rather than pretending it just
+// rang.
 var _rest={iv:null,key:null,deadline:0,total:0,exerciseName:'',notified:false};
 var _restPermissionAsked=false;
 var REST_ALERT_LEAD_SECONDS=3;
+// Past this much overrun the alert stops claiming to be timely.
+var REST_LATE_THRESHOLD_MS=15000;
+var _restWakeLock=null;
+var _restAudioCtx=null;
+
+// Keep the screen awake for the length of the rest. Safari 16.4+ supports this;
+// anywhere it is missing the timer simply behaves as it did before.
+function acquireRestWakeLock(){
+  try{
+    if(_restWakeLock||!navigator.wakeLock||!navigator.wakeLock.request)return;
+    var request=navigator.wakeLock.request('screen');
+    if(!request||!request.then)return;
+    request.then(function(lock){
+      // The athlete may have skipped the set while the request was in flight.
+      if(!lock)return;
+      if(!_rest.deadline){try{lock.release();}catch(e){}return;}
+      _restWakeLock=lock;
+      if(lock.addEventListener)lock.addEventListener('release',function(){_restWakeLock=null;});
+    }).catch(function(){});
+  }catch(e){}
+}
+function releaseRestWakeLock(){
+  var lock=_restWakeLock;_restWakeLock=null;
+  if(!lock||!lock.release)return;
+  try{var done=lock.release();if(done&&done.catch)done.catch(function(){});}catch(e){}
+}
+
+// Web Audio needs a user gesture to start. Completing a set IS that gesture, so
+// the context is unlocked at startRest and reused for every later chime.
+function unlockRestAudio(){
+  try{
+    var Ctor=window.AudioContext||window.webkitAudioContext;
+    if(!Ctor)return;
+    if(!_restAudioCtx)_restAudioCtx=new Ctor();
+    if(_restAudioCtx.state==='suspended'&&_restAudioCtx.resume)_restAudioCtx.resume().catch(function(){});
+  }catch(e){_restAudioCtx=null;}
+}
+// Three short blips, the last one higher — carries over gym noise without
+// sounding like an alarm. Silent when the handset's mute switch is on, which is
+// why the system notification stays as a backstop.
+function playRestChime(){
+  var ctx=_restAudioCtx;
+  if(!ctx||ctx.state!=='running'||!ctx.createOscillator)return false;
+  try{
+    [0,0.18,0.36].forEach(function(offset,index){
+      var osc=ctx.createOscillator(),gain=ctx.createGain(),at=ctx.currentTime+offset;
+      osc.type='sine';
+      osc.frequency.setValueAtTime(index===2?1175:880,at);
+      gain.gain.setValueAtTime(0.0001,at);
+      gain.gain.exponentialRampToValueAtTime(0.3,at+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001,at+0.16);
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.start(at);osc.stop(at+0.18);
+    });
+    return true;
+  }catch(e){return false;}
+}
+
+function restElapsedPhrase(ms){
+  var secs=Math.max(0,Math.round(ms/1000));
+  if(secs<60)return secs+' seconds ago';
+  var mins=Math.round(secs/60);
+  return mins<=1?'a minute ago':mins+' minutes ago';
+}
+function restOverrunMs(){
+  if(!_rest.deadline)return 0;
+  return Date.now()-_rest.deadline;
+}
 function restTimerStorageKey(){return 'dp_rest_timer_'+((athlete&&athlete.code)||'default');}
 function restTimerEnabled(){try{return localStorage.getItem('dp_rest_timer_enabled')!=='false';}catch(e){return true;}}
 function updateRestTimerControls(){
@@ -33,6 +117,7 @@ function hideRestTimer(i,ei){
 }
 function skipRest(i,ei){
   if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}
+  releaseRestWakeLock();
   if(_rest.key&&_rest.key!==i+'_'+ei){var active=document.getElementById('rest_'+_rest.key);if(active){active.style.display='none';active.style.opacity='1';}}
   hideRestTimer(i,ei);clearRestTimerStorage();
   _rest.key=null;_rest.deadline=0;_rest.total=0;_rest.exerciseName='';_rest.notified=false;
@@ -44,16 +129,31 @@ function restExerciseName(i,ei){
 function restAppIsVisible(){return document.visibilityState==='visible';}
 function showRestForegroundComplete(i,ei,exerciseName){
   var name=String(exerciseName||'').trim()||restExerciseName(i,ei);
-  showToast('Rest complete · '+name);
+  var overrun=restOverrunMs();
+  showToast(overrun>REST_LATE_THRESHOLD_MS
+    ? 'Rest for '+name+' finished '+restElapsedPhrase(overrun)
+    : 'Rest complete · '+name);
+  playRestChime();
   try{if(navigator.vibrate)navigator.vibrate([180,90,180]);}catch(e){}
 }
 function sendRestSystemAlert(i,ei,exerciseName){
   if(_rest.notified)return;_rest.notified=true;
   var name=String(exerciseName||'').trim()||restExerciseName(i,ei);
-  var remaining=Math.max(0,Math.ceil((_rest.deadline-Date.now())/1000));
-  var early=remaining>0;
-  var title=early?'Rest nearly complete':'Rest complete';
-  var body=early?'Rest finishes in '+remaining+' seconds — get ready for '+name+'.':'Rest finished — time for '+name+'.';
+  var diff=_rest.deadline-Date.now();
+  var title,body;
+  if(diff>0){
+    title='Rest nearly complete';
+    body='Rest finishes in '+Math.max(0,Math.ceil(diff/1000))+' seconds — get ready for '+name+'.';
+  }else if(-diff<=REST_LATE_THRESHOLD_MS){
+    title='Rest complete';
+    body='Rest finished — time for '+name+'.';
+  }else{
+    // The page was frozen while the app sat in the background, so this is the
+    // first moment we can say anything. Own the delay instead of implying the
+    // rest just ended.
+    title='Rest complete';
+    body='Rest for '+name+' finished '+restElapsedPhrase(-diff)+'.';
+  }
   try{
     var saved=JSON.parse(localStorage.getItem(restTimerStorageKey())||'null');
     if(saved&&Number(saved.deadline)===Number(_rest.deadline)){saved.notified=true;localStorage.setItem(restTimerStorageKey(),JSON.stringify(saved));}
@@ -69,6 +169,7 @@ function sendRestSystemAlert(i,ei,exerciseName){
 }
 function finishRest(i,ei){
   if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}
+  releaseRestWakeLock();
   if(restAppIsVisible())showRestForegroundComplete(i,ei,_rest.exerciseName);
   else if(!_rest.notified)sendRestSystemAlert(i,ei,_rest.exerciseName);
   clearRestTimerStorage();
@@ -101,6 +202,9 @@ function startRest(i,ei,exerciseName){
   _rest.total=total;_rest.deadline=Date.now()+total*1000;_rest.exerciseName=String(exerciseName||'').trim()||restExerciseName(i,ei);_rest.notified=false;
   el.style.display='flex';el.style.opacity='1';
   try{localStorage.setItem(restTimerStorageKey(),JSON.stringify({key:_rest.key,deadline:_rest.deadline,total:total,i:i,ei:ei,exerciseName:_rest.exerciseName}));}catch(e){}
+  // Completing a set is the user gesture that lets us start audio, and the
+  // moment we want the screen held open until the chime.
+  unlockRestAudio();acquireRestWakeLock();
   requestRestAlertPermission();runRestTimer(i,ei);
 }
 function restoreRestTimer(){
@@ -118,7 +222,11 @@ function restoreRestTimer(){
     }
     _rest.key=null;_rest.deadline=0;_rest.total=0;_rest.exerciseName='';return;
   }
-  el.style.display='flex';el.style.opacity='1';runRestTimer(saved.i,saved.ei);
+  el.style.display='flex';el.style.opacity='1';
+  // iOS drops the wake lock whenever the page is hidden, so take it back every
+  // time the athlete returns to a rest that is still running.
+  acquireRestWakeLock();
+  runRestTimer(saved.i,saved.ei);
 }
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')restoreRestTimer();});
 window.addEventListener('focus',restoreRestTimer);

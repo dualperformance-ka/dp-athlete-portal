@@ -6,14 +6,43 @@
 //   Triggered every minute by Supabase pg_cron (job: send-athlete-reminders) and
 //   once daily by Vercel cron as a backstop. Each run only sends to athletes whose
 //   LOCAL time matches: 5am for morning reminders, 5am–11:30pm for coach updates.
+//
+// Delivery is decided per ATHLETE, not per subscription row. Stale endpoints
+// pile up faster than Apple retires them, so every run first collapses an
+// athlete's rows to one live subscription per physical device (see
+// _lib/push-devices.js) and merges their delivery history — otherwise a single
+// iPhone that has been reinstalled a few times buzzes once per leftover row.
 import webpush from 'web-push';
 import { select, upsert, patch, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
 import { getRequestAthlete } from './_lib/auth.js';
 import { allowPortalRequest } from './_lib/http.js';
+import { groupByAthlete, mergeLastSent, resolvePrefs, selectLiveDevices } from './_lib/push-devices.js';
 
 const DONE_STATUS = /^(done|completed?|complete|skipped|missed)$/i;
 const DEFAULT_TZ = 'Australia/Adelaide';
 const MORNING_HOUR = 5;
+
+// Which categories a managed athlete receives lives in _lib/push-devices.js
+// alongside resolvePrefs(), so the delivery rules stay testable without pulling
+// web-push into the test process.
+//
+// Athletes carrying their own preferences. Anyone missing from the table, or
+// with the column unset, is managed — the default has to be "receives
+// everything", or a new athlete would silently get nothing.
+async function loadUnmanagedAthletes(codes) {
+  if (!codes.length) return new Set();
+  try {
+    const rows = await select('athletes', {
+      code: inList(codes),
+      notifications_managed: 'is.false',
+      select: 'code',
+    });
+    return new Set((rows || []).map((row) => String(row.code).toUpperCase()));
+  } catch (error) {
+    // A missing column must not take reminders down: fall back to managed.
+    return new Set();
+  }
+}
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
@@ -161,6 +190,31 @@ function buildMessages(dueForAthlete, prefs, allowed, coachChanges) {
   return messages;
 }
 
+// Retire the rows a device left behind on earlier installs and give every
+// surviving device one shared delivery history and one set of preferences.
+// Without this a brand-new endpoint starts with `last_sent: {}` and replays
+// whatever the athlete already saw on the same phone this morning.
+async function reconcileAthleteDevices(code, options = {}) {
+  const rows = await select('push_subscriptions', { athlete_code: `eq.${code}` });
+  if (!rows || !rows.length) return { devices: 0, retired: 0 };
+
+  const { keep, drop } = selectLiveDevices(rows, { pinnedEndpoint: options.pinnedEndpoint });
+  const lastSent = mergeLastSent(rows);
+
+  for (const row of drop) {
+    await supabaseRequest(tablePath('push_subscriptions', { id: `eq.${row.id}` }), { method: 'DELETE' }).catch(() => {});
+  }
+
+  const values = { last_sent: lastSent };
+  if (options.prefs) values.prefs = options.prefs;
+  if (options.timezone) values.timezone = options.timezone;
+  for (const row of keep) {
+    await patch('push_subscriptions', { id: `eq.${row.id}` }, values).catch(() => {});
+  }
+
+  return { devices: keep.length, retired: drop.length };
+}
+
 async function handleSubscribe(req, res, identity) {
   const { action, subscription, prefs, endpoint, userAgent, timezone } = req.body || {};
   const code = String(identity.athlete.code).toUpperCase();
@@ -180,18 +234,31 @@ async function handleSubscribe(req, res, identity) {
     return send(res, 400, { ok: false, error: 'code and subscription required' });
   }
 
-  await upsert('push_subscriptions', {
+  const tz = safeTz(timezone);
+  // The portal no longer sends preferences — it has no toggles to send. Omit
+  // the column entirely rather than writing {} over it, so an exempt athlete's
+  // stored choice survives every re-subscribe.
+  const cleanPrefs = (prefs && typeof prefs === 'object') ? prefs : null;
+
+  const row = {
     athlete_code: code,
     endpoint: subscription.endpoint,
     p256dh: keys.p256dh,
     auth: keys.auth,
-    prefs: prefs || {},
-    timezone: safeTz(timezone),
+    timezone: tz,
     user_agent: (userAgent || '').slice(0, 500),
     updated_at: new Date().toISOString(),
-  }, 'endpoint');
+  };
+  if (cleanPrefs) row.prefs = cleanPrefs;
+  await upsert('push_subscriptions', row, 'endpoint');
 
-  return send(res, 200, { ok: true });
+  const reconciled = await reconcileAthleteDevices(code, {
+    pinnedEndpoint: subscription.endpoint,
+    prefs: cleanPrefs,
+    timezone: tz,
+  });
+
+  return send(res, 200, { ok: true, devices: reconciled.devices, retired: reconciled.retired });
 }
 
 async function handleDueCheck(req, res, identity) {
@@ -215,18 +282,46 @@ async function handleCronSend(req, res) {
   const subs = await select('push_subscriptions', { order: 'created_at.asc' });
   if (!subs || !subs.length) return send(res, 200, { ok: true, sent: 0, note: 'No subscriptions' });
 
-  // Group subscriptions by timezone; only process zones in an active window.
-  const groups = new Map();
-  for (const sub of subs) {
-    const tz = safeTz(sub.timezone);
-    if (!groups.has(tz)) groups.set(tz, []);
-    groups.get(tz).push(sub);
+  // Collapse every athlete to their live devices before deciding anything.
+  // Retiring leftovers here — rather than waiting for a 410 that Apple may
+  // never send — drains the accumulated backlog within a run or two.
+  let retired = 0;
+  const roster = [];
+  for (const [code, rows] of groupByAthlete(subs)) {
+    const { keep, drop } = selectLiveDevices(rows);
+    for (const row of drop) {
+      await supabaseRequest(tablePath('push_subscriptions', { id: `eq.${row.id}` }), { method: 'DELETE' }).catch(() => {});
+      retired++;
+    }
+    if (!keep.length) continue;
+    roster.push({
+      code,
+      rows,
+      devices: keep,
+      lastSent: mergeLastSent(rows),
+      tz: safeTz(keep[0].timezone),
+    });
+  }
+  if (!roster.length) return send(res, 200, { ok: true, sent: 0, retired, note: 'No live devices' });
+
+  // Managed athletes receive every category regardless of what any device once
+  // stored; the exempt few keep the choice they made.
+  const unmanaged = await loadUnmanagedAthletes(roster.map((a) => a.code));
+  for (const athlete of roster) {
+    athlete.prefs = resolvePrefs(athlete.rows, { managed: !unmanaged.has(athlete.code) });
   }
 
-  let sent = 0, removed = 0, skippedZones = 0;
+  // Group athletes by timezone; only process zones in an active window.
+  const groups = new Map();
+  for (const athlete of roster) {
+    if (!groups.has(athlete.tz)) groups.set(athlete.tz, []);
+    groups.get(athlete.tz).push(athlete);
+  }
+
+  let sent = 0, notified = 0, removed = 0, skippedZones = 0;
   const errors = [];
 
-  for (const [tz, zoneSubs] of groups) {
+  for (const [tz, zoneAthletes] of groups) {
     const now = localNow(tz);
     const allowed = {
       morning: now.hour === MORNING_HOUR,               // 5am local: sessions, check-ins, photos
@@ -234,52 +329,80 @@ async function handleCronSend(req, res) {
     };
     if (!allowed.morning && !allowed.coach) { skippedZones++; continue; }
 
-    const due = await computeDue(zoneSubs.map((s) => s.athlete_code), now);
+    const due = await computeDue(zoneAthletes.map((a) => a.code), now);
 
-    for (const sub of zoneSubs) {
-      const prefs = sub.prefs || {};
-      const lastSent = sub.last_sent || {};
+    for (const athlete of zoneAthletes) {
+      const lastSent = athlete.lastSent;
 
       // Coach updates: notify per batch of changes, not once per day.
       // A change qualifies once it is newer than the last coach alert AND the
       // newest change is >2 min old (debounce, so an editing session lands
       // as a single ping rather than one per save).
-      const coachEntries = (due[sub.athlete_code] || {}).coach || [];
+      const coachEntries = (due[athlete.code] || {}).coach || [];
       const lastCoach = lastSent.coach ? new Date(lastSent.coach).getTime() : 0;
       const freshChanges = coachEntries.filter((c) => new Date(c.at).getTime() > lastCoach);
       const newest = freshChanges.length ? Math.max(...freshChanges.map((c) => new Date(c.at).getTime())) : 0;
       const coachChanges = (freshChanges.length && Date.now() - newest >= 2 * 60 * 1000)
         ? freshChanges.slice().sort((a, b) => new Date(b.at) - new Date(a.at)) : [];
 
-      const messages = buildMessages(due[sub.athlete_code] || {}, prefs, allowed, coachChanges)
+      const messages = buildMessages(due[athlete.code] || {}, athlete.prefs, allowed, coachChanges)
         .filter((m) => m.type === 'coach' || lastSent[m.type] !== now.iso); // morning types: one per local day
+      if (!messages.length) continue;
 
       let delivered = false;
       for (const msg of messages) {
-        try {
-          await webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            JSON.stringify({ title: msg.title, body: msg.body, tag: 'dp-' + msg.type, url: '/' }),
-            { TTL: 12 * 3600 }
-          );
-          lastSent[msg.type] = msg.type === 'coach' ? new Date().toISOString() : now.iso;
-          sent++; delivered = true;
-        } catch (error) {
-          if (error.statusCode === 404 || error.statusCode === 410) {
-            await supabaseRequest(tablePath('push_subscriptions', { id: `eq.${sub.id}` }), { method: 'DELETE' });
-            removed++;
-            break;
+        const payload = JSON.stringify({ title: msg.title, body: msg.body, tag: 'dp-' + msg.type, url: msg.url || '/' });
+        let reached = false;
+        for (const device of athlete.devices.slice()) {
+          try {
+            await webpush.sendNotification(
+              { endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
+              payload,
+              { TTL: 12 * 3600 }
+            );
+            sent++; reached = true;
+          } catch (error) {
+            if (error.statusCode === 404 || error.statusCode === 410) {
+              await supabaseRequest(tablePath('push_subscriptions', { id: `eq.${device.id}` }), { method: 'DELETE' }).catch(() => {});
+              athlete.devices = athlete.devices.filter((d) => d.id !== device.id);
+              removed++;
+            } else {
+              errors.push({ athlete: athlete.code, type: msg.type, error: String(error.message || error).slice(0, 200) });
+            }
           }
-          errors.push({ athlete: sub.athlete_code, type: msg.type, error: String(error.message || error).slice(0, 200) });
+        }
+        // Record the send only once it has actually landed somewhere. A run
+        // that reached nothing must stay due so the next minute retries it,
+        // instead of silently burning the athlete's one reminder for the day.
+        if (reached) {
+          lastSent[msg.type] = msg.type === 'coach' ? new Date().toISOString() : now.iso;
+          notified++; delivered = true;
         }
       }
-      if (delivered) {
-        await patch('push_subscriptions', { id: `eq.${sub.id}` }, { last_sent: lastSent, updated_at: new Date().toISOString() });
+
+      // One shared history across the athlete's devices, so a phone that comes
+      // back online later inherits it instead of replaying today.
+      if (delivered && athlete.devices.length) {
+        const stamp = new Date().toISOString();
+        for (const device of athlete.devices) {
+          await patch('push_subscriptions', { id: `eq.${device.id}` }, { last_sent: lastSent, updated_at: stamp }).catch(() => {});
+        }
       }
     }
   }
 
-  return send(res, 200, { ok: true, subscriptions: subs.length, timezones: groups.size, sent, removed, skippedZones, errors });
+  return send(res, 200, {
+    ok: true,
+    subscriptions: subs.length,
+    athletes: roster.length,
+    timezones: groups.size,
+    notifications: notified,
+    sent,
+    retired,
+    removed,
+    skippedZones,
+    errors,
+  });
 }
 
 export default async function handler(req, res) {
