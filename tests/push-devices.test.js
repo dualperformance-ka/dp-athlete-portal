@@ -144,7 +144,8 @@ test('rows are grouped by athlete, case-insensitively', () => {
 
 test('the cron send path decides per athlete, not per subscription row', () => {
   assert.ok(
-    /for \(const \[code, rows\] of groupByAthlete\(subs\)\)/.test(remindersSource),
+    /const grouped = groupByAthlete\(subscriptions\)/.test(remindersSource) &&
+      /const rows = grouped\.get\(code\) \|\| \[\]/.test(remindersSource),
     'subscriptions must be grouped by athlete before any send decision'
   );
   assert.ok(
@@ -158,8 +159,8 @@ test('the cron send path decides per athlete, not per subscription row', () => {
 });
 
 test('a send is only recorded once it reaches a device', () => {
-  const guard = remindersSource.indexOf('if (reached) {');
-  const record = remindersSource.indexOf('lastSent[msg.type] =', guard);
+  const guard = remindersSource.indexOf('if (result.reached) {');
+  const record = remindersSource.indexOf('lastSent[message.historyKey] =', guard);
   assert.ok(guard > 0 && record > guard, 'last_sent must be written inside the reached guard');
 });
 

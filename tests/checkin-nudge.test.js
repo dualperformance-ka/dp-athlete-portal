@@ -142,7 +142,8 @@ test('booking sync returns freshly recovered cloud rows', async () => {
 
 test('cloud hydration uses structured check-ins, not legacy cache rows', async () => {
   assert.match(apiSource, /selectRows\('weekly_checkins'/);
-  assert.match(apiSource, /filter\(\(row\) => !String\(row\.key \|\| ''\)\.startsWith\('checkin_'\)\)/);
+  assert.match(apiSource, /!key\.startsWith\('checkin_'\)/);
+  assert.match(apiSource, /!key\.startsWith\('_'\)/, 'server-only migration markers must not hydrate into portal state');
   assert.match(coreSource, /var structuredCheckins=result\.checkins\|\|\[\]/);
   assert.match(coreSource, /completedOn=row\.submitted_at\?new Date\(row\.submitted_at\)/);
   assert.doesNotMatch(coreSource, /row\.key\.startsWith\('checkin_'\).*lsKey=/);
@@ -153,6 +154,7 @@ test('cloud hydration uses structured check-ins, not legacy cache rows', async (
     if (table === 'athlete_data') return [
       { key: 'goals', value: { goal: '5k' } },
       { key: 'checkin_2026_31', value: { stale: true } },
+      { key: '_progress_photos_migrated_v1', value: { completedAt: '2026-08-20T00:00:00Z' } },
     ];
     if (table === 'weekly_checkins') return [
       { week_key: 'week_ending_2026-08-02', week_ending: '2026-08-02', submitted_at: '2026-08-02T09:00:00Z' },

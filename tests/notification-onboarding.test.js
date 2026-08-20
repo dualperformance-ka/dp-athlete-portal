@@ -70,7 +70,7 @@ test('subscribing never overwrites stored prefs with an empty object', () => {
 test('a managed athlete receives every category regardless of stored prefs', () => {
   const rows = [{ prefs: { sessions: true, checkins: false, photos: false, coach: false }, updated_at: '2026-08-19T00:00:00.000Z' }];
   assert.deepEqual(resolvePrefs(rows, { managed: true }), {
-    sessions: true, checkins: true, photos: true, coach: true
+    sessions: true, logging: true, checkins: true, photos: true, calls: true, coach: true
   });
 });
 
@@ -93,11 +93,11 @@ test('managed prefs cannot be mutated by a caller', () => {
 test('an athlete missing from the exemption lookup defaults to managed', () => {
   // The default has to be "receives everything" — a newly onboarded athlete
   // with no row must not silently get nothing.
-  assert.match(reminders, /notifications_managed: 'is\.false'/);
-  assert.match(reminders, /managed: !unmanaged\.has\(athlete\.code\)/);
-  const loaderStart = reminders.indexOf('async function loadUnmanagedAthletes');
-  const loaderSource = reminders.slice(loaderStart, reminders.indexOf('export default async function handler'));
-  assert.match(loaderSource, /catch \(error\) \{[\s\S]*return new Set\(\);/, 'a missing column must fall back to managed');
+  assert.match(reminders, /select: 'code,notifications_managed'/);
+  assert.match(reminders, /managed: rosterRow\.notifications_managed !== false/);
+  assert.deepEqual(resolvePrefs([], { managed: true }), {
+    sessions: true, logging: true, checkins: true, photos: true, calls: true, coach: true
+  });
 });
 
 test('new shell versions publish onboarding changes to installed PWAs', () => {

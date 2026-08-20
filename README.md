@@ -44,13 +44,14 @@ The browser bundle includes the Supabase publishable key for email OTP only.
 Athlete data and progress-media operations use authenticated same-origin
 server routes.
 
-Keep these private and server-side only:
-
-- `SUPABASE_SERVICE_KEY`
-- `CLOUDINARY_API_SECRET`
-
-Supabase access must be protected by RLS policies. Cloudinary API credentials
-remain server-side; unsigned browser uploads are not used.
+Keep `SUPABASE_SERVICE_KEY` private and server-side only. Supabase access is
+protected by RLS policies. Progress-photo bytes are stored in the private
+`progress-photos` Supabase Storage bucket; the authenticated server route issues
+short-lived signed URLs and the browser never receives storage credentials.
+Keep the existing `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and
+`CLOUDINARY_API_SECRET` temporarily during rollout: the first authenticated
+photo recall copies historic objects into Supabase. They can be removed after
+the legacy photo inventory has been verified in the `progress_photos` table.
 
 ### 3. Deploy
 

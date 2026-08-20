@@ -68,7 +68,8 @@ test('secondary metrics and Progress code stay off the primary render path', () 
   assert.ok(loginSource.indexOf('var initialWeekPromise=Promise.resolve(loadWeek())') < loginSource.indexOf('syncPushSubscription();'));
   assert.ok(loginSource.indexOf('var initialWeekPromise=Promise.resolve(loadWeek())') < loginSource.indexOf('retryPendingCoachWrites(true);'));
   assert.doesNotMatch(indexSource, /<script src="js\/07-progress\.js/);
-  assert.match(indexSource, /data-src="\/js\/07-progress\.js\?v=86"/);
+  const progressAsset = indexSource.match(/data-src="\/js\/07-progress\.js\?v=(\d+)"/);
+  assert.ok(progressAsset && Number(progressAsset[1]) >= 86);
   assert.match(navSource, /ensureProgressModule\(\)\.then\(function\(\)\{loadProgress\(\);\}\)/);
 });
 
