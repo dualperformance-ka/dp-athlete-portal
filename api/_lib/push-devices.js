@@ -128,7 +128,7 @@ export function selectLiveDevices(rows, options = {}) {
 //
 // Add a category here as it ships and every managed athlete gets it with no
 // migration and no re-consent.
-export const MANAGED_CATEGORIES = ['sessions', 'checkins', 'photos', 'coach'];
+export const MANAGED_CATEGORIES = ['sessions', 'logging', 'checkins', 'photos', 'calls', 'coach'];
 
 const MANAGED_PREFS = Object.freeze(
   MANAGED_CATEGORIES.reduce((prefs, key) => Object.assign(prefs, { [key]: true }), {})

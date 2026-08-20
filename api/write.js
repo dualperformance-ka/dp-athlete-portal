@@ -160,7 +160,10 @@ export async function stateRead(code, selectRows = select) {
     }),
   ]);
   const rows = (Array.isArray(stateRows) ? stateRows : [])
-    .filter((row) => !String(row.key || '').startsWith('checkin_'));
+    .filter((row) => {
+      const key = String(row.key || '');
+      return !key.startsWith('checkin_') && !key.startsWith('_');
+    });
   return { rows, checkins: Array.isArray(checkins) ? checkins : [] };
 }
 

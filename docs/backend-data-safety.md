@@ -26,7 +26,8 @@ GHL_API_KEY=        # optional — enables the weekly check-in GHL tag
 ```
 
 `SUPABASE_SERVICE_KEY`, `PORTAL_SESSION_SECRET`, cron secrets, notification
-secrets, Cloudinary secrets, and VAPID private keys must only exist server-side.
+secrets and VAPID private keys must only exist server-side. Progress-photo bytes
+live in a private Supabase Storage bucket and are recalled through signed URLs.
 `NOTION_TOKEN` is no longer used.
 
 ## Database Setup

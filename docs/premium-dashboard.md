@@ -11,10 +11,10 @@ Strava, coach contact, and offline retry.
 - `/api/portal-data` handles authenticated state and programme reads.
 - `/api/ingest` writes structured goals, check-ins, body, nutrition, and
   training logs to Supabase.
-- `/api/progress-photos` performs authenticated Cloudinary upload and deletion.
+- `/api/progress-photos` performs authenticated Supabase Storage upload, signed-URL recall, and deletion.
 - The coach dashboard reads the structured Supabase tables.
 
-The browser never receives a service-role or Cloudinary secret and never writes
+The browser never receives a service-role secret and never writes
 directly to a database table.
 
 ## Athlete access

@@ -16,7 +16,9 @@
 
 import webpush from 'web-push';
 import crypto from 'node:crypto';
-import { select, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
+import { select, upsert, patch, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
+import { DAILY_PUSH_CAP, isQuietTime } from './_lib/notification-rules.js';
+import { selectLiveDevices } from './_lib/push-devices.js';
 
 const MAX_TITLE = 80;
 const MAX_MESSAGE = 500;
@@ -56,23 +58,27 @@ function configureVapid() {
   webpush.setVapidDetails(subject, publicKey, privateKey);
 }
 
-async function loadSubscriptions(code) {
-  if (code === 'ALL') return (await select('push_subscriptions', {})) || [];
+function localNow(timezone) {
+  let tz = String(timezone || 'Australia/Adelaide');
+  try { new Intl.DateTimeFormat('en-AU', { timeZone: tz }).format(); }
+  catch { tz = 'Australia/Adelaide'; }
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const value = (type) => parts.find((part) => part.type === type)?.value || '';
+  return { iso: `${value('year')}-${value('month')}-${value('day')}`, hour: Number(value('hour')), minute: Number(value('minute')) };
+}
 
-  let subs = await select('push_subscriptions', { athlete_code: `eq.${code}` });
-  if (subs && subs.length) return subs;
-
-  // Resolve a name to a roster code (the dashboard sometimes only has names).
-  const athletes = await select('athletes', {
-    or: `(code.eq.${code},name.ilike.${code})`,
-    select: 'code',
-    limit: '1',
-  });
-  if (athletes && athletes.length) {
-    subs = await select('push_subscriptions', { athlete_code: `eq.${athletes[0].code}` });
-    if (subs && subs.length) return subs;
+async function loadRecipients(code) {
+  if (code === 'ALL') {
+    const athletes = await select('athletes', { active: 'eq.true', select: 'code', limit: '500' });
+    return (athletes || []).map((row) => String(row.code).toUpperCase());
   }
-  return [];
+  const athletes = await select('athletes', {
+    or: `(code.eq.${code},name.ilike.${code})`, active: 'eq.true', select: 'code', limit: '1',
+  });
+  return athletes?.length ? [String(athletes[0].code).toUpperCase()] : [];
 }
 
 export default async function handler(req, res) {
@@ -87,24 +93,27 @@ export default async function handler(req, res) {
     if (!code) return send(res, 400, { ok: false, error: 'code required (athlete code or ALL)' });
     if (!message) return send(res, 400, { ok: false, error: 'message required' });
 
-    configureVapid();
+    let vapidReady = true;
+    try { configureVapid(); } catch { vapidReady = false; }
 
-    const subs = await loadSubscriptions(code);
-    if (!subs.length) {
-      return send(res, 404, {
-        ok: false,
-        error: code === 'ALL'
-          ? 'No athletes have push notifications enabled yet'
-          : `No subscribed devices for ${code} — the athlete needs to enable notifications in their portal`,
-      });
+    const recipients = await loadRecipients(code);
+    if (!recipients.length) return send(res, 404, { ok: false, error: `No active athlete found for ${code}` });
+    const subs = await select('push_subscriptions', { athlete_code: `in.(${recipients.map((item) => `"${item}"`).join(',')})` });
+    const byAthlete = new Map();
+    for (const sub of subs || []) {
+      const key = String(sub.athlete_code).toUpperCase();
+      if (!byAthlete.has(key)) byAthlete.set(key, []);
+      byAthlete.get(key).push(sub);
     }
 
     // Unique tag so consecutive custom messages stack instead of replacing
     // each other on the athlete's device.
+    const requestStamp = Date.now();
+    const dedupe = crypto.createHash('sha1').update(`${title}\n${message}`).digest('hex').slice(0, 16);
     const payload = JSON.stringify({
       title,
       body: message,
-      tag: `dp-coach-msg-${Date.now()}`,
+      tag: `dp-coach-msg-${requestStamp}`,
       url: '/',
     });
 
@@ -113,30 +122,47 @@ export default async function handler(req, res) {
     const failed = [];
     const reached = new Set();
 
-    for (const sub of subs) {
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          payload,
-          { TTL: 12 * 3600 }
-        );
-        sent++;
-        reached.add(sub.athlete_code);
-      } catch (error) {
-        if (error.statusCode === 404 || error.statusCode === 410) {
-          // Dead subscription — clean it up like /api/reminders does.
-          await supabaseRequest(tablePath('push_subscriptions', { id: `eq.${sub.id}` }), { method: 'DELETE' }).catch(() => {});
-          removed++;
-        } else {
-          failed.push({
-            athlete: sub.athlete_code,
-            error: String(error.message || error).slice(0, 200),
-          });
+    for (const athleteCode of recipients) {
+      const { keep, drop } = selectLiveDevices(byAthlete.get(athleteCode) || []);
+      const now = localNow(keep[0]?.timezone);
+      const localDate = now.iso;
+      const inboxRows = await upsert('athlete_notifications', {
+        athlete_code: athleteCode, type: 'custom', title, body: message, url: '/', local_date: localDate,
+        dedupe_key: `custom:${requestStamp}:${dedupe}`,
+      }, 'athlete_code,dedupe_key');
+      const inbox = inboxRows?.[0];
+      for (const stale of drop) {
+        await supabaseRequest(tablePath('push_subscriptions', { id: `eq.${stale.id}` }), { method: 'DELETE' }).catch(() => {});
+        removed++;
+      }
+      const pushed = await select('athlete_notifications', {
+        athlete_code: `eq.${athleteCode}`, local_date: `eq.${localDate}`, pushed_at: 'not.is.null',
+        select: 'id', limit: String(DAILY_PUSH_CAP + 1),
+      });
+      if (!vapidReady || isQuietTime(now) || (pushed || []).length >= DAILY_PUSH_CAP) continue;
+      let athleteReached = false;
+      for (const sub of keep) {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload, { TTL: 12 * 3600 }
+          );
+          sent++; athleteReached = true;
+        } catch (error) {
+          if (error.statusCode === 404 || error.statusCode === 410) {
+            await supabaseRequest(tablePath('push_subscriptions', { id: `eq.${sub.id}` }), { method: 'DELETE' }).catch(() => {});
+            removed++;
+          } else {
+            failed.push({ athlete: sub.athlete_code, error: String(error.message || error).slice(0, 200) });
+          }
         }
+      }
+      if (athleteReached) {
+        reached.add(athleteCode);
+        if (inbox?.id) await patch('athlete_notifications', { id: `eq.${inbox.id}` }, { pushed_at: new Date().toISOString() });
       }
     }
 
-    return send(res, 200, { ok: sent > 0, sent, athletes: reached.size, devices: subs.length, removed, failed });
+    return send(res, 200, { ok: true, inboxed: recipients.length, sent, athletes: reached.size, devices: (subs || []).length, removed, failed, pushReady: vapidReady });
   } catch (error) {
     return send(res, error.status || 500, {
       ok: false,

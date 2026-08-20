@@ -51,7 +51,7 @@ function renderPhotoGrid(){
   var historyCount=document.getElementById('photoHistoryCount');
   if(historyCount)historyCount.textContent=savedWeeks?savedWeeks+' saved':'None yet';
 }
-// A dead image URL (e.g. asset renamed in Cloudinary) falls back to the empty
+// A dead signed image URL falls back to the empty
 // "+" cell instead of a broken-image icon — the athlete can just re-upload.
 function pgImgDead(img){
   var cell=img.closest('.photo-cell');if(!cell)return;

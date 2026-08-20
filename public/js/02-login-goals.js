@@ -172,10 +172,18 @@ async function doLogin(code,prevalidatedRoster){
       retryPendingCoachWrites(true);
       initCallNudge();
       syncPushSubscription();
+      if(typeof refreshNotificationInbox==='function')refreshNotificationInbox();
       // Installed PWAs get one friendly in-app explanation first. The native
       // permission sheet is still opened only by the athlete's button tap.
       if(typeof maybePromptPwaNotifications==='function')setTimeout(maybePromptPwaNotifications,700);
     },0);
+    var deepParams=new URLSearchParams(location.search),deepTab=deepParams.get('tab'),deepDate=deepParams.get('date');
+    if(['training','weekly','nutrition','checkin','progress','goals','handbook','comms'].indexOf(deepTab)>=0){
+      setTimeout(function(){
+        switchTab(deepTab);
+        if(deepTab==='training'&&/^\d{4}-\d{2}-\d{2}$/.test(deepDate||'')&&typeof openDayPlanDate==='function')openDayPlanDate(deepDate);
+      },80);
+    }
   });
   // A persisted week paints immediately. Refresh it without clearing the
   // visible cards; on a cold start loadWeek already performs the network read.

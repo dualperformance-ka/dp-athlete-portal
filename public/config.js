@@ -2,7 +2,7 @@
 // Public client configuration. These values are visible in the browser by design:
 // - Supabase anon/publishable keys rely on RLS policies for access control.
 // Keep write-capable secrets in Vercel env vars only (SUPABASE_SERVICE_KEY,
-// CLOUDINARY_API_SECRET). The Notion integration was removed on 2026-07-20 —
+// storage credentials). The Notion integration was removed on 2026-07-20 —
 // Supabase is the single source of truth for all portal data.
 // Portal state, structured submissions, and progress media all pass through
 // authenticated same-origin server routes.

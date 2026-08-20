@@ -484,9 +484,11 @@ function rescheduleSession(i,date,options){
 // prompt. Per-athlete exemptions live server-side
 // (athletes.notifications_managed), never in the portal UI.
 var REMINDER_OPTIONS=[
-  {key:'sessions',icon:'calendar',label:'Training sessions',sub:'Each morning you have a session'},
+  {key:'sessions',icon:'calendar',label:"Today's training",sub:'5:30 am when you have a planned session'},
+  {key:'logging',icon:'check',label:'Session not logged',sub:'7:30 pm when today’s training is still open'},
   {key:'checkins',icon:'clipboard',label:'Weekly check-ins',sub:'Sunday, until your review is in'},
   {key:'photos',icon:'camera',label:'Progress photos',sub:'Monday on photo weeks'},
+  {key:'calls',icon:'chat',label:'Coaching calls',sub:'Morning of, then two hours before'},
   {key:'coach',icon:'chat',label:'Programme changes',sub:'When we update your plan'}
 ];
 function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp_reminders_'+((athlete&&athlete.code)||'default'))||'{}');}catch(e){return{};}}
@@ -558,6 +560,53 @@ async function enableAllReminderNotifications(){
   _notificationOnboardingOpen=false;renderReminderPreferences(false);
   await syncPushSubscription();
   showToast('Notifications enabled ✓');
+}
+
+// ── DURABLE NOTIFICATION INBOX ──────────────────────────────────────────────
+// Push is only a courtesy copy. The Supabase-backed inbox is the record, so an
+// OS permission denial, stale endpoint or daily-cap suppression loses nothing.
+var _notificationInbox=[];
+function updateNotificationBadge(unread){
+  var badge=document.getElementById('notificationCount'),bell=document.getElementById('notificationBell');
+  unread=Math.max(0,Number(unread)||0);
+  if(badge){badge.textContent=unread>99?'99+':String(unread);badge.hidden=unread===0;}
+  if(bell)bell.setAttribute('aria-label',unread?('Open notifications, '+unread+' unread'):'Open notifications');
+}
+function notificationTime(value){
+  var date=new Date(value);if(isNaN(date.getTime()))return'';
+  return date.toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+}
+function renderNotificationInbox(){
+  var list=document.getElementById('notificationInboxList');if(!list)return;
+  if(!_notificationInbox.length){list.innerHTML='<div class="notification-empty"><strong>You’re all caught up</strong><span>Programme changes and coaching reminders will stay here for 30 days.</span></div>';return;}
+  list.innerHTML=_notificationInbox.map(function(item){
+    return '<button class="notification-item'+(item.read_at?'':' is-unread')+'" type="button" onclick="openNotificationItem(\''+esc(item.id)+'\',decodeURIComponent(\''+encodeURIComponent(String(item.url||'/'))+'\'))">'
+      +'<span class="notification-item-dot"></span><span class="notification-item-copy"><strong>'+esc(item.title)+'</strong><span>'+esc(item.body)+'</span><small>'+esc(notificationTime(item.created_at))+(item.pushed_at?' · Sent to your device':' · Inbox')+'</small></span><b>›</b></button>';
+  }).join('');
+}
+async function refreshNotificationInbox(){
+  if(!_authToken||!athlete)return;
+  try{
+    var response=await fetch('/api/reminders?portal=1',{headers:authHeaders({}),cache:'no-store'});
+    var data=await response.json();if(!response.ok||data.ok===false)throw new Error(data.error||'Inbox unavailable');
+    _notificationInbox=Array.isArray(data.notifications)?data.notifications:[];
+    updateNotificationBadge(data.unread);renderNotificationInbox();
+  }catch(e){
+    var list=document.getElementById('notificationInboxList');if(list)list.innerHTML='<div class="notification-empty"><strong>Couldn’t load notifications</strong><span>Check your connection and try again.</span></div>';
+  }
+}
+function openNotificationInbox(){
+  var modal=document.getElementById('notificationInboxModal');if(!modal)return;
+  modal.classList.add('open');document.body.style.overflow='hidden';refreshNotificationInbox();
+}
+function closeNotificationInbox(){var modal=document.getElementById('notificationInboxModal');if(modal)modal.classList.remove('open');document.body.style.overflow='';}
+async function openNotificationItem(id,url){
+  try{
+    var response=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'read-notification',id:id})});
+    var data=await response.json();if(response.ok&&data.ok){_notificationInbox=data.notifications||_notificationInbox;updateNotificationBadge(data.unread);}
+  }catch(e){}
+  closeNotificationInbox();
+  window.location.href=url||'/';
 }
 function getWeeklySummary(){
   var insight=getHomeInsights(),volume=0,wins=[];

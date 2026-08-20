@@ -1,14 +1,14 @@
-const CACHE_NAME = 'dp-athlete-v156'; // v156: coaching reminders are managed server-side, no athlete toggles
+const CACHE_NAME = 'dp-athlete-v157'; // v157: durable Supabase notification inbox and consolidated reminder delivery
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=122', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=123', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=109',
-  '/js/02-login-goals.js?v=104',
-  '/js/03-nav-nudges.js?v=97',
+  '/js/02-login-goals.js?v=105',
+  '/js/03-nav-nudges.js?v=98',
   '/js/04-checkin.js?v=91',
   '/js/05-handbook.js?v=84',
   '/js/06-nutrition.js?v=91',
-  '/js/07-progress.js?v=86',
+  '/js/07-progress.js?v=87',
   '/js/strava-match.js?v=6',
   '/js/08-training.js?v=116',
   '/js/09-logging.js?v=113',

@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=122">
+<link rel="stylesheet" href="/styles.css?v=123">
 <link rel="stylesheet" href="/desktop.css?v=5">
 <link rel="stylesheet" href="/icons.css?v=3">
 
@@ -167,6 +167,7 @@
     </div>
     <div class="header-actions">
       <div class="save-state-pill saved" id="saveStatePill" aria-live="polite"><span></span><b>Synced with coach</b></div>
+      <button class="hicon notification-bell" id="notificationBell" type="button" onclick="openNotificationInbox()" title="Notifications" aria-label="Open notifications"><svg class="icon"><use href="#i-alert"/></svg><span class="notification-count" id="notificationCount" hidden>0</span></button>
       <button class="hicon theme-toggle hicon-accent" id="refreshBtn" type="button" onclick="hardRefreshPortal()" title="Refresh portal" aria-label="Refresh portal"><svg class="icon"><use href="#i-refresh"/></svg><span class="theme-toggle-label">Refresh</span></button>
       <button class="hicon theme-toggle hicon-accent" id="themeToggle" type="button" onclick="toggleOutdoorMode()" title="Switch to outdoor mode" aria-label="Switch to outdoor mode" aria-pressed="false"><svg class="icon"><use href="#i-sparkle"/></svg><span class="theme-toggle-label">Outdoor</span></button>
       <button class="hicon hicon-goals" id="goalsBtn" data-portal-dest="goals" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
@@ -1230,6 +1231,13 @@
     </div>
   </div>
 
+  <div class="ql-modal" id="notificationInboxModal" onclick="if(event.target===this)closeNotificationInbox()">
+    <div class="ql-modal-inner notification-inbox-inner">
+      <div class="ql-modal-header"><div><div class="ql-modal-title">Notifications</div><div class="modal-subtitle">Your durable coaching inbox.</div></div><button class="ql-modal-close" onclick="closeNotificationInbox()" aria-label="Close notifications">×</button></div>
+      <div class="ql-modal-body notification-inbox-list" id="notificationInboxList"><div class="notification-empty">Loading notifications…</div></div>
+    </div>
+  </div>
+
   <div class="ql-modal" id="pbHistoryModal" onclick="if(event.target===this)closePbHistory()">
     <div class="ql-modal-inner pb-history-modal-inner">
       <div class="ql-modal-header"><div><div class="ql-modal-title">PB History</div><div class="modal-subtitle" id="pbHistorySubtitle">Your strongest recorded efforts.</div></div><button class="ql-modal-close" onclick="closePbHistory()" aria-label="Close PB history">×</button></div>
@@ -1267,12 +1275,12 @@
 <script src="config.js"></script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=109"></script>
-<script src="js/02-login-goals.js?v=104"></script>
-<script src="js/03-nav-nudges.js?v=97"></script>
+<script src="js/02-login-goals.js?v=105"></script>
+<script src="js/03-nav-nudges.js?v=98"></script>
 <script src="js/04-checkin.js?v=91"></script>
 <script src="js/05-handbook.js?v=84"></script>
 <script src="js/06-nutrition.js?v=91"></script>
-<span id="progressModuleAsset" data-src="/js/07-progress.js?v=86" hidden></span>
+<span id="progressModuleAsset" data-src="/js/07-progress.js?v=87" hidden></span>
 <script type="module" src="js/strava-match.js?v=6"></script>
 <script src="js/08-training.js?v=116"></script>
 <script src="js/09-logging.js?v=113"></script>
