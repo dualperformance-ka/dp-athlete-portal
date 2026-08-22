@@ -1140,11 +1140,12 @@
   <div class="ql-modal" id="callModal" onclick="if(event.target===this)closeCallModal()">
     <div class="ql-modal-inner" style="height:92vh;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0">
       <div class="ql-modal-header" style="flex-shrink:0">
-        <div class="ql-modal-title">Book Your Call</div>
+        <div class="ql-modal-title" id="callModalTitle">Book Your Call</div>
         <button class="ql-modal-close" onclick="closeCallModal()" aria-label="Close booking">×</button>
       </div>
       <div class="ql-modal-body" style="padding:0;background:#0a0a0a;flex:1;min-height:0;overflow:hidden">
-        <iframe data-src="https://api.leadconnectorhq.com/widget/booking/WRivrNxfNTVER2xMit1z" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:#0a0a0a" scrolling="yes" id="WRivrNxfNTVER2xMit1z_1782710919820"></iframe>
+        <div id="callModalStatus" role="status" aria-live="polite" style="display:none;height:100%;padding:28px;align-items:center;justify-content:center;text-align:center;color:rgba(255,255,255,.78);font-size:14px;line-height:1.6"></div>
+        <iframe title="Book or reschedule your coaching call" data-src="https://api.leadconnectorhq.com/widget/booking/WRivrNxfNTVER2xMit1z" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:#0a0a0a" scrolling="yes" id="WRivrNxfNTVER2xMit1z_1782710919820"></iframe>
       </div>
     </div>
   </div>
@@ -1276,7 +1277,7 @@
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=109"></script>
 <script src="js/02-login-goals.js?v=105"></script>
-<script src="js/03-nav-nudges.js?v=98"></script>
+<script src="js/03-nav-nudges.js?v=99"></script>
 <script src="js/04-checkin.js?v=91"></script>
 <script src="js/05-handbook.js?v=84"></script>
 <script src="js/06-nutrition.js?v=91"></script>

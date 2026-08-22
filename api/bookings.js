@@ -158,7 +158,10 @@ export async function syncBookingsForAthlete(code, options = {}) {
     const startRaw = event.startTime || event.start_time || event.startTimestamp;
     const startDate = startRaw ? new Date(startRaw) : null;
     if (!startDate || isNaN(startDate)) continue;
-    updated.push(await storeBooking(athlete.code, startDate));
+    updated.push(await storeBooking(athlete.code, startDate, {
+      eventId: event.id || event.eventId || '',
+      calendarId: event.calendarId || event.calendar_id || calendarId,
+    }));
   }
 
   return { updated, calendarId };
@@ -198,7 +201,10 @@ async function handleWebhook(req, res) {
     }
     if (!row || !row.code) return send(res, 404, { ok: false, error: 'no_matching_athlete' });
 
-    const stored = await storeCallBooked(row.code, start);
+    const stored = await storeCallBooked(row.code, start, {
+      eventId: pick(body.event_id, body.eventId, body.appointment_id, body.appointmentId, appointment.id, appointment.eventId),
+      calendarId: pick(body.calendar_id, body.calendarId, appointment.calendar_id, appointment.calendarId),
+    });
     return send(res, 200, { ok: true, code: row.code, ...stored });
   } catch (e) {
     console.error('[bookings webhook] failed:', e && e.message);
@@ -338,7 +344,10 @@ async function handleSync(req, res) {
       if (dryRun) {
         results.updated.push({ code: athlete.code, key: isoWeekKey(adelaideDate(startDate)), value: displayTime(startDate) });
       } else {
-        const stored = await storeCallBooked(athlete.code, startDate);
+        const stored = await storeCallBooked(athlete.code, startDate, {
+          eventId: ev.id || ev.eventId || '',
+          calendarId: ev.calendarId || ev.calendar_id || calendarId,
+        });
         results.updated.push({ code: athlete.code, ...stored });
       }
     }

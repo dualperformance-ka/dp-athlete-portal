@@ -67,7 +67,7 @@ function callBookedPrefix(){
 }
 function callNudgeWeekKey(date){return callBookedPrefix()+callWeekSuffix(date);}
 // Three stored shapes, all still in the wild:
-//   {time,startsAt}  current — written by the webhook and the backlog sync
+//   {time,startsAt,eventId,calendarId}  current — written by the webhook/sync
 //   "Tue 15 Jul · 6:30 pm"  older server rows and portal self-reports
 //   "1"              legacy flag: booked, but the time was never captured
 function parseBookedValue(raw){
@@ -76,11 +76,16 @@ function parseBookedValue(raw){
   try{parsed=JSON.parse(raw);}catch(e){}
   if(parsed&&typeof parsed==='object'){
     var startsAt=parsed.startsAt||parsed.startTime||parsed.start_time||'';
-    return {time:String(parsed.time||parsed.displayTime||dpFormatBookedTime(startsAt)||''),startsAt:startsAt};
+    return {
+      time:String(parsed.time||parsed.displayTime||dpFormatBookedTime(startsAt)||''),
+      startsAt:startsAt,
+      eventId:String(parsed.eventId||parsed.event_id||''),
+      calendarId:String(parsed.calendarId||parsed.calendar_id||'')
+    };
   }
   var t=(parsed==='1'||parsed===1)?'':String(parsed||'');
   var d=/^\d{4}-\d{2}-\d{2}T/.test(t)?new Date(t):null;
-  return {time:(d&&!isNaN(d))?dpFormatBookedTime(d):t,startsAt:(d&&!isNaN(d))?d.toISOString():''};
+  return {time:(d&&!isNaN(d))?dpFormatBookedTime(d):t,startsAt:(d&&!isNaN(d))?d.toISOString():'',eventId:'',calendarId:''};
 }
 function getCallBookedState(){
   var prefix=callBookedPrefix(),thisWeek=callWeekSuffix();
@@ -96,10 +101,18 @@ function getCallBookedState(){
       if(!/^\d{4}_\d{2}$/.test(suffix)||suffix<=thisWeek) continue;
       var v=parseBookedValue(localStorage.getItem(k));
       if(!v) continue;
-      if(!upcoming||suffix<upcoming.week) upcoming={week:suffix,displayTime:v.time,startsAt:v.startsAt};
+      if(!upcoming||suffix<upcoming.week) upcoming={week:suffix,displayTime:v.time,startsAt:v.startsAt,eventId:v.eventId,calendarId:v.calendarId};
     }
   }catch(e){}
-  return {booked:!!current,displayTime:(current&&current.time)||'',upcoming:upcoming};
+  return {
+    booked:!!current,
+    displayTime:(current&&current.time)||'',
+    startsAt:(current&&current.startsAt)||'',
+    eventId:(current&&current.eventId)||'',
+    calendarId:(current&&current.calendarId)||'',
+    storageKey:current?(prefix+thisWeek):'',
+    upcoming:upcoming
+  };
 }
 // SINGLE source of truth for every booking prompt in the app: the home nudge,
 // the confirmed strip, the check-in Step 1 card and the tab dot all render
@@ -158,7 +171,7 @@ function applyCloudBookingRows(rows){
   // future row is more authoritative and must displace that stale placeholder.
   if(currentRaw&&!currentRaw.time&&hasDatedFuture)localStorage.removeItem(prefix+currentSuffix);
 }
-async function refreshCallBookingsFromCloud(attempt){
+async function refreshCallBookingsFromCloud(attempt,forceSync){
   attempt=attempt||0;
   if(!_authToken||!athlete||!athlete.code)return;
   try{
@@ -166,7 +179,7 @@ async function refreshCallBookingsFromCloud(attempt){
     // Repair historic placeholder rows immediately. The server resolves this
     // authenticated athlete only and pulls their real appointment from GHL;
     // later retries stay cheap and read Supabase only.
-    var action=(attempt===0&&before.booked&&!before.displayTime)?'booking-sync':'booking-read';
+    var action=(attempt===0&&(forceSync||(before.booked&&!before.displayTime)))?'booking-sync':'booking-read';
     var result=await portalRequest(action);
     applyCloudBookingRows(result.rows||[]);
     var state=renderBookingPrompts();
@@ -174,7 +187,7 @@ async function refreshCallBookingsFromCloud(attempt){
   }catch(e){console.warn('Booking time refresh failed',e);}
   if(attempt<2){
     if(_callBookingRefreshTimer)clearTimeout(_callBookingRefreshTimer);
-    _callBookingRefreshTimer=setTimeout(function(){refreshCallBookingsFromCloud(attempt+1);},attempt===0?2500:6000);
+    _callBookingRefreshTimer=setTimeout(function(){refreshCallBookingsFromCloud(attempt+1,false);},attempt===0?2500:6000);
   }
 }
 function initCallNudge(){
@@ -245,16 +258,50 @@ function openCallBooking(){
   switchTab('checkin');
   setTimeout(function(){ openCallModal(); },180);
 }
-function openCallModal(){
+function callWidgetUrl(base,state){
+  if(!base)return '';
+  if(!state||!state.booked)return base;
+  if(!state.eventId)return '';
+  return base+(base.indexOf('?')>=0?'&':'?')+'event_id='+encodeURIComponent(state.eventId);
+}
+var _activeCallReschedule=null;
+function showCallModalStatus(message){
+  var status=document.getElementById('callModalStatus');
+  var frame=document.getElementById('WRivrNxfNTVER2xMit1z_1782710919820');
+  if(status){status.textContent=message||'';status.style.display=message?'flex':'none';}
+  if(frame)frame.style.display=message?'none':'block';
+}
+async function openCallModal(){
   var m=document.getElementById('callModal');
   var f=document.getElementById('WRivrNxfNTVER2xMit1z_1782710919820');
-  if(f){var ds=f.getAttribute('data-src'); if(ds&&f.src.indexOf('leadconnectorhq')===-1) f.src=ds;}
+  var title=document.getElementById('callModalTitle');
+  var state=renderBookingPrompts();
   if(m) m.classList.add('open');
   document.body.style.overflow='hidden';
+  if(title)title.textContent=state.booked?'Reschedule Your Call':'Book Your Call';
+  if(state.booked&&!state.eventId){
+    showCallModalStatus('Finding your confirmed booking…');
+    try{
+      var result=await portalRequest('booking-sync');
+      applyCloudBookingRows(result.rows||[]);
+      state=renderBookingPrompts();
+    }catch(e){console.warn('Booking reschedule lookup failed',e);}
+  }
+  var base=f&&f.getAttribute('data-src');
+  var url=callWidgetUrl(base,state);
+  if(state.booked&&!url){
+    _activeCallReschedule=null;
+    showCallModalStatus('We could not safely open this appointment for rescheduling. Please use the reschedule link in your confirmation email or contact Karl & Alex. No new booking has been created.');
+    return;
+  }
+  _activeCallReschedule=state.booked?{eventId:state.eventId,calendarId:state.calendarId,storageKey:state.storageKey}:null;
+  showCallModalStatus('');
+  if(f&&url&&f.src!==url)f.src=url;
 }
 function closeCallModal(){
   var m=document.getElementById('callModal');
   if(m) m.classList.remove('open');
+  _activeCallReschedule=null;
   document.body.style.overflow='';
 }
 // ---- Booking confirmation (GHL / LeadConnector, with legacy Calendly fallback) ----
@@ -298,6 +345,12 @@ function dpMarkCallBooked(startTime){
   var start=dpBookingStart(startTime);
   var wkey=callNudgeWeekKey(start||new Date());
   var saveVal=start?{time:dpFormatBookedTime(start),startsAt:start.toISOString()}:'1';
+  var reschedule=_activeCallReschedule;
+  if(start&&reschedule&&reschedule.eventId){
+    saveVal.eventId=reschedule.eventId;
+    if(reschedule.calendarId)saveVal.calendarId=reschedule.calendarId;
+    if(reschedule.storageKey&&reschedule.storageKey!==wkey)localStorage.removeItem(reschedule.storageKey);
+  }
   localStorage.setItem(wkey,JSON.stringify(saveVal));
   renderBookingPrompts();
   setTimeout(function(){try{closeCallModal();}catch(ex){}},1500);
@@ -308,8 +361,12 @@ function dpMarkCallBooked(startTime){
     // webhook value. When a real start is available both paths store the same
     // dated shape; otherwise the portal waits for booking-read to hydrate it.
     if(start)portalStateWrite(sbKey,saveVal).catch(function(err){console.warn('Call booked sync failed:',err);});
-    refreshCallBookingsFromCloud(0);
+    // The reschedule widget updates the same GHL event. Ask the server to pull
+    // that event again so its old weekly marker is removed if the week moved.
+    if(reschedule)setTimeout(function(){refreshCallBookingsFromCloud(0,true);},1800);
+    else refreshCallBookingsFromCloud(0);
   }
+  _activeCallReschedule=null;
 }
 var _progressModulePromise=null;
 function ensureProgressModule(){

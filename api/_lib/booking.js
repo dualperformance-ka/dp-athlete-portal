@@ -2,7 +2,7 @@
 // athlete_data. Used by /api/call-booked (GHL webhook) and /api/sync-bookings
 // (pull of existing/upcoming GHL appointments).
 
-import { upsert } from './supabase-rest.js';
+import { upsert, select, remove } from './supabase-rest.js';
 
 export const TZ = 'Australia/Adelaide';
 
@@ -41,17 +41,43 @@ export function displayTime(date) {
 }
 
 // Writes the weekly call_booked key for an athlete. Returns { key, value }.
-// The value carries the raw timestamp alongside the display string so the week
-// rules can be re-derived later without going back to GHL. Older rows are a
-// bare string (or the legacy '1' flag); the portal reads all three shapes.
-export async function storeCallBooked(code, startDate) {
+// The GHL event id is retained so the portal can open HighLevel's reschedule
+// flow for the existing appointment instead of presenting a second booking
+// form. Older rows remain readable and are repaired by the authenticated sync.
+export async function storeCallBooked(code, startDate, appointment = {}, dependencies = {}) {
+  const upsertRows = dependencies.upsertRows || upsert;
+  const selectRows = dependencies.selectRows || select;
+  const removeRows = dependencies.removeRows || remove;
+  const now = dependencies.now ? new Date(dependencies.now) : new Date();
   const key = isoWeekKey(adelaideDate(startDate));
   const value = { time: displayTime(startDate), startsAt: new Date(startDate).toISOString() };
-  await upsert('athlete_data', [{
+  const eventId = String(appointment.eventId || appointment.id || '').trim();
+  const calendarId = String(appointment.calendarId || '').trim();
+  if (eventId) value.eventId = eventId;
+  if (calendarId) value.calendarId = calendarId;
+
+  await upsertRows('athlete_data', [{
     athlete_code: code,
     key,
     value,
-    updated_at: new Date().toISOString(),
+    updated_at: now.toISOString(),
   }], 'athlete_code,key');
+
+  // A reschedule can move the same event into another ISO week. Remove the
+  // previous weekly marker only after the new marker is safely written.
+  if (eventId) {
+    const previous = await selectRows('athlete_data', {
+      athlete_code: `eq.${code}`,
+      key: 'like.call_booked_*',
+      select: 'key,value',
+      limit: '100',
+    });
+    for (const row of previous || []) {
+      const previousEventId = String(row?.value?.eventId || row?.value?.event_id || '').trim();
+      if (row?.key && row.key !== key && previousEventId === eventId) {
+        await removeRows('athlete_data', { athlete_code: `eq.${code}`, key: `eq.${row.key}` });
+      }
+    }
+  }
   return { key, value };
 }
