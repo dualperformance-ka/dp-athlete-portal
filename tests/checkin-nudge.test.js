@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { bookingRead, bookingSync, stateRead } from '../api/write.js';
 import { syncBookingsForAthlete } from '../api/bookings.js';
-import { adelaideDate, displayTime, isoWeekKey } from '../api/_lib/booking.js';
+import { adelaideDate, displayTime, isoWeekKey, storeCallBooked } from '../api/_lib/booking.js';
 
 const root = new URL('..', import.meta.url).pathname;
 const navSource = readFileSync(join(root, 'public', 'js', '03-nav-nudges.js'), 'utf8');
@@ -80,6 +80,44 @@ test('booked calls display both their Adelaide date and time', () => {
   );
 });
 
+test('confirmed calls retain the HighLevel event id and clean up the old week after rescheduling', async () => {
+  const writes = [];
+  const removals = [];
+  const result = await storeCallBooked('THOMAS', new Date('2026-08-11T09:00:00Z'), {
+    eventId: 'event-123',
+    calendarId: 'calendar-456',
+  }, {
+    now: '2026-08-09T00:00:00Z',
+    upsertRows: async (...args) => { writes.push(args); },
+    selectRows: async () => [
+      { key: 'call_booked_2026_32', value: { eventId: 'event-123' } },
+      { key: 'call_booked_2026_33', value: { eventId: 'different-event' } },
+    ],
+    removeRows: async (...args) => { removals.push(args); },
+  });
+
+  assert.equal(result.value.eventId, 'event-123');
+  assert.equal(result.value.calendarId, 'calendar-456');
+  assert.equal(writes[0][1][0].key, result.key);
+  assert.deepEqual(removals, [[
+    'athlete_data',
+    { athlete_code: 'eq.THOMAS', key: 'eq.call_booked_2026_32' },
+  ]]);
+});
+
+test('the booking modal uses HighLevel reschedule mode and never falls back to a new booking for a confirmed call', () => {
+  const start = navSource.indexOf('function callWidgetUrl');
+  const end = navSource.indexOf('var _activeCallReschedule', start);
+  assert.ok(start >= 0 && end > start, 'booking URL helper should remain discoverable');
+  const context = { encodeURIComponent };
+  vm.createContext(context);
+  vm.runInContext(navSource.slice(start, end), context);
+  const base = 'https://api.leadconnectorhq.com/widget/booking/calendar-456';
+  assert.equal(context.callWidgetUrl(base, { booked: false }), base);
+  assert.equal(context.callWidgetUrl(base, { booked: true, eventId: 'event 123' }), `${base}?event_id=event%20123`);
+  assert.equal(context.callWidgetUrl(base, { booked: true, eventId: '' }), '');
+});
+
 test('booking refresh reads only weekly booking state for the authenticated athlete', async () => {
   let query;
   const result = await bookingRead('KARL', async (table, params) => {
@@ -99,6 +137,7 @@ test('timestamp-free widget confirmations cannot overwrite the cloud booking val
   assert.match(coreSource, /if\(!datedBooking\)return/);
   assert.match(navSource, /portalRequest\(action\)/);
   assert.match(navSource, /\?'booking-sync':'booking-read'/);
+  assert.match(navSource, /refreshCallBookingsFromCloud\(0,true\)/);
   assert.match(navSource, /currentRaw&&!currentRaw\.time&&hasDatedFuture/);
 });
 
@@ -118,14 +157,18 @@ test('authenticated booking recovery stores only the matching athlete appointmen
         { id: 'match', contactId: 'contact-thomas', startTime: start, appointmentStatus: 'confirmed' },
       ] },
     patchRows: async (...args) => { patched.push(args); return []; },
-    storeBooking: async (code, date) => {
-      stored.push({ code, date: date.toISOString() });
+    storeBooking: async (code, date, appointment) => {
+      stored.push({ code, date: date.toISOString(), appointment });
       return { key: 'call_booked_2026_32', value: { time: 'Tue 4 Aug · 6:30 pm', startsAt: date.toISOString() } };
     },
   });
   // The same mocked events are returned for each date window, but event ids
   // are de-duplicated before matching and writing.
-  assert.deepEqual(stored, [{ code: 'THOMAS', date: '2026-08-04T09:00:00.000Z' }]);
+  assert.deepEqual(stored, [{
+    code: 'THOMAS',
+    date: '2026-08-04T09:00:00.000Z',
+    appointment: { eventId: 'match', calendarId: 'calendar' },
+  }]);
   assert.equal(patched.length, 1);
   assert.equal(result.updated.length, 1);
 });
