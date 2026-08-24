@@ -253,9 +253,10 @@ function renderCal(ws){
       var daySessions=sortSessionsForDisplay(rawDaySessions.filter(function(s){return !isCalendarPlaceholder(s);}));
       var dayDone=daySessions.length>0&&daySessions.every(sessionDone),dayMissed=daySessions.length>0&&miso<todayISO&&!dayDone,labels='';
       daySessions.forEach(function(s){
-        var si=interactiveSessionIndex(s),done=sessionDone(s),sessionName=s.name||monthSessionLabel(s),detail=monthSessionDetail(s);
-        var openLabel='Open '+sessionName+(detail?', '+detail:'')+(done?', completed':'');
-        labels+='<button type="button" class="mobile-week-session '+getType(s)+(done?' done':'')+(s.rescheduled?' rescheduled':'')+'" data-session-index="'+si+'" data-open-label="'+esc('Open '+sessionName+(detail?', '+detail:''))+'" onclick="openMobileWeekSession('+si+',this)" aria-label="'+esc(openLabel)+'"><span><strong>'+esc(sessionName)+'</strong><small>'+esc(detail)+'</small></span><span class="mobile-week-session-marks">'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session"><svg class="icon"><use href="#i-star-filled"/></svg></i>':'')+'<i class="mobile-week-complete" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></i><i class="mobile-week-chevron" aria-hidden="true">›</i></span></button>';
+        var si=interactiveSessionIndex(s),done=sessionDone(s),needsFeedback=trainingSessionNeedsFeedback(s),sessionName=s.name||monthSessionLabel(s),detail=monthSessionDetail(s);
+        var baseOpenLabel='Open '+sessionName+(detail?', '+detail:'');
+        var openLabel=baseOpenLabel+(done?', completed':needsFeedback?', Strava synced, finish RPE and niggle check-in':'');
+        labels+='<button type="button" class="mobile-week-session '+getType(s)+(done?' done':'')+(needsFeedback?' pending-feedback':'')+(s.rescheduled?' rescheduled':'')+'" data-session-index="'+si+'" data-open-label="'+esc(baseOpenLabel)+'" onclick="openMobileWeekSession('+si+',this)" aria-label="'+esc(openLabel)+'"><span><strong>'+esc(sessionName)+'</strong><small>'+esc(detail)+'</small></span><span class="mobile-week-session-marks">'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session"><svg class="icon"><use href="#i-star-filled"/></svg></i>':'')+'<span class="mobile-week-pending" aria-label="Finish RPE and niggle check-in"><svg class="icon"><use href="#i-alert"/></svg><b>Finish</b></span><i class="mobile-week-complete" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></i><i class="mobile-week-chevron" aria-hidden="true">›</i></span></button>';
       });
       var dayOpenLabel='Open '+cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+' day overview';
       if(!daySessions.length)labels='<button type="button" class="mobile-week-rest" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'">'+(hasRecoveryOnly?'Recovery day':'No session planned')+'</button>';
@@ -490,12 +491,17 @@ function logHasRealData(v){
   });
 }
 function trainingSessionIsComplete(s){
-  return !!(s&&(logHasRealData(logs[s.id])||s.status==='Completed'));
+  return !!(s&&!trainingSessionNeedsFeedback(s)&&(logHasRealData(logs[s.id])||s.status==='Completed'));
+}
+function trainingSessionNeedsFeedback(s){
+  var entry=s&&logs&&logs[s.id];
+  return !!(entry&&entry.__stravaMatch&&!entry.__stravaFeedbackAt);
 }
 function buildCard(s,i){
   var type=getType(s);
   var logged=logHasRealData(logs[s.id]);
   var done=trainingSessionIsComplete(s);
+  var needsFeedback=trainingSessionNeedsFeedback(s);
   var marked=!done&&!!ticked[s.id];
   var displayName=s.name||'Session';
   var metaLine='';
@@ -507,7 +513,7 @@ function buildCard(s,i){
     var meta=[];if(s.intensity) meta.push(s.intensity);if(s.week) meta.push(s.week);
     metaLine=meta.join(' · ');
   }
-  var h='<div class="sc'+(done?' done':'')+(marked?' marked':'')+'" id="sc_'+i+'">';
+  var h='<div class="sc'+(done?' done':'')+(needsFeedback?' pending-feedback':'')+(marked?' marked':'')+'" id="sc_'+i+'">';
   h+='<div class="sch" onclick="togS('+i+')">';
   h+='<div class="sdot dot-'+type+'"></div>';
   h+='<div class="sinfo"><div class="sname '+type+'">'+esc(displayName)+'</div>';
@@ -2264,6 +2270,7 @@ function togS(i){var el=document.getElementById('scb_'+i);if(el) el.classList.to
 function syncMobileWeekSessionCompletion(i,done){
   document.querySelectorAll('.mobile-week-session[data-session-index="'+i+'"]').forEach(function(button){
     button.classList.toggle('done',!!done);
+    if(done)button.classList.remove('pending-feedback');
     var label=button.getAttribute('data-open-label')||'Open workout';button.setAttribute('aria-label',label+(done?', completed':''));
   });
   document.querySelectorAll('.mobile-week-day').forEach(function(day){
@@ -2274,7 +2281,9 @@ function syncMobileWeekSessionCompletion(i,done){
   });
 }
 async function tickS(i){
-  var s=sessions[i],on=!ticked[s.id];
+  var s=sessions[i];
+  if(trainingSessionNeedsFeedback(s)){var body=document.getElementById('scb_'+i);if(body)body.classList.add('open');showToast('Finish the RPE and niggle check-in to complete this session');return;}
+  var on=!ticked[s.id];
   ticked[s.id]=on;localStorage.setItem('dp_ticked_'+athlete.code,JSON.stringify(ticked));
   portalStateWrite('ticked',ticked).catch(function(){});
   var hasData=logHasRealData(logs[s.id]);

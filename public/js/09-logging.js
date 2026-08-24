@@ -456,7 +456,7 @@ function stravaMatchHtml(session,i,context){
 }
 function stravaFeedbackFormHtml(session,i){
   var entry=logs[session.id]||{},saved=!!entry.__stravaFeedbackAt;
-  return '<div class="strava-feedback"><div class="run-log-title">Add what Strava cannot know</div><div class="strava-feedback-grid"><div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="srpe_'+i+'" placeholder="..." value="'+esc(entry.rpe||'')+'" /></div><div class="run-field"><label>Pain or niggle?</label><select id="spain_'+i+'" class="li"><option value="no"'+(entry.pain!=='yes'?' selected':'')+'>No pain</option><option value="yes"'+(entry.pain==='yes'?' selected':'')+'>Yes — flag it</option></select></div></div><div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="snotes_'+i+'" class="li" placeholder="Anything your coaches should know...">'+esc(entry.notes||'')+'</textarea></div><button class="savebtn'+(saved?' saved':'')+'" id="sfb_'+i+'" onclick="saveStravaFeedback('+i+')">'+(saved?'Feedback saved ✓':'Save RPE, pain & notes')+'</button></div>';
+  return '<div class="strava-feedback"><div class="run-log-title">Finish your session check-in</div><div class="strava-feedback-intro">Strava has the run. Add your RPE and confirm whether you had any pain or niggles to complete it.</div><div class="strava-feedback-grid"><div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="srpe_'+i+'" placeholder="1–10" value="'+esc(entry.rpe||'')+'" /></div><div class="run-field"><label>Pain or niggle?</label><select id="spain_'+i+'" class="li"><option value="" disabled'+(!entry.pain?' selected':'')+'>Select...</option><option value="no"'+(entry.pain==='no'?' selected':'')+'>No pain or niggles</option><option value="yes"'+(entry.pain==='yes'?' selected':'')+'>Yes — flag it</option></select></div></div><div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="snotes_'+i+'" class="li" placeholder="Anything your coaches should know...">'+esc(entry.notes||'')+'</textarea></div><button class="savebtn'+(saved?' saved':'')+'" id="sfb_'+i+'" onclick="saveStravaFeedback('+i+')">'+(saved?'Feedback saved ✓':'Complete session')+'</button></div>';
 }
 function stravaLogPayload(session,activity,entry){
   var sum=stravaActivitySummary(activity),pain=entry&&entry.pain||'no',matchReasons=entry&&entry.__stravaMatch&&entry.__stravaMatch.reasons||[];
@@ -467,26 +467,33 @@ async function completeStravaMatch(session,i,match){
   _stravaAutoCompleting[session.id]=true;
   try{
     var activity=match.activity,sum=stravaActivitySummary(activity),previous=logs[session.id]||{};
-    logs[session.id]=Object.assign({},previous,{distance:String(sum.distance),duration:String(sum.duration),pace:sum.pace,pain:previous.pain||'no',__stravaMatch:{activityKey:stravaMatchActivityKey(activity),clientWriteId:stravaClientWriteId(activity),activity:activity,confidence:match.confidence,reasons:match.reasons||[],matchedAt:new Date().toISOString()}});
+    logs[session.id]=Object.assign({},previous,{distance:String(sum.distance),duration:String(sum.duration),pace:sum.pace,pain:previous.pain||'',__stravaMatch:{activityKey:stravaMatchActivityKey(activity),clientWriteId:stravaClientWriteId(activity),activity:activity,confidence:match.confidence,reasons:match.reasons||[],matchedAt:new Date().toISOString()}});
     logs.__savedAt=Date.now();localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
     try{await portalStateWrite('logs',logs);}catch(e){}
     await coachWrite(WEBHOOK,stravaLogPayload(session,activity,logs[session.id]));
     await markSessionLogged(session.id);
     stampSessionSubmitted(session.id);
-    await markSessionDone(i);
   }finally{delete _stravaAutoCompleting[session.id];}
 }
 async function saveStravaFeedback(i){
   var session=sessions[i];if(!session)return;
   var entry=logs[session.id]||{},meta=entry.__stravaMatch,match=getStravaSessionMatch(session),activity=(match&&match.activity)||(meta&&meta.activity);if(!activity)return;
+  var rpeInput=document.getElementById('srpe_'+i),rpe=Number((rpeInput||{}).value);
+  if(!Number.isFinite(rpe)||rpe<1||rpe>10){if(rpeInput){rpeInput.focus();rpeInput.setAttribute('aria-invalid','true');}showToast('Add an RPE from 1 to 10 to finish this session');return;}
+  if(rpeInput)rpeInput.removeAttribute('aria-invalid');
+  var painInput=document.getElementById('spain_'+i),pain=(painInput||{}).value||'';
+  if(pain!=='no'&&pain!=='yes'){if(painInput){painInput.focus();painInput.setAttribute('aria-invalid','true');}showToast('Confirm whether you had any pain or niggles');return;}
+  if(painInput)painInput.removeAttribute('aria-invalid');
   var btn=document.getElementById('sfb_'+i);if(btn){btn.disabled=true;btn.textContent='Saving...';}
-  entry.rpe=(document.getElementById('srpe_'+i)||{}).value||'';
-  entry.pain=(document.getElementById('spain_'+i)||{}).value||'no';
+  entry.rpe=String((rpeInput||{}).value||'');
+  entry.pain=pain;
   entry.notes=(document.getElementById('snotes_'+i)||{}).value||'';
   entry.__stravaFeedbackAt=new Date().toISOString();logs[session.id]=entry;logs.__savedAt=Date.now();
   localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
   try{await portalStateWrite('logs',logs);}catch(e){}
   var result=await coachWrite(WEBHOOK,stravaLogPayload(session,activity,entry));
+  await markSessionDone(i);
+  paintStravaMatches();
   if(btn){btn.disabled=false;btn.classList.add('saved');btn.textContent='Feedback saved ✓';}
   showToast(result&&result.queued?'Feedback saved - coach dashboard sync pending':'Feedback saved ✓');
 }

@@ -34,6 +34,7 @@
 .strava-match-removed button:focus-visible{outline:3px solid rgba(252,76,2,.3);outline-offset:2px}
 .strava-match-removed button:disabled{opacity:.55;cursor:wait}
 .strava-feedback{border:1px solid rgba(252,76,2,.2);border-radius:9px;background:rgba(252,76,2,.04);padding:14px}
+.strava-feedback-intro{margin-top:5px;color:var(--muted);font-size:12px;line-height:1.45}
 .strava-feedback-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
 @media(max-width:560px){.strava-feedback-grid{grid-template-columns:1fr}.strava-match-attribution,.strava-match-suggestion{align-items:center}.strava-match-suggestion{flex-wrap:wrap}.strava-match-suggestion button{margin-left:20px}.strava-match-attribution button{margin-left:0}}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -3265,14 +3266,21 @@ body.day-plan-open{overflow:hidden}
   .mobile-week-session.run{background:rgba(146,210,237,.12);box-shadow:inset 3px 0 0 var(--run)}
   .mobile-week-session.note{background:rgba(182,144,255,.11);box-shadow:inset 3px 0 0 var(--pb)}
   .mobile-week-session.rescheduled{box-shadow:inset 3px 0 0 #f0b85b}
+  .mobile-week-session.pending-feedback{background:rgba(252,76,2,.14);box-shadow:inset 3px 0 0 #fc4c02,inset 0 0 0 1px rgba(252,76,2,.12)}
   .mobile-week-session.done{background:rgba(34,197,94,.14);box-shadow:inset 3px 0 0 var(--ok),inset 0 0 0 1px rgba(34,197,94,.08)}
   .mobile-week-session>span{min-width:0}
   .mobile-week-session strong,.mobile-week-session small{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mobile-week-session strong{font-size:11px;line-height:1.1;font-weight:750;color:var(--text)}
   .mobile-week-session small{margin-top:2px;font-family:var(--mono);font-size:7px;line-height:1;color:var(--muted)}
+  .mobile-week-session.pending-feedback strong{color:#ff9a6e}
   .mobile-week-session.done strong{color:#9be4bf}
   .mobile-week-session-marks{display:flex;align-items:center;justify-content:flex-end;gap:6px}
   .mobile-week-key{font-style:normal;font-size:9px;line-height:1;color:var(--run)}
+  .mobile-week-pending{display:none;align-items:center;gap:3px;padding:3px 5px;border-radius:999px;background:#fc4c02;color:#fff;font:800 6px/1 var(--mono);letter-spacing:.03em;text-transform:uppercase}
+  .mobile-week-pending .icon{width:8px;height:8px}
+  .mobile-week-pending b{font:inherit}
+  .mobile-week-session.pending-feedback .mobile-week-pending{display:inline-flex}
+  .mobile-week-session.pending-feedback .mobile-week-chevron{display:none}
   .mobile-week-complete{display:none;width:17px;height:17px;place-items:center;border-radius:50%;background:var(--ok);color:#04120b}
   .mobile-week-complete .icon{width:11px;height:11px;stroke-width:3}
   .mobile-week-session.done .mobile-week-complete{display:grid}
@@ -3286,6 +3294,8 @@ body.day-plan-open{overflow:hidden}
   .outdoor-mode .mobile-week-day.today{background:linear-gradient(90deg,rgba(8,127,174,.13),rgba(8,127,174,.025) 62%,transparent)}
   .outdoor-mode .mobile-week-session{background:rgba(7,17,22,.045)}
   .outdoor-mode .mobile-week-session.run{background:rgba(8,127,174,.08)}
+  .outdoor-mode .mobile-week-session.pending-feedback{background:rgba(252,76,2,.12);box-shadow:inset 3px 0 0 #fc4c02,inset 0 0 0 1px rgba(252,76,2,.12)}
+  .outdoor-mode .mobile-week-session.pending-feedback strong{color:#c73b00}
   .outdoor-mode .mobile-week-session.done{background:rgba(34,197,94,.12);box-shadow:inset 3px 0 0 var(--ok),inset 0 0 0 1px rgba(34,197,94,.1)}
   .outdoor-mode .mobile-week-session.done strong{color:#137a49}
 
