@@ -11,7 +11,7 @@ import {
   selectLiveDevices,
 } from '../api/_lib/push-devices.js';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const remindersSource = readFileSync(join(root, 'api', 'reminders.js'), 'utf8');
 
 // The real user agents behind the duplicate-delivery bug: one iPhone, seen

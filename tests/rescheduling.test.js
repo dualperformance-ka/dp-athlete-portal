@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const navSource = readFileSync(join(root, 'public', 'js', '03-nav-nudges.js'), 'utf8');
 const loggingSource = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
 const coreSource = readFileSync(join(root, 'public', 'js', '01-core.js'), 'utf8');

@@ -3,7 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const index = readFileSync(join(root, 'public', 'index.html'), 'utf8');
 const nav = readFileSync(join(root, 'public', 'js', '03-nav-nudges.js'), 'utf8');
 const styles = readFileSync(join(root, 'public', 'styles.css'), 'utf8');

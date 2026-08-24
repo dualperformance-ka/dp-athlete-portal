@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolvePrefs } from '../api/_lib/push-devices.js';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const nav = readFileSync(join(root, 'public', 'js', '03-nav-nudges.js'), 'utf8');
 const boot = readFileSync(join(root, 'public', 'js', '10-boot.js'), 'utf8');
 const login = readFileSync(join(root, 'public', 'js', '02-login-goals.js'), 'utf8');

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sessionLibrary, trainingRead } from '../api/write.js';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const trainingSource = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
 const loginSource = readFileSync(join(root, 'public', 'js', '02-login-goals.js'), 'utf8');
 const bootSource = readFileSync(join(root, 'public', 'js', '10-boot.js'), 'utf8');

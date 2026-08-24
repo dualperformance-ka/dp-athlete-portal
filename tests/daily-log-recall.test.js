@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 import { nutritionLogs, bootstrapRead } from '../api/write.js';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const checkinSource = readFileSync(join(root, 'public', 'js', '04-checkin.js'), 'utf8');
 const coreSource = readFileSync(join(root, 'public', 'js', '01-core.js'), 'utf8');
 const indexSource = readFileSync(join(root, 'public', 'index.html'), 'utf8');

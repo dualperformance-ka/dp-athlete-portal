@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const index = readFileSync(join(root, 'public', 'index.html'), 'utf8');
 const loginGoals = readFileSync(join(root, 'public', 'js', '02-login-goals.js'), 'utf8');
 const desktop = readFileSync(join(root, 'public', 'desktop.css'), 'utf8');

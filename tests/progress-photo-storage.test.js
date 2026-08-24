@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseImageData } from '../api/progress-photos.js';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const route = readFileSync(join(root, 'api', 'progress-photos.js'), 'utf8');
 test('progress photo uploads decode only supported image data URLs', () => {
   const parsed = parseImageData('data:image/png;base64,aGVsbG8=');

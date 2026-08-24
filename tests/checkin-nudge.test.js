@@ -7,7 +7,7 @@ import { bookingRead, bookingSync, stateRead } from '../api/write.js';
 import { syncBookingsForAthlete } from '../api/bookings.js';
 import { adelaideDate, displayTime, isoWeekKey, storeCallBooked } from '../api/_lib/booking.js';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const navSource = readFileSync(join(root, 'public', 'js', '03-nav-nudges.js'), 'utf8');
 const coreSource = readFileSync(join(root, 'public', 'js', '01-core.js'), 'utf8');
 const apiSource = readFileSync(join(root, 'api', 'write.js'), 'utf8');

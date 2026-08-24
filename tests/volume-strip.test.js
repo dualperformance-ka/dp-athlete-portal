@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const nutritionSource = readFileSync(join(root, 'public', 'js', '06-nutrition.js'), 'utf8');
 const css = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
 

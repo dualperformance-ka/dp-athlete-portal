@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import vm from 'node:vm';
 import { normalisePublishedCoachTarget, weeklySportTargetsRead } from '../api/write.js';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const handbookSource = readFileSync(join(root, 'public', 'js', '05-handbook.js'), 'utf8');
 const nutritionSource = readFileSync(join(root, 'public', 'js', '06-nutrition.js'), 'utf8');
 const coreSource = readFileSync(join(root, 'public', 'js', '01-core.js'), 'utf8');

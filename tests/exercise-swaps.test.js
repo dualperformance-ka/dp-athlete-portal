@@ -7,7 +7,7 @@ import { join } from 'node:path';
 // The swap bank only earns its place if every programmed slot resolves to a
 // same-muscle pattern. A slot that falls through returns no extra options, and
 // the athlete silently loses the fallback exactly when the gym is busiest.
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const source = readFileSync(join(root, 'public', 'js', '01-core.js'), 'utf8');
 const libraryStart = source.indexOf('const STR = ');
 const libraryEnd = source.indexOf('\n\n// ── RUN LIBRARY', libraryStart);

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const publicDir = join(root, 'public');
 const index = readFileSync(join(publicDir, 'index.html'), 'utf8');
 const worker = readFileSync(join(publicDir, 'sw.js'), 'utf8');

@@ -16,7 +16,7 @@ import { join } from 'node:path';
 // Two things have to hold: a write from an absent card must not happen at all,
 // and an emptied-but-present exercise must still clear.
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const logging = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
 const training = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
 

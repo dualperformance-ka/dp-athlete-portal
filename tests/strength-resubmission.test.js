@@ -14,7 +14,7 @@ import { join } from 'node:path';
 // Both failures are the same missing idea: a strength row is identified by the
 // athlete, the session and the exercise — not by when the submit happened.
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const source = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
 const training = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
 

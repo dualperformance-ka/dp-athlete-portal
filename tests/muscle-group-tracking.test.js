@@ -7,7 +7,7 @@ import { join } from 'node:path';
 // Swapping freely is only safe if the data underneath keeps up. These tests
 // cover the muscle-group layer that answers "what actually got trained" once
 // the exercise name stops being a reliable answer.
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const coreSource = readFileSync(join(root, 'public', 'js', '01-core.js'), 'utf8');
 const libraryStart = coreSource.indexOf('const STR = ');
 const libraryEnd = coreSource.indexOf('\n\n// ── RUN LIBRARY', libraryStart);

@@ -11,7 +11,7 @@ import {
   stravaActivityKey,
 } from '../public/js/strava-match.js';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const loggingSource = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
 
 function rejectionHelpers(){
