@@ -45,13 +45,12 @@ Athlete data and progress-media operations use authenticated same-origin
 server routes.
 
 Keep `SUPABASE_SERVICE_KEY` private and server-side only. Supabase access is
-protected by RLS policies. Progress-photo bytes are stored in the private
-`progress-photos` Supabase Storage bucket; the authenticated server route issues
-short-lived signed URLs and the browser never receives storage credentials.
-Keep the existing `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and
-`CLOUDINARY_API_SECRET` temporarily during rollout: the first authenticated
-photo recall copies historic objects into Supabase. They can be removed after
-the legacy photo inventory has been verified in the `progress_photos` table.
+protected by RLS policies. Progress photos are stored in Cloudinary using the
+public ID `dp_progress/{athlete}/week{n}/{athlete}_week{n}_{slot}` so the athlete
+portal and coach dashboard read the same inventory. Keep `CLOUDINARY_CLOUD_NAME`,
+`CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` private and server-side only;
+the authenticated route derives the folder from the signed-in athlete rather
+than accepting an athlete code from the browser.
 
 ### 3. Deploy
 
