@@ -27,6 +27,26 @@ test('completed mobile workouts get their own colour and tick', () => {
   assert.match(styles, /\.mobile-week-session\.done \.mobile-week-complete\{display:grid\}/);
 });
 
+test('Strava synced workouts stay orange until RPE and niggle feedback is saved', () => {
+  const helperStart=source.indexOf('function trainingSessionIsComplete');
+  const helperEnd=source.indexOf('function buildCard',helperStart);
+  const context={logs:{tempo:{distance:'14',__stravaMatch:{activity:{distance:14000}}}},logHasRealData:(value)=>Object.keys(value||{}).length>0};
+  vm.createContext(context);
+  vm.runInContext(source.slice(helperStart,helperEnd),context);
+
+  assert.equal(context.trainingSessionNeedsFeedback({id:'tempo',status:'Completed'}),true);
+  assert.equal(context.trainingSessionIsComplete({id:'tempo',status:'Completed'}),false);
+  context.logs.tempo.rpe='8';
+  context.logs.tempo.__stravaFeedbackAt='2026-08-25T00:00:00.000Z';
+  assert.equal(context.trainingSessionNeedsFeedback({id:'tempo',status:'Completed'}),false);
+  assert.equal(context.trainingSessionIsComplete({id:'tempo',status:'Completed'}),true);
+  assert.match(source, /needsFeedback\?' pending-feedback'/);
+  assert.match(source, /Finish RPE and niggle check-in/);
+  assert.match(styles, /\.mobile-week-session\.pending-feedback\{background:[^}]+#fc4c02/);
+  assert.match(styles, /\.mobile-week-session\.pending-feedback \.mobile-week-pending\{display:inline-flex\}/);
+  assert.match(source, /Finish the RPE and niggle check-in to complete this session/);
+});
+
 test('Home uses the Training tab completion state and marks completed sessions consistently', () => {
   const calendarStart = source.indexOf('function renderCal');
   const calendarEnd = source.indexOf('// ── WEEKLY PLAN KM TARGET', calendarStart);
