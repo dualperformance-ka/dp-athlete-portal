@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v170'; // v170: one-time email upgrade prompt for eligible code sign-ins
+const CACHE_NAME = 'dp-athlete-v173'; // v173: athlete-scoped outboxes and durable portal-state recovery
 const APP_SHELL = [
   '/index.html', '/styles.css?v=134', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=113',
-  '/js/02-login-goals.js?v=109',
+  '/js/01-core.js?v=116',
+  '/js/02-login-goals.js?v=110',
   '/js/03-nav-nudges.js?v=104',
   '/js/04-checkin.js?v=92',
   '/js/05-handbook.js?v=84',
@@ -13,7 +13,7 @@ const APP_SHELL = [
   '/js/08-training.js?v=126',
   '/js/09-logging.js?v=119',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=107',
+  '/js/10-boot.js?v=108',
   '/login.js?v=49', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
@@ -29,9 +29,10 @@ self.addEventListener('install', event => {
 });
 
 const DP_OFFLINE_DB_NAME = 'dp-athlete-portal';
-const DP_OFFLINE_DB_VERSION = 1;
+const DP_OFFLINE_DB_VERSION = 2;
 const DP_QUEUE_STORE = 'queued_writes';
 const DP_STATE_STORE = 'app_state';
+const DP_STATE_QUEUE_STORE = 'state_writes';
 
 function openOfflineDb() {
   return new Promise(resolve => {
@@ -45,6 +46,10 @@ function openOfflineDb() {
         queue.createIndex('bucket', 'bucket', { unique: false });
       }
       if (!db.objectStoreNames.contains(DP_STATE_STORE)) db.createObjectStore(DP_STATE_STORE, { keyPath: 'key' });
+      if (!db.objectStoreNames.contains(DP_STATE_QUEUE_STORE)) {
+        const stateQueue = db.createObjectStore(DP_STATE_QUEUE_STORE, { keyPath: 'id' });
+        stateQueue.createIndex('code', 'code', { unique: false });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => resolve(null);
@@ -72,15 +77,27 @@ async function notifyQueueFlushed(count, trigger) {
   windows.forEach(client => client.postMessage({ type: 'dp-queue-flushed', count, trigger }));
 }
 
+function queuedWriteBelongsToAthlete(item, athleteCode) {
+  if (String(item && item.bucket || '').toUpperCase() === athleteCode) return true;
+  return item && item.bucket === '_unknown' &&
+    String(item.payload && item.payload.athleteCode || '').toUpperCase() === athleteCode;
+}
+
 async function flushOfflineQueue(trigger) {
   const db = await openOfflineDb();
   if (!db) return 0;
   const tokenRow = await idbRequest(db.transaction(DP_STATE_STORE, 'readonly').objectStore(DP_STATE_STORE).get('dp_auth_token'));
   const token = tokenRow && tokenRow.value;
-  if (!token) return 0;
+  const codeRow = await idbRequest(db.transaction(DP_STATE_STORE, 'readonly').objectStore(DP_STATE_STORE).get('dp_auth_athlete_code'));
+  const athleteCode = String(codeRow && codeRow.value || '').toUpperCase();
+  if (!token || !athleteCode) return 0;
   const queued = await idbRequest(db.transaction(DP_QUEUE_STORE, 'readonly').objectStore(DP_QUEUE_STORE).getAll());
+  const stateQueued = await idbRequest(db.transaction(DP_STATE_QUEUE_STORE, 'readonly').objectStore(DP_STATE_QUEUE_STORE).getAll());
+  const currentCoachWrites = queued.filter(item => queuedWriteBelongsToAthlete(item, athleteCode));
+  const currentStateWrites = stateQueued.filter(item => String(item.code || '').toUpperCase() === athleteCode);
   let synced = 0;
-  for (const item of queued) {
+  const coachSuccessIds = new Set();
+  for (const item of currentCoachWrites) {
     try {
       const response = await fetch('/api/ingest', {
         method: 'POST',
@@ -90,11 +107,43 @@ async function flushOfflineQueue(trigger) {
       let data = {};
       try { data = await response.clone().json(); } catch (error) {}
       if (!response.ok || data.ok === false) continue;
-      const tx = db.transaction(DP_QUEUE_STORE, 'readwrite');
-      tx.objectStore(DP_QUEUE_STORE).delete(item.id);
-      await idbTransaction(tx);
-      synced++;
+      coachSuccessIds.add(item.id);
     } catch (error) {}
+  }
+  async function writePortalState(key, value) {
+    try {
+      const response = await fetch('/api/portal-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'state-write', key, value }),
+      });
+      let data = {};
+      try { data = await response.clone().json(); } catch (error) {}
+      return response.ok && data.ok !== false;
+    } catch (error) { return false; }
+  }
+  // The cloud queue mirror and IndexedDB must advance together. If the mirror
+  // cannot be cleared, keep successful local rows: replay is idempotent by
+  // clientWriteId, while deleting first could resurrect stale cloud entries.
+  const mirrorItem = currentStateWrites.find(item => item.key === 'pending_writes');
+  if (coachSuccessIds.size || mirrorItem) {
+    const remaining = currentCoachWrites.filter(item => !coachSuccessIds.has(item.id)).map(item => {
+      const copy = { ...item }; delete copy.bucket; return copy;
+    });
+    if (await writePortalState('pending_writes', remaining)) {
+      const tx = db.transaction([DP_QUEUE_STORE, DP_STATE_QUEUE_STORE], 'readwrite');
+      coachSuccessIds.forEach(id => tx.objectStore(DP_QUEUE_STORE).delete(id));
+      if (mirrorItem) tx.objectStore(DP_STATE_QUEUE_STORE).delete(mirrorItem.id);
+      await idbTransaction(tx);
+      synced += coachSuccessIds.size + (mirrorItem ? 1 : 0);
+    }
+  }
+  for (const item of currentStateWrites.filter(row => row.key !== 'pending_writes')) {
+    if (!await writePortalState(item.key, item.value)) continue;
+    const tx = db.transaction(DP_STATE_QUEUE_STORE, 'readwrite');
+    tx.objectStore(DP_STATE_QUEUE_STORE).delete(item.id);
+    await idbTransaction(tx);
+    synced++;
   }
   if (synced) await notifyQueueFlushed(synced, trigger);
   return synced;

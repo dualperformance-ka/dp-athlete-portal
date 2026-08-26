@@ -46,8 +46,8 @@ function fakeIndexedDB() {
       delete(key) { return request(tx, () => map.delete(key)); },
       get(key) { return request(tx, () => map.has(key) ? structuredClone(map.get(key)) : undefined); },
       index(indexName) {
-        assert.equal(indexName, 'bucket');
-        return { getAll(bucket) { return request(tx, () => [...map.values()].filter(row => row.bucket === bucket).map(row => structuredClone(row))); } };
+        assert.ok(indexName === 'bucket' || indexName === 'code');
+        return { getAll(value) { return request(tx, () => [...map.values()].filter(row => row[indexName] === value).map(row => structuredClone(row))); } };
       },
     };
   }
@@ -92,7 +92,7 @@ function loadQueue({ storage = fakeLocalStorage(), idb = fakeIndexedDB() } = {})
     athlete: null,
     _authToken: null,
     window: { addEventListener() {} },
-    navigator: { onLine: true },
+    navigator: { onLine: true, storage: {} },
     document: { getElementById() { return null; }, addEventListener() {}, visibilityState: 'visible' },
     console,
     setTimeout,
@@ -109,6 +109,8 @@ function loadQueue({ storage = fakeLocalStorage(), idb = fakeIndexedDB() } = {})
     this.retryPendingCoachWrites=retryPendingCoachWrites;
     this.readPortalOfflineState=readPortalOfflineState;
     this.queueCoachWrite=queueCoachWrite;
+    this.readPendingPortalStateWrites=readPendingPortalStateWrites;
+    this.queuePortalStateWrite=queuePortalStateWrite;
   `, context);
   return context;
 }
@@ -158,13 +160,52 @@ test('queue falls back to localStorage when IndexedDB throws', async () => {
   assert.equal(storage.getItem('dp_pending_writes_KARL'), JSON.stringify(queued));
 });
 
+test('ordinary portal state writes have a durable latest-value outbox', async () => {
+  const context = loadQueue();
+  context.athlete = { code: 'KARL' };
+  await context.queuePortalStateWrite('reschedules', { session1: '2026-08-27' }, new Error('offline'));
+  await context.queuePortalStateWrite('reschedules', { session1: '2026-08-28' }, new Error('still offline'));
+
+  const queued = await context.readPendingPortalStateWrites('KARL');
+  assert.equal(queued.length, 1, 'newer state replaces the same key instead of duplicating it');
+  assert.equal(queued[0].key, 'reschedules');
+  assert.equal(queued[0].value.session1, '2026-08-28');
+});
+
+test('state outbox falls back to localStorage when IndexedDB is unavailable', async () => {
+  const storage = fakeLocalStorage();
+  const context = loadQueue({ storage, idb: { open() { throw new Error('private browsing'); } } });
+  context.athlete = { code: 'KARL' };
+  await context.queuePortalStateWrite('ticked', { session1: true }, new Error('offline'));
+
+  assert.equal((await context.readPendingPortalStateWrites('KARL')).length, 1);
+  assert.match(storage.getItem('dp_pending_state_writes_KARL'), /"key":"ticked"/);
+});
+
 test('background sync uses the same short-lived bearer token and preserves failed writes', () => {
   assert.match(worker, /addEventListener\('sync',[\s\S]*event\.tag === 'dp-flush-queue'/);
   assert.match(worker, /Authorization: `Bearer \$\{token\}`/);
-  assert.match(worker, /if \(!response\.ok \|\| data\.ok === false\) continue;[\s\S]*delete\(item\.id\)/);
+  assert.match(worker, /dp_auth_athlete_code/);
+  assert.match(worker, /queuedWriteBelongsToAthlete[\s\S]*item\.bucket === '_unknown'/);
+  assert.match(worker, /writePortalState\('pending_writes', remaining\)[\s\S]*coachSuccessIds\.forEach/);
   assert.doesNotMatch(worker, /refresh_token|long-lived/i);
   assert.match(loginSource, /writePortalOfflineState\('dp_auth_token',_authToken\)/);
   assert.match(core, /removePortalOfflineState\('dp_auth_token'\)/);
+  assert.match(core, /writePortalOfflineState\('dp_auth_athlete_code'/);
+  assert.match(core, /removePortalOfflineState\('dp_auth_athlete_code'\)/);
+});
+
+test('background sync cannot send another athlete’s device queue', () => {
+  const helperStart = worker.indexOf('function queuedWriteBelongsToAthlete');
+  const helperEnd = worker.indexOf('\n}\n\nasync function flushOfflineQueue', helperStart) + 2;
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(worker.slice(helperStart, helperEnd) + ';this.belongs=queuedWriteBelongsToAthlete;', context);
+
+  assert.equal(context.belongs({ bucket: 'KARL', payload: { athleteCode: 'KARL' } }, 'KARL'), true);
+  assert.equal(context.belongs({ bucket: 'ALEX', payload: { athleteCode: 'ALEX' } }, 'KARL'), false);
+  assert.equal(context.belongs({ bucket: '_unknown', payload: { athleteCode: 'KARL' } }, 'KARL'), true);
+  assert.equal(context.belongs({ bucket: '_unknown', payload: { athleteCode: 'ALEX' } }, 'KARL'), false);
 });
 
 test('Chromium periodic sync is permission-guarded and conservative', () => {
@@ -175,16 +216,31 @@ test('Chromium periodic sync is permission-guarded and conservative', () => {
 });
 
 test('foreground resume paths and the existing online path all flush the queue', () => {
-  assert.match(core, /visibilityState==='visible'\)retryPendingCoachWrites\(true,'visibility'\)/);
+  assert.match(core, /visibilityState==='visible'[\s\S]*retryPendingCoachWrites\(true,'visibility'\)/);
   assert.match(core, /addEventListener\('pageshow',[\s\S]*retryPendingCoachWrites\(true,'visibility'\)/);
   assert.match(core, /addEventListener\('online',[\s\S]*retryPendingCoachWrites\(true,'online'\)/);
   assert.match(worker, /addEventListener\('activate',[\s\S]*flushOfflineQueue\('sync'\)/);
+  assert.match(core, /visibilityState==='visible'[\s\S]*retryPendingPortalStateWrites\(true,'visibility'\)/);
+  assert.match(core, /addEventListener\('online',[\s\S]*retryPendingPortalStateWrites\(true,'online'\)/);
 });
 
-test('pending logs are loud, retryable, and measured', () => {
+test('all pending updates are loud, retryable, and measured', () => {
   assert.match(indexSource, /id="queuePendingBanner"[\s\S]*manualRetryPendingCoachWrites\(\)/);
-  assert.match(indexSource, /log waiting to send/);
+  assert.match(indexSource, /update waiting to send/);
   assert.match(core, /track\('queue_pending_shown',\{count:count\}\)/);
   assert.match(core, /track\('queue_flush_manual'\)/);
   assert.match(core, /offline_queue_flushed',\{count:totalSynced,trigger:trigger/);
+  assert.match(core, /offline_state_flushed',\{count:synced,trigger:trigger/);
+});
+
+test('cloud hydration preserves newer local outbox values and merges queue mirrors', () => {
+  assert.match(core, /if\(pendingStateKeys\[row\.key\]\)return;/);
+  assert.match(core, /localPending\.concat\(cloudKeys\['pending_writes'\]\)/);
+  assert.match(core, /pendingById\[item\.id\]/);
+});
+
+test('the portal asks the browser to protect offline storage after login', () => {
+  assert.match(core, /navigator\.storage\.persisted/);
+  assert.match(core, /navigator\.storage\.persist\(\)/);
+  assert.match(core, /offline_storage_persistence/);
 });
