@@ -4,9 +4,13 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/check-portal.mjs && node --test",
-    "test": "node --test"
+    "test": "node --test",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }
