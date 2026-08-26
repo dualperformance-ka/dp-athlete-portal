@@ -29,7 +29,7 @@ test('RPE preference is allowed, uploaded and hydrated through athlete state', (
 test('new strength logs freeze the RPE rule used for that session', () => {
   assert.match(logging, /__rpeEnabled:strengthLogRequiresRpe\(previous,isSessionLogged\(s\.id\)\)/);
   assert.match(training, /data-rpe-required=/);
-  assert.match(training, /strengthSavedSetHasRequiredInputs\(set,isSingleLeg,sessionRpeRequired\)/);
+  assert.match(training, /strengthSavedSetHasRequiredInputs\(set,isSingleLeg,sessionRpeRequired,effortRequired\)/);
 });
 
 test('legacy submitted sets completed without RPE remain complete after a domain change', () => {

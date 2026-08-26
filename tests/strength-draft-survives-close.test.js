@@ -58,6 +58,7 @@ function makeContext(presentIds, sets) {
     strengthSessionDate: () => '2026-08-18',
     collectSlotMap: () => ({}),
     strengthLogRequiresRpe: () => true,
+    strengthLogRequiresEffort: () => true,
     isSessionLogged: () => false,
     refreshStrengthFeedback() {},
     refreshStrengthExerciseStates() {},

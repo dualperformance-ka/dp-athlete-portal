@@ -235,3 +235,66 @@ test('assisted dips hold the assistance setting while reps are still building', 
   assert.equal(recommendation.action, 'Stay at 20.4kg assistance');
   assert.match(recommendation.reason, /before reducing assistance/);
 });
+
+test('a too-light first set carries the calibrated load into the next workout', () => {
+  const press = {
+    exercise: 'Incline Dumbbell Press',
+    sets: '3',
+    workingSets: '3',
+    reps: '8',
+    repRange: '8-12'
+  };
+  const current = [
+    { weight: '30', reps: '10', effort: 'reserve' },
+    { weight: '32.5', reps: '9' },
+    { weight: '32.5', reps: '8' }
+  ];
+
+  const recommendation = context.computeOverload(press, current, press.exercise, []);
+
+  assert.equal(recommendation.status, 'Load Calibrated');
+  assert.equal(recommendation.action, 'Start at 32.5kg');
+  assert.equal(recommendation.weightKg, 32.5);
+  assert.equal(recommendation.calibrated, true);
+});
+
+test('broken form makes the next workout start lighter', () => {
+  const press = {
+    exercise: 'Incline Dumbbell Press',
+    sets: '3',
+    workingSets: '3',
+    reps: '8',
+    repRange: '8-12'
+  };
+  const current = [
+    { weight: '30', reps: '8', effort: 'form_break' },
+    { weight: '27.5', reps: '10' },
+    { weight: '27.5', reps: '9' }
+  ];
+
+  const recommendation = context.computeOverload(press, current, press.exercise, []);
+
+  assert.equal(recommendation.status, 'Reduce Load');
+  assert.equal(recommendation.action, 'Start at 27.5kg');
+  assert.match(recommendation.reason, /lost clean technique/);
+});
+
+test('technical failure inside the range keeps normal double progression', () => {
+  const press = {
+    exercise: 'Incline Dumbbell Press',
+    sets: '3',
+    workingSets: '3',
+    reps: '8',
+    repRange: '8-12'
+  };
+  const current = [
+    { weight: '30', reps: '10', effort: 'failure' },
+    { weight: '30', reps: '10' },
+    { weight: '30', reps: '9' }
+  ];
+
+  const recommendation = context.computeOverload(press, current, press.exercise, []);
+
+  assert.equal(recommendation.status, 'Beat Last Week');
+  assert.equal(recommendation.action, 'Stay at 30kg');
+});

@@ -307,5 +307,5 @@ test('submitted exercises cannot bypass enabled column requirements', () => {
   const refreshEnd = source.indexOf('function refreshStrengthExerciseStates', refreshStart);
   const refreshSource = source.slice(refreshStart, refreshEnd);
   assert.doesNotMatch(refreshSource, /strengthExerciseWasSubmitted|isSessionLogged/);
-  assert.match(source, /renderedRows\.every\(function\(set\)\{return !!set\.done&&strengthSavedSetHasRequiredInputs/);
+  assert.match(source, /renderedRows\.every\(function\(set,rowIndex\)[\s\S]*return !!set\.done&&strengthSavedSetHasRequiredInputs/);
 });
