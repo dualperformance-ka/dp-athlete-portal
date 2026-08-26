@@ -19,11 +19,15 @@ function strengthLogRequiresRpe(log,submitted){
   }
   return strengthRpeEnabled();
 }
-function strengthLogRequiresEffort(log,submitted){
+function strengthLogRequiresEffort(log,submitted,sessionDate){
+  // Every unfinished strength workout uses first-set calibration, regardless
+  // of when the programme or session was created. This intentionally overrides
+  // stale pre-feature draft flags so older programmes receive the prompt too.
+  if(!submitted&&!(log&&log.__submittedAt))return true;
+  // Preserve the rule under which a historical submitted workout was logged;
+  // reopening old sessions must not make previously valid sets incomplete.
   if(log&&typeof log.__effortEnabled==='boolean')return log.__effortEnabled;
-  // Existing submitted sessions pre-date the in-session effort control. Keep
-  // their completion state intact; every new draft records the new rule.
-  return !submitted;
+  return false;
 }
 function strengthCardRequiresRpe(card){
   var value=card&&card.getAttribute?card.getAttribute('data-rpe-required'):null;
@@ -2083,6 +2087,17 @@ function strengthSetHasRequiredInputs(row,ignoreEffort){
   var hasEffort=!!ignoreEffort||!effortRequired||!!(row.getAttribute&&row.getAttribute('data-effort'));
   return !!(hasWeight&&hasReps&&hasRpe&&hasEffort);
 }
+function strengthSetHasCalibrationInputs(row){
+  if(!row)return false;
+  var weight=row.querySelector('input[id^="w_"]'),reps=row.querySelector('input[id^="r_"]');
+  var left=row.querySelector('input[id^="rL_"]'),right=row.querySelector('input[id^="rR_"]');
+  var hasWeight=weight&&String(weight.value||'').trim()!=='';
+  var hasReps=(reps&&String(reps.value||'').trim()!=='')||
+    (left&&right&&String(left.value||'').trim()!==''&&String(right.value||'').trim()!=='');
+  // Calibration happens immediately after weight + reps. RPE is still needed
+  // to complete the set, but it must not delay or suppress this prompt.
+  return !!(hasWeight&&hasReps);
+}
 function strengthSavedSetHasRequiredInputs(set,isSingleLeg,rpeRequired,effortRequired){
   set=set||{};
   var hasWeight=String(set.weight==null?'':set.weight).trim()!=='';
@@ -2350,7 +2365,7 @@ function buildBody(s,i,type){
   }else if(type==='strength'){
 
     var splitKey=splitKeyForSession(s,'Upper A');
-    var exercises=getSplit(splitKey),sl2=logs[s.id]||{},gymSubmitted=isSessionLogged(s.id),sessionRpeRequired=strengthLogRequiresRpe(sl2,gymSubmitted),sessionEffortRequired=strengthLogRequiresEffort(sl2,gymSubmitted);
+    var exercises=getSplit(splitKey),sl2=logs[s.id]||{},gymSubmitted=isSessionLogged(s.id),sessionRpeRequired=strengthLogRequiresRpe(sl2,gymSubmitted),sessionEffortRequired=strengthLogRequiresEffort(sl2,gymSubmitted,s.date);
     h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     if(exercises.length){
       var restTimerOn=typeof restTimerEnabled==='function'?restTimerEnabled():true;
@@ -2483,7 +2498,7 @@ function buildBody(s,i,type){
 	            h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsRight?prevSet.repsRight:'R')+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
-	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,true,sessionRpeRequired,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt);}
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,true,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt);}
 	          }
 	        }else{
 	          h+='<div class="slbls"><div class="slbl"></div><div class="slbl">'+(isAssisted?'Assist kg':'kg')+'</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
@@ -2496,7 +2511,7 @@ function buildBody(s,i,type){
 	            h+='<input type="number" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
-	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,false,sessionRpeRequired,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt);}
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,false,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt);}
 	          }
 	        }
         h+='</div>';
@@ -2654,7 +2669,7 @@ async function markSessionDone(i){
 }
 function promptStrengthCalibration(i,ei,si){
   var row=document.getElementById('sr_'+i+'_'+ei+'_'+si);if(!row)return false;
-  if(!row.getAttribute||row.getAttribute('data-effort-required')!=='true'||row.getAttribute('data-effort')||!strengthSetHasRequiredInputs(row,true))return false;
+  if(!row.getAttribute||row.getAttribute('data-effort-required')!=='true'||row.getAttribute('data-effort')||!strengthSetHasCalibrationInputs(row))return false;
   var panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(!panel)return false;
   panel.classList.add('is-prompting');return true;
 }
