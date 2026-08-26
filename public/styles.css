@@ -5502,3 +5502,28 @@ html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
 .coach-moment.is-derived .coach-moment-label{font-weight:600;color:var(--muted)}
 .coach-moment.is-derived .coach-moment-tag{opacity:.62}
 .coach-moment.is-derived p{color:var(--muted);opacity:.92}
+
+/* ── NUDGE SUMMARY ROW ────────────────────────────────────────────────────────
+   One due nudge stays in place; the rest fold behind this row. Deliberately
+   the quietest thing in the card — it is a disclosure control, not another
+   demand, so it carries no due rail, no accent and no colour of its own. */
+.nudge-collapsed{display:none!important}
+.nudge-summary{
+  display:block;width:100%;text-align:left;appearance:none;
+  border:0;border-top:1px solid rgba(255,255,255,.05);
+  border-bottom:1px solid rgba(255,255,255,.05);
+  background:rgba(255,255,255,.015);
+  font:inherit;color:inherit
+}
+.nudge-summary .nudge-strip-title{
+  font-size:11px;letter-spacing:.08em;color:rgba(255,255,255,.42);font-weight:600
+}
+.nudge-summary .nudge-strip-arr{
+  display:inline-flex;transition:transform .2s ease
+}
+.nudge-summary .nudge-strip-arr .icon{width:13px;height:13px}
+.nudge-summary.is-open .nudge-strip-arr{transform:rotate(90deg)}
+.nudge-summary:hover .nudge-strip-title{color:rgba(255,255,255,.62)}
+.outdoor-mode .nudge-summary{background:rgba(0,0,0,.02);border-color:var(--border)}
+.outdoor-mode .nudge-summary .nudge-strip-title{color:var(--muted)}
+@media(prefers-reduced-motion:reduce){.nudge-summary .nudge-strip-arr{transition:none}}

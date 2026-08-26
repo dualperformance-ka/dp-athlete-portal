@@ -9,9 +9,84 @@ function nudgeVisible(el){
   // stylesheet rather than by an inline value.
   try{return window.getComputedStyle(el).display!=='none';}catch(e){return el.style.display!=='none';}
 }
+// ── NUDGE PRIORITY ────────────────────────────────────────────────────────────
+// The card could stack five demands above today's session. On a first login
+// that is five things we want FROM the athlete before one thing we are giving
+// them. So: one due nudge stays in place, everything else due collapses behind
+// a single summary row, closed on every load.
+//
+// The rows cannot move in index.html — check-portal.mjs asserts #goalsBanner's
+// position inside .top-shell-priority — so the ordering happens here, at
+// runtime, on the live nodes.
+//
+// Collapsing uses a class, never an inline style. Each nudge's own init writes
+// el.style.display and must stay the single authority on whether it is due at
+// all; this pass only decides whether a due row is shown now or folded away.
+var NUDGE_PRIORITY=['goalsBanner','checkinNudge','callNudge','photoNudge'];
+var _nudgeSummaryOpen=false,_nudgeSummaryHidden=0,_nudgePriorityPass=false;
+function nudgeSummaryRow(card){
+  var row=document.getElementById('nudgeSummaryRow');
+  if(row) return row;
+  row=document.createElement('button');
+  row.type='button';
+  row.id='nudgeSummaryRow';
+  row.className='nudge-strip nudge-summary';
+  row.style.display='none';
+  row.setAttribute('aria-expanded','false');
+  row.innerHTML='<span class="nudge-strip-inner"><span class="nudge-strip-text"><span class="nudge-strip-title" id="nudgeSummaryLabel"></span></span><span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span></span>';
+  row.addEventListener('click',toggleNudgeSummary);
+  card.appendChild(row);
+  return row;
+}
+function toggleNudgeSummary(){
+  _nudgeSummaryOpen=!_nudgeSummaryOpen;
+  if(_nudgeSummaryOpen) track('nudge_summary_expanded',{hidden:_nudgeSummaryHidden});
+  syncWeekCardState();
+}
+function applyNudgePriority(card){
+  var row=nudgeSummaryRow(card);
+  var nodes=NUDGE_PRIORITY.map(function(id){return document.getElementById(id);});
+  // Start from each row's own state. Reading dueness through our own collapse
+  // would fold the same rows away permanently after the first pass.
+  nodes.forEach(function(el){if(el) el.classList.remove('nudge-collapsed');});
+  var due=nodes.filter(function(el){
+    return el&&el.classList.contains('is-due')&&!el.classList.contains('is-clearing')&&nudgeVisible(el);
+  });
+  // One demand needs no summary row, and none needs nothing at all.
+  if(due.length<2){
+    row.style.display='none';
+    _nudgeSummaryOpen=false;_nudgeSummaryHidden=0;
+    return;
+  }
+  var hidden=due.slice(1);
+  _nudgeSummaryHidden=hidden.length;
+  row.style.display='';
+  // The summary row sits directly under the nudge that stayed, and the folded
+  // rows sit under the summary row, so expanding reads top to bottom instead
+  // of revealing rows above the control that opened them. #callConfirmedNudge
+  // is a done state rather than a demand, so it is left exactly where it is.
+  if(due[0].nextSibling!==row) card.insertBefore(row,due[0].nextSibling);
+  var anchor=row;
+  hidden.forEach(function(el){
+    if(anchor.nextSibling!==el) card.insertBefore(el,anchor.nextSibling);
+    anchor=el;
+    if(!_nudgeSummaryOpen) el.classList.add('nudge-collapsed');
+  });
+  var label=document.getElementById('nudgeSummaryLabel');
+  if(label) label.textContent=_nudgeSummaryOpen?'Show less':(hidden.length+(hidden.length===1?' more thing':' more things')+' this week');
+  row.setAttribute('aria-expanded',_nudgeSummaryOpen?'true':'false');
+  row.classList.toggle('is-open',_nudgeSummaryOpen);
+}
 function syncWeekCardState(){
   var card=document.querySelector('.top-shell-priority');
   if(!card) return;
+  // Priority runs first so the row count below reflects what is actually on
+  // screen. Guarded because the pass itself must never re-enter this.
+  if(!_nudgePriorityPass){
+    _nudgePriorityPass=true;
+    try{applyNudgePriority(card);}catch(e){console.warn('Nudge priority pass failed',e);}
+    _nudgePriorityPass=false;
+  }
   var due=0,rows=0;
   Array.prototype.forEach.call(card.querySelectorAll('.nudge-strip,#strava-ack-banner'),function(el){
     if(el.classList.contains('is-clearing')||!nudgeVisible(el)) return;
