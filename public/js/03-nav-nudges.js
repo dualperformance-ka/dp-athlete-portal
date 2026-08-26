@@ -9,9 +9,84 @@ function nudgeVisible(el){
   // stylesheet rather than by an inline value.
   try{return window.getComputedStyle(el).display!=='none';}catch(e){return el.style.display!=='none';}
 }
+// ── NUDGE PRIORITY ────────────────────────────────────────────────────────────
+// The card could stack five demands above today's session. On a first login
+// that is five things we want FROM the athlete before one thing we are giving
+// them. So: one due nudge stays in place, everything else due collapses behind
+// a single summary row, closed on every load.
+//
+// The rows cannot move in index.html — check-portal.mjs asserts #goalsBanner's
+// position inside .top-shell-priority — so the ordering happens here, at
+// runtime, on the live nodes.
+//
+// Collapsing uses a class, never an inline style. Each nudge's own init writes
+// el.style.display and must stay the single authority on whether it is due at
+// all; this pass only decides whether a due row is shown now or folded away.
+var NUDGE_PRIORITY=['goalsBanner','checkinNudge','callNudge','photoNudge'];
+var _nudgeSummaryOpen=false,_nudgeSummaryHidden=0,_nudgePriorityPass=false;
+function nudgeSummaryRow(card){
+  var row=document.getElementById('nudgeSummaryRow');
+  if(row) return row;
+  row=document.createElement('button');
+  row.type='button';
+  row.id='nudgeSummaryRow';
+  row.className='nudge-strip nudge-summary';
+  row.style.display='none';
+  row.setAttribute('aria-expanded','false');
+  row.innerHTML='<span class="nudge-strip-inner"><span class="nudge-strip-text"><span class="nudge-strip-title" id="nudgeSummaryLabel"></span></span><span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span></span>';
+  row.addEventListener('click',toggleNudgeSummary);
+  card.appendChild(row);
+  return row;
+}
+function toggleNudgeSummary(){
+  _nudgeSummaryOpen=!_nudgeSummaryOpen;
+  if(_nudgeSummaryOpen) track('nudge_summary_expanded',{hidden:_nudgeSummaryHidden});
+  syncWeekCardState();
+}
+function applyNudgePriority(card){
+  var row=nudgeSummaryRow(card);
+  var nodes=NUDGE_PRIORITY.map(function(id){return document.getElementById(id);});
+  // Start from each row's own state. Reading dueness through our own collapse
+  // would fold the same rows away permanently after the first pass.
+  nodes.forEach(function(el){if(el) el.classList.remove('nudge-collapsed');});
+  var due=nodes.filter(function(el){
+    return el&&el.classList.contains('is-due')&&!el.classList.contains('is-clearing')&&nudgeVisible(el);
+  });
+  // One demand needs no summary row, and none needs nothing at all.
+  if(due.length<2){
+    row.style.display='none';
+    _nudgeSummaryOpen=false;_nudgeSummaryHidden=0;
+    return;
+  }
+  var hidden=due.slice(1);
+  _nudgeSummaryHidden=hidden.length;
+  row.style.display='';
+  // The summary row sits directly under the nudge that stayed, and the folded
+  // rows sit under the summary row, so expanding reads top to bottom instead
+  // of revealing rows above the control that opened them. #callConfirmedNudge
+  // is a done state rather than a demand, so it is left exactly where it is.
+  if(due[0].nextSibling!==row) card.insertBefore(row,due[0].nextSibling);
+  var anchor=row;
+  hidden.forEach(function(el){
+    if(anchor.nextSibling!==el) card.insertBefore(el,anchor.nextSibling);
+    anchor=el;
+    if(!_nudgeSummaryOpen) el.classList.add('nudge-collapsed');
+  });
+  var label=document.getElementById('nudgeSummaryLabel');
+  if(label) label.textContent=_nudgeSummaryOpen?'Show less':(hidden.length+(hidden.length===1?' more thing':' more things')+' this week');
+  row.setAttribute('aria-expanded',_nudgeSummaryOpen?'true':'false');
+  row.classList.toggle('is-open',_nudgeSummaryOpen);
+}
 function syncWeekCardState(){
   var card=document.querySelector('.top-shell-priority');
   if(!card) return;
+  // Priority runs first so the row count below reflects what is actually on
+  // screen. Guarded because the pass itself must never re-enter this.
+  if(!_nudgePriorityPass){
+    _nudgePriorityPass=true;
+    try{applyNudgePriority(card);}catch(e){console.warn('Nudge priority pass failed',e);}
+    _nudgePriorityPass=false;
+  }
   var due=0,rows=0;
   Array.prototype.forEach.call(card.querySelectorAll('.nudge-strip,#strava-ack-banner'),function(el){
     if(el.classList.contains('is-clearing')||!nudgeVisible(el)) return;
@@ -693,7 +768,7 @@ function getWeeklySummary(){
 }
 function openWeeklySummary(){
   toggleMoreMenu(false);var s=getWeeklySummary(),i=s.insight,body=document.getElementById('weeklySummaryBody');
-  body.innerHTML='<div class="summary-week-label">Programme · Week '+getCurrentProgrammeWeek()+'</div><div class="summary-hero"><div class="summary-ring" style="--value:'+i.compliance+'"><strong>'+i.compliance+'%</strong></div><div><strong>Week completion</strong><small>'+i.completed+' of '+i.planned+' planned sessions complete'+(i.completed<i.planned?' · still underway':' · week complete')+'</small></div></div><div class="summary-grid"><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-barbell"/></svg></span><small>Training volume</small><strong>'+s.volume.toLocaleString()+'kg</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-pulse"/></svg></span><small>Readiness</small><strong>'+(i.readiness==null?'Not logged':i.readiness+'/100')+'</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-run"/></svg></span><small>Running</small><strong>'+(i.kmTarget?i.kmDone.toFixed(1)+' / '+i.kmTarget.toFixed(1)+'km':'No target')+'</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-trophy"/></svg></span><small>PB history</small><strong>'+i.pbs+' exercises</strong></div></div><div class="summary-wins"><span class="summary-metric-icon"><svg class="icon"><use href="#i-trophy"/></svg></span><div><strong>Wins this week</strong><p>'+(s.wins.length?s.wins.map(esc).join(' · '):'Log your first completed session to start building the week.')+'</p></div></div>'+renderCoachMoment([]);
+  body.innerHTML='<div class="summary-week-label">Programme · Week '+getCurrentProgrammeWeek()+'</div><div class="summary-hero"><div class="summary-ring" style="--value:'+i.compliance+'"><strong>'+i.compliance+'%</strong></div><div><strong>Week completion</strong><small>'+i.completed+' of '+i.planned+' planned sessions complete'+(i.completed<i.planned?' · still underway':' · week complete')+'</small></div></div><div class="summary-grid"><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-barbell"/></svg></span><small>Training volume</small><strong>'+s.volume.toLocaleString()+'kg</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-pulse"/></svg></span><small>Readiness</small><strong>'+(i.readiness==null?'Not logged':i.readiness+'/100')+'</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-run"/></svg></span><small>Running</small><strong>'+(i.kmTarget?i.kmDone.toFixed(1)+' / '+i.kmTarget.toFixed(1)+'km':'No target')+'</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-trophy"/></svg></span><small>PB history</small><strong>'+i.pbs+' exercises</strong></div></div><div class="summary-wins"><span class="summary-metric-icon"><svg class="icon"><use href="#i-trophy"/></svg></span><div><strong>Wins this week</strong><p>'+(s.wins.length?s.wins.map(esc).join(' · '):'Log your first completed session to start building the week.')+'</p></div></div>'+renderCoachMoment(sessions.filter(function(x){return x.date===localISO(new Date());}),i);
   setMobileNav('more');document.getElementById('weeklySummaryModal').classList.add('open');document.body.style.overflow='hidden';
 }
 function closeWeeklySummary(){document.getElementById('weeklySummaryModal').classList.remove('open');document.body.style.overflow='';restoreMobileNavContext();}
@@ -733,10 +808,118 @@ function renderPbHistory(query){
 }
 function openPbHistory(){var modal=document.getElementById('pbHistoryModal'),search=document.getElementById('pbHistorySearch');if(search)search.value='';renderPbHistory('');modal.classList.add('open');document.body.style.overflow='hidden';setTimeout(function(){if(search)search.focus();},80);}
 function closePbHistory(){document.getElementById('pbHistoryModal').classList.remove('open');document.body.style.overflow='';}
-function exportAthleteData(){
-  var data={exportedAt:new Date().toISOString(),athlete:{name:athlete.name,code:athlete.code},logs:logs,goals:JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}'),photos:getPhotos(),reminders:getReminderPreferences()};
+// ── DATA EXPORT ───────────────────────────────────────────────────────────────
+// This used to serialise localStorage and call it the athlete's data. It was a
+// partial device mirror — whatever this one browser happened to have cached —
+// and an athlete asking what we hold on them deserves the real answer.
+//
+// The server export is the answer. The device copy stays as the offline
+// fallback so the button still does something useful on a dead connection, and
+// it says which one you got.
+function localAthleteExport(){
+  return {exportedAt:new Date().toISOString(),source:'device-cache-only',athlete:{name:athlete.name,code:athlete.code},logs:logs,goals:JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}'),photos:getPhotos(),reminders:getReminderPreferences()};
+}
+function downloadAthleteJson(data){
   var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='dual-performance-'+athlete.code+'-data.json';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);
 }
+async function exportAthleteData(){
+  track('export_requested');
+  var data=null;
+  try{
+    var result=await portalRequest('export-data');
+    if(result&&result.export) data=result.export;
+  }catch(e){console.warn('Server export unavailable; falling back to the device copy',e);}
+  if(!data){
+    data=localAthleteExport();
+    showToast('Could not reach the server. Exported this device\u2019s copy instead.');
+  }
+  downloadAthleteJson(data);
+}
+
+// ── PRIVATE NOTE TO COACH ─────────────────────────────────────────────────────
+// A composer, not a messaging system. One direction, no threads, no inbox.
+// Discord covers community and general questions; an athlete will not post
+// "I think I'm injured" or "I'm thinking of quitting" in a group channel, and
+// those are the messages worth catching.
+//
+// Nothing here interpolates athlete text into HTML: the draft goes back into a
+// textarea value and every status line is set with textContent.
+var COACH_NOTE_MAX=2000;
+function coachNoteDraftKey(){return 'dp_coach_note_draft_'+((athlete&&athlete.code)||'default');}
+function syncCoachNoteMeta(){
+  var box=document.getElementById('coachNoteBody'),count=document.getElementById('coachNoteCount');
+  if(box&&count) count.textContent=box.value.length+' / '+COACH_NOTE_MAX;
+}
+function setCoachNoteStatus(message,tone){
+  var el=document.getElementById('coachNoteStatus');if(!el)return;
+  el.textContent=message||'';
+  el.classList.toggle('is-error',tone==='error');
+  el.classList.toggle('is-sent',tone==='sent');
+}
+// The same draft contract as every other form in the portal: nothing typed is
+// lost by closing the app, and the draft is cleared only once the server has
+// confirmed the note landed.
+function draftCoachNote(){
+  var box=document.getElementById('coachNoteBody');if(!box)return;
+  try{
+    if(box.value.trim()) localStorage.setItem(coachNoteDraftKey(),box.value);
+    else localStorage.removeItem(coachNoteDraftKey());
+  }catch(e){}
+  var note=document.getElementById('coachNoteDraft');
+  if(note) note.textContent=box.value.trim()?'Draft saved on this device':'';
+  syncCoachNoteMeta();
+}
+function openCoachNote(){
+  toggleMoreMenu(false);
+  var modal=document.getElementById('coachNoteModal');if(!modal)return;
+  var box=document.getElementById('coachNoteBody');
+  if(box){
+    var draft='';try{draft=localStorage.getItem(coachNoteDraftKey())||'';}catch(e){}
+    box.disabled=false;
+    box.value=String(draft).slice(0,COACH_NOTE_MAX);
+  }
+  var send=document.getElementById('coachNoteSend');
+  if(send){send.disabled=false;send.textContent='Send to your coaches';}
+  var note=document.getElementById('coachNoteDraft');
+  if(note) note.textContent=(box&&box.value.trim())?'Draft saved on this device':'';
+  setCoachNoteStatus('');
+  syncCoachNoteMeta();
+  modal.classList.add('open');document.body.style.overflow='hidden';
+  track('contact_opened');
+  if(box) setTimeout(function(){try{box.focus();}catch(e){}},120);
+}
+function closeCoachNote(){
+  var modal=document.getElementById('coachNoteModal');if(!modal)return;
+  modal.classList.remove('open');document.body.style.overflow='';restoreMobileNavContext();
+}
+async function sendCoachNote(){
+  var box=document.getElementById('coachNoteBody'),send=document.getElementById('coachNoteSend');
+  if(!box||!send)return;
+  var message=box.value.trim();
+  if(message.length<2){setCoachNoteStatus('Write a message first.','error');return;}
+  send.disabled=true;send.textContent='Sending\u2026';setCoachNoteStatus('');
+  try{
+    await portalRequest('contact-coach',{message:message.slice(0,COACH_NOTE_MAX)});
+    try{localStorage.removeItem(coachNoteDraftKey());}catch(e){}
+    box.value='';box.disabled=true;
+    var note=document.getElementById('coachNoteDraft');if(note) note.textContent='';
+    syncCoachNoteMeta();
+    send.textContent='Sent \u2713';
+    setCoachNoteStatus('Sent. Karl and Alex have it and will come back to you directly.','sent');
+    track('contact_message_sent');
+    showToast('Note sent to your coaches \u2713');
+    setTimeout(closeCoachNote,2200);
+  }catch(e){
+    // The draft is still on the device, so say so rather than implying it went.
+    send.disabled=false;send.textContent='Send to your coaches';
+    setCoachNoteStatus((e&&e.message)||'Could not send that just now. Your draft is saved on this device.','error');
+  }
+}
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape')return;
+  var modal=document.getElementById('coachNoteModal');
+  if(modal&&modal.classList.contains('open')) closeCoachNote();
+});
 function toggleMoreMenu(open){
   var menu=document.getElementById('moreMenu');if(!menu)return;
   var shouldOpen=typeof open==='boolean'?open:!menu.classList.contains('open');

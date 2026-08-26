@@ -5490,3 +5490,96 @@ html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
 /* An all-clear week leaves no empty bordered sliver behind. */
 .top-shell-priority:not(.has-rows){display:none}
 @media(prefers-reduced-motion:reduce){.nudge-strip.is-clearing{transition:none}}
+
+/* ── TODAY'S FOCUS ────────────────────────────────────────────────────────────
+   Derived text loses the coach avatars, so the row drops to two columns. The
+   media-query rules above are all single-class, so this pair outranks them
+   everywhere without needing to be repeated inside each breakpoint. Quieter
+   than a coach cue on purpose: it is generated, and it should not carry the
+   weight of something a person wrote. */
+.coach-moment.is-derived{grid-template-columns:minmax(0,1fr) auto}
+.coach-moment.is-derived button{grid-column:auto;justify-self:end;align-self:center}
+.coach-moment.is-derived .coach-moment-label{font-weight:600;color:var(--muted)}
+.coach-moment.is-derived .coach-moment-tag{opacity:.62}
+.coach-moment.is-derived p{color:var(--muted);opacity:.92}
+
+/* ── NUDGE SUMMARY ROW ────────────────────────────────────────────────────────
+   One due nudge stays in place; the rest fold behind this row. Deliberately
+   the quietest thing in the card — it is a disclosure control, not another
+   demand, so it carries no due rail, no accent and no colour of its own. */
+.nudge-collapsed{display:none!important}
+.nudge-summary{
+  display:block;width:100%;text-align:left;appearance:none;
+  border:0;border-top:1px solid rgba(255,255,255,.05);
+  border-bottom:1px solid rgba(255,255,255,.05);
+  background:rgba(255,255,255,.015);
+  font:inherit;color:inherit
+}
+.nudge-summary .nudge-strip-title{
+  font-size:11px;letter-spacing:.08em;color:rgba(255,255,255,.42);font-weight:600
+}
+.nudge-summary .nudge-strip-arr{
+  display:inline-flex;transition:transform .2s ease
+}
+.nudge-summary .nudge-strip-arr .icon{width:13px;height:13px}
+.nudge-summary.is-open .nudge-strip-arr{transform:rotate(90deg)}
+.nudge-summary:hover .nudge-strip-title{color:rgba(255,255,255,.62)}
+.outdoor-mode .nudge-summary{background:rgba(0,0,0,.02);border-color:var(--border)}
+.outdoor-mode .nudge-summary .nudge-strip-title{color:var(--muted)}
+@media(prefers-reduced-motion:reduce){.nudge-summary .nudge-strip-arr{transition:none}}
+
+/* ── PRIVATE NOTE TO COACH ────────────────────────────────────────────────────
+   A composer, not a messaging surface. It borrows the quick-log modal shell so
+   it inherits the sheet behaviour, and adds nothing beyond the textarea, the
+   counter, the status line and the send button. */
+.coach-note-inner{max-width:560px}
+.coach-note-label{
+  display:block;font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:7px
+}
+.coach-note-input{
+  width:100%;min-height:150px;resize:vertical;padding:13px 14px;
+  border:1px solid var(--border-mid);border-radius:13px;
+  background:rgba(255,255,255,.025);color:var(--text);
+  font-family:inherit;font-size:15px;line-height:1.5
+}
+.coach-note-input:focus{outline:none;border-color:var(--run);background:rgba(255,255,255,.04)}
+.coach-note-input:disabled{opacity:.5}
+.coach-note-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:7px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:rgba(255,255,255,.32)
+}
+.coach-note-status{margin-top:11px;font-size:13px;line-height:1.5;color:var(--muted)}
+.coach-note-status:empty{display:none}
+.coach-note-status.is-error{color:#f59e0b}
+.coach-note-status.is-sent{color:#22c55e}
+.coach-note-send{
+  display:block;width:100%;margin-top:14px;padding:14px;
+  background:#92d2ed;color:#050505;border:none;border-radius:10px;
+  font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;cursor:pointer
+}
+.coach-note-send:disabled{opacity:.55;cursor:default}
+.coach-note-hint{margin-top:11px;font-size:11px;line-height:1.5;color:rgba(255,255,255,.3)}
+.comms-btn-quiet{
+  margin-top:9px;background:transparent;color:var(--text);
+  border:1px solid var(--border-mid);font-size:14px
+}
+.comms-contacts{
+  display:flex;align-items:center;justify-content:center;gap:7px;margin-top:12px;
+  font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.3)
+}
+.comms-contacts a{color:var(--run-strong);text-decoration:none}
+.comms-contacts a:hover{text-decoration:underline}
+.outdoor-mode .coach-note-input{background:#fff;border-color:var(--border)}
+.outdoor-mode .coach-note-foot,.outdoor-mode .coach-note-hint,.outdoor-mode .comms-contacts{color:var(--dim)}
+
+/* ── WEEK STREAK ──────────────────────────────────────────────────────────────
+   Consecutive weeks with at least one logged session, shown under the week
+   number from two up. One quiet line — the number carries it. */
+.hero-week-streak{
+  font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+  color:rgba(146,210,237,.62);margin-top:5px;white-space:nowrap
+}
+.hero-week-streak[hidden]{display:none}
+.outdoor-mode .hero-week-streak{color:var(--run-strong)}

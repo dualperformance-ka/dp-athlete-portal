@@ -4,7 +4,7 @@
 // endpoint is intentionally retired and returns 410 so old unauthenticated
 // Notion writes cannot be revived accidentally.
 
-import { remove, select, upsert } from './_lib/supabase-rest.js';
+import { insert, remove, select, upsert } from './_lib/supabase-rest.js';
 import { bearerToken, getRequestAthlete } from './_lib/auth.js';
 import { allowPortalRequest, safeError } from './_lib/http.js';
 import { dispatchCoachAction, isCoachAction, resolveCoachMode } from './_lib/coach-proxy.js';
@@ -668,8 +668,181 @@ export async function bootstrapRead(code, readers = {}) {
   return { state, bodyLogs: bodyLogRows, sessionLogs, dailyLogged, nutritionLogs: nutritionRows };
 }
 
+// ── DATA EXPORT ──────────────────────────────────────────────────────────────
+//
+// exportAthleteData() in the browser serialised localStorage and called it the
+// athlete's data. It wasn't — it was a partial mirror of whatever one device
+// happened to have cached. This returns what is actually held for them.
+//
+// The code comes from the authenticated session in the handler and is never
+// accepted from the client, exactly as every other action here works.
+//
+// Two deliberate omissions. Strava OAuth tokens are a credential, not data
+// about the athlete, and handing them back in a JSON download would be a
+// security hole dressed as a data right. Internal join keys (ghl_contact_id,
+// auth_user_id, notion ids) describe our systems rather than the person.
+const EXPORT_ATHLETE_FIELDS = [
+  'code', 'name', 'active', 'coach', 'start_date', 'race_target', 'notes',
+  'created_at', 'archived_at', 'email', 'auth_mode', 'invited_at',
+  'email_verified_at', 'notifications_managed',
+].join(',');
+
+export async function exportData(code, selectRows = select) {
+  // One unreachable table must not cost the athlete the whole export, so each
+  // read degrades to an empty list and the response says which ones failed.
+  const missing = [];
+  const read = (table, query) => selectRows(table, query).then(
+    (rows) => (Array.isArray(rows) ? rows : []),
+    (error) => {
+      console.warn('[export-data]', table, error && error.message);
+      missing.push(table);
+      return [];
+    },
+  );
+  const scoped = (extra) => ({ athlete_code: `eq.${code}`, limit: '5000', ...extra });
+
+  const [profile, goals, state, checkins, body, nutrition, sessionLogs, trainingLogs, photos] = await Promise.all([
+    read('athletes', { code: `eq.${code}`, select: EXPORT_ATHLETE_FIELDS, limit: '1' }),
+    read('athlete_goals', scoped({ select: '*' })),
+    read('athlete_data', scoped({ key: 'neq.strava_tokens', select: 'key,value,updated_at', order: 'key.asc' })),
+    read('weekly_checkins', scoped({ select: '*', order: 'week_ending.desc' })),
+    read('daily_body_logs', scoped({ select: '*', order: 'log_date.desc' })),
+    read('daily_nutrition_logs', scoped({ select: '*', order: 'log_date.desc' })),
+    read('session_logs', scoped({ select: 'session_key,logged_at', order: 'logged_at.desc' })),
+    read('training_session_logs', scoped({ select: '*', order: 'session_date.desc' })),
+    // References only. The image bytes live in private storage and are served
+    // through the authenticated photo route, not inlined into a JSON file.
+    read('progress_photos', scoped({ select: 'week_number,slot,storage_path,mime_type,size_bytes,width,height,created_at', order: 'week_number.desc' })),
+  ]);
+
+  return {
+    export: {
+      generated_at: new Date().toISOString(),
+      athlete_code: code,
+      profile: profile[0] || null,
+      goals,
+      portal_state: state,
+      weekly_checkins: checkins,
+      body_logs: body,
+      nutrition_logs: nutrition,
+      session_logs: sessionLogs,
+      training_session_logs: trainingLogs,
+      progress_photos: photos,
+      // Named so the file itself explains what is not in it.
+      excluded: [
+        'strava_tokens (OAuth credential, not athlete data)',
+        'progress photo image files (served through the authenticated photo route)',
+        'internal system identifiers',
+      ],
+      incomplete: missing,
+    },
+  };
+}
+
+// ── PRIVATE NOTE TO COACH ────────────────────────────────────────────────────
+//
+// Not a messaging system. One direction, no threads, no replies. Discord covers
+// community and general questions; this exists for the message an athlete will
+// not put in a group channel.
+//
+// Order matters: the row is written FIRST and the notification is best effort
+// on top of it. A failed email loses a ping, never the message.
+const CONTACT_MESSAGE_MAX = 2000;
+const CONTACT_DAILY_LIMIT = 5;
+const GHL_BASE = 'https://services.leadconnectorhq.com';
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// GHL already sends from mail.dualperformance.au, and the token is already
+// configured here for calendar and contact reads. The note is threaded onto the
+// athlete's own contact record and delivered to the coaching inbox.
+//
+// Returns false rather than throwing on anything unconfigured or refused: the
+// caller treats a missed notification as a missed ping, not a failed send.
+export async function notifyCoachOfMessage(code, message, deps = {}) {
+  const fetchImpl = deps.fetchImpl || fetch;
+  const selectRows = deps.selectRows || select;
+  const token = process.env.GHL_API_TOKEN;
+  const locationId = process.env.GHL_LOCATION_ID;
+  if (!token || !locationId) return { sent: false, reason: 'ghl_not_configured' };
+
+  const rows = await selectRows('athletes', { code: `eq.${code}`, select: 'ghl_contact_id,name', limit: '1' })
+    .catch(() => []);
+  const athlete = (Array.isArray(rows) && rows[0]) || null;
+  const contactId = String(athlete?.ghl_contact_id || '').trim();
+  if (!contactId) return { sent: false, reason: 'no_ghl_contact' };
+
+  const to = process.env.COACH_NOTIFY_EMAIL || 'support@dualperformance.au';
+  const from = process.env.GHL_FROM_EMAIL || 'noreply@mail.dualperformance.au';
+  const who = `${athlete.name ? `${athlete.name} ` : ''}(${code})`;
+  const response = await fetchImpl(`${GHL_BASE}/conversations/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Version: '2021-04-15',
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'Email',
+      contactId,
+      emailFrom: from,
+      emailTo: to,
+      subject: `Private portal note from ${who}`,
+      html: `<p><strong>${escapeHtml(who)}</strong> sent a private note from the athlete portal:</p>`
+        + `<blockquote style="margin:12px 0;padding:10px 14px;border-left:3px solid #92d2ed;white-space:pre-wrap">${escapeHtml(message)}</blockquote>`,
+    }),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    console.warn('[contact-coach] GHL email refused', response.status, detail.slice(0, 300));
+    return { sent: false, reason: `ghl_${response.status}` };
+  }
+  return { sent: true, reason: 'ghl_email' };
+}
+
+export async function contactCoach(code, body, deps = {}) {
+  const selectRows = deps.selectRows || select;
+  const insertRow = deps.insertRow || insert;
+  const notify = deps.notify || notifyCoachOfMessage;
+
+  const message = String(body?.message == null ? '' : body.message).trim().slice(0, CONTACT_MESSAGE_MAX);
+  if (message.length < 2) throw requestError('A message is required', 400);
+
+  // Server-side rate limit. Generous enough that nobody with something real to
+  // say hits it, low enough that a stuck client cannot flood the table.
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const recent = await selectRows('contact_messages', {
+    athlete_code: `eq.${code}`,
+    created_at: `gte.${since}`,
+    select: 'id',
+    limit: String(CONTACT_DAILY_LIMIT + 1),
+  }).catch(() => []);
+  if (Array.isArray(recent) && recent.length >= CONTACT_DAILY_LIMIT) {
+    throw requestError('You have reached today’s message limit. Your coaches already have your earlier notes.', 429);
+  }
+
+  const saved = await insertRow('contact_messages', { athlete_code: code, body: message });
+  const row = (Array.isArray(saved) && saved[0]) || null;
+
+  let notified = { sent: false, reason: 'not_attempted' };
+  try {
+    notified = await notify(code, message);
+  } catch (error) {
+    console.warn('[contact-coach] notification failed', error && error.message);
+    notified = { sent: false, reason: 'notify_threw' };
+  }
+  return { saved: true, id: row?.id ?? null, created_at: row?.created_at ?? null, notified: !!notified?.sent };
+}
+
 async function dispatch(action, code, body) {
   if (action === 'bootstrap') return bootstrapRead(code);
+  if (action === 'export-data') return exportData(code);
+  if (action === 'contact-coach') return contactCoach(code, body);
   if (action === 'training-read') return trainingRead(code, body);
   if (action === 'booking-read') return bookingRead(code);
   if (action === 'booking-sync') return bookingSync(code);

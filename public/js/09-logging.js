@@ -783,6 +783,36 @@ function detectExercisePBs(exName,sets,stored){
   }
   return hits;
 }
+// ── PB TOAST ─────────────────────────────────────────────────────────────────
+// This was "3 new PBs!" — the best moment in the app, and the one place the app
+// knew exactly what had happened, thrown away as a number. The hits already
+// carry the exercise, the type and the delta, so name the lift.
+//
+// Pure: hits in, string out. Empty string means no PBs, and the caller keeps
+// its own "session submitted" wording for that.
+var PB_TOAST_RANK={load:0,reps:1,e1rm:2,volume:3};
+function pbToastMessage(pbHits){
+  var hits=(pbHits||[]).filter(function(h){return h&&h.exercise;});
+  if(!hits.length)return '';
+  // A heavy top set often scores a load PB and an e1RM PB at once. Name the
+  // lift once, with the most telling of its numbers, so "Back Squat" does not
+  // appear twice in the same sentence.
+  var lifts=[],seen={};
+  hits.forEach(function(h){
+    var key=String(h.exercise);
+    var rank=function(x){var r=PB_TOAST_RANK[x&&x.type];return r==null?9:r;};
+    if(!(key in seen)){seen[key]=lifts.length;lifts.push(h);return;}
+    if(rank(h)<rank(lifts[seen[key]]))lifts[seen[key]]=h;
+  });
+  // Past two lifts the names stop being readable in a 2.5s toast, so the count
+  // does the work instead.
+  if(lifts.length>2)return hits.length+' new PBs';
+  var parts=lifts.map(function(h){
+    var name=String(h.exercise).trim(),delta=String(h.delta||'').trim();
+    return delta?name+' '+delta:name;
+  });
+  return parts.join(' and ')+(lifts.length===1?' \u2014 new PB':' \u2014 two PBs');
+}
 // Run detection across a whole saved session
 function detectSessionPBs(sessionId,log){
   var all=[];
@@ -931,7 +961,7 @@ async function saveGym(i,splitKey){
   try{markInlinePbs(i,splitKey);}catch(e){}
   track('session_logged',{type:'strength'});
   var gymQueued=gymStateQueued||gymCoachResults.some(function(r){return r&&r.queued;})||(gymStatusResult&&gymStatusResult.queued);
-  showToast(gymQueued?'Session submitted - coach dashboard sync pending':(pbHits.length?(pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session submitted ✓'));
+  showToast(gymQueued?'Session submitted - coach dashboard sync pending':(pbToastMessage(pbHits)||'Session submitted ✓'));
   var gymSavedBanner=document.getElementById('gym_saved_'+i);
   if(!gymSavedBanner){
     var sbBtn=document.getElementById('sb_'+i);

@@ -1109,6 +1109,44 @@ function localDateFromISO(value){
   return m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3])):new Date(value);
 }
 function getMon(d){var day=d.getDay(),diff=day===0?-6:1-day;return new Date(d.getFullYear(),d.getMonth(),d.getDate()+diff);}
+// ── LOGGING STREAK ────────────────────────────────────────────────────────────
+// Consecutive WEEKS containing at least one logged session — weeks, not days.
+// The programme runs 8-9 sessions a week, so a day streak would punish planned
+// rest and break on a deload. A week streak measures the thing that actually
+// matters: showing up, week after week.
+//
+// Week boundaries are getMon()'s, Monday-start, so a Sunday session belongs to
+// the week that is ending rather than the one about to begin.
+//
+// The current week is live, not yet judged: it counts as soon as it has a
+// session, and while it is still empty the run that ended last week stands. An
+// athlete opening the portal on Monday morning does not watch their streak
+// reset before they have had a chance to train.
+//
+// Pure: takes dates and a reference date, returns a number. No globals, no clock.
+function computeLoggingStreak(sessionDates,today){
+  var ref=today==null?new Date():(typeof today==='string'?localDateFromISO(today):new Date(today));
+  if(!ref||isNaN(ref.getTime()))return 0;
+  var weeks={};
+  (Array.isArray(sessionDates)?sessionDates:[]).forEach(function(value){
+    // Duck-typed rather than `instanceof Date`: dates cross realms (the tests
+    // run this in a vm context) and an identity check would silently drop them.
+    var d=(value&&typeof value.getTime==='function')?new Date(value.getTime()):localDateFromISO(String(value||'').slice(0,10));
+    if(!d||isNaN(d.getTime()))return;
+    weeks[localISO(getMon(d))]=1;
+  });
+  var cursor=getMon(ref);
+  if(!weeks[localISO(cursor)])cursor.setDate(cursor.getDate()-7);
+  var streak=0;
+  // A programme is 12 weeks by default and the longest athlete history here is
+  // shorter than two years, so the guard is generous rather than meaningful.
+  for(var guard=0;guard<520;guard++){
+    if(!weeks[localISO(cursor)])break;
+    streak++;
+    cursor.setDate(cursor.getDate()-7);
+  }
+  return streak;
+}
 function getWS(){var m=getMon(new Date());m.setDate(m.getDate()+weekOffset*7);return m;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 // Run "feel" used to be stored with a leading emoji (e.g. "💪 Feeling Strong").
