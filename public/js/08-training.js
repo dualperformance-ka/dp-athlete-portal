@@ -1126,7 +1126,31 @@ function renderCoachMoment(todaySessions,insights){
   return '<div class="coach-moment'+(fromCoach?'':' is-derived')+'">'+avatars+'<div><div class="coach-moment-topline"><div class="coach-moment-label">'+label+'</div><div class="coach-moment-tag">Dual Performance</div></div><p>'+esc(note)+'</p></div><button onclick="switchTab(\'comms\')" aria-label="Contact your coaches"><svg class="icon"><use href="#i-chat"/></svg></button></div>';
 }
 
+// ── STREAK ───────────────────────────────────────────────────────────────────
+// Shown next to the week number, and only from two weeks up — one week is not
+// a streak, it is a week. One line, no flame, no animation: the number is the
+// point and dressing it up would cheapen it.
+var _streakTracked=null;
+function syncHeroStreak(){
+  var el=document.getElementById('heroWeekStreak');
+  if(!el)return;
+  var weeks=0;
+  try{
+    var todayISO=localISO(new Date());
+    var dates=[];
+    (allSessions||[]).forEach(function(s){
+      if(!s||!s.date||s.date>todayISO)return;
+      if(isSessionLogged(s.id)||logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id])dates.push(s.date);
+    });
+    weeks=computeLoggingStreak(dates,todayISO);
+  }catch(e){weeks=0;}
+  if(weeks<2){el.hidden=true;el.textContent='';_streakTracked=null;return;}
+  el.hidden=false;
+  el.textContent=weeks+' week streak';
+  if(_streakTracked!==weeks){_streakTracked=weeks;track('streak_shown',{weeks:weeks});}
+}
 function syncHeroShell(insights,todaySessions){
+  syncHeroStreak();
   var support=document.getElementById('heroSupport');
   if(support){
     if(todaySessions.length){

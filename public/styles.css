@@ -5573,3 +5573,13 @@ html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
 .comms-contacts a:hover{text-decoration:underline}
 .outdoor-mode .coach-note-input{background:#fff;border-color:var(--border)}
 .outdoor-mode .coach-note-foot,.outdoor-mode .coach-note-hint,.outdoor-mode .comms-contacts{color:var(--dim)}
+
+/* ── WEEK STREAK ──────────────────────────────────────────────────────────────
+   Consecutive weeks with at least one logged session, shown under the week
+   number from two up. One quiet line — the number carries it. */
+.hero-week-streak{
+  font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+  color:rgba(146,210,237,.62);margin-top:5px;white-space:nowrap
+}
+.hero-week-streak[hidden]{display:none}
+.outdoor-mode .hero-week-streak{color:var(--run-strong)}
