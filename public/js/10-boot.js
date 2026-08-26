@@ -1,5 +1,16 @@
 // ── INIT ──────────────────────────────────────────────────────────────────────
 var urlCode=new URLSearchParams(location.search).get('code');
+// Never leave an access code sitting in the address bar, in history or in a
+// screenshot — same treatment the coach token gets at the bottom of this file.
+// Only `code` is removed: tab and date deep links are read later, once login
+// has resolved, and must survive.
+if(urlCode){
+  try{
+    var _cleanUrl=new URL(location.href);
+    _cleanUrl.searchParams.delete('code');
+    history.replaceState(null,'',_cleanUrl.toString());
+  }catch(e){}
+}
 // Session-aware boot: resolve the Supabase auth session FIRST so an
 // email-migrated athlete reopening the PWA goes straight to the portal (no
 // login flash). Legacy athletes have no session and fall through to the
@@ -60,7 +71,26 @@ async function bootPortal(){
   if(typeof showPrimaryLogin==='function')showPrimaryLogin();
   document.getElementById('loginScreen').style.display='block';
 }
-bootPortal();
+// ── ANALYTICS LOADER ─────────────────────────────────────────────────────────
+// Vercel Web Analytics lives at the same-origin path /_vercel/insights/script.js,
+// which does not exist in public/. check-portal.mjs asserts that every
+// same-origin src="...js" in index.html is a real file AND appears in the
+// service worker shell, so this can only be injected at runtime — never
+// written as a literal tag. Async, guarded, and never awaited: a blocked or
+// failed load simply leaves window.va undefined and track() becomes a no-op.
+function loadVercelAnalytics(){
+  try{
+    if(window.__dpAnalyticsStarted)return;
+    window.__dpAnalyticsStarted=true;
+    // Queue shim so events fired before the script lands are not lost.
+    window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};
+    var el=document.createElement('script');
+    el.async=true;el.defer=true;el.src='/_vercel/insights/script.js';
+    el.onerror=function(){};
+    document.head.appendChild(el);
+  }catch(e){}
+}
+bootPortal().finally(function(){loadVercelAnalytics();});
 
 // Mobile portal header: keep the full-width brand bar at the top, then turn it
 // into a compact glass surface once content is moving underneath it.

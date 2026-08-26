@@ -132,6 +132,7 @@ async function submitCheckin(){
     // Mark completion only after the form has been accepted or safely queued.
     // Previously the cache was written before /api/ingest ran, so a failed or
     // abandoned submission could suppress the nudge without a real check-in.
+    track('weekly_checkin_submitted');
     hideCheckinNudge();
     clearCiDraft();
     document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
@@ -483,6 +484,7 @@ async function submitQuickBody(){
   var bodyResult=await coachWrite(DAILY_BODY_WEBHOOK,payload);
   if(!bodyResult||!bodyResult.queued) markLogConfirmed('body',payload.date);
   try{syncQuickLogDock();}catch(e){}
+  track('body_checkin_submitted');
   showToast(bodyResult.queued?'Body check-in saved on this device - not sent to your coaches yet':'Body check-in saved ✓');
   await showQuickLogSubmitFeedback(btn,'body',!!bodyResult.queued);
   closeQuickLog('body');
@@ -510,6 +512,7 @@ async function submitQuickNut(){
   var nutResult=await coachWrite(DAILY_NUT_WEBHOOK,payload);
   if(!nutResult||!nutResult.queued) markLogConfirmed('nut',nutDate);
   try{syncQuickLogDock();}catch(e){}
+  track('nutrition_logged');
   showToast(nutResult.queued?'Nutrition log saved on this device - not sent to your coaches yet':'Nutrition logged ✓');
   await showQuickLogSubmitFeedback(btn,'nut',!!nutResult.queued);
   closeQuickLog('nut');

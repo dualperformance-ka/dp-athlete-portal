@@ -143,6 +143,7 @@ async function handleAngleUpload(input){
         try{await portalStateWrite('photos',photos);}
         catch(e){console.warn('Photo cloud sync failed:',e);}
       }
+      track('photos_uploaded');
       renderAngleGrid(week);renderPhotoGrid();showToast(angle+' uploaded ✓');initPhotoNudge();
     }
     else{showToast(data.error||'Upload failed — try again','error');}

@@ -16,7 +16,7 @@
 import webpush from 'web-push';
 import { select, upsert, patch, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
 import { getRequestAthlete } from './_lib/auth.js';
-import { allowPortalRequest } from './_lib/http.js';
+import { allowPortalRequest, safeError } from './_lib/http.js';
 import { groupByAthlete, mergeLastSent, resolvePrefs, selectLiveDevices } from './_lib/push-devices.js';
 import {
   DAILY_PUSH_CAP, MORNING_HOUR, MORNING_MINUTE, LOGGING_HOUR, LOGGING_MINUTE,
@@ -301,11 +301,23 @@ async function unreadSuppressed(code, iso) {
   return Array.isArray(rows) ? rows.length : 0;
 }
 
+// The service worker has no auth token, so it cannot mark a notification read
+// itself. The row id rides on the URL instead and the portal consumes it on
+// boot. Any existing query string and hash are preserved.
+function withNotificationId(url, id) {
+  if (!id) return String(url || '/');
+  const raw = String(url || '/');
+  const hashAt = raw.indexOf('#');
+  const head = hashAt >= 0 ? raw.slice(0, hashAt) : raw;
+  const hash = hashAt >= 0 ? raw.slice(hashAt) : '';
+  return `${head}${head.includes('?') ? '&' : '?'}n=${encodeURIComponent(id)}${hash}`;
+}
+
 async function pushInboxMessage(athlete, row, message) {
   if (!row || row.pushed_at) return { reached: false, sent: 0, alreadyPushed: !!row?.pushed_at };
   const payload = JSON.stringify({
     title: message.title, body: message.body, tag: `dp-${message.type}`,
-    url: message.url || '/', notificationId: row.id,
+    url: withNotificationId(message.url || '/', row.id), notificationId: row.id,
   });
   let reached = false;
   let sent = 0;
@@ -579,6 +591,8 @@ export default async function handler(req, res) {
     if (req.method === 'GET') return await handleCronSend(req, res);
     return send(res, 405, { ok: false, error: 'Method not allowed' });
   } catch (error) {
-    return send(res, 500, { ok: false, error: String(error.message || error).slice(0, 500) });
+    console.error('[reminders]', error && error.message);
+    const safe = safeError(error, 'Reminders are temporarily unavailable');
+    return send(res, safe.status, { ok: false, error: safe.message });
   }
 }
