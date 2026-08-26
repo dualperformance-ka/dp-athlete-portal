@@ -59,10 +59,13 @@ test('assisted exercises get harder by reducing assistance', () => {
   assert.match(result.message, /reduce assistance/);
 });
 
-test('new drafts require effort while legacy submitted sessions stay complete', () => {
+test('every unfinished workout requires effort while legacy submitted sessions stay complete', () => {
   assert.equal(context.strengthLogRequiresEffort({}, false), true);
   assert.equal(context.strengthLogRequiresEffort({ __submittedAt: '2026-08-01' }, true), false);
   assert.equal(context.strengthLogRequiresEffort({ __effortEnabled: true, __submittedAt: '2026-08-26' }, true), true);
+  assert.equal(context.strengthLogRequiresEffort({ __effortEnabled: false }, false, '2026-08-26'), true, 'current unfinished sessions override stale cached flags');
+  assert.equal(context.strengthLogRequiresEffort({ __effortEnabled: false }, false, '2026-06-01'), true, 'backdated unfinished programmes receive calibration too');
+  assert.equal(context.strengthLogRequiresEffort({ __effortEnabled: false }, true, '2026-06-01'), false, 'historical submitted sessions keep their original completion rule');
 });
 
 test('the first-set prompt opens as soon as the required inputs are filled', () => {
@@ -71,7 +74,7 @@ test('the first-set prompt opens as soon as the required inputs are filled', () 
     reps: { value: '8' },
     rpe: { value: '' }
   };
-  const card = { getAttribute: (name) => name === 'data-rpe-required' ? 'false' : null };
+  const card = { getAttribute: (name) => name === 'data-rpe-required' ? 'true' : null };
   const row = {
     querySelector(selector) {
       if (selector.includes('id^="w_"')) return fields.weight;
@@ -92,7 +95,8 @@ test('the first-set prompt opens as soon as the required inputs are filled', () 
   context.document.getElementById = (id) => id === 'sr_0_0_2' ? row : (id === 'effort_0_0_2' ? panel : null);
 
   assert.equal(context.strengthSetHasRequiredInputs(row), false, 'effort still blocks completion');
-  assert.equal(context.strengthSetHasRequiredInputs(row, true), true, 'weight and reps are ready to prompt');
+  assert.equal(context.strengthSetHasRequiredInputs(row, true), false, 'blank RPE still blocks completion');
+  assert.equal(context.strengthSetHasCalibrationInputs(row), true, 'weight and reps alone are ready to prompt');
   assert.equal(context.promptStrengthCalibration(0, 0, 2), true);
   assert.equal(classes.has('is-prompting'), true);
 
@@ -107,6 +111,7 @@ test('first-set calibration is saved, sent to coaches, and kept compact', () => 
   assert.match(training, /rowIndex===warmupSetsForEffort/);
   assert.match(training, /applyStrengthEffortLoadToRemaining/);
   assert.match(training, /oninput="draftStrengthSet\(/);
+  assert.match(training, /strengthSavedSetHasRequiredInputs\(sv,false,false,false\)/, 'a saved draft reopens the prompt before RPE is entered');
   assert.match(logging, /__effortEnabled:strengthLogRequiresEffort/);
   assert.match(logging, /Effort: /);
   assert.match(styles, /\.set-effort-options/);
