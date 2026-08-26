@@ -187,8 +187,8 @@ function initAuthStateListener(){
   _authListenerBound=true;
   sbClient.auth.onAuthStateChange(function(event,session){
     var method=localStorage.getItem('dp_auth_method');
-    if(session&&session.access_token)_authToken=session.access_token;
-    else if(method==='email')_authToken=null;
+    if(session&&session.access_token){_authToken=session.access_token;writePortalOfflineState('dp_auth_token',_authToken);}
+    else if(method==='email'){_authToken=null;removePortalOfflineState('dp_auth_token');}
     // Refresh failed / signed out elsewhere while the portal is open: fall
     // back to the login screen's email panel with a friendly recovery path
     // ("send a new code") instead of silently 401-ing in the background.
@@ -241,6 +241,7 @@ function renewLegacySession(){
       _authToken=result.access_token;
       localStorage.setItem('dp_legacy_session',_authToken);
       localStorage.setItem('dp_auth_method','code');
+      writePortalOfflineState('dp_auth_token',_authToken);
       return result;
     }catch(e){return null;}
   })().finally(function(){_legacyRenewPromise=null;});
@@ -299,6 +300,7 @@ async function authSignOut(){
   try{var client=await ensureSupabaseClient();if(client&&client.auth)await client.auth.signOut();}catch(e){}
   _authToken=null;
   try{localStorage.removeItem('dp_legacy_session');}catch(e){}
+  await removePortalOfflineState('dp_auth_token');
 }
 function handleAuthSessionLost(){
   var method=localStorage.getItem('dp_auth_method');
@@ -345,7 +347,7 @@ function _scheduleSbSync(code,sbKey,parsed){
 }
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')_flushAllSb();});
 window.addEventListener('pagehide',_flushAllSb);
-window.addEventListener('online',function(){setSaveState('saving');_flushAllSb();retryPendingCoachWrites(true).then(function(){setSaveState('saved');});});
+window.addEventListener('online',function(){setSaveState('saving');_flushAllSb();retryPendingCoachWrites(true,'online').then(function(){setSaveState('saved');});});
 window.addEventListener('offline',function(){setSaveState('offline');});
 (function(){
   var _orig=localStorage.setItem.bind(localStorage);
@@ -537,6 +539,20 @@ async function persistPendingCoachWrites(list,code){
       await portalStateWrite('pending_writes',list);
     }catch(e){console.warn('Pending coach-write sync failed:',e);}
   }
+  if(typeof updatePendingQueueIndicator==='function')updatePendingQueueIndicator();
+}
+async function registerBackgroundQueueSync(){
+  if(!('serviceWorker'in navigator))return;
+  try{
+    var registration=await navigator.serviceWorker.ready;
+    if(registration.sync)await registration.sync.register('dp-flush-queue');
+    if(registration.periodicSync&&navigator.permissions&&navigator.permissions.query){
+      var permission=await navigator.permissions.query({name:'periodic-background-sync'}).catch(function(){return null;});
+      if(permission&&permission.state==='granted'){
+        await registration.periodicSync.register('dp-flush-queue',{minInterval:12*60*60*1000}).catch(function(){});
+      }
+    }
+  }catch(e){}
 }
 async function queueCoachWrite(url,payload,error){
   // Robust: queue under the best code we can resolve; never bail for a missing code.
@@ -552,6 +568,7 @@ async function queueCoachWrite(url,payload,error){
     list.push({id:writeId,url:url,payload:payload,createdAt:new Date().toISOString(),attempts:0,lastError:String(error&&error.message||error||'Write failed')});
   }
   await persistPendingCoachWrites(list,code);
+  await registerBackgroundQueueSync();
 }
 async function postJsonChecked(url,payload){
   if(payload&&!payload.clientWriteId) payload.clientWriteId='cw_'+Date.now()+'_'+Math.random().toString(36).slice(2);
@@ -587,7 +604,28 @@ async function coachWrite(url,payload,opts){
     return {ok:true,queued:true,error:ingestError&&ingestError.message};
   }
 }
-async function retryPendingCoachWrites(silent){
+var _pendingQueueIndicatorCount=-1;
+async function pendingCoachWriteCount(){
+  var code=currentWriteCode(),list=await readPendingCoachWrites(code);
+  if(code!=='_unknown')list=list.concat(await readPendingCoachWrites('_unknown'));
+  var ids={};return list.filter(function(item){if(!item||ids[item.id])return false;ids[item.id]=true;return true;}).length;
+}
+async function updatePendingQueueIndicator(){
+  var banner=document.getElementById('queuePendingBanner');if(!banner)return;
+  var count=await pendingCoachWriteCount();
+  banner.hidden=count===0;
+  banner.style.display=count?'flex':'none';
+  var text=banner.querySelector('b');if(text)text.textContent=count+' log'+(count===1?'':'s')+' waiting to send';
+  if(count>0&&count!==_pendingQueueIndicatorCount)track('queue_pending_shown',{count:count});
+  _pendingQueueIndicatorCount=count;
+}
+async function manualRetryPendingCoachWrites(){
+  track('queue_flush_manual');
+  var banner=document.getElementById('queuePendingBanner');if(banner)banner.classList.add('is-retrying');
+  try{await retryPendingCoachWrites(false,'manual');}
+  finally{if(banner)banner.classList.remove('is-retrying');await updatePendingQueueIndicator();}
+}
+async function retryPendingCoachWrites(silent,trigger){
   var code=currentWriteCode();
   // Process the active code AND any writes parked under '_unknown' before a code was known.
   var buckets=[code];if(code!=='_unknown') buckets.push('_unknown');
@@ -625,10 +663,21 @@ async function retryPendingCoachWrites(silent){
     // stops warning about work that has since landed.
     if(typeof loadConfirmedLogDates==='function'){try{await loadConfirmedLogDates();}catch(e){}}
   }
-  if(totalSynced) track('offline_queue_flushed',{count:totalSynced});
+  if(totalSynced) track('offline_queue_flushed',{count:totalSynced,trigger:trigger||'visibility'});
   if(totalSynced&&!silent) showToast(totalSynced+' pending coach update'+(totalSynced>1?'s':'')+' synced');
+  await updatePendingQueueIndicator();
 }
-window.addEventListener('online',function(){retryPendingCoachWrites(false);});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')retryPendingCoachWrites(true,'visibility');});
+window.addEventListener('pageshow',function(){retryPendingCoachWrites(true,'visibility');});
+if('serviceWorker'in navigator){
+  navigator.serviceWorker.addEventListener('message',function(event){
+    var data=event.data||{};
+    if(data.type==='dp-queue-flushed'){
+      if(data.count)track('offline_queue_flushed',{count:data.count,trigger:'sync'});
+      updatePendingQueueIndicator();
+    }
+  });
+}
 
 // Coach prescription overrides now live directly on planned_sessions rows in
 // Supabase — loadPlannedSessions() populates _sessionOverrides from each row.
@@ -1411,6 +1460,7 @@ function logoutToLogin(preserveEmail){
   window._trainingReadSnapshot=null;
   localStorage.removeItem('dp_auth_code');
   localStorage.removeItem('dp_legacy_session');
+  removePortalOfflineState('dp_auth_token');
   if(!preserveEmail){
     try{localStorage.removeItem('dp_auth_method');localStorage.removeItem('dp_auth_email');}catch(e){}
   }

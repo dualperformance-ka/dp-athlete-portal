@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=131">
+<link rel="stylesheet" href="/styles.css?v=132">
 <link rel="stylesheet" href="/desktop.css?v=5">
 <link rel="stylesheet" href="/icons.css?v=3">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
@@ -154,7 +154,7 @@
     <div><button onclick="pausedBackToLogin()" style="background:transparent;border:0;color:rgba(240,237,232,.4);font-size:12px;cursor:pointer;text-decoration:underline;padding:6px">Back to sign in</button></div>
   </div>
 </div>
-<script src="login.js?v=48"></script>
+<script src="login.js?v=49"></script>
 
 
 <!-- PORTAL -->
@@ -179,6 +179,12 @@
       <button class="hicon hicon-desktop" data-portal-dest="comms" onclick="switchTab('comms')">Contact</button>
     </div>
   </header>
+
+  <button class="queue-pending-banner" id="queuePendingBanner" type="button" hidden style="display:none" onclick="manualRetryPendingCoachWrites()">
+    <span class="queue-pending-dot" aria-hidden="true"></span>
+    <b>1 log waiting to send</b>
+    <span>Tap to retry now</span>
+  </button>
 
   <div class="top-shell">
     <div class="hero hero-shell">
@@ -1343,8 +1349,8 @@
 })();
 </script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=112"></script>
-<script src="js/02-login-goals.js?v=107"></script>
+<script src="js/01-core.js?v=113"></script>
+<script src="js/02-login-goals.js?v=108"></script>
 <script src="js/03-nav-nudges.js?v=104"></script>
 <script src="js/04-checkin.js?v=92"></script>
 <script src="js/05-handbook.js?v=84"></script>
@@ -1354,6 +1360,6 @@
 <script src="js/08-training.js?v=126"></script>
 <script src="js/09-logging.js?v=119"></script>
 <script src="accessibility.js?v=1"></script>
-<script src="js/10-boot.js?v=106"></script>
+<script src="js/10-boot.js?v=107"></script>
 </body>
 </html>

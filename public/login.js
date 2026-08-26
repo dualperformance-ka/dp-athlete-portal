@@ -236,6 +236,7 @@ async function verifyEmailCode(){
     // first sign-in, link — the athlete server-side, and enter through the
     // SAME pipeline as a code login so portal, history and sync are identical.
     _authToken=res.data.session.access_token;
+    writePortalOfflineState('dp_auth_token',_authToken);
     var me=await resolveAuthedAthlete();
     if(!me||me.ok===false||!me.code){
       await authSignOut();

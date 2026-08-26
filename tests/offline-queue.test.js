@@ -6,6 +6,9 @@ import { join } from 'node:path';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const core = readFileSync(join(root, 'public', 'js', '01-core.js'), 'utf8');
+const worker = readFileSync(join(root, 'public', 'sw.js'), 'utf8');
+const indexSource = readFileSync(join(root, 'public', 'index.html'), 'utf8');
+const loginSource = readFileSync(join(root, 'public', 'login.js'), 'utf8');
 const start = core.indexOf('function pendingCoachWritesKey');
 const end = core.indexOf('// Coach prescription overrides', start);
 const queueSource = core.slice(start, end);
@@ -90,6 +93,7 @@ function loadQueue({ storage = fakeLocalStorage(), idb = fakeIndexedDB() } = {})
     _authToken: null,
     window: { addEventListener() {} },
     navigator: { onLine: true },
+    document: { getElementById() { return null; }, addEventListener() {}, visibilityState: 'visible' },
     console,
     setTimeout,
     clearTimeout,
@@ -152,4 +156,35 @@ test('queue falls back to localStorage when IndexedDB throws', async () => {
 
   assert.deepEqual(JSON.parse(JSON.stringify(await context.readPendingCoachWrites('KARL'))), queued);
   assert.equal(storage.getItem('dp_pending_writes_KARL'), JSON.stringify(queued));
+});
+
+test('background sync uses the same short-lived bearer token and preserves failed writes', () => {
+  assert.match(worker, /addEventListener\('sync',[\s\S]*event\.tag === 'dp-flush-queue'/);
+  assert.match(worker, /Authorization: `Bearer \$\{token\}`/);
+  assert.match(worker, /if \(!response\.ok \|\| data\.ok === false\) continue;[\s\S]*delete\(item\.id\)/);
+  assert.doesNotMatch(worker, /refresh_token|long-lived/i);
+  assert.match(loginSource, /writePortalOfflineState\('dp_auth_token',_authToken\)/);
+  assert.match(core, /removePortalOfflineState\('dp_auth_token'\)/);
+});
+
+test('Chromium periodic sync is permission-guarded and conservative', () => {
+  assert.match(core, /navigator\.permissions\.query\(\{name:'periodic-background-sync'\}\)/);
+  assert.match(core, /permission&&permission\.state==='granted'/);
+  assert.match(core, /minInterval:12\*60\*60\*1000/);
+  assert.match(worker, /addEventListener\('periodicsync'/);
+});
+
+test('foreground resume paths and the existing online path all flush the queue', () => {
+  assert.match(core, /visibilityState==='visible'\)retryPendingCoachWrites\(true,'visibility'\)/);
+  assert.match(core, /addEventListener\('pageshow',[\s\S]*retryPendingCoachWrites\(true,'visibility'\)/);
+  assert.match(core, /addEventListener\('online',[\s\S]*retryPendingCoachWrites\(true,'online'\)/);
+  assert.match(worker, /addEventListener\('activate',[\s\S]*flushOfflineQueue\('sync'\)/);
+});
+
+test('pending logs are loud, retryable, and measured', () => {
+  assert.match(indexSource, /id="queuePendingBanner"[\s\S]*manualRetryPendingCoachWrites\(\)/);
+  assert.match(indexSource, /log waiting to send/);
+  assert.match(core, /track\('queue_pending_shown',\{count:count\}\)/);
+  assert.match(core, /track\('queue_flush_manual'\)/);
+  assert.match(core, /offline_queue_flushed',\{count:totalSynced,trigger:trigger/);
 });

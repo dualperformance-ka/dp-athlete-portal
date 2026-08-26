@@ -26,6 +26,7 @@ async function validateRosterCode(code){
       _authToken=result.access_token;
       localStorage.setItem('dp_legacy_session',_authToken);
       localStorage.setItem('dp_auth_method','code');
+      writePortalOfflineState('dp_auth_token',_authToken);
     }
     return result;
   }catch(e){return null;}
@@ -147,6 +148,8 @@ async function doLogin(code,prevalidatedRoster){
   var coachLogout=document.getElementById('coachLogoutBtn');
   if(coachLogout)coachLogout.style.display=localStorage.getItem('dp_auth_method')==='code'?'flex':'none';
   document.getElementById('quicklogStrip').style.display='flex';
+  updatePendingQueueIndicator();
+  registerBackgroundQueueSync();
   try{syncQuickLogDock();}catch(e){}
   document.getElementById('heroName').textContent=athlete.name;
   populateStatic();

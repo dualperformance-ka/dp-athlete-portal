@@ -1915,7 +1915,9 @@ body.focus-session-open{overflow:hidden}
   .save-state-pill{position:fixed;top:62px;right:10px;z-index:135;background:rgba(10,13,16,.88);backdrop-filter:blur(12px)}
   /* Successful sync is the quiet default. Only active syncing or an offline
      warning should interrupt the athlete on a small screen. */
-  .save-state-pill.saved{opacity:0;pointer-events:none}
+.save-state-pill.saved{opacity:0;pointer-events:none}
+.queue-pending-banner{position:sticky;top:72px;z-index:45;width:min(720px,calc(100% - 24px));margin:10px auto 0;padding:12px 14px;border:1px solid rgba(240,173,78,.55);border-radius:12px;background:#2a2013;color:#fff;display:flex;align-items:center;gap:9px;text-align:left;box-shadow:0 10px 28px rgba(0,0,0,.28);cursor:pointer}
+.queue-pending-banner b{font-size:13px;line-height:1.2}.queue-pending-banner>span:last-child{margin-left:auto;color:rgba(255,255,255,.72);font-size:11px}.queue-pending-dot{width:9px;height:9px;border-radius:50%;background:#f0ad4e;box-shadow:0 0 0 4px rgba(240,173,78,.14);flex:0 0 auto}.queue-pending-banner.is-retrying{opacity:.7;pointer-events:none}
   .save-state-pill.saving,.save-state-pill.offline{opacity:1;pointer-events:auto}
   .outdoor-mode .save-state-pill{background:rgba(255,255,255,.94)}
   .command-status-grid{grid-template-columns:1fr 1fr}.command-status.next-session{grid-column:1/-1}
