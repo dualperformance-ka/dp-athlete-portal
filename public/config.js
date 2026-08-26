@@ -23,6 +23,6 @@ const EMAIL_AUTH_UI = true;
 // Sentry error monitoring (public DSN by design — it only permits event
 // ingestion, same as the anon and VAPID public keys above). Empty disables
 // Sentry entirely; the portal behaves identically either way.
-const SENTRY_DSN = '';
+const SENTRY_DSN = 'https://0955632881a5832770a252ace04ccb57@o4511975088390144.ingest.us.sentry.io/4511975097761792';
 var GYM_KEYS = ['Upper A','Upper B','Lower A','Lower B']; // extended at runtime from Supabase workout_splits
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
