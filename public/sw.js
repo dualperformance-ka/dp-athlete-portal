@@ -1,8 +1,8 @@
-const CACHE_NAME = 'dp-athlete-v166'; // v166: named PB toast and the weekly logging streak
+const CACHE_NAME = 'dp-athlete-v167'; // v167: IndexedDB offline queue and running-library cache
 const APP_SHELL = [
   '/index.html', '/styles.css?v=131', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=111',
+  '/js/01-core.js?v=112',
   '/js/02-login-goals.js?v=107',
   '/js/03-nav-nudges.js?v=104',
   '/js/04-checkin.js?v=92',
@@ -10,10 +10,10 @@ const APP_SHELL = [
   '/js/06-nutrition.js?v=91',
   '/js/07-progress.js?v=88',
   '/js/strava-match.js?v=6',
-  '/js/08-training.js?v=125',
+  '/js/08-training.js?v=126',
   '/js/09-logging.js?v=119',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=105',
+  '/js/10-boot.js?v=106',
   '/login.js?v=48', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

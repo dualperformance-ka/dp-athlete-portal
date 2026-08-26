@@ -16,8 +16,8 @@
     "sha": "91ee8465188a"
   },
   "js/01-core.js": {
-    "version": 111,
-    "sha": "a83f6d407c2b"
+    "version": 112,
+    "sha": "6a926269c533"
   },
   "js/02-login-goals.js": {
     "version": 107,
@@ -48,8 +48,8 @@
     "sha": "ef4ae7d30ee9"
   },
   "js/08-training.js": {
-    "version": 125,
-    "sha": "1b7542b42536"
+    "version": 126,
+    "sha": "c0ecfe82e93e"
   },
   "js/09-logging.js": {
     "version": 119,
@@ -60,7 +60,7 @@
     "sha": "3e9bf44307a4"
   },
   "js/10-boot.js": {
-    "version": 105,
-    "sha": "39fad9da55e3"
+    "version": 106,
+    "sha": "8bbf096dc385"
   }
 }
