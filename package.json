@@ -5,12 +5,14 @@
   "scripts": {
     "check": "node scripts/check-portal.mjs && node --test",
     "test": "node --test",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:vercel": "node scripts/build-vercel.mjs"
   },
   "dependencies": {
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "esbuild": "^0.28.2"
   }
 }

@@ -91,6 +91,7 @@ async function codeLogin(page, options = {}) {
 test('1. code login renders the portal and today’s session', async ({ page }) => {
   await codeLogin(page);
   await expect(page.getByRole('button', { name: 'Open Lower A' })).toBeVisible();
+  expect(await page.evaluate(async () => !!(await navigator.serviceWorker.ready).active)).toBe(true);
 });
 
 test('2. email OTP login lands on the same portal state', async ({ page }) => {
