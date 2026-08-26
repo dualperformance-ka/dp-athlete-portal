@@ -1,16 +1,16 @@
-const CACHE_NAME = 'dp-athlete-v162'; // v162: access code stripped from the URL on login
+const CACHE_NAME = 'dp-athlete-v163'; // v163: derived focus line replaces the hardcoded coach cue
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=127', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=128', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=110',
   '/js/02-login-goals.js?v=107',
-  '/js/03-nav-nudges.js?v=101',
+  '/js/03-nav-nudges.js?v=102',
   '/js/04-checkin.js?v=92',
   '/js/05-handbook.js?v=84',
   '/js/06-nutrition.js?v=91',
   '/js/07-progress.js?v=88',
   '/js/strava-match.js?v=6',
-  '/js/08-training.js?v=121',
+  '/js/08-training.js?v=122',
   '/js/09-logging.js?v=117',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=105',

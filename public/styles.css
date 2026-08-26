@@ -5490,3 +5490,15 @@ html.outdoor-mode .photo-next-btn{background:#087fae;color:#fff}
 /* An all-clear week leaves no empty bordered sliver behind. */
 .top-shell-priority:not(.has-rows){display:none}
 @media(prefers-reduced-motion:reduce){.nudge-strip.is-clearing{transition:none}}
+
+/* ── TODAY'S FOCUS ────────────────────────────────────────────────────────────
+   Derived text loses the coach avatars, so the row drops to two columns. The
+   media-query rules above are all single-class, so this pair outranks them
+   everywhere without needing to be repeated inside each breakpoint. Quieter
+   than a coach cue on purpose: it is generated, and it should not carry the
+   weight of something a person wrote. */
+.coach-moment.is-derived{grid-template-columns:minmax(0,1fr) auto}
+.coach-moment.is-derived button{grid-column:auto;justify-self:end;align-self:center}
+.coach-moment.is-derived .coach-moment-label{font-weight:600;color:var(--muted)}
+.coach-moment.is-derived .coach-moment-tag{opacity:.62}
+.coach-moment.is-derived p{color:var(--muted);opacity:.92}
