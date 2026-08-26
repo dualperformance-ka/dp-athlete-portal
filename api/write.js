@@ -770,15 +770,30 @@ export async function notifyCoachOfMessage(code, message, deps = {}) {
   const locationId = process.env.GHL_LOCATION_ID;
   if (!token || !locationId) return { sent: false, reason: 'ghl_not_configured' };
 
-  const rows = await selectRows('athletes', { code: `eq.${code}`, select: 'ghl_contact_id,name', limit: '1' })
+  // The note is delivered to a dedicated coaching-inbox contact, NOT to the
+  // athlete's own contact.
+  //
+  // The obvious design — thread the note on the athlete's contact and redirect
+  // delivery with emailTo — does not work. GHL rejects it:
+  //
+  //   400 CONVERSATIONS_MSG_INVALID_EMAILTO
+  //   "Cannot send message as emailTo is not under contact's primary or
+  //    additional emails"
+  //
+  // Conversations email only ever sends to the contact it is threaded on, so
+  // an athlete's thread cannot be used as a pipe to the coaching inbox. The
+  // inbox is therefore a contact in its own right, carrying the support
+  // address, and every note lands in that one thread. Verified against the
+  // live API on 2026-08-26 — do not "simplify" this back to emailTo.
+  const inboxContactId = String(process.env.COACH_NOTIFY_CONTACT_ID || '').trim();
+  if (!inboxContactId) return { sent: false, reason: 'no_notify_contact' };
+
+  const rows = await selectRows('athletes', { code: `eq.${code}`, select: 'name', limit: '1' })
     .catch(() => []);
   const athlete = (Array.isArray(rows) && rows[0]) || null;
-  const contactId = String(athlete?.ghl_contact_id || '').trim();
-  if (!contactId) return { sent: false, reason: 'no_ghl_contact' };
 
-  const to = process.env.COACH_NOTIFY_EMAIL || 'support@dualperformance.au';
   const from = process.env.GHL_FROM_EMAIL || 'noreply@mail.dualperformance.au';
-  const who = `${athlete.name ? `${athlete.name} ` : ''}(${code})`;
+  const who = `${athlete?.name ? `${athlete.name} ` : ''}(${code})`;
   const response = await fetchImpl(`${GHL_BASE}/conversations/messages`, {
     method: 'POST',
     headers: {
@@ -789,12 +804,13 @@ export async function notifyCoachOfMessage(code, message, deps = {}) {
     },
     body: JSON.stringify({
       type: 'Email',
-      contactId,
+      contactId: inboxContactId,
       emailFrom: from,
-      emailTo: to,
+      // Deliberately no emailTo. See above.
       subject: `Private portal note from ${who}`,
       html: `<p><strong>${escapeHtml(who)}</strong> sent a private note from the athlete portal:</p>`
-        + `<blockquote style="margin:12px 0;padding:10px 14px;border-left:3px solid #92d2ed;white-space:pre-wrap">${escapeHtml(message)}</blockquote>`,
+        + `<blockquote style="margin:12px 0;padding:10px 14px;border-left:3px solid #92d2ed;white-space:pre-wrap">${escapeHtml(message)}</blockquote>`
+        + `<p style="color:#666;font-size:12px">Reply to the athlete through your usual channel — the portal composer is one-way.</p>`,
     }),
   });
   if (!response.ok) {
