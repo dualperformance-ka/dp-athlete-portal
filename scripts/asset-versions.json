@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 132,
-    "sha": "851e20028baa"
+    "version": 134,
+    "sha": "49160bfa33a4"
   },
   "desktop.css": {
     "version": 5,
@@ -20,8 +20,8 @@
     "sha": "a946fdbebeae"
   },
   "js/02-login-goals.js": {
-    "version": 108,
-    "sha": "a44178fcaf72"
+    "version": 109,
+    "sha": "07e090a71bda"
   },
   "js/03-nav-nudges.js": {
     "version": 104,

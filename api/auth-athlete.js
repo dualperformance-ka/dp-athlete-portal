@@ -104,6 +104,8 @@ async function handleLegacyLogin(req) {
       name: athlete.name,
       start_date: athlete.start_date,
       race_target: athlete.race_target,
+      email: athlete.email,
+      auth_mode: athlete.auth_mode,
       auth_method: 'legacy',
       access_token: createPortalSession(athlete.code),
       expires_in: 24 * 60 * 60,

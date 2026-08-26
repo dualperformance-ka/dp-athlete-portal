@@ -90,6 +90,9 @@ async function codeLogin(page, options = {}) {
 
 test('1. code login renders the portal and today’s session', async ({ page }) => {
   await codeLogin(page);
+  await expect(page.getByText('Sign in with your email next time')).toBeVisible();
+  await page.getByRole('button', { name: 'Dismiss email sign-in suggestion' }).click();
+  await expect(page.locator('#emailUpgradePrompt')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Open Lower A' })).toBeVisible();
   expect(await page.evaluate(async () => !!(await navigator.serviceWorker.ready).active)).toBe(true);
 });

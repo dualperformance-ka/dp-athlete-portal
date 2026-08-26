@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v168'; // v168: background sync and visible pending-log state
+const CACHE_NAME = 'dp-athlete-v170'; // v170: one-time email upgrade prompt for eligible code sign-ins
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=132', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=134', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=113',
-  '/js/02-login-goals.js?v=108',
+  '/js/02-login-goals.js?v=109',
   '/js/03-nav-nudges.js?v=104',
   '/js/04-checkin.js?v=92',
   '/js/05-handbook.js?v=84',
