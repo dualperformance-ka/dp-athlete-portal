@@ -357,7 +357,7 @@ function persistGymDraft(i,splitKey){var s=sessions[i];if(!s) return;
     // whatever is already saved alone. A container that IS present and holds no
     // sets is a real deletion and must still clear.
     if(!document.getElementById('sets_'+i+'_'+ei)) return;
-    var arr=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;current[useName]=arr;});var gnEl=document.getElementById('gn_'+i);var meta={__sessionDate:strengthSessionDate(i,s),__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises),__rpeEnabled:strengthLogRequiresRpe(previous,isSessionLogged(s.id))};if(gnEl)meta.__notes=gnEl.value;if(previous.__submittedAt)meta.__submittedAt=previous.__submittedAt;if(previous.__submittedSig)meta.__submittedSig=previous.__submittedSig;var log=mergeStrengthLog(previous,current,meta);logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);refreshGymSubmitState(i,s.id,log);try{markInlinePbs(i,splitKey);}catch(e){}}
+    var arr=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;current[useName]=arr;});var gnEl=document.getElementById('gn_'+i);var meta={__sessionDate:strengthSessionDate(i,s),__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises),__rpeEnabled:strengthLogRequiresRpe(previous,isSessionLogged(s.id)),__effortEnabled:strengthLogRequiresEffort(previous,isSessionLogged(s.id))};if(gnEl)meta.__notes=gnEl.value;if(previous.__submittedAt)meta.__submittedAt=previous.__submittedAt;if(previous.__submittedSig)meta.__submittedSig=previous.__submittedSig;var log=mergeStrengthLog(previous,current,meta);logs[s.id]=log;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));refreshStrengthFeedback(i,splitKey);refreshStrengthExerciseStates(i);refreshGymSubmitState(i,s.id,log);try{markInlinePbs(i,splitKey);}catch(e){}}
 
 // ── NOTE-ONLY SESSION (discovery week "train as normal" + log notes) ──────────
 function draftNote(i){
@@ -870,7 +870,7 @@ async function saveGym(i,splitKey){
   var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
   if(gymNotes) log.__notes=gymNotes;
   var gymDateEl=document.getElementById('gym_date_'+i);var gymDate=gymDateEl&&gymDateEl.value?gymDateEl.value:(s.date||new Date().toISOString().slice(0,10));
-  var storedLog=mergeStrengthLog(previous,log,{__notes:gymNotes,__sessionDate:gymDate,__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises),__rpeEnabled:strengthLogRequiresRpe(previous,isSessionLogged(s.id))});
+  var storedLog=mergeStrengthLog(previous,log,{__notes:gymNotes,__sessionDate:gymDate,__updatedAt:new Date().toISOString(),__slots:collectSlotMap(exercises),__rpeEnabled:strengthLogRequiresRpe(previous,isSessionLogged(s.id)),__effortEnabled:strengthLogRequiresEffort(previous,isSessionLogged(s.id))});
   logs[s.id]=storedLog;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
   try{await portalStateWrite('logs',logs);}catch(e){}
   var pbHits=[];try{pbHits=detectSessionPBs(s.id,log);}catch(e){console.warn('PB detection failed:',e);}
@@ -878,7 +878,8 @@ async function saveGym(i,splitKey){
     var reps=(st.reps!==undefined&&st.reps!==null&&st.reps!=='')?(st.reps+'reps'):'';
     if(!reps&&(st.repsLeft||st.repsRight)) reps='L '+(st.repsLeft||'—')+' / R '+(st.repsRight||'—')+' reps';
     if(!reps) reps='— reps';
-    return 'Set '+(si+1)+': '+(st.weight||'—')+(assisted?'kg assistance':'kg')+' × '+reps+(st.rpe?' @ RPE '+st.rpe:'');
+    var effortLabel=st.effort==='failure'?'technical failure':st.effort==='reserve'?'more in tank':st.effort==='form_break'?'form broke':'';
+    return 'Set '+(si+1)+': '+(st.weight||'—')+(assisted?'kg assistance':'kg')+' × '+reps+(st.rpe?' @ RPE '+st.rpe:'')+(effortLabel?' | Effort: '+effortLabel:'');
   }
   var fetches=Object.keys(log).filter(function(k){return k.indexOf('__')!==0;}).map(function(exName){
     var sets=log[exName];

@@ -19,6 +19,12 @@ function strengthLogRequiresRpe(log,submitted){
   }
   return strengthRpeEnabled();
 }
+function strengthLogRequiresEffort(log,submitted){
+  if(log&&typeof log.__effortEnabled==='boolean')return log.__effortEnabled;
+  // Existing submitted sessions pre-date the in-session effort control. Keep
+  // their completion state intact; every new draft records the new rule.
+  return !submitted;
+}
 function strengthCardRequiresRpe(card){
   var value=card&&card.getAttribute?card.getAttribute('data-rpe-required'):null;
   if(value==='true')return true;
@@ -1223,6 +1229,7 @@ function sameStrengthEffort(a,b){
     if(setVal(av.repsLeft)!==setVal(bv.repsLeft)) return false;
     if(setVal(av.repsRight)!==setVal(bv.repsRight)) return false;
     if(setVal(av.rpe)!==setVal(bv.rpe)) return false;
+    if(setVal(av.effort)!==setVal(bv.effort)) return false;
   }
   return true;
 }
@@ -1325,6 +1332,52 @@ function _ovAssistanceStepInfo(name,assistance,history,ex){
   var guess=_ovGuessStep(name,assistance||0);
   return {step:guess,exact:false,next:Math.max(0,Math.round((assistance-guess)*2)/2)};
 }
+function _strengthEasierStepInfo(name,load,history,ex,assisted){
+  var learned=_ovLearnStep(history,ex),guess=_ovGuessStep(name,load||0),next=null;
+  if(learned){
+    if(assisted){
+      for(var ai=0;ai<learned.rungs.length;ai++){if(learned.rungs[ai]>load+0.01){next=learned.rungs[ai];break;}}
+      if(next==null)next=Math.round((load+learned.step)*100)/100;
+    }else{
+      for(var li=learned.rungs.length-1;li>=0;li--){if(learned.rungs[li]<load-0.01){next=learned.rungs[li];break;}}
+      if(next==null)next=Math.max(0,Math.round((load-learned.step)*100)/100);
+    }
+    return {next:next,exact:true};
+  }
+  if(guess===0)return {next:load,exact:true};
+  return {next:assisted?Math.round((load+guess)*2)/2:Math.max(0,Math.round((load-guess)*2)/2),exact:false};
+}
+function strengthEffortGuidance(ex,effort,set,resolvedName,history,finalSet){
+  if(!effort||!set)return null;
+  var name=resolvedName||ex.exercise||'',assisted=_isAssistedExercise(name),load=parseFloat(set.weight),reps=_effReps(set);
+  var low=parseInt(String(ex.repRange||ex.reps||'').split('-')[0],10)||8,top=getTopRep(ex)||low;
+  var scope=finalSet?'next session':'remaining sets',direction='same',tone='green',lead='Target hit';
+  if(effort==='reserve'){direction='harder';tone='yellow';lead='More reps were available';}
+  else if(effort==='form_break'){direction='easier';tone='red';lead='Technique broke before the target';}
+  else if(effort==='failure'&&reps!=null&&reps!==Infinity&&reps<low){direction='easier';tone='red';lead='Technical failure came below the rep range';}
+  else if(effort==='failure'&&reps!=null&&reps!==Infinity&&reps>top){direction='harder';tone='yellow';lead='Technical failure came above the rep range';}
+  if(isNaN(load)||load<0)return {tone:tone,direction:direction,targetWeight:null,message:lead+'. Log the load before adjusting the '+scope+'.'};
+  if(direction==='same')return {tone:tone,direction:direction,targetWeight:load,message:lead+' — keep '+_nsKg(load)+(assisted?' assistance':'')+' for the '+scope+'.'};
+  var info=direction==='harder'
+    ?(assisted?_ovAssistanceStepInfo(name,load,history,ex):_ovStepInfo(name,load,history,ex))
+    :_strengthEasierStepInfo(name,load,history,ex,assisted);
+  if(info.next===load)return {tone:tone,direction:direction,targetWeight:null,message:lead+' — use a harder variation or add clean reps for the '+scope+'.'};
+  var verb=assisted?(direction==='harder'?'reduce assistance to ':'increase assistance to '):(direction==='harder'?'move up to ':'reduce to ');
+  return {tone:tone,direction:direction,targetWeight:info.next,message:lead+' — '+verb+_nsKg(info.next)+' for the '+scope+'.'};
+}
+function strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex){
+  if(!guidance)return '';
+  return '<span>'+esc(guidance.message)+'</span>';
+}
+function strengthEffortPickerHtml(i,ei,si,effort,guidance,nextRowIndex,required){
+  var options=[['reserve','Too light','More reps available'],['failure','Right load','No clean rep left'],['form_break','Form broke','Stopped for technique']];
+  var labels={reserve:'Too light',failure:'Right load',form_break:'Form broke'},label=labels[effort]||'Set calibrated';
+  var h='<div class="set-effort'+(effort?' is-rated':'')+'" id="effort_'+i+'_'+ei+'_'+si+'">';
+  h+='<button type="button" class="set-effort-summary" onclick="toggleStrengthEffortPanel('+i+','+ei+','+si+')"><span>'+esc(label)+' ✓</span><small>Change</small></button>';
+  h+='<div class="set-effort-editor"><div class="set-effort-head"><strong>How did the first working set finish?</strong>'+(required?'<small>Required · target 0 RIR</small>':'')+'</div><div class="set-effort-options">';
+  options.forEach(function(opt){h+='<button type="button" class="'+(effort===opt[0]?'active':'')+'" aria-pressed="'+(effort===opt[0]?'true':'false')+'" onclick="setStrengthEffort('+i+','+ei+','+si+',\''+opt[0]+'\',this)"><strong>'+opt[1]+'</strong><small>'+opt[2]+'</small></button>';});
+  return h+'</div><div class="set-effort-advice tone-'+(guidance&&guidance.tone||'blue')+'" id="effort_advice_'+i+'_'+ei+'_'+si+'">'+strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex)+'</div></div></div>';
+}
 // Kept for callers that only want the number.
 function _ovStep(name,load,history,ex){return _ovStepInfo(name,load,history,ex).step;}
 // Nearest weight they've actually used at or below `target` — for deloads, so we
@@ -1376,12 +1429,47 @@ function collectExerciseSets(i,ei,trackRows){
   var c=document.getElementById('sets_'+i+'_'+ei),arr=[];if(!c) return arr;
   c.querySelectorAll('.setrow,.setrow-single').forEach(function(row,rowIndex){
     var wEl=row.querySelector('input[id^="w_"]');var rLEl=row.querySelector('input[id^="rL_"]');var rREl=row.querySelector('input[id^="rR_"]');var doneEl=row.querySelector('button[id^="st_"]');
-    var w=wEl?wEl.value||'':'';var done=doneEl?doneEl.classList.contains('on'):false;var item=null;
+    var w=wEl?wEl.value||'':'';var done=doneEl?doneEl.classList.contains('on'):false;var effort=row.getAttribute('data-effort')||'';var item=null;
     if(rLEl&&rREl){var rL=rLEl.value||'';var rR=rREl.value||'';if(w||rL||rR||done)item={weight:w,repsLeft:rL,repsRight:rR,done:done};}
     else{var rEl=row.querySelector('input[id^="r_"]');var rpeEl=row.querySelector('input[id^="rpe_"]');var r=rEl?rEl.value||'':'';var rpe=rpeEl?rpeEl.value||'':'';if(w||r||rpe||done)item={weight:w,reps:r,rpe:rpe,done:done};}
-    if(item){if(trackRows)item._rowIndex=rowIndex;arr.push(item);}
+    if(item){if(effort)item.effort=effort;if(trackRows)item._rowIndex=rowIndex;arr.push(item);}
   });
   return arr;
+}
+function toggleStrengthEffortPanel(i,ei,si){
+  var panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(!panel)return;
+  panel.classList.toggle('is-editing');
+}
+function applyStrengthEffortLoadToRemaining(i,ei,startRow,endRow,weight){
+  var changed=0,firstChanged=null;
+  for(var rowIndex=startRow;rowIndex<=endRow;rowIndex++){
+    var input=document.getElementById('w_'+i+'_'+ei+'_'+rowIndex);if(!input||String(input.value||'').trim()!=='')continue;
+    input.value=_nsBare(weight);changed++;if(!firstChanged)firstChanged=input;
+  }
+  if(changed&&firstChanged){
+    var row=firstChanged.closest('.setrow,.setrow-single'),card=row&&row.closest('.exc'),splitKey=card&&card.getAttribute('data-split-key')||'Upper A';
+    draftGym(i,splitKey);
+    if(typeof showToast==='function')showToast(_nsKg(weight)+' loaded for '+changed+' remaining set'+(changed===1?'':'s'));
+  }
+  return changed;
+}
+function setStrengthEffort(i,ei,si,effort,button){
+  var row=document.getElementById('sr_'+i+'_'+ei+'_'+si),panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(!row||!panel)return;
+  row.setAttribute('data-effort',effort);panel.classList.add('is-rated');panel.classList.remove('is-prompting','is-editing','needs-attention');
+  panel.querySelectorAll('.set-effort-options button').forEach(function(opt){var active=opt===button;opt.classList.toggle('active',active);opt.setAttribute('aria-pressed',active?'true':'false');});
+  var labels={reserve:'Too light',failure:'Right load',form_break:'Form broke'},summary=panel.querySelector('.set-effort-summary span');if(summary)summary.textContent=(labels[effort]||'Set calibrated')+' ✓';
+  var card=row.closest('.exc'),splitKey=card&&card.getAttribute('data-split-key')||'Upper A',exercises=getSplit(splitKey),ex=exercises[ei];if(!ex)return;
+  var resolvedEx=exPicks[ex.exercise]||ex.exercise,history=getExerciseHistory(sessions[i].id,resolvedEx),sets=collectExerciseSets(i,ei,true),current=sets.find(function(set){return Number(set._rowIndex)===si;})||{};
+  var warmups=parseInt(ex.warmupSets,10)||0,working=parseInt(ex.workingSets||ex.sets,10)||1,finalSet=si>=warmups+working-1,nextRowIndex=finalSet?null:si+1;
+  var guidance=strengthEffortGuidance(ex,effort,current,resolvedEx,history,finalSet),advice=document.getElementById('effort_advice_'+i+'_'+ei+'_'+si);
+  if(advice){advice.className='set-effort-advice tone-'+(guidance&&guidance.tone||'blue');advice.innerHTML=strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex);}
+  if(guidance&&guidance.targetWeight!=null&&guidance.direction!=='same'&&!finalSet)applyStrengthEffortLoadToRemaining(i,ei,si+1,warmups+working-1,guidance.targetWeight);
+  draftGym(i,splitKey);autoCompleteStrengthSet(i,ei,si);
+}
+function applyStrengthEffortLoad(i,ei,si,weight){
+  var input=document.getElementById('w_'+i+'_'+ei+'_'+si);if(!input)return;
+  input.value=_nsBare(weight);var row=input.closest('.setrow,.setrow-single'),card=row&&row.closest('.exc'),splitKey=card&&card.getAttribute('data-split-key')||'Upper A';draftGym(i,splitKey);
+  var reps=row&&row.querySelector('input[id^="r_"],input[id^="rL_"]');if(reps)reps.focus();if(typeof showToast==='function')showToast(_nsKg(weight)+' loaded for the next set');
 }
 function refreshStrengthFeedback(i,splitKey){
   var exercises=getSplit(splitKey);var s=sessions[i];
@@ -1508,6 +1596,32 @@ function computeOverload(ex,effort,resolvedName,history){
   var wellBelow=reps.length>=wantSets&&reps.some(function(v){return v<low-2;});
   var info=assisted?_ovAssistanceStepInfo(name,maxLoad||0,history,ex):_ovStepInfo(name,maxLoad||0,history,ex);
   var step=info.step;
+  // The first working set calibrates the prescribed load. It can correct an
+  // obviously light/heavy starting point immediately, while the completed
+  // exercise still controls ordinary double progression. This keeps one odd
+  // day from replacing the full-session evidence.
+  var calibrationSet=working[0]||null,calibrationEffort=calibrationSet&&calibrationSet.effort||'',calibrationReps=_effReps(calibrationSet);
+  var calibration=/^(reserve|failure|form_break)$/.test(calibrationEffort)
+    ?strengthEffortGuidance(ex,calibrationEffort,calibrationSet,name,history,true):null;
+  var calibrationTooHeavy=calibrationEffort==='form_break'||(calibrationEffort==='failure'&&calibrationReps!=null&&calibrationReps<low);
+  if(calibrationTooHeavy&&calibration&&calibration.targetWeight!=null){
+    return {tone:'red',status:'Reduce Load',action:assisted?('Increase assistance to '+_nsKg(calibration.targetWeight)):('Start at '+_nsKg(calibration.targetWeight)),weightKg:calibration.targetWeight,arrow:'↻',assisted:assisted,calibrated:true,
+      target:_nsFilled(wantSets,low),targetNote:null,
+      reason:calibrationEffort==='form_break'
+        ?'Your first working set lost clean technique. The next workout starts lighter so every rep can reach technical failure safely.'
+        :'Technical failure arrived below the rep range. The next workout starts lighter so you can own the full range.'};
+  }
+  var calibrationTooLight=calibrationEffort==='reserve'||(calibrationEffort==='failure'&&calibrationReps!=null&&calibrationReps>top);
+  if(calibrationTooLight&&calibration&&calibration.targetWeight!=null){
+    var laterLoads=working.slice(1).map(function(s){return parseFloat(s.weight);}).filter(function(n){return !isNaN(n)&&n>0;});
+    var applied=laterLoads.some(function(v){return assisted?v<=calibration.targetWeight+0.01:v>=calibration.targetWeight-0.01;});
+    var nextStart=applied&&laterLoads.length?(assisted?Math.min.apply(null,laterLoads):Math.max.apply(null,laterLoads)):calibration.targetWeight;
+    return {tone:'green',status:'Load Calibrated',action:assisted?('Start with '+_nsKg(nextStart)+' assistance'):('Start at '+_nsKg(nextStart)),weightKg:nextStart,arrow:assisted?'↘':'↗',assisted:assisted,calibrated:true,
+      target:_nsFilled(wantSets,low),targetNote:null,
+      reason:applied
+        ?'Your first set showed the starting load was too light, and the remaining sets confirmed the adjustment. Begin there next workout and build through the rep range.'
+        :'Your first set showed the starting load was too light. Begin at the calibrated load next workout and build through the rep range.'};
+  }
   // Ramped sets (47 / 54 / 61 up the working sets) aren't a single load, so
   // "stay at 61kg" would read as a flat prescription. Speak about the top set.
   var distinct={};loads.forEach(function(v){distinct[v]=1;});
@@ -1750,9 +1864,11 @@ function strengthSetHasRequiredInputs(row){
   var card=row.closest?row.closest('.exc'):null;
   var rpeRequired=typeof strengthCardRequiresRpe==='function'?strengthCardRequiresRpe(card):(typeof strengthRpeEnabled!=='function'||strengthRpeEnabled());
   var hasRpe=!rpe||!rpeRequired||String(rpe.value||'').trim()!=='';
-  return !!(hasWeight&&hasReps&&hasRpe);
+  var effortRequired=row.getAttribute&&row.getAttribute('data-effort-required')==='true';
+  var hasEffort=!effortRequired||!!(row.getAttribute&&row.getAttribute('data-effort'));
+  return !!(hasWeight&&hasReps&&hasRpe&&hasEffort);
 }
-function strengthSavedSetHasRequiredInputs(set,isSingleLeg,rpeRequired){
+function strengthSavedSetHasRequiredInputs(set,isSingleLeg,rpeRequired,effortRequired){
   set=set||{};
   var hasWeight=String(set.weight==null?'':set.weight).trim()!=='';
   var hasReps=isSingleLeg
@@ -1760,7 +1876,8 @@ function strengthSavedSetHasRequiredInputs(set,isSingleLeg,rpeRequired){
     :String(set.reps==null?'':set.reps).trim()!=='';
   if(typeof rpeRequired!=='boolean')rpeRequired=strengthRpeEnabled();
   var hasRpe=isSingleLeg||!rpeRequired||String(set.rpe==null?'':set.rpe).trim()!=='';
-  return !!(hasWeight&&hasReps&&hasRpe);
+  var hasEffort=!effortRequired||/^(reserve|failure|form_break)$/.test(String(set.effort||''));
+  return !!(hasWeight&&hasReps&&hasRpe&&hasEffort);
 }
 function strengthExerciseIsComplete(card){
   if(!card) return false;
@@ -2018,12 +2135,13 @@ function buildBody(s,i,type){
   }else if(type==='strength'){
 
     var splitKey=splitKeyForSession(s,'Upper A');
-    var exercises=getSplit(splitKey),sl2=logs[s.id]||{},gymSubmitted=isSessionLogged(s.id),sessionRpeRequired=strengthLogRequiresRpe(sl2,gymSubmitted);
+    var exercises=getSplit(splitKey),sl2=logs[s.id]||{},gymSubmitted=isSessionLogged(s.id),sessionRpeRequired=strengthLogRequiresRpe(sl2,gymSubmitted),sessionEffortRequired=strengthLogRequiresEffort(sl2,gymSubmitted);
     h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     if(exercises.length){
       var restTimerOn=typeof restTimerEnabled==='function'?restTimerEnabled():true;
       var strengthRpeOn=typeof strengthRpeEnabled==='function'?strengthRpeEnabled():true;
       h+='<div class="strength-log-heading"><div class="ltitle">Log your sets</div><div class="strength-log-prefs"><button type="button" class="rest-pref-toggle'+(strengthRpeOn?' is-on':'')+'" data-strength-rpe-toggle aria-pressed="'+(strengthRpeOn?'true':'false')+'" onclick="toggleStrengthRpePreference()"><span class="rest-pref-dot"></span><span>RPE</span><strong class="rest-pref-state">'+(strengthRpeOn?'On':'Off')+'</strong></button><button type="button" class="rest-pref-toggle'+(restTimerOn?' is-on':'')+'" data-rest-timer-toggle aria-pressed="'+(restTimerOn?'true':'false')+'" onclick="toggleRestTimerPreference()"><span class="rest-pref-dot"></span><span>Rest timer</span><strong class="rest-pref-state">'+(restTimerOn?'On':'Off')+'</strong></button></div></div>';
+      h+='<div class="strength-effort-note"><span>SET 1</span><div><strong>Calibrate at technical failure</strong><small>After the first working set, tell us whether the load was right. We’ll adjust today’s remaining sets and carry the result into your next workout.</small></div></div>';
       if(isFemaleSplit(splitKey)){
         h+='<div class="female-priority-note"><span class="female-priority-note-badge">Priority</span><div><strong>Short on time?</strong><span>Complete the priority exercises first to cover the session’s main muscle groups. Keep going through the full session whenever time allows.</span></div></div>';
       }
@@ -2057,7 +2175,9 @@ function buildBody(s,i,type){
         _ov.live=_nsLiveProgress(ex,savedEx,_ov,resolvedEx,_ovHistory,prevEffort);
         var hasExerciseData=!!savedEx.length;
 	        var renderedRows=[];for(var renderedIndex=0;renderedIndex<renderSets;renderedIndex++) renderedRows.push(savedByRow[renderedIndex]||{});
-	        var exerciseIsComplete=hasExerciseData&&renderedRows.every(function(set){return !!set.done&&strengthSavedSetHasRequiredInputs(set,isSingleLeg,sessionRpeRequired);});
+        var workingSetsForEffort=parseInt(ex.workingSets||ex.sets,10)||sets;
+        var warmupSetsForEffort=parseInt(ex.warmupSets,10)||0;
+	        var exerciseIsComplete=hasExerciseData&&renderedRows.every(function(set,rowIndex){var effortRequired=sessionEffortRequired&&rowIndex===warmupSetsForEffort;return !!set.done&&strengthSavedSetHasRequiredInputs(set,isSingleLeg,sessionRpeRequired,effortRequired);});
 	        var _nsState=exerciseIsComplete?'done':(hasExerciseData?'prog':'todo');
 	        var _nsDone=0,_nsParts=[],_nsTopW=null;
 	        getWorkingSlice(ex,savedEx||[]).forEach(function(sv){
@@ -2141,23 +2261,27 @@ function buildBody(s,i,type){
           h+='<div class="slbls-single"><div class="slbl"></div><div class="slbl">'+(isAssisted?'Assist kg':'kg')+'</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
           h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
 	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set">×</button>':'';
-	            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
+	            var effortRequired=sessionEffortRequired&&si===warmupSets;
+	            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
 	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsLeft?prevSet.repsLeft:'L')+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsRight?prevSet.repsRight:'R')+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired);}
 	          }
 	        }else{
 	          h+='<div class="slbls"><div class="slbl"></div><div class="slbl">'+(isAssisted?'Assist kg':'kg')+'</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
 	          h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
 	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set">×</button>':'';
-	            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
+	            var effortRequired=sessionEffortRequired&&si===warmupSets;
+	            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
 	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc((prevSet&&prevSet.reps)?prevSet.reps:'—')+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired);}
 	          }
 	        }
         h+='</div>';
@@ -2330,7 +2454,9 @@ function settleStrengthExerciseCompletion(card){
 }
 function togSet(i,ei,si){
   var btn=document.getElementById('st_'+i+'_'+ei+'_'+si);if(!btn) return;
-  var on=!btn.classList.contains('on');btn.classList.toggle('on',on);btn.setAttribute('aria-pressed',on?'true':'false');btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';
+  var on=!btn.classList.contains('on'),row=document.getElementById('sr_'+i+'_'+ei+'_'+si);
+  if(on&&row&&row.getAttribute('data-effort-required')==='true'&&!row.getAttribute('data-effort')){var panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(panel){panel.classList.add('is-prompting','needs-attention');panel.scrollIntoView({behavior:'smooth',block:'nearest'});}if(typeof showToast==='function')showToast('Calibrate the first working set before continuing');return;}
+  btn.classList.toggle('on',on);btn.setAttribute('aria-pressed',on?'true':'false');btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';
   var card=btn.closest('.exc');
   if(card){
     var splitKey=card.getAttribute('data-split-key')||'Upper A';
