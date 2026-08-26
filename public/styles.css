@@ -201,6 +201,8 @@ header{background: rgba(255,255,255,0.06);height:54px;padding:0 16px;display:fle
 .li:focus{border-color:#92d2ed;background:var(--surface3)}
 .savebtn{width:100%;padding:13px;background:#92d2ed;color:#050505;border:none;border-radius:8px;font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;margin-top:10px;transition:background .2s}
 .savebtn.saved{background:var(--ok)}
+.strava-feedback .savebtn.is-sending{background:#f0ad4e;color:#211405}
+.outdoor-mode .strava-feedback .savebtn.is-sending{background:#b5710f;color:#fff}
 .exlist{display:grid;gap:8px;margin-bottom:10px}
 .exc{background:var(--surface2);border:1px solid var(--border);border-radius:9px;overflow:hidden}
 .exh{padding:12px 14px 8px}

@@ -1369,10 +1369,10 @@ function strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex){
   if(!guidance)return '';
   return '<span>'+esc(guidance.message)+'</span>';
 }
-function strengthEffortPickerHtml(i,ei,si,effort,guidance,nextRowIndex,required){
+function strengthEffortPickerHtml(i,ei,si,effort,guidance,nextRowIndex,required,prompting){
   var options=[['reserve','Too light','More reps available'],['failure','Right load','No clean rep left'],['form_break','Form broke','Stopped for technique']];
   var labels={reserve:'Too light',failure:'Right load',form_break:'Form broke'},label=labels[effort]||'Set calibrated';
-  var h='<div class="set-effort'+(effort?' is-rated':'')+'" id="effort_'+i+'_'+ei+'_'+si+'">';
+  var h='<div class="set-effort'+(effort?' is-rated':(prompting?' is-prompting':''))+'" id="effort_'+i+'_'+ei+'_'+si+'">';
   h+='<button type="button" class="set-effort-summary" onclick="toggleStrengthEffortPanel('+i+','+ei+','+si+')"><span>'+esc(label)+' ✓</span><small>Change</small></button>';
   h+='<div class="set-effort-editor"><div class="set-effort-head"><strong>How did the first working set finish?</strong>'+(required?'<small>Required · target 0 RIR</small>':'')+'</div><div class="set-effort-options">';
   options.forEach(function(opt){h+='<button type="button" class="'+(effort===opt[0]?'active':'')+'" aria-pressed="'+(effort===opt[0]?'true':'false')+'" onclick="setStrengthEffort('+i+','+ei+','+si+',\''+opt[0]+'\',this)"><strong>'+opt[1]+'</strong><small>'+opt[2]+'</small></button>';});
@@ -1851,7 +1851,7 @@ function strengthExerciseHasData(card){
   for(var x=0;x<inputs.length;x++){if(String(inputs[x].value||'').trim()!=='') return true;}
   return !!card.querySelector('.st.on,.st.pb-on');
 }
-function strengthSetHasRequiredInputs(row){
+function strengthSetHasRequiredInputs(row,ignoreEffort){
   if(!row) return false;
   var weight=row.querySelector('input[id^="w_"]'),reps=row.querySelector('input[id^="r_"]');
   var left=row.querySelector('input[id^="rL_"]'),right=row.querySelector('input[id^="rR_"]');
@@ -1865,7 +1865,7 @@ function strengthSetHasRequiredInputs(row){
   var rpeRequired=typeof strengthCardRequiresRpe==='function'?strengthCardRequiresRpe(card):(typeof strengthRpeEnabled!=='function'||strengthRpeEnabled());
   var hasRpe=!rpe||!rpeRequired||String(rpe.value||'').trim()!=='';
   var effortRequired=row.getAttribute&&row.getAttribute('data-effort-required')==='true';
-  var hasEffort=!effortRequired||!!(row.getAttribute&&row.getAttribute('data-effort'));
+  var hasEffort=!!ignoreEffort||!effortRequired||!!(row.getAttribute&&row.getAttribute('data-effort'));
   return !!(hasWeight&&hasReps&&hasRpe&&hasEffort);
 }
 function strengthSavedSetHasRequiredInputs(set,isSingleLeg,rpeRequired,effortRequired){
@@ -2263,12 +2263,12 @@ function buildBody(s,i,type){
 	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set">×</button>':'';
 	            var effortRequired=sessionEffortRequired&&si===warmupSets;
 	            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
-	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsLeft?prevSet.repsLeft:'L')+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsRight?prevSet.repsRight:'R')+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsLeft?prevSet.repsLeft:'L')+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsRight?prevSet.repsRight:'R')+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
-	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired);}
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,true,sessionRpeRequired,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt);}
 	          }
 	        }else{
 	          h+='<div class="slbls"><div class="slbl"></div><div class="slbl">'+(isAssisted?'Assist kg':'kg')+'</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
@@ -2276,12 +2276,12 @@ function buildBody(s,i,type){
 	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set">×</button>':'';
 	            var effortRequired=sessionEffortRequired&&si===warmupSets;
 	            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
-	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc((prevSet&&prevSet.reps)?prevSet.reps:'—')+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftGym('+i+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc((prevSet&&prevSet.reps)?prevSet.reps:'—')+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
-	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired);}
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,false,sessionRpeRequired,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt);}
 	          }
 	        }
         h+='</div>';
@@ -2437,9 +2437,20 @@ async function markSessionDone(i){
   // Completion lives in Supabase: the ticked state is saved to athlete_data above,
   // and the saved run/gym log is the source-of-truth record the coach dashboard reads.
 }
+function promptStrengthCalibration(i,ei,si){
+  var row=document.getElementById('sr_'+i+'_'+ei+'_'+si);if(!row)return false;
+  if(!row.getAttribute||row.getAttribute('data-effort-required')!=='true'||row.getAttribute('data-effort')||!strengthSetHasRequiredInputs(row,true))return false;
+  var panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(!panel)return false;
+  panel.classList.add('is-prompting');return true;
+}
+function draftStrengthSet(i,ei,si,splitKey){
+  draftGym(i,splitKey);promptStrengthCalibration(i,ei,si);
+}
 function autoCompleteStrengthSet(i,ei,si){
   var row=document.getElementById('sr_'+i+'_'+ei+'_'+si),btn=document.getElementById('st_'+i+'_'+ei+'_'+si);
-  if(!row||!btn||!strengthSetHasRequiredInputs(row))return;
+  if(!row||!btn)return;
+  if(promptStrengthCalibration(i,ei,si))return;
+  if(!strengthSetHasRequiredInputs(row))return;
   if(!btn.classList.contains('on')){togSet(i,ei,si);return;}
   settleStrengthExerciseCompletion(btn.closest('.exc'));
 }
