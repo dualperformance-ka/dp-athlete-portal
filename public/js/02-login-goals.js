@@ -163,6 +163,7 @@ async function doLogin(code,prevalidatedRoster){
   if(!fresh){resetBtn();showLoginError('Unable to load your athlete profile');renderCode();return;}
   if(showWelcome)showLoginSuccess(fresh.name);
   athlete=fresh;saveProfileCache(code,fresh);
+  await writePortalOfflineState('dp_auth_athlete_code',String(code).toUpperCase());
   if(window.dpTagAthlete)window.dpTagAthlete(code);
   track(localStorage.getItem('dp_auth_method')==='email'?'login_email':'login_code');
   resetBtn();
@@ -182,6 +183,7 @@ async function doLogin(code,prevalidatedRoster){
   var coachLogout=document.getElementById('coachLogoutBtn');
   if(coachLogout)coachLogout.style.display=localStorage.getItem('dp_auth_method')==='code'?'flex':'none';
   document.getElementById('quicklogStrip').style.display='flex';
+  requestPersistentPortalStorage();
   maybeShowEmailUpgradePrompt(roster);
   updatePendingQueueIndicator();
   registerBackgroundQueueSync();

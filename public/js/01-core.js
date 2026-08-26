@@ -242,6 +242,7 @@ function renewLegacySession(){
       localStorage.setItem('dp_legacy_session',_authToken);
       localStorage.setItem('dp_auth_method','code');
       writePortalOfflineState('dp_auth_token',_authToken);
+      writePortalOfflineState('dp_auth_athlete_code',String(code).toUpperCase());
       return result;
     }catch(e){return null;}
   })().finally(function(){_legacyRenewPromise=null;});
@@ -277,7 +278,14 @@ async function portalRequest(action,payload,options){
   return data;
 }
 function portalStateWrite(key,value,options){
-  return portalRequest('state-write',{key:key,value:value},options);
+  return portalRequest('state-write',{key:key,value:value},options).then(async function(result){
+    await removePendingPortalStateWrite(key,null,value);
+    return result;
+  }).catch(async function(error){
+    await queuePortalStateWrite(key,value,error);
+    if(options&&options.required)throw error;
+    return {ok:true,queued:true,error:String(error&&error.message||error||'State write failed')};
+  });
 }
 async function getAuthSession(){
   var client=await ensureSupabaseClient();
@@ -301,6 +309,7 @@ async function authSignOut(){
   _authToken=null;
   try{localStorage.removeItem('dp_legacy_session');}catch(e){}
   await removePortalOfflineState('dp_auth_token');
+  await removePortalOfflineState('dp_auth_athlete_code');
 }
 function handleAuthSessionLost(){
   var method=localStorage.getItem('dp_auth_method');
@@ -335,19 +344,23 @@ function _flushSbKey(sbKey){
   if(!p||!_authToken) return;
   delete _sbSyncPending[sbKey];
   portalStateWrite(sbKey,p.value,{keepalive:true})
-    .then(function(){setSaveState('saved');})
+    .then(function(result){setSaveState(result&&result.queued?'offline':'saved');})
     .catch(function(){_sbSyncPending[sbKey]=p;setSaveState('offline');});
 }
 function _flushAllSb(){Object.keys(_sbSyncPending).forEach(_flushSbKey);}
 function _scheduleSbSync(code,sbKey,parsed){
   setSaveState(navigator.onLine?'saving':'offline');
   _sbSyncPending[sbKey]={code:code,value:parsed};
+  // Persist intent immediately, before the network debounce. If iOS kills the
+  // page between this keystroke and pagehide, cloud hydration can still see
+  // that the device copy is newer and must not overwrite it.
+  queuePortalStateWrite(sbKey,parsed,'Awaiting sync').catch(function(){});
   if(_sbSyncTimers[sbKey]) clearTimeout(_sbSyncTimers[sbKey]);
   _sbSyncTimers[sbKey]=setTimeout(function(){_flushSbKey(sbKey);},1500);
 }
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')_flushAllSb();});
 window.addEventListener('pagehide',_flushAllSb);
-window.addEventListener('online',function(){setSaveState('saving');_flushAllSb();retryPendingCoachWrites(true,'online').then(function(){setSaveState('saved');});});
+window.addEventListener('online',function(){setSaveState('saving');_flushAllSb();Promise.all([retryPendingCoachWrites(true,'online'),retryPendingPortalStateWrites(true,'online')]).then(function(){setSaveState('saved');});});
 window.addEventListener('offline',function(){setSaveState('offline');});
 (function(){
   var _orig=localStorage.setItem.bind(localStorage);
@@ -384,8 +397,9 @@ window.addEventListener('offline',function(){setSaveState('offline');});
 })();
 
 function pendingCoachWritesKey(code){return 'dp_pending_writes_'+code;}
-var DP_OFFLINE_DB_NAME='dp-athlete-portal',DP_OFFLINE_DB_VERSION=1;
-var DP_QUEUE_STORE='queued_writes',DP_STATE_STORE='app_state';
+function pendingPortalStateWritesKey(code){return 'dp_pending_state_writes_'+code;}
+var DP_OFFLINE_DB_NAME='dp-athlete-portal',DP_OFFLINE_DB_VERSION=2;
+var DP_QUEUE_STORE='queued_writes',DP_STATE_STORE='app_state',DP_STATE_QUEUE_STORE='state_writes';
 var _offlineDbPromise=null,_offlineMigrationPromise=null;
 function openPortalOfflineDb(){
   if(_offlineDbPromise)return _offlineDbPromise;
@@ -400,6 +414,10 @@ function openPortalOfflineDb(){
         queue.createIndex('bucket','bucket',{unique:false});
       }
       if(!db.objectStoreNames.contains(DP_STATE_STORE))db.createObjectStore(DP_STATE_STORE,{keyPath:'key'});
+      if(!db.objectStoreNames.contains(DP_STATE_QUEUE_STORE)){
+        var stateQueue=db.createObjectStore(DP_STATE_QUEUE_STORE,{keyPath:'id'});
+        stateQueue.createIndex('code','code',{unique:false});
+      }
     };
     request.onsuccess=function(){resolve(request.result);};
     request.onerror=function(){resolve(null);};
@@ -433,7 +451,7 @@ async function migrateOfflineLocalStorage(db){
     try{
       for(var i=0;i<localStorage.length;i++){
         var key=localStorage.key(i);
-        if(key&&(key.indexOf('dp_pending_writes_')===0||key==='dp_run_library_cache_v3'))keys.push(key);
+        if(key&&(key.indexOf('dp_pending_writes_')===0||key.indexOf('dp_pending_state_writes_')===0||key==='dp_run_library_cache_v3'))keys.push(key);
       }
     }catch(e){return db;}
     for(var k=0;k<keys.length;k++){
@@ -445,6 +463,12 @@ async function migrateOfflineLocalStorage(db){
           var list=JSON.parse(raw),bucket=storageKey.slice('dp_pending_writes_'.length);
           if(!Array.isArray(list))continue;
           await putOfflineQueueRecords(db,bucket,list);
+        }else if(storageKey.indexOf('dp_pending_state_writes_')===0){
+          var stateList=JSON.parse(raw),stateCode=storageKey.slice('dp_pending_state_writes_'.length);
+          if(!Array.isArray(stateList))continue;
+          var stateTx=db.transaction(DP_STATE_QUEUE_STORE,'readwrite'),stateStore=stateTx.objectStore(DP_STATE_QUEUE_STORE);
+          stateList.forEach(function(item){stateStore.put(Object.assign({},item,{code:stateCode}));});
+          await offlineTransactionDone(stateTx);
         }else{
           var cached=JSON.parse(raw);
           var tx=db.transaction(DP_STATE_STORE,'readwrite');
@@ -495,6 +519,17 @@ async function removePortalOfflineState(key){
   }catch(e){}
   try{localStorage.removeItem(key);}catch(e){}
 }
+var _storagePersistenceRequested=false;
+async function requestPersistentPortalStorage(){
+  if(_storagePersistenceRequested||!navigator.storage||!navigator.storage.persist)return false;
+  _storagePersistenceRequested=true;
+  try{
+    var granted=navigator.storage.persisted?await navigator.storage.persisted():false;
+    if(!granted)granted=await navigator.storage.persist();
+    track('offline_storage_persistence',{granted:!!granted});
+    return !!granted;
+  }catch(e){return false;}
+}
 function readPendingCoachWritesFallback(code){
   try{
     var list=JSON.parse(localStorage.getItem(pendingCoachWritesKey(code))||'[]');
@@ -508,6 +543,85 @@ function currentWriteCode(payload){
   if(payload&&payload.athleteCode) return String(payload.athleteCode);
   try{var c=localStorage.getItem('dp_last_athlete_code');if(c) return c;}catch(e){}
   return '_unknown';
+}
+function readPendingPortalStateWritesFallback(code){
+  try{
+    var list=JSON.parse(localStorage.getItem(pendingPortalStateWritesKey(code))||'[]');
+    return Array.isArray(list)?list:[];
+  }catch(e){return [];}
+}
+async function readPendingPortalStateWrites(code){
+  code=code||currentWriteCode();
+  try{
+    var db=await getPortalOfflineDb();
+    if(!db)return readPendingPortalStateWritesFallback(code);
+    var tx=db.transaction(DP_STATE_QUEUE_STORE,'readonly');
+    var list=await offlineRequest(tx.objectStore(DP_STATE_QUEUE_STORE).index('code').getAll(code));
+    return Array.isArray(list)?list:[];
+  }catch(e){return readPendingPortalStateWritesFallback(code);}
+}
+async function queuePortalStateWrite(key,value,error){
+  var code=currentWriteCode();
+  if(!code||code==='_unknown')return;
+  var id='state_'+code+'_'+key,now=new Date().toISOString();
+  var item={id:id,code:code,key:key,value:value,createdAt:now,updatedAt:now,attempts:0,lastError:String(error&&error.message||error||'State write failed')};
+  // Stage synchronously before the first await. If a mobile browser kills the
+  // page immediately, the next open migrates this exact value into IndexedDB.
+  var staged=readPendingPortalStateWritesFallback(code),stagedIndex=staged.findIndex(function(row){return row.id===id;});
+  if(stagedIndex>=0)staged[stagedIndex]=item;else staged.push(item);
+  try{localStorage.setItem(pendingPortalStateWritesKey(code),JSON.stringify(staged));}catch(e){}
+  try{
+    var db=await getPortalOfflineDb();
+    if(!db)throw new Error('IndexedDB unavailable');
+    var tx=db.transaction(DP_STATE_QUEUE_STORE,'readwrite');
+    tx.objectStore(DP_STATE_QUEUE_STORE).put(item);
+    await offlineTransactionDone(tx);
+    try{
+      var fallback=readPendingPortalStateWritesFallback(code).filter(function(row){return row.id!==id||JSON.stringify(row.value)!==JSON.stringify(value);});
+      if(fallback.length)localStorage.setItem(pendingPortalStateWritesKey(code),JSON.stringify(fallback));else localStorage.removeItem(pendingPortalStateWritesKey(code));
+    }catch(e){}
+  }catch(e){
+    var list=readPendingPortalStateWritesFallback(code),index=list.findIndex(function(row){return row.id===id;});
+    if(index>=0)list[index]=item;else list.push(item);
+    try{localStorage.setItem(pendingPortalStateWritesKey(code),JSON.stringify(list));}catch(storageError){}
+  }
+  if(typeof updatePendingQueueIndicator==='function')updatePendingQueueIndicator();
+  await registerBackgroundQueueSync();
+}
+async function removePendingPortalStateWrite(key,code,expectedValue){
+  code=code||currentWriteCode();
+  if(!code||code==='_unknown')return;
+  var id='state_'+code+'_'+key,removed=false;
+  try{
+    var db=await getPortalOfflineDb();
+    if(!db)throw new Error('IndexedDB unavailable');
+    var tx=db.transaction(DP_STATE_QUEUE_STORE,'readwrite'),store=tx.objectStore(DP_STATE_QUEUE_STORE);
+    var current=await offlineRequest(store.get(id));
+    if(current&&(expectedValue===undefined||JSON.stringify(current.value)===JSON.stringify(expectedValue))){store.delete(id);removed=true;}
+    await offlineTransactionDone(tx);
+  }catch(e){
+    var list=readPendingPortalStateWritesFallback(code),keep=[];
+    list.forEach(function(item){
+      if(item.id===id&&(expectedValue===undefined||JSON.stringify(item.value)===JSON.stringify(expectedValue)))removed=true;
+      else keep.push(item);
+    });
+    try{if(keep.length)localStorage.setItem(pendingPortalStateWritesKey(code),JSON.stringify(keep));else localStorage.removeItem(pendingPortalStateWritesKey(code));}catch(storageError){}
+  }
+  if(typeof updatePendingQueueIndicator==='function')updatePendingQueueIndicator();
+}
+async function retryPendingPortalStateWrites(silent,trigger){
+  var code=currentWriteCode();
+  if(!code||code==='_unknown'||!_authToken)return 0;
+  var list=await readPendingPortalStateWrites(code),synced=0;
+  for(var i=0;i<list.length;i++){
+    var item=list[i];
+    try{await portalRequest('state-write',{key:item.key,value:item.value},{keepalive:true});await removePendingPortalStateWrite(item.key,code,item.value);synced++;}
+    catch(e){}
+  }
+  if(synced)track('offline_state_flushed',{count:synced,trigger:trigger||'visibility'});
+  if(synced&&!silent)showToast(synced+' pending portal update'+(synced>1?'s':'')+' synced');
+  await updatePendingQueueIndicator();
+  return synced;
 }
 async function readPendingCoachWrites(code){
   code=code||currentWriteCode();
@@ -608,21 +722,23 @@ var _pendingQueueIndicatorCount=-1;
 async function pendingCoachWriteCount(){
   var code=currentWriteCode(),list=await readPendingCoachWrites(code);
   if(code!=='_unknown')list=list.concat(await readPendingCoachWrites('_unknown'));
-  var ids={};return list.filter(function(item){if(!item||ids[item.id])return false;ids[item.id]=true;return true;}).length;
+  var ids={},coachCount=list.filter(function(item){if(!item||ids[item.id])return false;ids[item.id]=true;return true;}).length;
+  var stateCount=code==='_unknown'?0:(await readPendingPortalStateWrites(code)).filter(function(item){return item.key!=='pending_writes';}).length;
+  return coachCount+stateCount;
 }
 async function updatePendingQueueIndicator(){
   var banner=document.getElementById('queuePendingBanner');if(!banner)return;
   var count=await pendingCoachWriteCount();
   banner.hidden=count===0;
   banner.style.display=count?'flex':'none';
-  var text=banner.querySelector('b');if(text)text.textContent=count+' log'+(count===1?'':'s')+' waiting to send';
+  var text=banner.querySelector('b');if(text)text.textContent=count+' update'+(count===1?'':'s')+' waiting to send';
   if(count>0&&count!==_pendingQueueIndicatorCount)track('queue_pending_shown',{count:count});
   _pendingQueueIndicatorCount=count;
 }
 async function manualRetryPendingCoachWrites(){
   track('queue_flush_manual');
   var banner=document.getElementById('queuePendingBanner');if(banner)banner.classList.add('is-retrying');
-  try{await retryPendingCoachWrites(false,'manual');}
+  try{await Promise.all([retryPendingCoachWrites(false,'manual'),retryPendingPortalStateWrites(false,'manual')]);}
   finally{if(banner)banner.classList.remove('is-retrying');await updatePendingQueueIndicator();}
 }
 async function retryPendingCoachWrites(silent,trigger){
@@ -667,8 +783,8 @@ async function retryPendingCoachWrites(silent,trigger){
   if(totalSynced&&!silent) showToast(totalSynced+' pending coach update'+(totalSynced>1?'s':'')+' synced');
   await updatePendingQueueIndicator();
 }
-document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')retryPendingCoachWrites(true,'visibility');});
-window.addEventListener('pageshow',function(){retryPendingCoachWrites(true,'visibility');});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){retryPendingCoachWrites(true,'visibility');retryPendingPortalStateWrites(true,'visibility');}});
+window.addEventListener('pageshow',function(){retryPendingCoachWrites(true,'visibility');retryPendingPortalStateWrites(true,'visibility');});
 if('serviceWorker'in navigator){
   navigator.serviceWorker.addEventListener('message',function(event){
     var data=event.data||{};
@@ -719,6 +835,8 @@ async function loadCloudData(code,preloaded){
     var result=preloaded||await portalRequest('state-read');
     var rows=result.rows||[];
     var structuredCheckins=result.checkins||[];
+    var pendingStateWrites=await readPendingPortalStateWrites(code),pendingStateKeys={};
+    pendingStateWrites.forEach(function(item){pendingStateKeys[item.key]=true;});
     // Build a set of keys that exist in Supabase
     var cloudKeys={};
     rows.forEach(function(row){cloudKeys[row.key]=row.value;});
@@ -732,6 +850,10 @@ async function loadCloudData(code,preloaded){
     // Write cloud data to localStorage (cloud is authoritative)
     rows.forEach(function(row){
       var lsKey=null;
+      // A locally queued state value is newer by definition: it exists only
+      // because the device could not commit it. Never let the older cloud row
+      // overwrite that value before the outbox gets a chance to retry.
+      if(pendingStateKeys[row.key])return;
       // LOGS: never let an older cloud copy clobber a newer local draft.
       // (Athletes were losing in-progress gym/run data on reload because the
       //  cloud copy was treated as authoritative even when a fresher local
@@ -765,7 +887,15 @@ async function loadCloudData(code,preloaded){
       if(!lsKey||!row.value) return;
       localStorage.setItem(lsKey,JSON.stringify(row.value));
     });
-    if(Array.isArray(cloudKeys['pending_writes']))await persistPendingCoachWrites(cloudKeys['pending_writes'],code);
+    if(Array.isArray(cloudKeys['pending_writes'])&&!pendingStateKeys['pending_writes']){
+      var localPending=await readPendingCoachWrites(code),pendingById={};
+      localPending.concat(cloudKeys['pending_writes']).forEach(function(item){
+        if(!item||!item.id)return;
+        var prior=pendingById[item.id];
+        if(!prior||String(item.updatedAt||item.createdAt||'')>=String(prior.updatedAt||prior.createdAt||''))pendingById[item.id]=item;
+      });
+      await persistPendingCoachWrites(Object.keys(pendingById).map(function(id){return pendingById[id];}),code);
+    }
     // Rebuild this athlete's completion cache exclusively from structured
     // weekly_checkins (plus a locally queued submission). Old releases used a
     // shared dp_checkin_YYYY_WW key and mirrored it through athlete_data; both
@@ -1461,6 +1591,7 @@ function logoutToLogin(preserveEmail){
   localStorage.removeItem('dp_auth_code');
   localStorage.removeItem('dp_legacy_session');
   removePortalOfflineState('dp_auth_token');
+  removePortalOfflineState('dp_auth_athlete_code');
   if(!preserveEmail){
     try{localStorage.removeItem('dp_auth_method');localStorage.removeItem('dp_auth_email');}catch(e){}
   }

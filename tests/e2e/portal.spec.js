@@ -53,6 +53,7 @@ async function mockPortal(page, options = {}) {
     let body = {};
     try { body = request.postDataJSON() || {}; } catch (error) {}
     if (url.pathname === '/api/ingest' && state.offline) { await route.abort('internetdisconnected'); return; }
+    if (url.pathname === '/api/portal-data' && body.action === 'state-write' && state.offline) { await route.abort('internetdisconnected'); return; }
     let json = { ok: true };
     if (url.pathname === '/api/auth-athlete') {
       json = url.searchParams.get('action') === 'eligibility' ? { ok: true, enabled: true, eligible: true, active: true } : athlete;
@@ -142,10 +143,24 @@ test('5. offline submit shows pending state and online recovery drains it', asyn
   await page.locator('#qlbWeight').fill('72.5');
   await page.getByRole('button', { name: 'Save body check-in' }).click();
   await expect(page.locator('#queuePendingBanner')).toBeVisible();
-  await expect(page.locator('#queuePendingBanner')).toContainText('1 log waiting to send');
+  const initialPending = await page.evaluate(() => pendingCoachWriteCount());
+  expect(initialPending).toBeGreaterThanOrEqual(2);
+  await expect(page.locator('#queuePendingBanner')).toContainText(`${initialPending} updates waiting to send`);
+
+  // Keep writes unavailable while allowing the cached app to perform its
+  // normal authenticated reload. The state outbox must survive that reload.
+  await context.setOffline(false);
+  await page.evaluate(() => localStorage.setItem('dp_reschedules_KARL', JSON.stringify({ 'session-1': '2026-08-28' })));
+  await expect.poll(() => page.evaluate(() => pendingCoachWriteCount())).toBe(initialPending + 1);
+  await expect(page.locator('#queuePendingBanner')).toContainText(`${initialPending + 1} updates waiting to send`);
+  await page.reload();
+  await expect(page.locator('#portalScreen')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('dp_reschedules_KARL') || '{}')['session-1'])).toBe('2026-08-28');
+  await expect.poll(() => page.evaluate(() => pendingCoachWriteCount())).toBe(initialPending + 1);
+  await expect(page.locator('#queuePendingBanner')).toContainText(`${initialPending + 1} updates waiting to send`);
 
   state.offline = false;
-  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.locator('#queuePendingBanner')).toBeHidden({ timeout: 10_000 });
 });
 

@@ -27,6 +27,7 @@ async function bootPortal(){
     _authToken=null;
     localStorage.removeItem('dp_legacy_session');
     removePortalOfflineState('dp_auth_token');
+    removePortalOfflineState('dp_auth_athlete_code');
     doLogin(sanitizeCode(urlCode));
     return;
   }
