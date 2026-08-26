@@ -808,10 +808,118 @@ function renderPbHistory(query){
 }
 function openPbHistory(){var modal=document.getElementById('pbHistoryModal'),search=document.getElementById('pbHistorySearch');if(search)search.value='';renderPbHistory('');modal.classList.add('open');document.body.style.overflow='hidden';setTimeout(function(){if(search)search.focus();},80);}
 function closePbHistory(){document.getElementById('pbHistoryModal').classList.remove('open');document.body.style.overflow='';}
-function exportAthleteData(){
-  var data={exportedAt:new Date().toISOString(),athlete:{name:athlete.name,code:athlete.code},logs:logs,goals:JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}'),photos:getPhotos(),reminders:getReminderPreferences()};
+// ── DATA EXPORT ───────────────────────────────────────────────────────────────
+// This used to serialise localStorage and call it the athlete's data. It was a
+// partial device mirror — whatever this one browser happened to have cached —
+// and an athlete asking what we hold on them deserves the real answer.
+//
+// The server export is the answer. The device copy stays as the offline
+// fallback so the button still does something useful on a dead connection, and
+// it says which one you got.
+function localAthleteExport(){
+  return {exportedAt:new Date().toISOString(),source:'device-cache-only',athlete:{name:athlete.name,code:athlete.code},logs:logs,goals:JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}'),photos:getPhotos(),reminders:getReminderPreferences()};
+}
+function downloadAthleteJson(data){
   var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='dual-performance-'+athlete.code+'-data.json';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);
 }
+async function exportAthleteData(){
+  track('export_requested');
+  var data=null;
+  try{
+    var result=await portalRequest('export-data');
+    if(result&&result.export) data=result.export;
+  }catch(e){console.warn('Server export unavailable; falling back to the device copy',e);}
+  if(!data){
+    data=localAthleteExport();
+    showToast('Could not reach the server. Exported this device\u2019s copy instead.');
+  }
+  downloadAthleteJson(data);
+}
+
+// ── PRIVATE NOTE TO COACH ─────────────────────────────────────────────────────
+// A composer, not a messaging system. One direction, no threads, no inbox.
+// Discord covers community and general questions; an athlete will not post
+// "I think I'm injured" or "I'm thinking of quitting" in a group channel, and
+// those are the messages worth catching.
+//
+// Nothing here interpolates athlete text into HTML: the draft goes back into a
+// textarea value and every status line is set with textContent.
+var COACH_NOTE_MAX=2000;
+function coachNoteDraftKey(){return 'dp_coach_note_draft_'+((athlete&&athlete.code)||'default');}
+function syncCoachNoteMeta(){
+  var box=document.getElementById('coachNoteBody'),count=document.getElementById('coachNoteCount');
+  if(box&&count) count.textContent=box.value.length+' / '+COACH_NOTE_MAX;
+}
+function setCoachNoteStatus(message,tone){
+  var el=document.getElementById('coachNoteStatus');if(!el)return;
+  el.textContent=message||'';
+  el.classList.toggle('is-error',tone==='error');
+  el.classList.toggle('is-sent',tone==='sent');
+}
+// The same draft contract as every other form in the portal: nothing typed is
+// lost by closing the app, and the draft is cleared only once the server has
+// confirmed the note landed.
+function draftCoachNote(){
+  var box=document.getElementById('coachNoteBody');if(!box)return;
+  try{
+    if(box.value.trim()) localStorage.setItem(coachNoteDraftKey(),box.value);
+    else localStorage.removeItem(coachNoteDraftKey());
+  }catch(e){}
+  var note=document.getElementById('coachNoteDraft');
+  if(note) note.textContent=box.value.trim()?'Draft saved on this device':'';
+  syncCoachNoteMeta();
+}
+function openCoachNote(){
+  toggleMoreMenu(false);
+  var modal=document.getElementById('coachNoteModal');if(!modal)return;
+  var box=document.getElementById('coachNoteBody');
+  if(box){
+    var draft='';try{draft=localStorage.getItem(coachNoteDraftKey())||'';}catch(e){}
+    box.disabled=false;
+    box.value=String(draft).slice(0,COACH_NOTE_MAX);
+  }
+  var send=document.getElementById('coachNoteSend');
+  if(send){send.disabled=false;send.textContent='Send to your coaches';}
+  var note=document.getElementById('coachNoteDraft');
+  if(note) note.textContent=(box&&box.value.trim())?'Draft saved on this device':'';
+  setCoachNoteStatus('');
+  syncCoachNoteMeta();
+  modal.classList.add('open');document.body.style.overflow='hidden';
+  track('contact_opened');
+  if(box) setTimeout(function(){try{box.focus();}catch(e){}},120);
+}
+function closeCoachNote(){
+  var modal=document.getElementById('coachNoteModal');if(!modal)return;
+  modal.classList.remove('open');document.body.style.overflow='';restoreMobileNavContext();
+}
+async function sendCoachNote(){
+  var box=document.getElementById('coachNoteBody'),send=document.getElementById('coachNoteSend');
+  if(!box||!send)return;
+  var message=box.value.trim();
+  if(message.length<2){setCoachNoteStatus('Write a message first.','error');return;}
+  send.disabled=true;send.textContent='Sending\u2026';setCoachNoteStatus('');
+  try{
+    await portalRequest('contact-coach',{message:message.slice(0,COACH_NOTE_MAX)});
+    try{localStorage.removeItem(coachNoteDraftKey());}catch(e){}
+    box.value='';box.disabled=true;
+    var note=document.getElementById('coachNoteDraft');if(note) note.textContent='';
+    syncCoachNoteMeta();
+    send.textContent='Sent \u2713';
+    setCoachNoteStatus('Sent. Karl and Alex have it and will come back to you directly.','sent');
+    track('contact_message_sent');
+    showToast('Note sent to your coaches \u2713');
+    setTimeout(closeCoachNote,2200);
+  }catch(e){
+    // The draft is still on the device, so say so rather than implying it went.
+    send.disabled=false;send.textContent='Send to your coaches';
+    setCoachNoteStatus((e&&e.message)||'Could not send that just now. Your draft is saved on this device.','error');
+  }
+}
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape')return;
+  var modal=document.getElementById('coachNoteModal');
+  if(modal&&modal.classList.contains('open')) closeCoachNote();
+});
 function toggleMoreMenu(open){
   var menu=document.getElementById('moreMenu');if(!menu)return;
   var shouldOpen=typeof open==='boolean'?open:!menu.classList.contains('open');

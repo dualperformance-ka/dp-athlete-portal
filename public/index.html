@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
-<link rel="stylesheet" href="/styles.css?v=129">
+<link rel="stylesheet" href="/styles.css?v=130">
 <link rel="stylesheet" href="/desktop.css?v=5">
 <link rel="stylesheet" href="/icons.css?v=3">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
@@ -150,7 +150,7 @@
     <div id="pausedName" style="color:#92d2ed;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Hey —</div>
     <div style="color:#f0ede8;font-size:21px;font-weight:800;margin-bottom:10px">Your portal access is paused</div>
     <div style="color:rgba(240,237,232,.55);font-size:13.5px;line-height:1.55;margin-bottom:26px">Your coaching programme is currently on hold, so the portal is locked for now. Message your coach and we'll get you back training.</div>
-    <a href="https://discord.gg/4AnT6nRNAB" target="_blank" rel="noopener" style="display:inline-block;background:#92d2ed;color:#0a0d10;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;border-radius:10px;padding:12px 22px;text-decoration:none;margin-bottom:14px">Message Coach</a>
+    <a href="mailto:support@dualperformance.au?subject=Portal%20access%20paused" rel="noopener" style="display:inline-block;background:#92d2ed;color:#0a0d10;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;border-radius:10px;padding:12px 22px;text-decoration:none;margin-bottom:14px">Email your coach</a>
     <div><button onclick="pausedBackToLogin()" style="background:transparent;border:0;color:rgba(240,237,232,.4);font-size:12px;cursor:pointer;text-decoration:underline;padding:6px">Back to sign in</button></div>
   </div>
 </div>
@@ -1154,10 +1154,11 @@
     </div>
   </div>
 
-  <!-- FLOATING DISCORD -->
-  <a class="wa-fab" href="https://discord.gg/4AnT6nRNAB" target="_blank" title="Join the Discord" style="bottom:76px">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.033.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-  </a>
+  <!-- FLOATING PRIVATE NOTE — Discord stays the community channel; this is the
+       one-to-one line for the message an athlete will not post in a group. -->
+  <button class="wa-fab" type="button" onclick="openCoachNote()" title="Send your coaches a private note" aria-label="Send your coaches a private note" style="bottom:76px;color:#050505;border:0;padding:0;cursor:pointer">
+    <svg class="icon" style="width:24px;height:24px"><use href="#i-chat"/></svg>
+  </button>
 
   <!-- CONTACT -->
   <div class="tab-content" id="tab-comms">
@@ -1172,6 +1173,8 @@
       <div class="comms-title">Talk to your coaches</div>
       <div class="comms-body">Join the Dual Performance Discord — message us, ask questions, and connect with the group. We typically respond within 24 hours.</div>
       <a class="comms-btn" href="https://discord.gg/4AnT6nRNAB" target="_blank">Join the Discord <svg class="icon"><use href="#i-arrow-right"/></svg></a>
+      <button class="comms-btn comms-btn-quiet" type="button" onclick="openCoachNote()">Send a private note <svg class="icon"><use href="#i-chat"/></svg></button>
+      <div class="comms-contacts"><span>Support</span><a href="mailto:support@dualperformance.au">support@dualperformance.au</a></div>
       <div class="comms-note">Karl & Alex · Dual Performance</div>
     </div>
     <div class="card programme-details-card">
@@ -1221,10 +1224,25 @@
       <div class="ql-modal-body">
         <div class="preference-list" id="notificationPreferences"></div>
         <div class="data-controls">
-          <div><strong>Your data</strong><span>Download a copy of locally stored portal data or request account deletion.</span></div>
+          <div><strong>Your data</strong><span>Download everything Dual Performance holds for you, or request account deletion.</span></div>
           <button onclick="exportAthleteData()">Export my data</button>
-          <a href="https://discord.gg/4AnT6nRNAB" target="_blank" rel="noopener">Request account deletion</a>
+          <a href="mailto:privacy@dualperformance.au?subject=Account%20deletion%20request" rel="noopener">Request account deletion</a>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRIVATE NOTE TO COACH — one direction, no threads. Deliberately small. -->
+  <div class="ql-modal" id="coachNoteModal" onclick="if(event.target===this)closeCoachNote()">
+    <div class="ql-modal-inner coach-note-inner">
+      <div class="ql-modal-header"><div><div class="ql-modal-title">Private note to your coaches</div><div class="modal-subtitle">Goes straight to Karl and Alex. Not the Discord.</div></div><button class="ql-modal-close" onclick="closeCoachNote()" aria-label="Close note">&times;</button></div>
+      <div class="ql-modal-body">
+        <label class="coach-note-label" for="coachNoteBody">Your message</label>
+        <textarea id="coachNoteBody" class="coach-note-input" rows="7" maxlength="2000" oninput="draftCoachNote()" placeholder="Injuries, how the training is actually landing, anything you would not put in a group chat."></textarea>
+        <div class="coach-note-foot"><span id="coachNoteDraft" class="coach-note-draft"></span><span id="coachNoteCount" class="coach-note-count">0 / 2000</span></div>
+        <div class="coach-note-status" id="coachNoteStatus" role="status" aria-live="polite"></div>
+        <button class="coach-note-send" id="coachNoteSend" type="button" onclick="sendCoachNote()">Send to your coaches</button>
+        <div class="coach-note-hint">Your coaches read these directly. For anything urgent or medical, contact a health professional first.</div>
       </div>
     </div>
   </div>
@@ -1326,7 +1344,7 @@
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=110"></script>
 <script src="js/02-login-goals.js?v=107"></script>
-<script src="js/03-nav-nudges.js?v=103"></script>
+<script src="js/03-nav-nudges.js?v=104"></script>
 <script src="js/04-checkin.js?v=92"></script>
 <script src="js/05-handbook.js?v=84"></script>
 <script src="js/06-nutrition.js?v=91"></script>

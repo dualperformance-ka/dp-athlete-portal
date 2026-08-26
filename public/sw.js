@@ -1,10 +1,10 @@
-const CACHE_NAME = 'dp-athlete-v164'; // v164: one due nudge in place, the rest behind a summary row
+const CACHE_NAME = 'dp-athlete-v165'; // v165: private note composer, server-side export, real support addresses
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=129', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=130', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=110',
   '/js/02-login-goals.js?v=107',
-  '/js/03-nav-nudges.js?v=103',
+  '/js/03-nav-nudges.js?v=104',
   '/js/04-checkin.js?v=92',
   '/js/05-handbook.js?v=84',
   '/js/06-nutrition.js?v=91',
