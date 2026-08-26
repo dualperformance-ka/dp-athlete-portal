@@ -1,20 +1,20 @@
-const CACHE_NAME = 'dp-athlete-v166'; // v166: named PB toast and the weekly logging streak
+const CACHE_NAME = 'dp-athlete-v170'; // v170: one-time email upgrade prompt for eligible code sign-ins
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=131', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=134', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=111',
-  '/js/02-login-goals.js?v=107',
+  '/js/01-core.js?v=113',
+  '/js/02-login-goals.js?v=109',
   '/js/03-nav-nudges.js?v=104',
   '/js/04-checkin.js?v=92',
   '/js/05-handbook.js?v=84',
   '/js/06-nutrition.js?v=91',
   '/js/07-progress.js?v=88',
   '/js/strava-match.js?v=6',
-  '/js/08-training.js?v=125',
+  '/js/08-training.js?v=126',
   '/js/09-logging.js?v=119',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=105',
-  '/login.js?v=48', '/icons.css?v=3',
+  '/js/10-boot.js?v=107',
+  '/login.js?v=49', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
 ];
@@ -28,9 +28,93 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
+const DP_OFFLINE_DB_NAME = 'dp-athlete-portal';
+const DP_OFFLINE_DB_VERSION = 1;
+const DP_QUEUE_STORE = 'queued_writes';
+const DP_STATE_STORE = 'app_state';
+
+function openOfflineDb() {
+  return new Promise(resolve => {
+    let request;
+    try { request = indexedDB.open(DP_OFFLINE_DB_NAME, DP_OFFLINE_DB_VERSION); }
+    catch (error) { resolve(null); return; }
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(DP_QUEUE_STORE)) {
+        const queue = db.createObjectStore(DP_QUEUE_STORE, { keyPath: 'id' });
+        queue.createIndex('bucket', 'bucket', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(DP_STATE_STORE)) db.createObjectStore(DP_STATE_STORE, { keyPath: 'key' });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+    request.onblocked = () => resolve(null);
+  });
+}
+
+function idbRequest(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('IndexedDB request failed'));
+  });
+}
+
+function idbTransaction(transaction) {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onabort = () => reject(transaction.error || new Error('IndexedDB transaction aborted'));
+    transaction.onerror = () => reject(transaction.error || new Error('IndexedDB transaction failed'));
+  });
+}
+
+async function notifyQueueFlushed(count, trigger) {
+  const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+  windows.forEach(client => client.postMessage({ type: 'dp-queue-flushed', count, trigger }));
+}
+
+async function flushOfflineQueue(trigger) {
+  const db = await openOfflineDb();
+  if (!db) return 0;
+  const tokenRow = await idbRequest(db.transaction(DP_STATE_STORE, 'readonly').objectStore(DP_STATE_STORE).get('dp_auth_token'));
+  const token = tokenRow && tokenRow.value;
+  if (!token) return 0;
+  const queued = await idbRequest(db.transaction(DP_QUEUE_STORE, 'readonly').objectStore(DP_QUEUE_STORE).getAll());
+  let synced = 0;
+  for (const item of queued) {
+    try {
+      const response = await fetch('/api/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetUrl: item.url, payload: item.payload }),
+      });
+      let data = {};
+      try { data = await response.clone().json(); } catch (error) {}
+      if (!response.ok || data.ok === false) continue;
+      const tx = db.transaction(DP_QUEUE_STORE, 'readwrite');
+      tx.objectStore(DP_QUEUE_STORE).delete(item.id);
+      await idbTransaction(tx);
+      synced++;
+    } catch (error) {}
+  }
+  if (synced) await notifyQueueFlushed(synced, trigger);
+  return synced;
+}
+
 self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))));
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)));
+    await self.clients.claim();
+    await flushOfflineQueue('sync');
+  })());
+});
+
+self.addEventListener('sync', event => {
+  if (event.tag === 'dp-flush-queue') event.waitUntil(flushOfflineQueue('sync'));
+});
+
+self.addEventListener('periodicsync', event => {
+  if (event.tag === 'dp-flush-queue') event.waitUntil(flushOfflineQueue('sync'));
 });
 
 self.addEventListener('fetch', event => {

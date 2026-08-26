@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npm run build:vercel",
   "crons": [
     {
       "path": "/api/reminders",

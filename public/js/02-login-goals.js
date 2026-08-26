@@ -26,6 +26,7 @@ async function validateRosterCode(code){
       _authToken=result.access_token;
       localStorage.setItem('dp_legacy_session',_authToken);
       localStorage.setItem('dp_auth_method','code');
+      writePortalOfflineState('dp_auth_token',_authToken);
     }
     return result;
   }catch(e){return null;}
@@ -71,6 +72,40 @@ async function fetchAthleteProfile(code,roster){
   return buildAthleteProfile(null,code,roster);
 }
 function saveProfileCache(code,profile){try{localStorage.setItem('dp_profile_'+code,JSON.stringify(profile));}catch(e){}}
+var _emailUpgradeRoster=null;
+function emailUpgradePromptKey(code){return 'dp_email_upgrade_prompt_v1_'+sanitizeCode(code);}
+function maybeShowEmailUpgradePrompt(roster){
+  if(!roster||localStorage.getItem('dp_auth_method')!=='code')return;
+  if(String(roster.auth_mode||'').toLowerCase()!=='both'||!roster.email)return;
+  var key=emailUpgradePromptKey(roster.code||'');
+  if(!key||localStorage.getItem(key))return;
+  // Record the impression before painting it. A refresh, crash or dismissal can
+  // therefore never turn this gentle migration suggestion into a repeated nag.
+  localStorage.setItem(key,'shown');
+  _emailUpgradeRoster={code:sanitizeCode(roster.code||''),email:String(roster.email).trim().toLowerCase()};
+  var prompt=document.getElementById('emailUpgradePrompt');
+  if(prompt){prompt.hidden=false;prompt.style.display='flex';}
+  track('email_upgrade_prompt_shown');
+}
+function dismissEmailUpgradePrompt(){
+  var prompt=document.getElementById('emailUpgradePrompt');
+  if(prompt){prompt.hidden=true;prompt.style.display='none';}
+}
+async function acceptEmailUpgrade(){
+  if(!_emailUpgradeRoster||!_emailUpgradeRoster.email)return;
+  var email=_emailUpgradeRoster.email;
+  track('email_upgrade_accepted');
+  dismissEmailUpgradePrompt();
+  localStorage.setItem('dp_auth_email',email);
+  _authToken=null;
+  await removePortalOfflineState('dp_auth_token');
+  logoutToLogin(true);
+  localStorage.setItem('dp_auth_method','email');
+  showEmailLogin(true);
+  var input=document.getElementById('emailInput');
+  if(input)input.value=email;
+  await sendEmailCode();
+}
 async function hydratePortalData(code){
   try{
     var bootstrap=await portalRequest('bootstrap');
@@ -147,6 +182,9 @@ async function doLogin(code,prevalidatedRoster){
   var coachLogout=document.getElementById('coachLogoutBtn');
   if(coachLogout)coachLogout.style.display=localStorage.getItem('dp_auth_method')==='code'?'flex':'none';
   document.getElementById('quicklogStrip').style.display='flex';
+  maybeShowEmailUpgradePrompt(roster);
+  updatePendingQueueIndicator();
+  registerBackgroundQueueSync();
   try{syncQuickLogDock();}catch(e){}
   document.getElementById('heroName').textContent=athlete.name;
   populateStatic();

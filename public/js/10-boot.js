@@ -26,6 +26,7 @@ async function bootPortal(){
   if(urlCode){
     _authToken=null;
     localStorage.removeItem('dp_legacy_session');
+    removePortalOfflineState('dp_auth_token');
     doLogin(sanitizeCode(urlCode));
     return;
   }
@@ -37,6 +38,7 @@ async function bootPortal(){
     var session=hasStoredSession?await getAuthSession():null;
     if(session){
       _authToken=session.access_token;
+      writePortalOfflineState('dp_auth_token',_authToken);
       var me=await resolveAuthedAthlete();
       if(me&&me.ok&&me.exists&&me.code){
         if(me.active===false){showPausedScreen(me.name);return;}
@@ -55,9 +57,10 @@ async function bootPortal(){
   var legacyToken=localStorage.getItem('dp_legacy_session');
   if(legacyToken){
     _authToken=legacyToken;
+    writePortalOfflineState('dp_auth_token',_authToken);
     var legacyMe=await resolveAuthedAthlete();
     if(legacyMe&&legacyMe.ok&&legacyMe.code){doLogin(legacyMe.code,legacyMe);return;}
-    _authToken=null;localStorage.removeItem('dp_legacy_session');
+    _authToken=null;localStorage.removeItem('dp_legacy_session');removePortalOfflineState('dp_auth_token');
   }
   var savedCode=localStorage.getItem('dp_auth_code');
   var savedMethod=localStorage.getItem('dp_auth_method');
@@ -129,10 +132,10 @@ function hydrateRunningLibraryMap(byId){
   });
   return true;
 }
-function hydrateRunningLibraryCache(){
+async function hydrateRunningLibraryCache(){
   if(_runLibraryCacheLoaded)return true;
   try{
-    var cached=JSON.parse(localStorage.getItem(RUN_LIB_CACHE_KEY)||'null');
+    var cached=await readPortalOfflineState(RUN_LIB_CACHE_KEY);
     if(cached&&cached.ts&&(Date.now()-cached.ts)<RUN_LIB_CACHE_TTL&&hydrateRunningLibraryMap(cached.byId)){
       _runLibraryCacheLoaded=true;_runLibraryCacheRevision=String(cached.revision||'');
       console.log('Run library: loaded from cache ('+Object.keys(cached.byId).length+' workouts)');
@@ -141,23 +144,23 @@ function hydrateRunningLibraryCache(){
   }catch(e){}
   return false;
 }
-function cacheRunningLibrary(revision){
+async function cacheRunningLibrary(revision){
   _runLibraryCacheLoaded=true;_runLibraryCacheRevision=String(revision||'');
-  try{localStorage.setItem(RUN_LIB_CACHE_KEY,JSON.stringify({ts:Date.now(),revision:_runLibraryCacheRevision,byId:RUNNING_LIBRARY_BY_ID}));}catch(e){}
+  await writePortalOfflineState(RUN_LIB_CACHE_KEY,{ts:Date.now(),revision:_runLibraryCacheRevision,byId:RUNNING_LIBRARY_BY_ID});
 }
 async function loadRunningLibrary(preloaded){
   try{
-    if(preloaded&&preloaded.notModified){hydrateRunningLibraryCache();return true;}
+    if(preloaded&&preloaded.notModified){await hydrateRunningLibraryCache();return true;}
     if(preloaded&&Array.isArray(preloaded.rows)){
-      processLibraryRows(preloaded.rows);cacheRunningLibrary(preloaded.revision);
+      processLibraryRows(preloaded.rows);await cacheRunningLibrary(preloaded.revision);
       _runLibraryRevisionChecked=true;
       console.log('Running Library loaded:',preloaded.rows.length,'workouts');return true;
     }
-    if(hydrateRunningLibraryCache())return true;
+    if(await hydrateRunningLibraryCache())return true;
     console.log('Loading Running Library...');
     var res=await portalRequest('session-library');
     if(!res.rows){console.warn('Session library load failed');return false;}
-    processLibraryRows(res.rows);cacheRunningLibrary(res.revision);
+    processLibraryRows(res.rows);await cacheRunningLibrary(res.revision);
     _runLibraryRevisionChecked=true;
     console.log('Running Library loaded:',res.rows.length,'workouts');return true;
   }catch(error){console.error('Failed to load Running Library:',error);return false;}
@@ -167,9 +170,9 @@ async function refreshRunningLibraryRevision(){
   _runLibraryRevisionChecked=true;
   try{
     var res=await portalRequest('session-library',{libraryRevision:_runLibraryCacheRevision});
-    if(res.notModified){cacheRunningLibrary(res.revision);return;}
+    if(res.notModified){await cacheRunningLibrary(res.revision);return;}
     if(Array.isArray(res.rows)){
-      processLibraryRows(res.rows);cacheRunningLibrary(res.revision);
+      processLibraryRows(res.rows);await cacheRunningLibrary(res.revision);
       if(typeof invalidateProgrammeVolume==='function')invalidateProgrammeVolume();
       if(typeof renderTodaySection==='function')renderTodaySection();
       if(window._portalSecondaryStarted&&typeof loadNutrition==='function')loadNutrition();

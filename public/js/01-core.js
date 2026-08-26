@@ -187,8 +187,8 @@ function initAuthStateListener(){
   _authListenerBound=true;
   sbClient.auth.onAuthStateChange(function(event,session){
     var method=localStorage.getItem('dp_auth_method');
-    if(session&&session.access_token)_authToken=session.access_token;
-    else if(method==='email')_authToken=null;
+    if(session&&session.access_token){_authToken=session.access_token;writePortalOfflineState('dp_auth_token',_authToken);}
+    else if(method==='email'){_authToken=null;removePortalOfflineState('dp_auth_token');}
     // Refresh failed / signed out elsewhere while the portal is open: fall
     // back to the login screen's email panel with a friendly recovery path
     // ("send a new code") instead of silently 401-ing in the background.
@@ -241,6 +241,7 @@ function renewLegacySession(){
       _authToken=result.access_token;
       localStorage.setItem('dp_legacy_session',_authToken);
       localStorage.setItem('dp_auth_method','code');
+      writePortalOfflineState('dp_auth_token',_authToken);
       return result;
     }catch(e){return null;}
   })().finally(function(){_legacyRenewPromise=null;});
@@ -299,6 +300,7 @@ async function authSignOut(){
   try{var client=await ensureSupabaseClient();if(client&&client.auth)await client.auth.signOut();}catch(e){}
   _authToken=null;
   try{localStorage.removeItem('dp_legacy_session');}catch(e){}
+  await removePortalOfflineState('dp_auth_token');
 }
 function handleAuthSessionLost(){
   var method=localStorage.getItem('dp_auth_method');
@@ -345,7 +347,7 @@ function _scheduleSbSync(code,sbKey,parsed){
 }
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')_flushAllSb();});
 window.addEventListener('pagehide',_flushAllSb);
-window.addEventListener('online',function(){setSaveState('saving');_flushAllSb();retryPendingCoachWrites(true).then(function(){setSaveState('saved');});});
+window.addEventListener('online',function(){setSaveState('saving');_flushAllSb();retryPendingCoachWrites(true,'online').then(function(){setSaveState('saved');});});
 window.addEventListener('offline',function(){setSaveState('offline');});
 (function(){
   var _orig=localStorage.setItem.bind(localStorage);
@@ -382,6 +384,123 @@ window.addEventListener('offline',function(){setSaveState('offline');});
 })();
 
 function pendingCoachWritesKey(code){return 'dp_pending_writes_'+code;}
+var DP_OFFLINE_DB_NAME='dp-athlete-portal',DP_OFFLINE_DB_VERSION=1;
+var DP_QUEUE_STORE='queued_writes',DP_STATE_STORE='app_state';
+var _offlineDbPromise=null,_offlineMigrationPromise=null;
+function openPortalOfflineDb(){
+  if(_offlineDbPromise)return _offlineDbPromise;
+  _offlineDbPromise=new Promise(function(resolve){
+    if(typeof indexedDB==='undefined'){resolve(null);return;}
+    var request;
+    try{request=indexedDB.open(DP_OFFLINE_DB_NAME,DP_OFFLINE_DB_VERSION);}catch(e){resolve(null);return;}
+    request.onupgradeneeded=function(){
+      var db=request.result;
+      if(!db.objectStoreNames.contains(DP_QUEUE_STORE)){
+        var queue=db.createObjectStore(DP_QUEUE_STORE,{keyPath:'id'});
+        queue.createIndex('bucket','bucket',{unique:false});
+      }
+      if(!db.objectStoreNames.contains(DP_STATE_STORE))db.createObjectStore(DP_STATE_STORE,{keyPath:'key'});
+    };
+    request.onsuccess=function(){resolve(request.result);};
+    request.onerror=function(){resolve(null);};
+    request.onblocked=function(){resolve(null);};
+  });
+  return _offlineDbPromise;
+}
+function offlineRequest(request){
+  return new Promise(function(resolve,reject){
+    request.onsuccess=function(){resolve(request.result);};
+    request.onerror=function(){reject(request.error||new Error('IndexedDB request failed'));};
+  });
+}
+function offlineTransactionDone(transaction){
+  return new Promise(function(resolve,reject){
+    transaction.oncomplete=function(){resolve();};
+    transaction.onabort=function(){reject(transaction.error||new Error('IndexedDB transaction aborted'));};
+    transaction.onerror=function(){reject(transaction.error||new Error('IndexedDB transaction failed'));};
+  });
+}
+async function putOfflineQueueRecords(db,bucket,list){
+  var tx=db.transaction(DP_QUEUE_STORE,'readwrite'),store=tx.objectStore(DP_QUEUE_STORE);
+  (list||[]).forEach(function(item){store.put(Object.assign({},item,{bucket:bucket}));});
+  await offlineTransactionDone(tx);
+}
+async function migrateOfflineLocalStorage(db){
+  if(!db)return null;
+  if(_offlineMigrationPromise)return _offlineMigrationPromise;
+  _offlineMigrationPromise=(async function(){
+    var keys=[];
+    try{
+      for(var i=0;i<localStorage.length;i++){
+        var key=localStorage.key(i);
+        if(key&&(key.indexOf('dp_pending_writes_')===0||key==='dp_run_library_cache_v3'))keys.push(key);
+      }
+    }catch(e){return db;}
+    for(var k=0;k<keys.length;k++){
+      var storageKey=keys[k],raw=null;
+      try{raw=localStorage.getItem(storageKey);}catch(e){continue;}
+      if(raw==null)continue;
+      try{
+        if(storageKey.indexOf('dp_pending_writes_')===0){
+          var list=JSON.parse(raw),bucket=storageKey.slice('dp_pending_writes_'.length);
+          if(!Array.isArray(list))continue;
+          await putOfflineQueueRecords(db,bucket,list);
+        }else{
+          var cached=JSON.parse(raw);
+          var tx=db.transaction(DP_STATE_STORE,'readwrite');
+          tx.objectStore(DP_STATE_STORE).put({key:storageKey,value:cached});
+          await offlineTransactionDone(tx);
+        }
+        // Removal happens only after the corresponding transaction commits.
+        // A reload can safely repeat any unfinished migration without loss.
+        localStorage.removeItem(storageKey);
+      }catch(e){console.warn('Offline storage migration deferred:',e);}
+    }
+    return db;
+  })();
+  return _offlineMigrationPromise;
+}
+async function getPortalOfflineDb(){return migrateOfflineLocalStorage(await openPortalOfflineDb());}
+async function readPortalOfflineState(key){
+  try{
+    var db=await getPortalOfflineDb();
+    if(!db)throw new Error('IndexedDB unavailable');
+    var tx=db.transaction(DP_STATE_STORE,'readonly');
+    var row=await offlineRequest(tx.objectStore(DP_STATE_STORE).get(key));
+    return row?row.value:null;
+  }catch(e){
+    try{var raw=localStorage.getItem(key);return raw==null?null:JSON.parse(raw);}catch(storageError){return null;}
+  }
+}
+async function writePortalOfflineState(key,value){
+  try{
+    var db=await getPortalOfflineDb();
+    if(!db)throw new Error('IndexedDB unavailable');
+    var tx=db.transaction(DP_STATE_STORE,'readwrite');
+    tx.objectStore(DP_STATE_STORE).put({key:key,value:value});
+    await offlineTransactionDone(tx);
+    try{localStorage.removeItem(key);}catch(e){}
+  }catch(e){
+    try{localStorage.setItem(key,JSON.stringify(value));}catch(storageError){}
+  }
+}
+async function removePortalOfflineState(key){
+  try{
+    var db=await getPortalOfflineDb();
+    if(db){
+      var tx=db.transaction(DP_STATE_STORE,'readwrite');
+      tx.objectStore(DP_STATE_STORE).delete(key);
+      await offlineTransactionDone(tx);
+    }
+  }catch(e){}
+  try{localStorage.removeItem(key);}catch(e){}
+}
+function readPendingCoachWritesFallback(code){
+  try{
+    var list=JSON.parse(localStorage.getItem(pendingCoachWritesKey(code))||'[]');
+    return Array.isArray(list)?list:[];
+  }catch(e){return [];}
+}
 // Resolve the best athlete code available, even if the athlete object isn't
 // ready yet — so a failed write is NEVER silently dropped for lack of a code.
 function currentWriteCode(payload){
@@ -390,28 +509,56 @@ function currentWriteCode(payload){
   try{var c=localStorage.getItem('dp_last_athlete_code');if(c) return c;}catch(e){}
   return '_unknown';
 }
-function readPendingCoachWrites(code){
+async function readPendingCoachWrites(code){
   code=code||currentWriteCode();
   try{
-    var list=JSON.parse(localStorage.getItem(pendingCoachWritesKey(code))||'[]');
-    return Array.isArray(list)?list:[];
-  }catch(e){return [];}
+    var db=await getPortalOfflineDb();
+    if(!db)return readPendingCoachWritesFallback(code);
+    var tx=db.transaction(DP_QUEUE_STORE,'readonly');
+    var list=await offlineRequest(tx.objectStore(DP_QUEUE_STORE).index('bucket').getAll(code));
+    return Array.isArray(list)?list.map(function(item){var copy=Object.assign({},item);delete copy.bucket;return copy;}):[];
+  }catch(e){return readPendingCoachWritesFallback(code);}
 }
 async function persistPendingCoachWrites(list,code){
   code=code||currentWriteCode();
-  try{localStorage.setItem(pendingCoachWritesKey(code),JSON.stringify(list));}catch(e){}
+  try{
+    var db=await getPortalOfflineDb();
+    if(!db)throw new Error('IndexedDB unavailable');
+    var tx=db.transaction(DP_QUEUE_STORE,'readwrite'),store=tx.objectStore(DP_QUEUE_STORE),index=store.index('bucket');
+    var existing=await offlineRequest(index.getAll(code));
+    existing.forEach(function(item){store.delete(item.id);});
+    (list||[]).forEach(function(item){store.put(Object.assign({},item,{bucket:code}));});
+    await offlineTransactionDone(tx);
+    try{localStorage.removeItem(pendingCoachWritesKey(code));}catch(e){}
+  }catch(e){
+    try{localStorage.setItem(pendingCoachWritesKey(code),JSON.stringify(list));}catch(storageError){}
+  }
   // Mirror the retry queue to the authenticated server gateway.
   if(_authToken&&code&&code!=='_unknown'){
     try{
       await portalStateWrite('pending_writes',list);
     }catch(e){console.warn('Pending coach-write sync failed:',e);}
   }
+  if(typeof updatePendingQueueIndicator==='function')updatePendingQueueIndicator();
+}
+async function registerBackgroundQueueSync(){
+  if(!('serviceWorker'in navigator))return;
+  try{
+    var registration=await navigator.serviceWorker.ready;
+    if(registration.sync)await registration.sync.register('dp-flush-queue');
+    if(registration.periodicSync&&navigator.permissions&&navigator.permissions.query){
+      var permission=await navigator.permissions.query({name:'periodic-background-sync'}).catch(function(){return null;});
+      if(permission&&permission.state==='granted'){
+        await registration.periodicSync.register('dp-flush-queue',{minInterval:12*60*60*1000}).catch(function(){});
+      }
+    }
+  }catch(e){}
 }
 async function queueCoachWrite(url,payload,error){
   // Robust: queue under the best code we can resolve; never bail for a missing code.
   var code=currentWriteCode(payload);
   if(code&&code!=='_unknown'){try{localStorage.setItem('dp_last_athlete_code',code);}catch(e){}}
-  var list=readPendingCoachWrites(code);
+  var list=await readPendingCoachWrites(code);
   var writeId=payload&&payload.clientWriteId?payload.clientWriteId:('cw_'+Date.now()+'_'+Math.random().toString(36).slice(2));
   if(payload) payload.clientWriteId=writeId;
   var existing=list.find(function(item){return item.id===writeId;});
@@ -421,6 +568,7 @@ async function queueCoachWrite(url,payload,error){
     list.push({id:writeId,url:url,payload:payload,createdAt:new Date().toISOString(),attempts:0,lastError:String(error&&error.message||error||'Write failed')});
   }
   await persistPendingCoachWrites(list,code);
+  await registerBackgroundQueueSync();
 }
 async function postJsonChecked(url,payload){
   if(payload&&!payload.clientWriteId) payload.clientWriteId='cw_'+Date.now()+'_'+Math.random().toString(36).slice(2);
@@ -456,14 +604,35 @@ async function coachWrite(url,payload,opts){
     return {ok:true,queued:true,error:ingestError&&ingestError.message};
   }
 }
-async function retryPendingCoachWrites(silent){
+var _pendingQueueIndicatorCount=-1;
+async function pendingCoachWriteCount(){
+  var code=currentWriteCode(),list=await readPendingCoachWrites(code);
+  if(code!=='_unknown')list=list.concat(await readPendingCoachWrites('_unknown'));
+  var ids={};return list.filter(function(item){if(!item||ids[item.id])return false;ids[item.id]=true;return true;}).length;
+}
+async function updatePendingQueueIndicator(){
+  var banner=document.getElementById('queuePendingBanner');if(!banner)return;
+  var count=await pendingCoachWriteCount();
+  banner.hidden=count===0;
+  banner.style.display=count?'flex':'none';
+  var text=banner.querySelector('b');if(text)text.textContent=count+' log'+(count===1?'':'s')+' waiting to send';
+  if(count>0&&count!==_pendingQueueIndicatorCount)track('queue_pending_shown',{count:count});
+  _pendingQueueIndicatorCount=count;
+}
+async function manualRetryPendingCoachWrites(){
+  track('queue_flush_manual');
+  var banner=document.getElementById('queuePendingBanner');if(banner)banner.classList.add('is-retrying');
+  try{await retryPendingCoachWrites(false,'manual');}
+  finally{if(banner)banner.classList.remove('is-retrying');await updatePendingQueueIndicator();}
+}
+async function retryPendingCoachWrites(silent,trigger){
   var code=currentWriteCode();
   // Process the active code AND any writes parked under '_unknown' before a code was known.
   var buckets=[code];if(code!=='_unknown') buckets.push('_unknown');
   var totalSynced=0;
   for(var b=0;b<buckets.length;b++){
     var bucket=buckets[b];
-    var list=readPendingCoachWrites(bucket);
+    var list=await readPendingCoachWrites(bucket);
     if(!list.length) continue;
     var keep=[],synced=0;
     for(var i=0;i<list.length;i++){
@@ -481,7 +650,7 @@ async function retryPendingCoachWrites(silent){
     totalSynced+=synced;
     if(bucket==='_unknown'&&code!=='_unknown'){
       // Re-home any still-failing 'unknown' writes under the now-known code.
-      var primary=readPendingCoachWrites(code).concat(keep);
+      var primary=(await readPendingCoachWrites(code)).concat(keep);
       await persistPendingCoachWrites(primary,code);
       await persistPendingCoachWrites([],'_unknown');
     }else{
@@ -494,10 +663,21 @@ async function retryPendingCoachWrites(silent){
     // stops warning about work that has since landed.
     if(typeof loadConfirmedLogDates==='function'){try{await loadConfirmedLogDates();}catch(e){}}
   }
-  if(totalSynced) track('offline_queue_flushed',{count:totalSynced});
+  if(totalSynced) track('offline_queue_flushed',{count:totalSynced,trigger:trigger||'visibility'});
   if(totalSynced&&!silent) showToast(totalSynced+' pending coach update'+(totalSynced>1?'s':'')+' synced');
+  await updatePendingQueueIndicator();
 }
-window.addEventListener('online',function(){retryPendingCoachWrites(false);});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')retryPendingCoachWrites(true,'visibility');});
+window.addEventListener('pageshow',function(){retryPendingCoachWrites(true,'visibility');});
+if('serviceWorker'in navigator){
+  navigator.serviceWorker.addEventListener('message',function(event){
+    var data=event.data||{};
+    if(data.type==='dp-queue-flushed'){
+      if(data.count)track('offline_queue_flushed',{count:data.count,trigger:'sync'});
+      updatePendingQueueIndicator();
+    }
+  });
+}
 
 // Coach prescription overrides now live directly on planned_sessions rows in
 // Supabase — loadPlannedSessions() populates _sessionOverrides from each row.
@@ -581,10 +761,11 @@ async function loadCloudData(code,preloaded){
       else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);
       else if(row.key==='ex_picks') lsKey='dp_ex_picks_'+code;
       else if(row.key.startsWith('call_booked_')) lsKey='dp_call_booked_'+(code?code.toUpperCase()+'_':'')+row.key.slice('call_booked_'.length);
-      else if(row.key==='pending_writes') lsKey=pendingCoachWritesKey(code);
+      else if(row.key==='pending_writes') return;
       if(!lsKey||!row.value) return;
       localStorage.setItem(lsKey,JSON.stringify(row.value));
     });
+    if(Array.isArray(cloudKeys['pending_writes']))await persistPendingCoachWrites(cloudKeys['pending_writes'],code);
     // Rebuild this athlete's completion cache exclusively from structured
     // weekly_checkins (plus a locally queued submission). Old releases used a
     // shared dp_checkin_YYYY_WW key and mirrored it through athlete_data; both
@@ -612,7 +793,7 @@ async function loadCloudData(code,preloaded){
       });
       // An offline submission is still work the athlete has completed. Keep
       // its nudge quiet while the existing outbox retries the canonical write.
-      readPendingCoachWrites(code).forEach(function(item){
+      (await readPendingCoachWrites(code)).forEach(function(item){
         var p=item&&item.payload;if(!p||p.type!=='weekly_checkin'||!p.weekEnding)return;
         var queuedOn=p.submittedAt?new Date(p.submittedAt):(item.createdAt?new Date(item.createdAt):new Date());
         localStorage.setItem(checkinPrefix+checkinWeekSuffix(queuedOn),JSON.stringify({queued:true,weekEnding:p.weekEnding}));
@@ -1279,6 +1460,7 @@ function logoutToLogin(preserveEmail){
   window._trainingReadSnapshot=null;
   localStorage.removeItem('dp_auth_code');
   localStorage.removeItem('dp_legacy_session');
+  removePortalOfflineState('dp_auth_token');
   if(!preserveEmail){
     try{localStorage.removeItem('dp_auth_method');localStorage.removeItem('dp_auth_email');}catch(e){}
   }

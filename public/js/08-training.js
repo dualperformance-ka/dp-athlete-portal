@@ -112,7 +112,7 @@ async function loadTrainingReadSnapshot(startISO,endISO,options){
   }
   if(_trainingReadPromise)return _trainingReadPromise;
   _trainingReadPromise=(async function(){
-    var hasLibrary=typeof hydrateRunningLibraryCache==='function'&&hydrateRunningLibraryCache();
+    var hasLibrary=typeof hydrateRunningLibraryCache==='function'&&await hydrateRunningLibraryCache();
     var bundle=await portalRequest('training-read',{
       start:startISO,end:endISO,includeLibrary:!hasLibrary,
       libraryRevision:(typeof _runLibraryCacheRevision!=='undefined'&&_runLibraryCacheRevision)||''
