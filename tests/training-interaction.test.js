@@ -6,6 +6,7 @@ import { join } from 'node:path';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const source = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
+const logging = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
 const styles = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
 
 test('mobile week workouts are separate controls without invented AM or PM slots', () => {
@@ -45,6 +46,11 @@ test('Strava synced workouts stay orange until RPE and niggle feedback is saved'
   assert.match(styles, /\.mobile-week-session\.pending-feedback\{background:[^}]+#fc4c02/);
   assert.match(styles, /\.mobile-week-session\.pending-feedback \.mobile-week-pending\{display:inline-flex\}/);
   assert.match(source, /Finish the RPE and niggle check-in to complete this session/);
+  assert.match(logging, /entry\.__stravaFeedbackQueued=true/);
+  assert.match(logging, /if\(result&&result\.queued\)[\s\S]*Retry feedback sync[\s\S]*return;/);
+  assert.match(logging, /delete entry\.__stravaFeedbackQueued;entry\.__stravaFeedbackAt=/);
+  assert.match(logging, /focusedSessionIndex===i[\s\S]*closeFocusedSession\(\)/);
+  assert.match(styles, /\.strava-feedback \.savebtn\.is-sending/);
 });
 
 test('Home uses the Training tab completion state and marks completed sessions consistently', () => {

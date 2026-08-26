@@ -65,6 +65,40 @@ test('new drafts require effort while legacy submitted sessions stay complete', 
   assert.equal(context.strengthLogRequiresEffort({ __effortEnabled: true, __submittedAt: '2026-08-26' }, true), true);
 });
 
+test('the first-set prompt opens as soon as the required inputs are filled', () => {
+  const fields = {
+    weight: { value: '59' },
+    reps: { value: '8' },
+    rpe: { value: '' }
+  };
+  const card = { getAttribute: (name) => name === 'data-rpe-required' ? 'false' : null };
+  const row = {
+    querySelector(selector) {
+      if (selector.includes('id^="w_"')) return fields.weight;
+      if (selector.includes('id^="r_"')) return fields.reps;
+      if (selector.includes('id^="rpe_"')) return fields.rpe;
+      return null;
+    },
+    closest: () => card,
+    getAttribute(name) {
+      if (name === 'data-effort-required') return 'true';
+      if (name === 'data-effort') return '';
+      return null;
+    }
+  };
+  const classes = new Set();
+  const panel = { classList: { add: (...names) => names.forEach((name) => classes.add(name)) } };
+  const previousGetter = context.document.getElementById;
+  context.document.getElementById = (id) => id === 'sr_0_0_2' ? row : (id === 'effort_0_0_2' ? panel : null);
+
+  assert.equal(context.strengthSetHasRequiredInputs(row), false, 'effort still blocks completion');
+  assert.equal(context.strengthSetHasRequiredInputs(row, true), true, 'weight and reps are ready to prompt');
+  assert.equal(context.promptStrengthCalibration(0, 0, 2), true);
+  assert.equal(classes.has('is-prompting'), true);
+
+  context.document.getElementById = previousGetter;
+});
+
 test('first-set calibration is saved, sent to coaches, and kept compact', () => {
   assert.match(training, /item\.effort=effort/);
   assert.match(training, /data-effort-required=/);
@@ -72,6 +106,7 @@ test('first-set calibration is saved, sent to coaches, and kept compact', () => 
   assert.match(training, /sessionEffortRequired&&si===warmupSets/);
   assert.match(training, /rowIndex===warmupSetsForEffort/);
   assert.match(training, /applyStrengthEffortLoadToRemaining/);
+  assert.match(training, /oninput="draftStrengthSet\(/);
   assert.match(logging, /__effortEnabled:strengthLogRequiresEffort/);
   assert.match(logging, /Effort: /);
   assert.match(styles, /\.set-effort-options/);
