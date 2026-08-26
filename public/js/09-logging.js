@@ -676,6 +676,7 @@ async function saveRun(i){
   await markSessionLogged(s.id);
   stampSessionSubmitted(s.id);
   var runStatusResult=await markSessionDone(i);
+  track('session_logged',{type:'run'});
   showToast((runCoachResult&&runCoachResult.queued)||(runStatusResult&&runStatusResult.queued)?'Run submitted - coach dashboard sync pending':'Run submitted ✓');
   showRunSaved(i,d);
   if(runDate!==s.date)setSessionDateOverride(s.id,runDate,{silent:true});
@@ -928,6 +929,7 @@ async function saveGym(i,splitKey){
   refreshStrengthFeedback(i,splitKey);
   refreshStrengthExerciseStates(i);
   try{markInlinePbs(i,splitKey);}catch(e){}
+  track('session_logged',{type:'strength'});
   var gymQueued=gymStateQueued||gymCoachResults.some(function(r){return r&&r.queued;})||(gymStatusResult&&gymStatusResult.queued);
   showToast(gymQueued?'Session submitted - coach dashboard sync pending':(pbHits.length?(pbHits.length+' new PB'+(pbHits.length>1?'s':'')+'!'):'Session submitted ✓'));
   var gymSavedBanner=document.getElementById('gym_saved_'+i);

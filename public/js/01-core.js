@@ -1,4 +1,11 @@
 // Public runtime constants are loaded from /config.js.
+
+// ── ANALYTICS ────────────────────────────────────────────────────────────────
+// Vercel Web Analytics. window.va is absent until the injected script loads,
+// and stays absent forever if a content blocker or bad signal stops it — so
+// every call is guarded and wrapped. Tracking must never throw into a user
+// action, and no athlete name, email or free text is ever passed as a prop.
+function track(event, props){ try{ if(window.va) window.va('event',{name:event,data:props||{}}); }catch(e){} }
 // ── WORKOUT SPLITS (Supabase = source of truth, hardcoded STR = fallback) ────
 var SPLITS_BY_NAME={};
 function getSplit(key){return SPLITS_BY_NAME[key]||STR[key]||[];}
@@ -487,6 +494,7 @@ async function retryPendingCoachWrites(silent){
     // stops warning about work that has since landed.
     if(typeof loadConfirmedLogDates==='function'){try{await loadConfirmedLogDates();}catch(e){}}
   }
+  if(totalSynced) track('offline_queue_flushed',{count:totalSynced});
   if(totalSynced&&!silent) showToast(totalSynced+' pending coach update'+(totalSynced>1?'s':'')+' synced');
 }
 window.addEventListener('online',function(){retryPendingCoachWrites(false);});

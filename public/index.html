@@ -15,6 +15,10 @@
 <link rel="stylesheet" href="/styles.css?v=127">
 <link rel="stylesheet" href="/desktop.css?v=5">
 <link rel="stylesheet" href="/icons.css?v=3">
+<!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
+     if this request is blocked or fails, window.Sentry is simply absent and
+     every call site below is guarded. -->
+<script async id="dpSentrySdk" src="https://browser.sentry-cdn.com/10.71.0/bundle.min.js" crossorigin="anonymous"></script>
 
 </head>
 <body>
@@ -1274,18 +1278,63 @@
 </div>
 
 <script src="config.js"></script>
+<script>
+// Sentry init. Runs only when the CDN bundle loaded AND a DSN is configured.
+// With SENTRY_DSN = '' this block does nothing and the portal is unaffected.
+(function(){
+  function scrubCode(value){
+    if(typeof value!=='string'||value.indexOf('code=')<0)return value;
+    var out=value.replace(/([?&])code=[^&#\s"']*/gi,'$1');
+    return out.replace(/&&+/g,'&').replace(/\?&/g,'?').replace(/[?&]+($|#)/g,'$1');
+  }
+  function scrubDeep(node,depth){
+    if(node==null||depth>6)return node;
+    if(typeof node==='string')return scrubCode(node);
+    if(Array.isArray(node)){for(var i=0;i<node.length;i++)node[i]=scrubDeep(node[i],depth+1);return node;}
+    if(typeof node==='object'){for(var k in node){if(Object.prototype.hasOwnProperty.call(node,k))node[k]=scrubDeep(node[k],depth+1);}return node;}
+    return node;
+  }
+  function initSentry(){
+    if(!(window.Sentry&&typeof SENTRY_DSN==='string'&&SENTRY_DSN))return;
+    try{
+      window.Sentry.init({
+        dsn:SENTRY_DSN,
+        tracesSampleRate:0,
+        replaysSessionSampleRate:0,
+        environment:location.hostname==='portal.dualperformance.au'?'production':'preview',
+        beforeSend:function(event){
+          try{
+            var text=String((event&&event.message)||'');
+            var values=(event&&event.exception&&event.exception.values)||[];
+            for(var i=0;i<values.length;i++)text+=' '+String((values[i]&&values[i].value)||'');
+            if(text.indexOf('@')>-1)return null;
+            return scrubDeep(event,0);
+          }catch(e){return null;}
+        }
+      });
+    }catch(e){}
+  }
+  // Always defined, so login can tag without knowing whether Sentry loaded.
+  window.dpTagAthlete=function(code){
+    try{if(window.Sentry&&window.Sentry.setTag&&code)window.Sentry.setTag('athlete',String(code));}catch(e){}
+  };
+  var sdk=document.getElementById('dpSentrySdk');
+  if(window.Sentry)initSentry();
+  else if(sdk)sdk.addEventListener('load',initSentry);
+})();
+</script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=109"></script>
-<script src="js/02-login-goals.js?v=105"></script>
-<script src="js/03-nav-nudges.js?v=99"></script>
-<script src="js/04-checkin.js?v=91"></script>
+<script src="js/01-core.js?v=110"></script>
+<script src="js/02-login-goals.js?v=107"></script>
+<script src="js/03-nav-nudges.js?v=101"></script>
+<script src="js/04-checkin.js?v=92"></script>
 <script src="js/05-handbook.js?v=84"></script>
 <script src="js/06-nutrition.js?v=91"></script>
-<span id="progressModuleAsset" data-src="/js/07-progress.js?v=87" hidden></span>
+<span id="progressModuleAsset" data-src="/js/07-progress.js?v=88" hidden></span>
 <script type="module" src="js/strava-match.js?v=6"></script>
-<script src="js/08-training.js?v=120"></script>
-<script src="js/09-logging.js?v=116"></script>
+<script src="js/08-training.js?v=121"></script>
+<script src="js/09-logging.js?v=117"></script>
 <script src="accessibility.js?v=1"></script>
-<script src="js/10-boot.js?v=103"></script>
+<script src="js/10-boot.js?v=105"></script>
 </body>
 </html>

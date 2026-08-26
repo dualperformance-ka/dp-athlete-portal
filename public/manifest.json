@@ -4,7 +4,7 @@
   "description": "Training, readiness, nutrition and coaching in one place.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#3d84b3",
+  "background_color": "#070a0d",
   "theme_color": "#070a0d",
   "icons": [
     {

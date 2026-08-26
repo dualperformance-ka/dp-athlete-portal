@@ -392,6 +392,7 @@ function renderDayPlanDate(iso){
   content.scrollTop=0;return ov;
 }
 function openDayPlanDate(iso,trigger){
+  track('session_opened');
   dayPlanReturnFocus=trigger||document.activeElement;var ov=renderDayPlanDate(iso);
   document.body.classList.add('day-plan-open');ov.setAttribute('aria-hidden','false');void ov.offsetHeight;ov.classList.add('open');
   var close=ov.querySelector('.day-plan-close');if(close)setTimeout(function(){close.focus();},80);

@@ -404,6 +404,7 @@ window.addEventListener('message',function(e){
 });
 
 function switchTab(tab){
+  track('tab_viewed',{tab:tab});
   document.body.setAttribute('data-active-tab',tab); // desktop: hero shows on Today only
   document.querySelectorAll('.tab').forEach(function(t){var active=t.dataset.tab===tab;t.classList.toggle('active',active);t.setAttribute('aria-selected',active?'true':'false');});
   document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+tab);});
@@ -428,6 +429,7 @@ function switchTab(tab){
   document.getElementById('wbar').style.display=showWeekBar?'':'none';
   if(tab==='nutrition'&&Date.now()-_nutLastLoad>60000) loadNutrition(); // skip refetch if loaded <60s ago (week shifts & post-save always reload directly)
   if(tab==='checkin'){
+    track('weekly_checkin_started');
     initCheckin();
     if(!isDesktop) window.scrollTo({top:0,behavior:'smooth'});
   }
@@ -605,6 +607,7 @@ async function enableAllReminderNotifications(){
   var permission=Notification.permission;
   if(permission==='default'){try{permission=await Notification.requestPermission();}catch(e){permission='denied';}}
   if(permission!=='granted'){
+    track('push_permission_denied');
     localStorage.setItem(notificationOnboardingKey(),'declined');
     _notificationOnboardingOpen=false;renderReminderPreferences(false);
     showToast('Notifications were not enabled — you can allow them later in phone settings','error');
@@ -612,6 +615,7 @@ async function enableAllReminderNotifications(){
   }
   // Kept only so an exported copy of the athlete's data still reflects what
   // they receive; delivery itself is decided server-side.
+  track('push_permission_granted');
   setAllReminderPreferences(true);
   localStorage.setItem(notificationOnboardingKey(),'enabled');
   _notificationOnboardingOpen=false;renderReminderPreferences(false);
@@ -641,8 +645,28 @@ function renderNotificationInbox(){
       +'<span class="notification-item-dot"></span><span class="notification-item-copy"><strong>'+esc(item.title)+'</strong><span>'+esc(item.body)+'</span><small>'+esc(notificationTime(item.created_at))+(item.pushed_at?' · Sent to your device':' · Inbox')+'</small></span><b>›</b></button>';
   }).join('');
 }
+// Single implementation of the inbox read POST. Used by an inbox tap and by a
+// push tap arriving with ?n=<id>; there is deliberately no second code path.
+async function markNotificationRead(id){
+  try{
+    var response=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'read-notification',id:id})});
+    var data=await response.json();if(response.ok&&data.ok){_notificationInbox=data.notifications||_notificationInbox;updateNotificationBadge(data.unread);}
+  }catch(e){}
+}
+// A push tap lands on the session with ?n=<id>. Mark it read, then take the
+// parameter back out of the URL so it never survives a reload, a bookmark or
+// a screenshot. tab/date deep links are preserved.
+async function consumeNotificationReadParam(){
+  var params;try{params=new URLSearchParams(location.search);}catch(e){return;}
+  var id=params.get('n');if(!id)return;
+  await markNotificationRead(id);
+  params.delete('n');
+  var query=params.toString();
+  try{history.replaceState(null,'',location.pathname+(query?'?'+query:'')+location.hash);}catch(e){}
+}
 async function refreshNotificationInbox(){
   if(!_authToken||!athlete)return;
+  await consumeNotificationReadParam();
   try{
     var response=await fetch('/api/reminders?portal=1',{headers:authHeaders({}),cache:'no-store'});
     var data=await response.json();if(!response.ok||data.ok===false)throw new Error(data.error||'Inbox unavailable');
@@ -658,10 +682,7 @@ function openNotificationInbox(){
 }
 function closeNotificationInbox(){var modal=document.getElementById('notificationInboxModal');if(modal)modal.classList.remove('open');document.body.style.overflow='';}
 async function openNotificationItem(id,url){
-  try{
-    var response=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'read-notification',id:id})});
-    var data=await response.json();if(response.ok&&data.ok){_notificationInbox=data.notifications||_notificationInbox;updateNotificationBadge(data.unread);}
-  }catch(e){}
+  await markNotificationRead(id);
   closeNotificationInbox();
   window.location.href=url||'/';
 }

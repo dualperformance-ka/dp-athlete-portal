@@ -128,6 +128,8 @@ async function doLogin(code,prevalidatedRoster){
   if(!fresh){resetBtn();showLoginError('Unable to load your athlete profile');renderCode();return;}
   if(showWelcome)showLoginSuccess(fresh.name);
   athlete=fresh;saveProfileCache(code,fresh);
+  if(window.dpTagAthlete)window.dpTagAthlete(code);
+  track(localStorage.getItem('dp_auth_method')==='email'?'login_email':'login_code');
   resetBtn();
   localStorage.setItem('dp_auth_code',code);
   // Supabase remains the identity provider for email OTP only; portal data

@@ -20,5 +20,9 @@ const VAPID_PUBLIC_KEY = 'BC7jdUB_OT76fRWp-PgNKyKvErSx0NxH-F7eS-tyQbo7G6YxHJQDwr
 // Actual code sends are gated server-side by the EMAIL_AUTH_ENABLED env var
 // plus per-athlete enrolment (athletes.email + auth_mode).
 const EMAIL_AUTH_UI = true;
+// Sentry error monitoring (public DSN by design — it only permits event
+// ingestion, same as the anon and VAPID public keys above). Empty disables
+// Sentry entirely; the portal behaves identically either way.
+const SENTRY_DSN = '';
 var GYM_KEYS = ['Upper A','Upper B','Lower A','Lower B']; // extended at runtime from Supabase workout_splits
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
