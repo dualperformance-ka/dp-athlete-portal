@@ -1,11 +1,11 @@
 {
   "styles.css": {
-    "version": 134,
-    "sha": "49160bfa33a4"
+    "version": 137,
+    "sha": "6019a8f83e6d"
   },
   "desktop.css": {
-    "version": 5,
-    "sha": "891b5fc95fb4"
+    "version": 6,
+    "sha": "6265ef56e573"
   },
   "icons.css": {
     "version": 3,
@@ -28,28 +28,32 @@
     "sha": "58cf7502aceb"
   },
   "js/04-checkin.js": {
-    "version": 92,
-    "sha": "c53a07f45eb0"
+    "version": 93,
+    "sha": "df7e858c5a51"
   },
   "js/05-handbook.js": {
-    "version": 84,
-    "sha": "42fef24591b9"
+    "version": 85,
+    "sha": "b36fd66006a3"
   },
   "js/06-nutrition.js": {
     "version": 91,
     "sha": "d97a25edc5d2"
   },
   "js/07-progress.js": {
-    "version": 88,
-    "sha": "029f0329c478"
+    "version": 89,
+    "sha": "89c7c9f9c2af"
   },
   "js/strava-match.js": {
     "version": 6,
     "sha": "ef4ae7d30ee9"
   },
+  "js/08-training-interval-rest.js": {
+    "version": 1,
+    "sha": "ce83ae62b788"
+  },
   "js/08-training.js": {
-    "version": 126,
-    "sha": "c0ecfe82e93e"
+    "version": 128,
+    "sha": "32c32d12e6f6"
   },
   "js/09-logging.js": {
     "version": 119,
@@ -60,7 +64,7 @@
     "sha": "3e9bf44307a4"
   },
   "js/10-boot.js": {
-    "version": 108,
-    "sha": "71f78995c6ba"
+    "version": 109,
+    "sha": "25982d5a08f3"
   }
 }

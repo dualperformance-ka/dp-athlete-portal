@@ -698,139 +698,6 @@ function parseAlternative(meta,sessionTitle){
   return{title:fallback.name,description:alt};
 }
 
-// ── INTERVAL REST TIME PARSER ──────────────────────────────────────────────────
-// Rest times are coach-decided by this function based on session type/intensity.
-// Priority: 1) Notion "Rep Rest" field (coach override), 2) this function's logic.
-// Notion's Recovery Type / Recovery Time fields are NEVER used for rep rest.
-function getIntervalRestInfo(meta, sessionTitle) {
-  var title = String(sessionTitle || meta.name || '').toLowerCase();
-  var intensity = String(meta.intensity || '').toLowerCase();
-  var type = String(meta.type || '').toLowerCase();
-  var description = String(meta.description || meta.target || '').toLowerCase();
-  var haystack = title + ' ' + intensity + ' ' + type + ' ' + description;
-
-  // Exclude continuous/easy/recovery sessions — no rep-based rest needed
-  var isContinuous = /\beasy run\b|\blong run\b|\brecovery run\b|\brecovery\b|\beasy\b|\bcontinuous\b|\bsteady state\b/.test(type) ||
-    /\beasy run\b|\blong run\b|\brecovery run\b/.test(title) ||
-    intensity === 'aerobic' || intensity === 'easy';
-  if (isContinuous) return null;
-
-  // Exclude tempo/threshold runs that are continuous (no reps)
-  var isContinuousTempo = /\btempo run\b|\bthreshold run\b|\bsteady tempo\b/.test(title) && !/[x×]|\brep\b|\brepeat/.test(haystack);
-  if (isContinuousTempo) return null;
-
-  // Must look like an interval/rep session
-  var isInterval = /interval|track|repeat|\brep\b|speed|fartlek|hill sprint|hill rep|yasso|\d+\s*[x×]\s*\d|\d+\s*x\s*\d/.test(haystack);
-  if (!isInterval) return null;
-
-  // ── COACH LOGIC: decide rest time based on session type ──────────────────────
-  var restTime, restType, restDesc, recoveryNote;
-
-  if (/200\s*m|200m/.test(haystack)) {
-    // 200m reps — near-maximal, full walk rest
-    restTime = '60–90 sec'; restType = 'Walk Rest';
-    restDesc = 'Walk back to the start line. Full recovery — these are near-maximal speed efforts.';
-    recoveryNote = 'Short and sharp. Full rest is non-negotiable — rushing recovery kills quality.';
-
-  } else if (/400\s*m|400m/.test(haystack)) {
-    // 400m reps — VO2max, 60 sec walk rest
-    restTime = '60 sec'; restType = 'Walk Rest';
-    restDesc = 'Walk rest between each rep. Short and structured — this keeps the stimulus race-sharp.';
-    recoveryNote = 'If pace drops >3 sec/lap by rep 5, add 15–20 sec to rest and hold pace — don\'t sacrifice quality for speed.';
-
-  } else if (/800\s*m|800m/.test(haystack)) {
-    // 800m reps — VO2max, jog/walk rest
-    restTime = '2–3 min'; restType = 'Jog / Walk Rest';
-    restDesc = 'Easy jog or brisk walk between reps. Aim to feel ~80% recovered before the next 800.';
-    recoveryNote = 'Don\'t rush the recovery — these demand real effort and real rest.';
-
-  } else if (/1\.6\s*km|1600\s*m/.test(haystack)) {
-    // 1600m / mile reps
-    restTime = '2–3 min'; restType = 'Easy Jog Rest';
-    restDesc = 'Easy jog between reps. These are threshold-length efforts — you need proper recovery to hold pace.';
-    recoveryNote = 'If pace drops >5 sec/km on a rep, the rest wasn\'t long enough.';
-
-  } else if (/1\.5\s*k|1500\s*m/.test(haystack)) {
-    restTime = '2–3 min'; restType = 'Easy Jog Rest';
-    restDesc = 'Easy jog between reps. You should be breathing comfortably before the next one starts.';
-    recoveryNote = 'Keep the jog very easy — legs should feel ready, not fatigued.';
-
-  } else if (/1\s*km|1000\s*m/.test(haystack)) {
-    // 1km reps — threshold/VO2max
-    restTime = '90 sec – 2 min'; restType = 'Easy Jog Rest';
-    restDesc = 'Easy jog recovery between each 1km rep. HR should drop noticeably before restarting.';
-    recoveryNote = 'Consistent pacing across all reps is the goal — use the rest to make that happen.';
-
-  } else if (/2\s*km|2000\s*m/.test(haystack)) {
-    restTime = '2–3 min'; restType = 'Easy Jog Rest';
-    restDesc = 'Easy jog or walk recovery. These are sustained efforts — give yourself enough time to reset.';
-    recoveryNote = 'Aim for even splits across all reps.';
-
-  } else if (/3\s*km|3000\s*m/.test(haystack)) {
-    restTime = '3–4 min'; restType = 'Easy Jog Rest';
-    restDesc = 'Easy jog between reps. Full aerobic recovery before the next effort.';
-    recoveryNote = 'Quality over quantity — if pace slips >10 sec/km on a rep, cut it and rest more.';
-
-  } else if (/yasso/.test(haystack)) {
-    restTime = 'Equal to rep time'; restType = 'Easy Jog Rest';
-    restDesc = 'Jog for the same duration as your 800m rep. Classic Yasso structure.';
-    recoveryNote = 'E.g. if your 800m takes 4:00, jog for 4:00 before the next rep.';
-
-  } else if (/hill rep|hill sprint/.test(haystack)) {
-    restTime = 'Full walk-back'; restType = 'Walk Down Recovery';
-    restDesc = 'Walk back down the hill completely. These are power reps — full recovery between each one.';
-    recoveryNote = 'Don\'t jog back. The walk IS the rest. Rushing kills the next rep.';
-
-  } else if (/fartlek/.test(haystack)) {
-    restTime = 'Equal to work time'; restType = 'Easy Jog Recovery';
-    restDesc = 'Match recovery to effort: 1 min hard = 1 min easy. Keep moving — no standing rest.';
-    recoveryNote = 'Fartlek is about flow — never stop, just shift gears.';
-
-  } else if (/cruise|tempo interval/.test(haystack)) {
-    // Cruise intervals / tempo reps
-    restTime = '60–90 sec'; restType = 'Easy Jog Rest';
-    restDesc = 'Short jog recovery — these reps are at threshold, not race pace. The rest keeps lactate in check.';
-    recoveryNote = 'You should feel controlled between reps, not destroyed.';
-
-  } else if (/(\d+)\s*[x×]\s*(\d+)\s*min/.test(String(meta.description || sessionTitle || ''))) {
-    // Timed reps e.g. 6×3min, 8×2min
-    var minMatch = String(meta.description || sessionTitle || '').match(/(\d+)\s*[x×]\s*(\d+)\s*min/i);
-    var repMins = minMatch ? parseInt(minMatch[2]) : 2;
-    if (repMins <= 1) {
-      restTime = '60 sec'; restType = 'Easy Jog Rest';
-      restDesc = 'Short jog recovery between each 1min rep. Keep moving — these are aerobic surges.';
-      recoveryNote = 'Match the intensity: hard 1min, easy 1min. Don\'t stop.';
-    } else if (repMins <= 2) {
-      restTime = '90 sec'; restType = 'Easy Jog Rest';
-      restDesc = 'Easy jog recovery between each rep. Heart rate should come down before restarting.';
-      recoveryNote = 'Aim for even pace across all reps. Slow down if needed — don\'t cut rest.';
-    } else {
-      restTime = '2 min'; restType = 'Easy Jog Rest';
-      restDesc = 'Easy jog between longer reps. Give yourself time to reset — these are sustained efforts.';
-      recoveryNote = 'Consistent splits are the goal. Add 30 sec rest if pace is falling off.';
-    }
-
-  } else {
-    // Generic fallback
-    restTime = '90 sec – 2 min'; restType = 'Easy Jog Rest';
-    restDesc = 'Easy jog between reps. You should feel mostly recovered — controlled breathing — before each effort.';
-    recoveryNote = 'Adjust rest up if needed. Consistent reps beat fast early, slow late.';
-  }
-
-  // ── NOTION OVERRIDE: "Rep Rest" field wins if coaches have set it ────────────
-  // Add a "Rep Rest" property to the session in Notion to override the above.
-  // E.g. "90 sec", "2 min jog", "3 min". Only this field is used — not Recovery Type.
-  var notionRepRest = String(meta.repRest || '').trim();
-  if (notionRepRest) {
-    restTime = notionRepRest;
-    restType = 'Coach-specified Rest';
-    restDesc = 'Rest period as prescribed by your coaches. Stick to this — it\'s calibrated to your fitness and session load.';
-    recoveryNote = 'Don\'t cut it short. Consistent reps across all efforts is the goal.';
-  }
-
-  return { restTime: restTime, restType: restType, restDesc: restDesc, recoveryNote: recoveryNote };
-}
-
 function buildRunSubtitle(s,meta,resolvedTitle){
   meta=meta||{};
   var parts=[];
@@ -1249,7 +1116,7 @@ function renderTodaySection(){
             html+='<div class="label">Coach note</div><div class="value">'+esc(_todayOv.notes)+'</div>';
           }
           // Structured rows
-          html+='<div style="display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,.1);border-radius:7px;overflow:hidden;margin-top:10px">';
+          html+='<div style="display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);overflow:hidden;margin-top:10px">';
           var _tRows=[];
           if(_todayOv.distance_km) _tRows.push({label:'Total',val:_todayOv.distance_km+'km',accent:false});
           if(_todayOv.warm_up) _tRows.push({label:'Warm up',val:_todayOv.warm_up,accent:false});
@@ -1260,8 +1127,8 @@ function renderTodaySection(){
           _tRows.forEach(function(row,ri){
             var bb=ri<_tRows.length-1?'border-bottom:1px solid rgba(255,255,255,.08);':'';
             html+='<div style="display:grid;grid-template-columns:72px 1fr;gap:8px;padding:8px 10px;'+bb+'">';
-            html+='<span style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:'+(row.accent?'var(--run)':'rgba(255,255,255,.4)')+';font-weight:'+(row.accent?'700':'400')+'">'+row.label+'</span>';
-            html+='<span style="font-size:13px;font-weight:'+(row.accent?'700':'500')+';color:#fff;line-height:1.3">'+esc(row.val)+'</span>';
+            html+='<span style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.07em;color:'+(row.accent?'var(--run)':'rgba(255,255,255,.4)')+';font-weight:'+(row.accent?'700':'400')+'">'+row.label+'</span>';
+            html+='<span style="font-size:var(--font-sm);font-weight:'+(row.accent?'700':'500')+';color:#fff;line-height:1.3">'+esc(row.val)+'</span>';
             html+='</div>';
           });
           html+='</div>';
@@ -2240,15 +2107,15 @@ function buildBody(s,i,type){
     h+='<div class="run-details">';
 
     // ── Unified session card ──────────────────────────────────────────────────
-    h+='<div class="run-prescription-card" style="background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015)), var(--surface);border:1px solid var(--border-mid);border-radius:10px;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)">';
+    h+='<div class="run-prescription-card" style="background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015)), var(--surface);border:1px solid var(--border-mid);border-radius:var(--radius-md);overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)">';
 
     // Header — session title + RPE + zone
     h+='<div class="run-prescription-head" style="padding:14px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.015)">';
-    h+='<div class="run-prescription-title" style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--text);line-height:1.1;margin-bottom:8px">'+esc(sessionTitle)+'</div>';
+    h+='<div class="run-prescription-title" style="font-family:var(--display);font-size:var(--font-xl);font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--text);line-height:1.1;margin-bottom:8px">'+esc(sessionTitle)+'</div>';
     h+='<div class="run-prescription-badges" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-    h+='<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;background:var(--run);padding:3px 9px;border-radius:5px;letter-spacing:.04em;white-space:nowrap">'+esc(rpeInfo.value)+'</div>';
-    h+='<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+zone.color+';background:'+zone.bg+';padding:3px 9px;border-radius:5px;letter-spacing:.04em;white-space:nowrap">'+esc(zone.label)+'</div>';
-    h+='<div style="font-size:12px;color:var(--muted);line-height:1.4">'+esc(rpeInfo.desc)+'</div>';
+    h+='<div style="font-family:var(--mono);font-size:var(--font-xs);font-weight:700;color:#fff;background:var(--run);padding:3px 9px;border-radius:var(--radius-xs);letter-spacing:.04em;white-space:nowrap">'+esc(rpeInfo.value)+'</div>';
+    h+='<div style="font-family:var(--mono);font-size:var(--font-xs);font-weight:700;color:'+zone.color+';background:'+zone.bg+';padding:3px 9px;border-radius:var(--radius-xs);letter-spacing:.04em;white-space:nowrap">'+esc(zone.label)+'</div>';
+    h+='<div style="font-size:var(--font-xs);color:var(--muted);line-height:1.4">'+esc(rpeInfo.desc)+'</div>';
     h+='</div></div>';
 
     // Body
@@ -2266,23 +2133,23 @@ function buildBody(s,i,type){
       if(_mainSet) _ovRows.push({label:'Main set',val:_mainSet,accent:true});
       if(_ov.rest) _ovRows.push({label:'Rest',val:_ov.rest,accent:false});
       if(_ov.cool_down) _ovRows.push({label:'Cool down',val:_ov.cool_down,accent:false});
-      h+='<div class="run-prescription-table" style="border:1px solid var(--border-mid);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.02)">';
+      h+='<div class="run-prescription-table" style="border:1px solid var(--border-mid);border-radius:var(--radius-sm);overflow:hidden;background:rgba(255,255,255,.02)">';
       _ovRows.forEach(function(row,ri){
         var borderB=ri<_ovRows.length-1?'border-bottom:1px solid var(--border);':'';
         h+='<div class="run-prescription-row" style="display:grid;grid-template-columns:80px 1fr;align-items:baseline;gap:8px;padding:9px 12px;'+borderB+'">';
-        h+='<span style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:'+(row.accent?'var(--run)':'var(--muted)')+';font-weight:'+(row.accent?'700':'400')+';padding-top:1px">'+row.label+'</span>';
-        h+='<span style="font-size:14px;font-weight:'+(row.accent?'700':'500')+';color:var(--text);line-height:1.4">'+esc(row.val)+'</span>';
+        h+='<span style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.07em;color:'+(row.accent?'var(--run)':'var(--muted)')+';font-weight:'+(row.accent?'700':'400')+';padding-top:1px">'+row.label+'</span>';
+        h+='<span style="font-size:var(--font-sm);font-weight:'+(row.accent?'700':'500')+';color:var(--text);line-height:1.4">'+esc(row.val)+'</span>';
         h+='</div>';
       });
       h+='</div>';
       if(_ov.notes){
-        h+='<div class="run-coach-note" style="background:rgba(146,210,237,.07);border:1px solid rgba(146,210,237,.18);border-radius:7px;padding:10px 13px">';
-        h+='<div style="font-family:var(--mono);font-size:9px;color:var(--run);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:5px">Coach Note</div>';
-        h+='<div style="font-size:13px;color:var(--text);line-height:1.55">'+esc(_ov.notes)+'</div>';
+        h+='<div class="run-coach-note" style="background:rgba(146,210,237,.07);border:1px solid rgba(146,210,237,.18);border-radius:var(--radius-sm);padding:10px 13px">';
+        h+='<div style="font-family:var(--mono);font-size:var(--font-xs);color:var(--run);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:5px">Coach Note</div>';
+        h+='<div style="font-size:var(--font-sm);color:var(--text);line-height:1.55">'+esc(_ov.notes)+'</div>';
         h+='</div>';
       }
     } else {
-      h+='<div style="font-size:15px;font-weight:600;color:var(--text);line-height:1.55">'+esc(workoutText)+'</div>';
+      h+='<div style="font-size:var(--font-md);font-weight:600;color:var(--text);line-height:1.55">'+esc(workoutText)+'</div>';
     }
 
     // Rest pill + optional chips — subtle, secondary
@@ -2291,9 +2158,9 @@ function buildBody(s,i,type){
     if(hasSecondary&&!_ovHasStructure){
       h+='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:-4px">';
       if(intervalRest){
-        h+='<div style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border-radius:6px;padding:4px 10px">';
-        h+='<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--run);letter-spacing:.04em">'+esc(intervalRest.restTime)+'</span>';
-        h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">'+esc(intervalRest.restType)+'</span>';
+        h+='<div style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border-radius:var(--radius-sm);padding:4px 10px">';
+        h+='<span style="font-family:var(--mono);font-size:var(--font-xs);font-weight:700;color:var(--run);letter-spacing:.04em">'+esc(intervalRest.restTime)+'</span>';
+        h+='<span style="font-family:var(--mono);font-size:var(--font-xs);color:var(--muted);letter-spacing:.05em;text-transform:uppercase">'+esc(intervalRest.restType)+'</span>';
         h+='</div>';
       }
       chips.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
@@ -2302,9 +2169,9 @@ function buildBody(s,i,type){
 
     // Coaching note — own row, breathing room
     if(intervalRest&&intervalRest.recoveryNote&&!_ovHasStructure){
-      h+='<div style="border-left:3px solid var(--run);padding:8px 12px;background:var(--surface2);border-radius:0 6px 6px 0">';
-      h+='<div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px">Coach Note</div>';
-      h+='<div style="font-size:12px;color:var(--text);line-height:1.6">'+esc(intervalRest.recoveryNote)+'</div>';
+      h+='<div style="border-left:3px solid var(--run);padding:8px 12px;background:var(--surface2);border-radius:0 var(--radius-sm) var(--radius-sm) 0">';
+      h+='<div style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px">Coach Note</div>';
+      h+='<div style="font-size:var(--font-xs);color:var(--text);line-height:1.6">'+esc(intervalRest.recoveryNote)+'</div>';
       h+='</div>';
     }
 
@@ -2312,18 +2179,18 @@ function buildBody(s,i,type){
     var isLowIntensity=/\beasy\b|\brecovery\b|\blong run\b|\blong\b/.test(zHaystack);
     if(!isLowIntensity&&!_ovHasStructure){
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-      h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Warm up</div>';
-      h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(warmUp)+'</div></div>';
-      h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Cool down</div>';
-      h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(coolDown)+'</div></div>';
+      h+='<div><div style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Warm up</div>';
+      h+='<div style="font-size:var(--font-xs);color:var(--text);line-height:1.45">'+esc(warmUp)+'</div></div>';
+      h+='<div><div style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Cool down</div>';
+      h+='<div style="font-size:var(--font-xs);color:var(--text);line-height:1.45">'+esc(coolDown)+'</div></div>';
       h+='</div>';
     }
 
     // Alternative
     h+='<div class="run-alternative" style="border-top:1px solid var(--border);padding-top:10px;margin-top:-2px">';
-    h+='<div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Alternative</div>';
-    h+='<div style="font-size:13px;font-weight:700;color:var(--run);margin-bottom:3px">'+esc(altInfo.title)+'</div>';
-    h+='<div style="font-size:12px;color:var(--muted);line-height:1.45">'+esc(altInfo.description)+'</div>';
+    h+='<div style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Alternative</div>';
+    h+='<div style="font-size:var(--font-sm);font-weight:700;color:var(--run);margin-bottom:3px">'+esc(altInfo.title)+'</div>';
+    h+='<div style="font-size:var(--font-xs);color:var(--muted);line-height:1.45">'+esc(altInfo.description)+'</div>';
     h+='</div>';
 
     h+='</div></div>'; // end body + card
@@ -2346,7 +2213,7 @@ function buildBody(s,i,type){
     h+='<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>';
     h+='</div>';
     h+='<div id="run_form_'+i+'" style="display:'+(hasSaved?'none':'block')+';">';
-    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="run_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
+    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:var(--font-xs);display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:var(--font-xs);font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="run_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     h+='<div class="run-log-title">Log your session</div><div class="run-inputs">';
     h+='<div class="run-field"><label>Distance (km)</label><input type="number" step="0.1" id="rd_'+i+'" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
     h+='<div class="run-field"><label>Duration (min)</label><input type="number" step="1" id="rdur_'+i+'" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
@@ -2366,7 +2233,7 @@ function buildBody(s,i,type){
 
     var splitKey=splitKeyForSession(s,'Upper A');
     var exercises=getSplit(splitKey),sl2=logs[s.id]||{},gymSubmitted=isSessionLogged(s.id),sessionRpeRequired=strengthLogRequiresRpe(sl2,gymSubmitted),sessionEffortRequired=strengthLogRequiresEffort(sl2,gymSubmitted,s.date);
-    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
+    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:var(--font-xs);display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:var(--font-xs);font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     if(exercises.length){
       var restTimerOn=typeof restTimerEnabled==='function'?restTimerEnabled():true;
       var strengthRpeOn=typeof strengthRpeEnabled==='function'?strengthRpeEnabled():true;
@@ -2530,7 +2397,7 @@ function buildBody(s,i,type){
       setTimeout(function(idx,key){return function(){refreshMuscleCoverage(idx,key);};}(i,splitKey),0);
     }
     var sl2notes=(logs[s.id]&&logs[s.id].__notes)||'';
-    h+='<div class="run-field run-input-full" style="margin-top:12px;margin-bottom:8px"><label>Session notes <span style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--dim)">(PRs, wins, niggles, anything worth logging)</span></label><textarea id="gn_'+i+'" class="li" placeholder="e.g. Hit a new squat PR, left knee felt a bit off on lunges..." oninput="draftGym('+i+',\''+esc(splitKey)+'\')" style="min-height:70px;resize:vertical;font-size:13px">'+esc(sl2notes)+'</textarea></div>';
+    h+='<div class="run-field run-input-full" style="margin-top:12px;margin-bottom:8px"><label>Session notes <span style="font-family:var(--mono);font-size:var(--font-xs);font-weight:400;color:var(--dim)">(PRs, wins, niggles, anything worth logging)</span></label><textarea id="gn_'+i+'" class="li" placeholder="e.g. Hit a new squat PR, left knee felt a bit off on lunges..." oninput="draftGym('+i+',\''+esc(splitKey)+'\')" style="min-height:70px;resize:vertical;font-size:var(--font-sm)">'+esc(sl2notes)+'</textarea></div>';
     var gymHasDraft=gymDraftHasData(sl2);
     h+='<div id="gym_saved_'+i+'" class="session-submit-status '+(gymSubmitted?'is-submitted':'is-draft')+'" style="display:'+(gymSubmitted||gymHasDraft?'flex':'none')+';">';
     if(gymSubmitted) h+='<span class="submit-status-icon"><svg class="icon"><use href="#i-check"/></svg></span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>';
@@ -2546,14 +2413,14 @@ function buildBody(s,i,type){
     var sl3=logs[s.id]||{};
     var noteVal=(typeof sl3.__notes==='string')?sl3.__notes:(sl3.notes||'');
     var instruction=s.runDetails||(_sessionOverrides[s.id]&&_sessionOverrides[s.id].notes)||'';
-    h+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border-mid);border-radius:8px;padding:12px 14px">';
-    if(instruction) h+='<div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:12px">'+esc(instruction)+'</div>';
-    h+='<div class="run-field run-input-full" style="margin-bottom:10px"><label>What did you do? <span style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--dim)">(training + how it felt, anything worth logging)</span></label><textarea id="nt_'+i+'" class="li" placeholder="e.g. 45min easy run + mobility, legs felt good. Hit chest at the gym, normal week..." oninput="draftNote('+i+')" style="min-height:90px;resize:vertical;font-size:13px">'+esc(noteVal)+'</textarea></div>';
+    h+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:12px 14px">';
+    if(instruction) h+='<div style="font-size:var(--font-sm);color:var(--text);line-height:1.55;margin-bottom:12px">'+esc(instruction)+'</div>';
+    h+='<div class="run-field run-input-full" style="margin-bottom:10px"><label>What did you do? <span style="font-family:var(--mono);font-size:var(--font-xs);font-weight:400;color:var(--dim)">(training + how it felt, anything worth logging)</span></label><textarea id="nt_'+i+'" class="li" placeholder="e.g. 45min easy run + mobility, legs felt good. Hit chest at the gym, normal week..." oninput="draftNote('+i+')" style="min-height:90px;resize:vertical;font-size:var(--font-sm)">'+esc(noteVal)+'</textarea></div>';
     h+='<div id="note_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label"><svg class="icon"><use href="#i-check"/></svg>Submitted to your coaches</div></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveNote('+i+')">Save</button>';
     if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save');}(i),0);}
     h+='</div>';
-  }else{h+='<div style="font-family:var(--mono);font-size:12px;color:var(--dim);padding:8px 0">Rest up. Recovery is training too.</div>';}
+  }else{h+='<div style="font-family:var(--mono);font-size:var(--font-xs);color:var(--dim);padding:8px 0">Rest up. Recovery is training too.</div>';}
   return h;
 }
 

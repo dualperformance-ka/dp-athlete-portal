@@ -43,7 +43,7 @@ test('Strava synced workouts stay orange until RPE and niggle feedback is saved'
   assert.equal(context.trainingSessionIsComplete({id:'tempo',status:'Completed'}),true);
   assert.match(source, /needsFeedback\?' pending-feedback'/);
   assert.match(source, /Finish RPE and niggle check-in/);
-  assert.match(styles, /\.mobile-week-session\.pending-feedback\{background:[^}]+#fc4c02/);
+  assert.match(styles, /\.mobile-week-session\.pending-feedback\{background:[^}]+var\(--strava\)/);
   assert.match(styles, /\.mobile-week-session\.pending-feedback \.mobile-week-pending\{display:inline-flex\}/);
   assert.match(source, /Finish the RPE and niggle check-in to complete this session/);
   assert.match(logging, /entry\.__stravaFeedbackQueued=true/);

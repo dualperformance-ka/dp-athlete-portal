@@ -437,7 +437,7 @@ function updateNutFeedback(){
     return '<div class="qln-fb-item">'
       +'<div class="qln-fb-label">'+label+'</div>'
       +'<div class="qln-fb-val" style="color:'+color+'">'+(val||0)+unit
-        +'<span style="font-family:var(--mono);font-size:9px;color:var(--dim);font-weight:400"> / '+tgt.display+unit+'</span></div>'
+        +'<span style="font-family:var(--mono);font-size:var(--font-xs);color:var(--dim);font-weight:400"> / '+tgt.display+unit+'</span></div>'
       +'<div class="qln-fb-bar"><div class="qln-fb-fill" style="width:'+fillW+'%;background:'+barColor+'"></div></div>'
       +'<div class="qln-fb-status" style="color:'+color+'">'+status+'</div>'
       +'</div>';

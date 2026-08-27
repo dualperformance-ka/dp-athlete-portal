@@ -9,16 +9,16 @@
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#070a0d">
 <style id="loginCriticalStyles">
-:root{--bg:#040506;--text:#f7fafc;--run:#92d2ed;--mono:'DM Mono',monospace;--display:'Barlow Condensed',sans-serif;--body:'Barlow',sans-serif;--dp-logo:url('dp_baby_blue_transparent_512x512.png');--dp-wordmark:url('dual_performance_one_line_filled_logo_black_preview.png')}*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}html,body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;-webkit-font-smoothing:antialiased}#loginScreen{position:relative;min-height:100vh;min-height:100svh;background:radial-gradient(circle at 50% 46%,rgba(146,210,237,.18),rgba(20,77,96,.07) 24%,rgba(4,5,6,0) 48%),linear-gradient(180deg,#090d10 0%,#040506 46%,#020303 100%);overflow:hidden;isolation:isolate}#loginScreen::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.28),transparent 28%,rgba(0,0,0,.34) 100%),radial-gradient(ellipse at center,transparent 38%,rgba(0,0,0,.52) 100%);pointer-events:none;z-index:1}.login-depth{position:absolute;left:50%;top:48%;width:min(780px,130vw);height:min(780px,130vw);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(146,210,237,.16),rgba(146,210,237,.055) 34%,transparent 68%);filter:blur(6px)}.login-grid{position:absolute;left:50%;top:50%;width:min(560px,96vw);height:min(560px,96vw);transform:translate(-50%,-50%) rotate(-12deg);border:1px solid rgba(146,210,237,.05);border-radius:36px}.login-wordmark{position:absolute;left:32px;top:28px;width:258px;height:34px;background:var(--dp-wordmark) left center/contain no-repeat;opacity:.16;filter:grayscale(1);z-index:2}.login-col{position:relative;max-width:430px;width:min(430px,calc(100vw - 32px));min-height:100vh;min-height:100svh;margin:0 auto;padding:48px 18px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;z-index:3}.login-col::before{content:'';position:absolute;left:50%;top:50%;width:100%;height:520px;transform:translate(-50%,-50%);border:1px solid rgba(146,210,237,.12);border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));box-shadow:0 22px 90px rgba(0,0,0,.45);z-index:-1}.login-mark-wrap{position:relative;width:94px;height:94px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center}.login-logo-img{position:relative;width:78px;height:78px;background:var(--dp-logo) center/contain no-repeat;filter:drop-shadow(0 0 18px rgba(146,210,237,.32))}.login-eyebrow,.code-label,.login-note,.login-footer,.lerr,.email-input,.email-sent-to,.email-link,.email-notice{font-family:var(--mono)}.login-eyebrow{font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:rgba(247,250,252,.42);margin-bottom:10px}.login-brand{font-family:var(--display);font-size:34px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:.95;margin-bottom:10px}.login-subcopy{max-width:320px;margin:0 auto 34px;font-size:14px;line-height:1.45;color:rgba(247,250,252,.58)}#codeLogin,#emailLogin{width:100%}.code-label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(146,210,237,.74);margin-bottom:12px}.code-boxes{width:100%;display:flex;gap:8px;justify-content:center;margin-bottom:18px}.code-box{width:56px;height:66px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.015));color:#dff6ff;font:800 30px/1 var(--display);display:flex;align-items:center;justify-content:center}.code-box.active{border-color:rgba(146,210,237,.9);background:rgba(146,210,237,.08)}.code-box.filled{border-color:rgba(146,210,237,.5);background:rgba(146,210,237,.14);color:#fff}.code-hidden{position:fixed;left:-9999px;opacity:0;pointer-events:none}.login-actions{width:100%;margin-top:2px}.lbtn{width:100%;min-height:58px;background:#92d2ed;border:1px solid rgba(183,230,247,.82);color:#020506;font:800 17px var(--display);text-transform:uppercase;letter-spacing:.18em;padding:16px 18px;border-radius:10px;cursor:pointer}.lbtn:disabled{cursor:not-allowed;opacity:.42;background:rgba(146,210,237,.28);color:rgba(255,255,255,.62)}.lerr{display:none;font-size:11px;color:#ff8b8b;margin-top:13px}.login-note{margin-top:20px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(247,250,252,.34)}.login-footer{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);z-index:3;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(247,250,252,.18);white-space:nowrap}.email-input{width:100%;min-height:58px;padding:16px 18px;margin-bottom:18px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.03);color:#dff6ff;font-size:16px;text-align:center}.email-input:focus{outline:none;border-color:rgba(146,210,237,.9);background:rgba(146,210,237,.08)}.email-sent-to,.email-notice{font-size:11px;color:rgba(223,246,255,.75);margin-bottom:14px}.email-links{display:flex;justify-content:center;gap:18px;margin-top:16px}.email-link{background:transparent;border:0;padding:6px 2px;font-size:11px;color:rgba(146,210,237,.78);text-decoration:underline;cursor:pointer}.login-alt-toggle{margin-top:22px}.email-notice{line-height:1.5;background:rgba(146,210,237,.07);border:1px solid rgba(146,210,237,.22);border-radius:10px;padding:10px 14px}.login-success{position:absolute;left:50%;top:50%;width:min(420px,calc(100vw - 36px));transform:translate(-50%,-42%) scale(.98);z-index:5;display:flex;flex-direction:column;align-items:center;text-align:center;opacity:0;pointer-events:none}.login-success-mark{width:92px;height:92px;margin-bottom:22px;background:var(--dp-logo) center/contain no-repeat}.login-success-title{font:800 40px/.95 var(--display);text-transform:uppercase}.login-success-sub{font-size:14px;color:rgba(247,250,252,.58);margin:12px 0 24px}#loginScreen.login-authed .login-col{opacity:0;pointer-events:none}#loginScreen.login-authed .login-success{opacity:1;transform:translate(-50%,-50%) scale(1)}
-@media(max-width:700px){.login-wordmark{display:none}.login-col{width:100%;padding:34px 18px 46px}.login-col::before{width:calc(100vw - 24px);height:500px}.login-mark-wrap{width:82px;height:82px;margin-bottom:16px}.login-logo-img{width:68px;height:68px}.login-brand{font-size:30px}.login-subcopy{font-size:13px;margin-bottom:28px}.code-boxes{gap:6px}.code-box{width:calc((100vw - 72px)/6);max-width:52px;min-width:42px;height:62px;font-size:28px}.login-footer{bottom:18px;font-size:8px}#loginScreen.keyboard-open{overflow:auto}#loginScreen.keyboard-open .login-col{min-height:auto;justify-content:flex-start;padding-top:14px}#loginScreen.keyboard-open .login-mark-wrap{width:54px;height:54px;margin-bottom:8px}#loginScreen.keyboard-open .login-logo-img{width:46px;height:46px}#loginScreen.keyboard-open .login-subcopy,#loginScreen.keyboard-open .login-note,#loginScreen.keyboard-open .login-footer{display:none}}
+:root{--bg:#040506;--text:#f7fafc;--run:#92d2ed;--mono:'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--display:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;--body:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;--dp-logo:url('dp_baby_blue_transparent_512x512.png');--dp-wordmark:url('dual_performance_one_line_filled_logo_black_preview.png')}*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}html,body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;-webkit-font-smoothing:antialiased}#loginScreen{position:relative;min-height:100vh;min-height:100svh;background:radial-gradient(circle at 50% 46%,rgba(146,210,237,.18),rgba(20,77,96,.07) 24%,rgba(4,5,6,0) 48%),linear-gradient(180deg,#090d10 0%,#040506 46%,#020303 100%);overflow:hidden;isolation:isolate}#loginScreen::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.28),transparent 28%,rgba(0,0,0,.34) 100%),radial-gradient(ellipse at center,transparent 38%,rgba(0,0,0,.52) 100%);pointer-events:none;z-index:1}.login-depth{position:absolute;left:50%;top:48%;width:min(780px,130vw);height:min(780px,130vw);transform:translate(-50%,-50%);border-radius:var(--radius-pill,999px);background:radial-gradient(circle,rgba(146,210,237,.16),rgba(146,210,237,.055) 34%,transparent 68%);filter:blur(6px)}.login-grid{position:absolute;left:50%;top:50%;width:min(560px,96vw);height:min(560px,96vw);transform:translate(-50%,-50%) rotate(-12deg);border:1px solid rgba(146,210,237,.05);border-radius:var(--radius-2xl,32px)}.login-wordmark{position:absolute;left:32px;top:28px;width:258px;height:34px;background:var(--dp-wordmark) left center/contain no-repeat;opacity:.16;filter:grayscale(1);z-index:2}.login-col{position:relative;max-width:430px;width:min(430px,calc(100vw - 32px));min-height:100vh;min-height:100svh;margin:0 auto;padding:48px 18px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;z-index:3}.login-col::before{content:'';position:absolute;left:50%;top:50%;width:100%;height:520px;transform:translate(-50%,-50%);border:1px solid rgba(146,210,237,.12);border-radius:var(--radius-lg,16px);background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));box-shadow:0 22px 90px rgba(0,0,0,.45);z-index:-1}.login-mark-wrap{position:relative;width:94px;height:94px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center}.login-logo-img{position:relative;width:78px;height:78px;background:var(--dp-logo) center/contain no-repeat;filter:drop-shadow(0 0 18px rgba(146,210,237,.32))}.login-eyebrow,.code-label,.login-note,.login-footer,.lerr,.email-input,.email-sent-to,.email-link,.email-notice{font-family:var(--mono)}.login-eyebrow{font-size:var(--font-xs,12px);letter-spacing:.32em;text-transform:uppercase;color:rgba(247,250,252,.42);margin-bottom:10px}.login-brand{font-family:var(--display);font-size:var(--font-2xl,32px);font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:.95;margin-bottom:10px}.login-subcopy{max-width:320px;margin:0 auto 34px;font-size:var(--font-sm,14px);line-height:1.45;color:rgba(247,250,252,.58)}#codeLogin,#emailLogin{width:100%}.code-label{font-size:var(--font-xs,12px);letter-spacing:.18em;text-transform:uppercase;color:rgba(146,210,237,.74);margin-bottom:12px}.code-boxes{width:100%;display:flex;gap:8px;justify-content:center;margin-bottom:18px}.code-box{width:56px;height:66px;border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-md,12px);background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.015));color:#dff6ff;font:800 var(--font-2xl,32px)/1 var(--display);display:flex;align-items:center;justify-content:center}.code-box.active{border-color:rgba(146,210,237,.9);background:rgba(146,210,237,.08)}.code-box.filled{border-color:rgba(146,210,237,.5);background:rgba(146,210,237,.14);color:#fff}.code-hidden{position:fixed;left:-9999px;opacity:0;pointer-events:none}.login-actions{width:100%;margin-top:2px}.lbtn{width:100%;min-height:58px;background:#92d2ed;border:1px solid rgba(183,230,247,.82);color:#020506;font:800 var(--font-md,16px) var(--display);text-transform:uppercase;letter-spacing:.18em;padding:16px 18px;border-radius:var(--radius-md,12px);cursor:pointer}.lbtn:disabled{cursor:not-allowed;opacity:.42;background:rgba(146,210,237,.28);color:rgba(255,255,255,.62)}.lerr{display:none;font-size:var(--font-xs,12px);color:#ff8b8b;margin-top:13px}.login-note{margin-top:20px;font-size:var(--font-xs,12px);letter-spacing:.08em;text-transform:uppercase;color:rgba(247,250,252,.34)}.login-footer{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);z-index:3;font-size:var(--font-xs,12px);letter-spacing:.16em;text-transform:uppercase;color:rgba(247,250,252,.18);white-space:nowrap}.email-input{width:100%;min-height:58px;padding:16px 18px;margin-bottom:18px;border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-md,12px);background:rgba(255,255,255,.03);color:#dff6ff;font-size:var(--font-md,16px);text-align:center}.email-input:focus{outline:none;border-color:rgba(146,210,237,.9);background:rgba(146,210,237,.08)}.email-sent-to,.email-notice{font-size:var(--font-xs,12px);color:rgba(223,246,255,.75);margin-bottom:14px}.email-links{display:flex;justify-content:center;gap:18px;margin-top:16px}.email-link{background:transparent;border:0;padding:6px 2px;font-size:var(--font-xs,12px);color:rgba(146,210,237,.78);text-decoration:underline;cursor:pointer}.login-alt-toggle{margin-top:22px}.email-notice{line-height:1.5;background:rgba(146,210,237,.07);border:1px solid rgba(146,210,237,.22);border-radius:var(--radius-md,12px);padding:10px 14px}.login-success{position:absolute;left:50%;top:50%;width:min(420px,calc(100vw - 36px));transform:translate(-50%,-42%) scale(.98);z-index:5;display:flex;flex-direction:column;align-items:center;text-align:center;opacity:0;pointer-events:none}.login-success-mark{width:92px;height:92px;margin-bottom:22px;background:var(--dp-logo) center/contain no-repeat}.login-success-title{font:800 var(--font-display,48px)/.95 var(--display);text-transform:uppercase}.login-success-sub{font-size:var(--font-sm,14px);color:rgba(247,250,252,.58);margin:12px 0 24px}#loginScreen.login-authed .login-col{opacity:0;pointer-events:none}#loginScreen.login-authed .login-success{opacity:1;transform:translate(-50%,-50%) scale(1)}
+@media(max-width:700px){.login-wordmark{display:none}.login-col{width:100%;padding:34px 18px 46px}.login-col::before{width:calc(100vw - 24px);height:500px}.login-mark-wrap{width:82px;height:82px;margin-bottom:16px}.login-logo-img{width:68px;height:68px}.login-brand{font-size:var(--font-2xl,32px)}.login-subcopy{font-size:var(--font-sm,14px);margin-bottom:28px}.code-boxes{gap:6px}.code-box{width:calc((100vw - 72px)/6);max-width:52px;min-width:42px;height:62px;font-size:var(--font-2xl,32px)}.login-footer{bottom:18px;font-size:var(--font-xs,12px)}#loginScreen.keyboard-open{overflow:auto}#loginScreen.keyboard-open .login-col{min-height:auto;justify-content:flex-start;padding-top:14px}#loginScreen.keyboard-open .login-mark-wrap{width:54px;height:54px;margin-bottom:8px}#loginScreen.keyboard-open .login-logo-img{width:46px;height:46px}#loginScreen.keyboard-open .login-subcopy,#loginScreen.keyboard-open .login-note,#loginScreen.keyboard-open .login-footer{display:none}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=134" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=134'></noscript>
-<link rel="stylesheet" href="/desktop.css?v=5">
+<link rel="preload" as="style" href="/styles.css?v=137" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=137'></noscript>
+<link rel="stylesheet" href="/desktop.css?v=6">
 <link rel="stylesheet" href="/icons.css?v=3">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
      if this request is blocked or fails, window.Sentry is simply absent and
@@ -150,13 +150,13 @@
 
 <!-- PAUSED ACCESS — shown when the roster marks this athlete active=false -->
 <div id="pausedScreen" style="display:none;position:fixed;inset:0;z-index:2000;background:#0a0d10;align-items:center;justify-content:center;padding:24px">
-  <div style="max-width:400px;width:100%;text-align:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:38px 28px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">
-    <div style="font-size:34px;line-height:1;margin-bottom:14px">⏸</div>
-    <div id="pausedName" style="color:#92d2ed;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Hey —</div>
-    <div style="color:#f0ede8;font-size:21px;font-weight:800;margin-bottom:10px">Your portal access is paused</div>
-    <div style="color:rgba(240,237,232,.55);font-size:13.5px;line-height:1.55;margin-bottom:26px">Your coaching programme is currently on hold, so the portal is locked for now. Message your coach and we'll get you back training.</div>
-    <a href="mailto:support@dualperformance.au?subject=Portal%20access%20paused" rel="noopener" style="display:inline-block;background:#92d2ed;color:#0a0d10;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;border-radius:10px;padding:12px 22px;text-decoration:none;margin-bottom:14px">Email your coach</a>
-    <div><button onclick="pausedBackToLogin()" style="background:transparent;border:0;color:rgba(240,237,232,.4);font-size:12px;cursor:pointer;text-decoration:underline;padding:6px">Back to sign in</button></div>
+  <div style="max-width:400px;width:100%;text-align:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius-lg,16px);padding:38px 28px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">
+    <div style="font-size:var(--font-2xl,32px);line-height:1;margin-bottom:14px">⏸</div>
+    <div id="pausedName" style="color:#92d2ed;font-size:var(--font-sm,14px);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Hey —</div>
+    <div style="color:#f0ede8;font-size:var(--font-lg,20px);font-weight:800;margin-bottom:10px">Your portal access is paused</div>
+    <div style="color:rgba(240,237,232,.55);font-size:var(--font-sm,14px);line-height:1.55;margin-bottom:26px">Your coaching programme is currently on hold, so the portal is locked for now. Message your coach and we'll get you back training.</div>
+    <a href="mailto:support@dualperformance.au?subject=Portal%20access%20paused" rel="noopener" style="display:inline-block;background:#92d2ed;color:#0a0d10;font-weight:800;font-size:var(--font-sm,14px);letter-spacing:.04em;text-transform:uppercase;border-radius:var(--radius-md,12px);padding:12px 22px;text-decoration:none;margin-bottom:14px">Email your coach</a>
+    <div><button onclick="pausedBackToLogin()" style="background:transparent;border:0;color:rgba(240,237,232,.4);font-size:var(--font-xs,12px);cursor:pointer;text-decoration:underline;padding:6px">Back to sign in</button></div>
   </div>
 </div>
 <script src="login.js?v=49"></script>
@@ -271,13 +271,13 @@
          are completed; the card hides itself when all rows are gone. -->
     <div class="top-shell-priority week-card">
       <!-- STRAVA CONNECTED BANNER -->
-      <div id="strava-ack-banner" style="display:none;margin:0;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:12px 16px;align-items:center;gap:12px;">
+      <div id="strava-ack-banner" style="display:none;margin:0;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);border-radius:var(--radius-md,12px);padding:12px 16px;align-items:center;gap:12px;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="#22c55e" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg>
         <div style="flex:1">
-          <div style="color:#22c55e;font-weight:700;font-size:14px;">Strava Connected!</div>
-          <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">Your runs will now sync automatically to your dashboard.</div>
+          <div style="color:#22c55e;font-weight:700;font-size:var(--font-sm,14px);">Strava Connected!</div>
+          <div style="color:rgba(255,255,255,.6);font-size:var(--font-xs,12px);margin-top:2px;">Your runs will now sync automatically to your dashboard.</div>
         </div>
-        <button id="strava-ack-btn" onclick="acknowledgeStrava()" style="background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">Got it</button>
+        <button id="strava-ack-btn" onclick="acknowledgeStrava()" style="background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:var(--radius-sm,8px);padding:6px 12px;font-size:var(--font-xs,12px);font-weight:600;cursor:pointer;">Got it</button>
       </div>
 
       <!-- FIRST-LOGIN GOALS — a compact home row, hidden once goals are saved. -->
@@ -427,7 +427,7 @@
     <div class="card goals-section-card">
       <div class="card-title">Race Goal</div>
       <div class="stat-grid">
-        <div class="stat-field" style="grid-column:1/-1">
+        <div class="stat-field u-grid-full">
           <label>Goal Race</label>
           <div class="race-options" id="raceOptions">
             <button class="race-opt" data-val="5K" onclick="selectRace(this)">5K</button>
@@ -439,7 +439,7 @@
         </div>
         <div class="stat-field" id="otherRaceField" style="display:none;grid-column:1/-1">
           <label>Specify Race</label>
-          <input class="stat-input" id="gRaceOther" type="text" placeholder="e.g. 63km ultra, trail race..." style="font-size:16px"/>
+          <input class="stat-input" id="gRaceOther" type="text" placeholder="e.g. 63km ultra, trail race..." style="font-size:var(--font-md,16px)"/>
         </div>
         <div class="stat-field">
           <label>Target Peak Week</label>
@@ -508,7 +508,7 @@
       <div class="goals-card-note">What do you want lifting to do for your running?</div>
       <div class="goals-block-label">Focus</div>
       <div class="stat-grid">
-        <div class="stat-field" style="grid-column:1/-1">
+        <div class="stat-field u-grid-full">
           <label>Primary Intent</label>
           <div class="race-options" id="strengthIntentOptions">
             <button class="race-opt" data-val="Injury Resilience" onclick="selectGoalChip(this)">Injury Resilience</button>
@@ -518,7 +518,7 @@
           </div>
           <div class="field-hint">sets your rep ranges</div>
         </div>
-        <div class="stat-field" style="grid-column:1/-1">
+        <div class="stat-field u-grid-full">
           <label>Priority Areas</label>
           <div class="race-options" id="strengthPriorityOptions">
             <button class="race-opt" data-val="Glutes" onclick="toggleGoalChip(this,2)">Glutes</button>
@@ -534,7 +534,7 @@
       </div>
       <div class="goals-block-label goals-block-label-split">Tracked Lift<span class="goals-block-note">normal working set, not a one-rep max</span></div>
       <div class="stat-grid">
-        <div class="stat-field" style="grid-column:1/-1">
+        <div class="stat-field u-grid-full">
           <label>Key Lift</label>
           <input class="stat-input" id="gStrengthLift" type="text" placeholder="e.g. trap-bar deadlift" />
           <div class="field-hint">the one you want to track</div>
@@ -599,7 +599,7 @@
         <div class="mc pro"><div class="mv" id="nutPro">—</div><div class="ml">Protein g</div></div>
         <div class="mc carb"><div class="mv" id="nutCarb">—</div><div class="ml">Carbs g</div></div>
         <div class="mc fat"><div class="mv" id="nutFat">—</div><div class="ml">Fat g</div></div>
-        <div class="mc fibre" style="grid-column:1/-1"><div class="mv" id="nutFibre" style="font-size:28px">—</div><div class="ml">Fibre g (target)</div></div>
+        <div class="mc fibre u-grid-full"><div class="mv" id="nutFibre" style="font-size:var(--font-2xl,32px)">—</div><div class="ml">Fibre g (target)</div></div>
       </div>
       <div class="card wkm-card" id="nutKmCard" style="display:none"></div>
       <div class="card vstrip-card" id="nutVolumeStrip" style="display:none"></div>
@@ -643,17 +643,17 @@
     </div>
     <div class="stitle">Weekly Check-in</div>
     <div class="ci-rail">
-    <div class="ci-grid" style="margin-bottom:14px">
+    <div class="ci-grid" style="margin-bottom:var(--font-sm,14px)">
       <div class="ci-card run"><div class="ci-val" id="ciRuns">—</div><div class="ci-lbl">Runs this week</div></div>
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
     </div>
         <!-- STEP 1: BOOK — state-aware: renderBookingPrompts() flips it to "booked" once the call is confirmed -->
-        <div id="ciBookCard" onclick="openCallModal()" role="button" tabindex="0" style="background:#0a0a0a;border:1px solid rgba(245,158,11,.22);box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.22);border-radius:10px;margin-bottom:16px;overflow:hidden;cursor:pointer">
+        <div id="ciBookCard" onclick="openCallModal()" role="button" tabindex="0" style="background:#0a0a0a;border:1px solid rgba(245,158,11,.22);box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.22);border-radius:var(--radius-md,12px);margin-bottom:16px;overflow:hidden;cursor:pointer">
           <div style="padding:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative">
             <div style="flex:1;min-width:0">
-              <div id="ciBookKicker" style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">Step 1 — Do this first</div>
-              <div id="ciBookTitle" style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.1;margin-bottom:4px">Book your coaching call</div>
-              <div id="ciBookSub" style="font-size:13px;color:rgba(255,255,255,.45);line-height:1.5">30 min with Karl &amp; Alex · Tap to open booking</div>
+              <div id="ciBookKicker" style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">Step 1 — Do this first</div>
+              <div id="ciBookTitle" style="font-family:var(--display);font-size:var(--font-xl,24px);font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.1;margin-bottom:4px">Book your coaching call</div>
+              <div id="ciBookSub" style="font-size:var(--font-sm,14px);color:rgba(255,255,255,.45);line-height:1.5">30 min with Karl &amp; Alex · Tap to open booking</div>
             </div>
             <div id="ciBookArrow" style="color:#f59e0b;flex-shrink:0;line-height:1"><svg class="icon" style="width:18px;height:18px"><use href="#i-chevron-right"/></svg></div>
           </div>
@@ -666,7 +666,7 @@
           <!-- Always-visible details -->
           <div class="ci-identity-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
             <div class="lf"><label>Your name</label><input type="text" class="li" id="ciName" placeholder="Your name" /></div>
-            <div class="lf"><label style="display:flex;align-items:center;gap:6px">Week ending <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.85);font-family:var(--mono)">— confirm before submitting</span></label><input type="date" class="li" id="ciWeekEnding" style="border-color:rgba(255,170,0,.4)" /></div>
+            <div class="lf"><label style="display:flex;align-items:center;gap:6px">Week ending <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.85);font-family:var(--mono)">— confirm before submitting</span></label><input type="date" class="li" id="ciWeekEnding" style="border-color:rgba(255,170,0,.4)" /></div>
           </div>
           <!-- Step indicator -->
           <div class="ci-wizard-bar">
@@ -682,69 +682,69 @@
           <!-- Step 1: Running -->
           <div class="ci-step-panel active" data-step="1">
             <div class="ci-step-title"><svg class="icon"><use href="#i-run"/></svg> Running</div>
-            <div class="card" style="margin-bottom:12px">
-              <div class="rlog" style="margin-bottom:10px">
+            <div class="card u-mb-12">
+              <div class="rlog u-mb-10">
                 <div class="lf"><label>Sessions completed</label><input type="number" class="li" id="ciRunComp" min="0" max="20" placeholder="3" /></div>
                 <div class="lf"><label>Sessions planned</label><input type="number" class="li" id="ciRunPlan" min="0" max="20" placeholder="4" /></div>
               </div>
-              <div class="lf" style="margin-bottom:12px"><label>Total km this week</label><input type="number" class="li" id="ciRunKm" min="0" placeholder="42" /></div>
+              <div class="lf u-mb-12"><label>Total km this week</label><input type="number" class="li" id="ciRunKm" min="0" placeholder="42" /></div>
               <div class="lf" style="margin-bottom:6px">
                 <label>How did running feel? <span id="ciRunFeelVal" style="font-family:var(--mono);color:var(--run)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-                <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>Best ever</span></div>
+                <input type="range" min="1" max="10" value="5" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" class="u-range-full" />
+                <div class="u-range-labels"><span>Awful</span><span>Best ever</span></div>
               </div>
-              <div class="lf" style="margin-top:10px"><label>Wins or PBs this week? <svg class="icon icon-sm icon-pb"><use href="#i-trophy"/></svg></label><textarea class="li" id="ciRunWins" placeholder="Tell us what you crushed — a new PB, a strong session, anything you're proud of. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
-              <div class="lf" style="margin-top:10px"><label>Pain, niggles or injuries?</label><textarea class="li" id="ciRunNiggles" placeholder="Be honest — even small things. The earlier we know, the better we can manage it." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+              <div class="lf" style="margin-top:10px"><label>Wins or PBs this week? <svg class="icon icon-sm icon-pb"><use href="#i-trophy"/></svg></label><textarea class="li" id="ciRunWins" placeholder="Tell us what you crushed — a new PB, a strong session, anything you're proud of. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:var(--font-sm,14px)"></textarea></div>
+              <div class="lf" style="margin-top:var(--font-xs,12px)"><label>Pain, niggles or injuries?</label><textarea class="li" id="ciRunNiggles" placeholder="Be honest — even small things. The earlier we know, the better we can manage it." style="min-height:var(--font-display,48px);resize:vertical;font-size:var(--font-sm,14px)"></textarea></div>
             </div>
           </div>
           <!-- Step 2: Lifting -->
           <div class="ci-step-panel" data-step="2">
             <div class="ci-step-title"><svg class="icon"><use href="#i-barbell"/></svg> Lifting</div>
-            <div class="card" style="margin-bottom:12px">
-              <div class="rlog" style="margin-bottom:12px">
+            <div class="card u-mb-xs">
+              <div class="rlog u-mb-xs">
                 <div class="lf"><label>Sessions completed</label><input type="number" class="li" id="ciLiftComp" min="0" max="20" placeholder="2" /></div>
                 <div class="lf"><label>Sessions planned</label><input type="number" class="li" id="ciLiftPlan" min="0" max="20" placeholder="3" /></div>
               </div>
-              <div class="lf" style="margin-bottom:6px">
+              <div class="lf u-mb-xs">
                 <label>How did lifting feel? <span id="ciLiftFeelVal" style="font-family:var(--mono);color:var(--strength)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-                <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Awful</span><span>PR session</span></div>
+                <input type="range" min="1" max="10" value="5" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" class="u-range-full" />
+                <div class="u-range-labels"><span>Awful</span><span>PR session</span></div>
               </div>
-              <div class="lf" style="margin-top:10px"><label> Lifting wins or notable sessions? <svg class="icon icon-sm icon-run"><use href="#i-barbell"/></svg></label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
-              <div class="lf" style="margin-top:10px"><label>Pain, niggles or discomfort in the gym?</label><textarea class="li" id="ciLiftNiggles" placeholder="Anything sharp, achy or off — don't push through without telling us first." style="min-height:70px;resize:vertical;font-size:13px"></textarea></div>
+              <div class="lf" style="margin-top:10px"><label> Lifting wins or notable sessions? <svg class="icon icon-sm icon-run"><use href="#i-barbell"/></svg></label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;font-size:var(--font-sm,14px)"></textarea></div>
+              <div class="lf" style="margin-top:var(--font-xs,12px)"><label>Pain, niggles or discomfort in the gym?</label><textarea class="li" id="ciLiftNiggles" placeholder="Anything sharp, achy or off — don't push through without telling us first." style="min-height:var(--font-display,48px);resize:vertical;font-size:var(--font-sm,14px)"></textarea></div>
             </div>
           </div>
           <!-- Step 3: Recovery -->
           <div class="ci-step-panel" data-step="3">
             <div class="ci-step-title"><svg class="icon"><use href="#i-moon"/></svg> Recovery</div>
-            <div class="card" style="margin-bottom:12px">
-              <div class="lf" style="margin-bottom:14px">
-                <label>Average sleep per night <span id="ciSleepVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciSleep" oninput="document.getElementById('ciSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-                <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Under 5hrs</span><span>8+ hrs quality</span></div>
+            <div class="card u-mb-xs">
+              <div class="lf" style="margin-bottom:var(--font-sm,14px)">
+                <label>Average sleep per night <span id="ciSleepVal" class="u-mono">5</span>/10</label>
+                <input type="range" min="1" max="10" value="5" id="ciSleep" oninput="document.getElementById('ciSleepVal').textContent=this.value" class="u-range-full" />
+                <div class="u-range-labels"><span>Under 5hrs</span><span>8+ hrs quality</span></div>
               </div>
-              <div class="lf" style="margin-bottom:14px">
-                <label>Energy levels <span id="ciEnergyVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciEnergy" oninput="document.getElementById('ciEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-                <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Running on empty</span><span>Felt great</span></div>
+              <div class="lf u-mb-14">
+                <label>Energy levels <span id="ciEnergyVal" class="u-mono">5</span>/10</label>
+                <input type="range" min="1" max="10" value="5" id="ciEnergy" oninput="document.getElementById('ciEnergyVal').textContent=this.value" class="u-range-full" />
+                <div class="u-range-labels"><span>Running on empty</span><span>Felt great</span></div>
               </div>
               <div class="lf">
-                <label>Muscle soreness / fatigue <span id="ciSorenessVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciSoreness" oninput="document.getElementById('ciSorenessVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-                <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Destroyed</span><span>Fresh legs</span></div>
+                <label>Muscle soreness / fatigue <span id="ciSorenessVal" class="u-mono">5</span>/10</label>
+                <input type="range" min="1" max="10" value="5" id="ciSoreness" oninput="document.getElementById('ciSorenessVal').textContent=this.value" class="u-range-full" />
+                <div class="u-range-labels"><span>Destroyed</span><span>Fresh legs</span></div>
               </div>
             </div>
           </div>
           <!-- Step 4: Fuelling & Life -->
           <div class="ci-step-panel" data-step="4">
             <div class="ci-step-title"><svg class="icon"><use href="#i-leaf"/></svg> Fuelling &amp; Life</div>
-            <div class="card" style="margin-bottom:12px">
-              <div class="lf" style="margin-bottom:14px">
-                <label>Adherence to nutrition plan <span id="ciNutVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciNut" oninput="document.getElementById('ciNutVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-                <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Off the rails</span><span>Nailed it</span></div>
+            <div class="card u-mb-12">
+              <div class="lf u-mb-14">
+                <label>Adherence to nutrition plan <span id="ciNutVal" class="u-mono">5</span>/10</label>
+                <input type="range" min="1" max="10" value="5" id="ciNut" oninput="document.getElementById('ciNutVal').textContent=this.value" class="u-range-full" />
+                <div class="u-range-labels"><span>Off the rails</span><span>Nailed it</span></div>
               </div>
-              <div class="lf" style="margin-bottom:14px">
+              <div class="lf u-mb-14">
                 <label>Pre & post training fuelling</label>
                 <select class="li" id="ciFuelling" style="margin-top:6px">
                   <option value="">Select...</option>
@@ -754,41 +754,41 @@
                   <option>Poor — barely fuelled around training</option>
                 </select>
               </div>
-              <div class="lf" style="margin-bottom:14px">
-                <label>Work / life stress <span id="ciStressVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciStress" oninput="document.getElementById('ciStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-                <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Calm</span><span>Extremely stressed</span></div>
+              <div class="lf u-mb-14">
+                <label>Work / life stress <span id="ciStressVal" class="u-mono">5</span>/10</label>
+                <input type="range" min="1" max="10" value="5" id="ciStress" oninput="document.getElementById('ciStressVal').textContent=this.value" class="u-range-full" />
+                <div class="u-range-labels"><span>Calm</span><span>Extremely stressed</span></div>
               </div>
-              <div class="lf" style="margin-bottom:14px">
-                <label>Motivation to train <span id="ciMotVal" style="font-family:var(--mono)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciMot" oninput="document.getElementById('ciMotVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-                <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Dragging myself</span><span>Couldn't wait</span></div>
+              <div class="lf u-mb-14">
+                <label>Motivation to train <span id="ciMotVal" class="u-mono">5</span>/10</label>
+                <input type="range" min="1" max="10" value="5" id="ciMot" oninput="document.getElementById('ciMotVal').textContent=this.value" class="u-range-full" />
+                <div class="u-range-labels"><span>Dragging myself</span><span>Couldn't wait</span></div>
               </div>
-              <div class="lf" style="margin-bottom:10px"><label>Social events affecting nutrition in the next 2 weeks?</label><textarea class="li" id="ciSocial" placeholder="e.g. birthday dinner, work event, holiday — anything that might affect your nutrition." style="min-height:60px;resize:vertical;font-size:13px;margin-top:6px"></textarea></div>
-              <div class="lf"><label>Anything coming up that could affect training?</label><textarea class="li" id="ciNotes" placeholder="Travel, long work days, family commitments — the more we know, the better we can support you." style="min-height:60px;resize:vertical;font-size:13px;margin-top:6px"></textarea></div>
+              <div class="lf u-mb-10"><label>Social events affecting nutrition in the next 2 weeks?</label><textarea class="li" id="ciSocial" placeholder="e.g. birthday dinner, work event, holiday — anything that might affect your nutrition." style="min-height:60px;resize:vertical;font-size:var(--font-sm,14px);margin-top:6px"></textarea></div>
+              <div class="lf"><label>Anything coming up that could affect training?</label><textarea class="li" id="ciNotes" placeholder="Travel, long work days, family commitments — the more we know, the better we can support you." style="min-height:60px;resize:vertical;font-size:var(--font-sm,14px);margin-top:6px"></textarea></div>
             </div>
           </div>
           <!-- Step 5: This week -->
           <div class="ci-step-panel" data-step="5">
             <div class="ci-step-title"><svg class="icon"><use href="#i-sparkle"/></svg> Your Week in Words</div>
-            <div class="ci-reflection-intro" style="background:#0a0a0a;border-radius:12px;padding:18px;margin-bottom:14px">
-              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
-              <div style="font-family:var(--display);font-size:20px;font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.15;margin-bottom:8px">What did this week mean to you?</div>
-              <div style="font-size:13px;color:rgba(255,255,255,.82);line-height:1.6">Your progress is worth sharing. Other people are sitting on the couch wondering if they could do what you're doing — your words might be exactly what they need to hear.</div>
+            <div class="ci-reflection-intro" style="background:#0a0a0a;border-radius:var(--radius-md,12px);padding:18px;margin-bottom:14px">
+              <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
+              <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.15;margin-bottom:8px">What did this week mean to you?</div>
+              <div style="font-size:var(--font-sm,14px);color:rgba(255,255,255,.82);line-height:1.6">Your progress is worth sharing. Other people are sitting on the couch wondering if they could do what you're doing — your words might be exactly what they need to hear.</div>
             </div>
-            <div class="card ci-testimonial-card" style="margin-bottom:10px">
-              <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Write freely — we may share this (with your permission) <svg class="icon icon-sm icon-run"><use href="#i-sparkle"/></svg></div>
-              <textarea class="li" id="ciTestimonial" placeholder="e.g. Three weeks ago I could barely run 2km without stopping. This week I nailed every session and hit a new PB. I didn't think I had it in me — but here I am. The coaching from Karl and Alex has completely changed how I train..." style="min-height:180px;resize:vertical;font-size:13px;line-height:1.6"></textarea>
+            <div class="card ci-testimonial-card u-mb-10">
+              <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Write freely — we may share this (with your permission) <svg class="icon icon-sm icon-run"><use href="#i-sparkle"/></svg></div>
+              <textarea class="li" id="ciTestimonial" placeholder="e.g. Three weeks ago I could barely run 2km without stopping. This week I nailed every session and hit a new PB. I didn't think I had it in me — but here I am. The coaching from Karl and Alex has completely changed how I train..." style="min-height:180px;resize:vertical;font-size:var(--font-sm,14px);line-height:1.6"></textarea>
               <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
-                <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Prompts to get you started <svg class="icon icon-sm icon-run"><use href="#i-bulb"/></svg></div>
-                <div style="font-size:12px;color:var(--muted);line-height:1.5">• What's something you did this week you couldn't have done a month ago?</div>
-                <div style="font-size:12px;color:var(--muted);line-height:1.5">• How has training been affecting the rest of your life?</div>
-                <div style="font-size:12px;color:var(--muted);line-height:1.5">• What moment this week made you feel proud?</div>
-                <div style="font-size:12px;color:var(--muted);line-height:1.5">• What would you say to someone thinking about starting?</div>
+                <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Prompts to get you started <svg class="icon icon-sm icon-run"><use href="#i-bulb"/></svg></div>
+                <div class="u-help-copy">• What's something you did this week you couldn't have done a month ago?</div>
+                <div class="u-help-copy">• How has training been affecting the rest of your life?</div>
+                <div class="u-help-copy">• What moment this week made you feel proud?</div>
+                <div class="u-help-copy">• What would you say to someone thinking about starting?</div>
               </div>
             </div>
             <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()" style="margin-bottom:8px">Submit Check-in</button>
-            <div style="font-size:11px;color:var(--dim);line-height:1.5;text-align:center;margin-bottom:10px">By submitting, you agree Dual Performance may use your testimonial on social media.</div>
+            <div style="font-size:var(--font-xs,12px);color:var(--dim);line-height:1.5;text-align:center;margin-bottom:10px">By submitting, you agree Dual Performance may use your testimonial on social media.</div>
           </div>
           <!-- Nav buttons -->
           <div class="ci-nav-row solo" id="ciNavRow">
@@ -797,11 +797,11 @@
           </div>
         </div>
         <div id="ciSuccess" style="display:none;text-align:center;padding:40px 10px">
-          <div style="width:48px;height:48px;border-radius:50%;background:#0a0a0a;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+          <div style="width:48px;height:48px;border-radius:var(--radius-pill,999px);background:#0a0a0a;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
           </div>
-          <div style="font-family:var(--display);font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">Check-in received</div>
-          <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Karl and Alex will review this before your call.</div>
+          <div style="font-family:var(--display);font-size:var(--font-xl,24px);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">Check-in received</div>
+          <div style="font-size:var(--font-sm,14px);color:var(--muted);margin-bottom:16px">Karl and Alex will review this before your call.</div>
           <button class="savebtn" style="max-width:240px" onclick="resetCheckin()">Submit another</button>
         </div>
       </div>
@@ -1000,67 +1000,67 @@
       </div>
       <div class="ql-modal-body">
         <!-- Previous day reference panel -->
-        <div id="qlbPrevDay" style="display:none;background:#0a0a0a;border-radius:10px;padding:12px 14px;margin-bottom:14px">
-          <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" id="qlbPrevDayLabel">Yesterday</div>
+        <div id="qlbPrevDay" style="display:none;background:#0a0a0a;border-radius:var(--radius-md,12px);padding:12px 14px;margin-bottom:14px">
+          <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" id="qlbPrevDayLabel">Yesterday</div>
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px">
-            <div style="text-align:center">
-              <div style="font-family:var(--display);font-size:22px;font-weight:700;color:#fff;line-height:1" id="qlbPrevWeight">—</div>
-              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">weight kg</div>
+            <div class="u-text-center">
+              <div style="font-family:var(--display);font-size:var(--font-xl,24px);font-weight:700;color:#fff;line-height:1" id="qlbPrevWeight">—</div>
+              <div class="u-metric-label">weight kg</div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-              <div style="text-align:center">
-                <div style="font-family:var(--mono);font-size:14px;font-weight:500;color:rgba(255,255,255,.8);line-height:1" id="qlbPrevSleep">—</div>
-                <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;margin-top:3px">sleep</div>
+              <div class="u-text-center">
+                <div id="qlbPrevSleep" class="u-metric-value">—</div>
+                <div class="u-metric-label-tight">sleep</div>
               </div>
-              <div style="text-align:center">
-                <div style="font-family:var(--mono);font-size:14px;font-weight:500;color:rgba(255,255,255,.8);line-height:1" id="qlbPrevEnergy">—</div>
-                <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;margin-top:3px">energy</div>
+              <div class="u-text-center">
+                <div id="qlbPrevEnergy" class="u-metric-value">—</div>
+                <div class="u-metric-label-tight">energy</div>
               </div>
-              <div style="text-align:center">
-                <div style="font-family:var(--mono);font-size:14px;font-weight:500;color:rgba(255,255,255,.8);line-height:1" id="qlbPrevStress">—</div>
-                <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;margin-top:3px">stress</div>
+              <div class="u-text-center">
+                <div id="qlbPrevStress" class="u-metric-value">—</div>
+                <div class="u-metric-label-tight">stress</div>
               </div>
-              <div style="text-align:center">
-                <div style="font-family:var(--mono);font-size:14px;font-weight:500;color:rgba(255,255,255,.8);line-height:1" id="qlbPrevSore">—</div>
-                <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.04em;margin-top:3px">soreness</div>
+              <div class="u-text-center">
+                <div id="qlbPrevSore" class="u-metric-value">—</div>
+                <div class="u-metric-label-tight">soreness</div>
               </div>
             </div>
           </div>
-          <div id="qlbPrevNotes" style="display:none;font-size:12px;color:rgba(255,255,255,.4);font-style:italic;border-top:1px solid rgba(255,255,255,.08);padding-top:8px"></div>
+          <div id="qlbPrevNotes" style="display:none;font-size:var(--font-xs,12px);color:rgba(255,255,255,.4);font-style:italic;border-top:1px solid rgba(255,255,255,.08);padding-top:8px"></div>
         </div>
-        <div class="rlog" style="margin-bottom:14px">
-          <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px">
-            <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
+        <div class="rlog u-mb-14">
+          <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm,8px);padding:10px 12px">
+            <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
             <input type="date" class="li" id="qlbDate" style="margin-top:6px;border-color:rgba(255,170,0,.4)" />
           </div>
           <div class="lf"><label>Weight (kg)</label><input type="number" class="li" id="qlbWeight" step="0.1" placeholder="72.0" /></div>
         </div>
-        <div class="lf" style="margin-bottom:14px">
-          <label>Sleep Quality <span id="qlbSleepVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Terrible</span><span>Amazing</span></div>
+        <div class="lf u-mb-14">
+          <label>Sleep Quality <span id="qlbSleepVal" class="u-mono">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" class="u-range-full" />
+          <div class="u-range-labels"><span>Terrible</span><span>Amazing</span></div>
         </div>
-        <div class="lf" style="margin-bottom:14px">
-          <label>Energy <span id="qlbEnergyVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Drained</span><span>Energised</span></div>
+        <div class="lf u-mb-14">
+          <label>Energy <span id="qlbEnergyVal" class="u-mono">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" class="u-range-full" />
+          <div class="u-range-labels"><span>Drained</span><span>Energised</span></div>
         </div>
-        <div class="lf" style="margin-bottom:14px">
-          <label>Stress <span id="qlbStressVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbStress" oninput="document.getElementById('qlbStressVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Calm</span><span>Maxed out</span></div>
+        <div class="lf u-mb-14">
+          <label>Stress <span id="qlbStressVal" class="u-mono">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="qlbStress" oninput="document.getElementById('qlbStressVal').textContent=this.value" class="u-range-full" />
+          <div class="u-range-labels"><span>Calm</span><span>Maxed out</span></div>
         </div>
-        <div class="lf" style="margin-bottom:16px">
-          <label>Muscle Soreness <span id="qlbSoreVal" style="font-family:var(--mono)">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" style="width:100%;margin-top:8px;accent-color:#92d2ed" />
-          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px"><span>Fresh</span><span>Destroyed</span></div>
+        <div class="lf u-mb-16">
+          <label>Muscle Soreness <span id="qlbSoreVal" class="u-mono">5</span>/10</label>
+          <input type="range" min="1" max="10" value="5" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" class="u-range-full" />
+          <div class="u-range-labels"><span>Fresh</span><span>Destroyed</span></div>
         </div>
         <div class="pain-log-block">
-          <div class="lf"><label>Pain or niggle <span id="qlbPainVal" style="font-family:var(--mono)">0</span>/10</label><input type="range" min="0" max="10" value="0" id="qlbPain" oninput="document.getElementById('qlbPainVal').textContent=this.value;document.getElementById('qlbPainLocationWrap').style.display=Number(this.value)>0?'':'none'" /></div>
+          <div class="lf"><label>Pain or niggle <span id="qlbPainVal" class="u-mono">0</span>/10</label><input type="range" min="0" max="10" value="0" id="qlbPain" oninput="document.getElementById('qlbPainVal').textContent=this.value;document.getElementById('qlbPainLocationWrap').style.display=Number(this.value)>0?'':'none'" /></div>
           <div class="lf" id="qlbPainLocationWrap" style="display:none"><label>Where is it?</label><input type="text" class="li" id="qlbPainLocation" placeholder="e.g. left knee, outside ankle" /></div>
           <div class="pain-help">Sharp, sudden or worsening pain is automatically flagged for coach review.</div>
         </div>
-        <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
+        <div class="lf u-mb-16"><label>Notes (optional)</label><input type="text" class="li" id="qlbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
         <!-- Shown only once the server holds this day, so the form reads as a
              record you can correct rather than an empty box you might not have
              filled in. Populated by applyQuickLogSubmittedState(). -->
@@ -1079,73 +1079,73 @@
       </div>
       <div class="ql-modal-body">
         <!-- Previous day reference panel -->
-        <div id="qlnPrevDay" style="display:none;background:#0a0a0a;border-radius:10px;padding:12px 14px;margin-bottom:14px">
-          <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px" id="qlnPrevDayLabel">Yesterday</div>
+        <div id="qlnPrevDay" style="display:none;background:#0a0a0a;border-radius:var(--radius-md,12px);padding:12px 14px;margin-bottom:14px">
+          <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px" id="qlnPrevDayLabel">Yesterday</div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px">
-            <div style="text-align:center">
-              <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#fff;line-height:1" id="qlnPrevCal">—</div>
-              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">kcal</div>
+            <div class="u-text-center">
+              <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:700;color:#fff;line-height:1" id="qlnPrevCal">—</div>
+              <div class="u-metric-label">kcal</div>
             </div>
-            <div style="text-align:center">
-              <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#93c5fd;line-height:1" id="qlnPrevPro">—</div>
-              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">protein</div>
+            <div class="u-text-center">
+              <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:700;color:#93c5fd;line-height:1" id="qlnPrevPro">—</div>
+              <div class="u-metric-label">protein</div>
             </div>
-            <div style="text-align:center">
-              <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#92d2ed;line-height:1" id="qlnPrevCarb">—</div>
-              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">carbs</div>
+            <div class="u-text-center">
+              <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:700;color:#92d2ed;line-height:1" id="qlnPrevCarb">—</div>
+              <div class="u-metric-label">carbs</div>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div style="text-align:center">
-              <div style="font-family:var(--display);font-size:16px;font-weight:700;color:rgba(255,255,255,.7);line-height:1" id="qlnPrevFat">—</div>
-              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">fat g</div>
+            <div class="u-text-center">
+              <div style="font-family:var(--display);font-size:var(--font-md,16px);font-weight:700;color:rgba(255,255,255,.7);line-height:1" id="qlnPrevFat">—</div>
+              <div class="u-metric-label">fat g</div>
             </div>
-            <div style="text-align:center">
-              <div style="font-family:var(--display);font-size:16px;font-weight:700;color:rgba(255,255,255,.7);line-height:1" id="qlnPrevFibre">—</div>
-              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:3px">fibre g</div>
+            <div class="u-text-center">
+              <div style="font-family:var(--display);font-size:var(--font-md,16px);font-weight:700;color:rgba(255,255,255,.7);line-height:1" id="qlnPrevFibre">—</div>
+              <div class="u-metric-label">fibre g</div>
             </div>
           </div>
-          <div id="qlnPrevNotes" style="display:none;margin-top:8px;font-size:12px;color:rgba(255,255,255,.45);font-style:italic;border-top:1px solid rgba(255,255,255,.08);padding-top:8px"></div>
+          <div id="qlnPrevNotes" style="display:none;margin-top:8px;font-size:var(--font-xs,12px);color:rgba(255,255,255,.45);font-style:italic;border-top:1px solid rgba(255,255,255,.08);padding-top:8px"></div>
         </div>
-        <div class="rlog" style="margin-bottom:14px">
-          <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px">
-            <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
+        <div class="rlog u-mb-14">
+          <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm,8px);padding:10px 12px">
+            <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
             <input type="date" class="li" id="qlnDate" style="margin-top:6px;border-color:rgba(255,170,0,.4)" />
           </div>
           <div class="lf">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+            <div class="u-flex-between">
               <label>Calories (kcal)</label>
               <span class="qln-tgt" id="qlnTgtCal"></span>
             </div>
             <input type="number" class="li" id="qlnCal" placeholder="2300" oninput="updateNutFeedback()" />
           </div>
         </div>
-        <div class="rlog" style="margin-bottom:14px">
+        <div class="rlog u-mb-14">
           <div class="lf">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+            <div class="u-flex-between">
               <label>Protein (g)</label>
               <span class="qln-tgt" id="qlnTgtPro"></span>
             </div>
             <input type="number" class="li" id="qlnPro" placeholder="165" oninput="updateNutFeedback()" />
           </div>
           <div class="lf">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+            <div class="u-flex-between">
               <label>Carbs (g)</label>
               <span class="qln-tgt" id="qlnTgtCarb"></span>
             </div>
             <input type="number" class="li" id="qlnCarbs" placeholder="295" oninput="updateNutFeedback()" />
           </div>
         </div>
-        <div class="rlog" style="margin-bottom:14px">
+        <div class="rlog u-mb-14">
           <div class="lf">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+            <div class="u-flex-between">
               <label>Fat (g)</label>
               <span class="qln-tgt" id="qlnTgtFat"></span>
             </div>
             <input type="number" class="li" id="qlnFat" placeholder="55" oninput="updateNutFeedback()" />
           </div>
           <div class="lf">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+            <div class="u-flex-between">
               <label>Fibre (g)</label>
               <span class="qln-tgt" id="qlnTgtFibre"></span>
             </div>
@@ -1154,7 +1154,7 @@
         </div>
         <!-- Live macro vs target feedback -->
         <div id="qlnFeedback" class="qln-feedback"></div>
-        <div class="lf" style="margin-bottom:16px"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
+        <div class="lf u-mb-16"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
         <div class="ql-submitted" id="qlnSubmittedNote" role="status" style="display:none"></div>
         <button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Save nutrition log</button>
       </div>
@@ -1169,7 +1169,7 @@
         <button class="ql-modal-close" onclick="closeCallModal()" aria-label="Close booking">×</button>
       </div>
       <div class="ql-modal-body" style="padding:0;background:#0a0a0a;flex:1;min-height:0;overflow:hidden">
-        <div id="callModalStatus" role="status" aria-live="polite" style="display:none;height:100%;padding:28px;align-items:center;justify-content:center;text-align:center;color:rgba(255,255,255,.78);font-size:14px;line-height:1.6"></div>
+        <div id="callModalStatus" role="status" aria-live="polite" style="display:none;height:100%;padding:28px;align-items:center;justify-content:center;text-align:center;color:rgba(255,255,255,.78);font-size:var(--font-sm,14px);line-height:1.6"></div>
         <iframe title="Book or reschedule your coaching call" data-src="https://api.leadconnectorhq.com/widget/booking/WRivrNxfNTVER2xMit1z" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:#0a0a0a" scrolling="yes" id="WRivrNxfNTVER2xMit1z_1782710919820"></iframe>
       </div>
     </div>
@@ -1366,14 +1366,15 @@
 <script src="js/01-core.js?v=116"></script>
 <script src="js/02-login-goals.js?v=110"></script>
 <script src="js/03-nav-nudges.js?v=104"></script>
-<script src="js/04-checkin.js?v=92"></script>
-<script src="js/05-handbook.js?v=84"></script>
+<script src="js/04-checkin.js?v=93"></script>
+<script src="js/05-handbook.js?v=85"></script>
 <script src="js/06-nutrition.js?v=91"></script>
-<span id="progressModuleAsset" data-src="/js/07-progress.js?v=88" hidden></span>
+<span id="progressModuleAsset" data-src="/js/07-progress.js?v=89" hidden></span>
 <script type="module" src="js/strava-match.js?v=6"></script>
-<script src="js/08-training.js?v=126"></script>
+<script src="js/08-training-interval-rest.js?v=1"></script>
+<script src="js/08-training.js?v=128"></script>
 <script src="js/09-logging.js?v=119"></script>
 <script src="accessibility.js?v=1"></script>
-<script src="js/10-boot.js?v=108"></script>
+<script src="js/10-boot.js?v=109"></script>
 </body>
 </html>
