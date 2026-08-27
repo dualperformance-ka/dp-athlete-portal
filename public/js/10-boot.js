@@ -223,10 +223,10 @@ function detailRow(label,value){
   if(!value) return '';
   return `
     <div style="margin-bottom:12px;">
-      <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;">
+      <div style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;">
         ${label}
       </div>
-      <div style="font-size:15px;line-height:1.55;color:var(--text);white-space:normal;">
+      <div style="font-size:var(--font-md);line-height:1.55;color:var(--text);white-space:normal;">
         ${nl2brSafe(value)}
       </div>
     </div>
@@ -333,15 +333,15 @@ async function showEnhancedWorkoutModal(sessionIndex) {
     '';
 
   const modalHTML = `
-    <div style="max-width:600px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin:auto;max-height:90vh;overflow-y:auto;">
+    <div style="max-width:600px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:28px;margin:auto;max-height:90vh;overflow-y:auto;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
         <div style="flex:1;">
-          <div style="font-family:var(--display);font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;color:var(--text);line-height:1.2;">
+          <div style="font-family:var(--display);font-size:var(--font-xl);font-weight:700;text-transform:uppercase;letter-spacing:0.02em;color:var(--text);line-height:1.2;">
             ${esc(title)}
           </div>
-          ${type ? `<div style="display:inline-block;margin-top:8px;padding:4px 12px;background:rgba(180,83,9,0.1);border:1px solid rgba(180,83,9,0.2);border-radius:6px;font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--run);">${esc(type)}</div>` : ''}
+          ${type ? `<div style="display:inline-block;margin-top:8px;padding:4px 12px;background:rgba(180,83,9,0.1);border:1px solid rgba(180,83,9,0.2);border-radius:var(--radius-sm);font-family:var(--mono);font-size:var(--font-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--run);">${esc(type)}</div>` : ''}
         </div>
-        <button onclick="closeEnhancedModal()" style="background:transparent;border:none;color:var(--muted);font-size:28px;cursor:pointer;line-height:1;padding:0;margin-left:16px;">&times;</button>
+        <button onclick="closeEnhancedModal()" style="background:transparent;border:none;color:var(--muted);font-size:var(--font-2xl);cursor:pointer;line-height:1;padding:0;margin-left:16px;">&times;</button>
       </div>
 
       <div style="color:var(--text);">
@@ -350,10 +350,10 @@ async function showEnhancedWorkoutModal(sessionIndex) {
 
         ${(intensity || phase || surface || difficulty || distance || duration || rpe || recovery || warmup || cooldown) ? `
           <div style="margin-top:18px;">
-            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:10px;">
+            <div style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;font-weight:600;letter-spacing:0.08em;color:var(--muted);margin-bottom:10px;">
               Workout Details
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:14px;line-height:1.6;color:var(--text);">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:var(--font-sm);line-height:1.6;color:var(--text);">
               ${intensity ? `<div><strong>Intensity Zone:</strong> ${esc(intensity)}</div>` : ''}
               ${phase ? `<div><strong>Phase:</strong> ${esc(phase)}</div>` : ''}
               ${surface ? `<div><strong>Surface:</strong> ${esc(surface)}</div>` : ''}
@@ -363,15 +363,15 @@ async function showEnhancedWorkoutModal(sessionIndex) {
               ${rpe ? `<div><strong>RPE:</strong> ${esc(rpe)}</div>` : ''}
               ${recovery ? `<div><strong>Recovery:</strong> ${esc(recovery)}</div>` : ''}
             </div>
-            ${warmup ? `<div style="margin-top:10px;font-size:14px;line-height:1.6;color:var(--text);"><strong>Warm Up:</strong> ${nl2brSafe(warmup)}</div>` : ''}
-            ${cooldown ? `<div style="margin-top:10px;font-size:14px;line-height:1.6;color:var(--text);"><strong>Cool Down:</strong> ${nl2brSafe(cooldown)}</div>` : ''}
+            ${warmup ? `<div style="margin-top:10px;font-size:var(--font-sm);line-height:1.6;color:var(--text);"><strong>Warm Up:</strong> ${nl2brSafe(warmup)}</div>` : ''}
+            ${cooldown ? `<div style="margin-top:10px;font-size:var(--font-sm);line-height:1.6;color:var(--text);"><strong>Cool Down:</strong> ${nl2brSafe(cooldown)}</div>` : ''}
           </div>
         ` : ''}
 
         ${!description && !goal && !(intensity || phase || surface || difficulty || distance || duration || rpe || recovery || warmup || cooldown) ? `
-          <div style="padding:24px;background:var(--surface2);border-radius:8px;text-align:center;">
-            <div style="font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:0.06em;">No detailed run data found</div>
-            <div style="font-size:13px;color:var(--muted);margin-top:6px;">Basic session: ${esc(s.name || 'Run')}</div>
+          <div style="padding:24px;background:var(--surface2);border-radius:var(--radius-sm);text-align:center;">
+            <div style="font-family:var(--mono);font-size:var(--font-xs);color:var(--dim);text-transform:uppercase;letter-spacing:0.06em;">No detailed run data found</div>
+            <div style="font-size:var(--font-sm);color:var(--muted);margin-top:6px;">Basic session: ${esc(s.name || 'Run')}</div>
           </div>
         ` : ''}
       </div>
@@ -778,7 +778,7 @@ if('serviceWorker' in navigator){
     });
   }
 
-  Promise.all([load('/coach-mode.css?v=1', true), load('/coach-mode.js?v=1', false)]).then(function () {
+  Promise.all([load('/coach-mode.css?v=2', true), load('/coach-mode.js?v=1', false)]).then(function () {
     if (window.DP_COACH_MODE) {
       // Same trap as the daily-log dock: `athlete` is a `let` binding, so it
       // never appears on window and this always handed coach mode an empty

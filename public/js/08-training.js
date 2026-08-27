@@ -1249,7 +1249,7 @@ function renderTodaySection(){
             html+='<div class="label">Coach note</div><div class="value">'+esc(_todayOv.notes)+'</div>';
           }
           // Structured rows
-          html+='<div style="display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,.1);border-radius:7px;overflow:hidden;margin-top:10px">';
+          html+='<div style="display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);overflow:hidden;margin-top:10px">';
           var _tRows=[];
           if(_todayOv.distance_km) _tRows.push({label:'Total',val:_todayOv.distance_km+'km',accent:false});
           if(_todayOv.warm_up) _tRows.push({label:'Warm up',val:_todayOv.warm_up,accent:false});
@@ -1260,8 +1260,8 @@ function renderTodaySection(){
           _tRows.forEach(function(row,ri){
             var bb=ri<_tRows.length-1?'border-bottom:1px solid rgba(255,255,255,.08);':'';
             html+='<div style="display:grid;grid-template-columns:72px 1fr;gap:8px;padding:8px 10px;'+bb+'">';
-            html+='<span style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:'+(row.accent?'var(--run)':'rgba(255,255,255,.4)')+';font-weight:'+(row.accent?'700':'400')+'">'+row.label+'</span>';
-            html+='<span style="font-size:13px;font-weight:'+(row.accent?'700':'500')+';color:#fff;line-height:1.3">'+esc(row.val)+'</span>';
+            html+='<span style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.07em;color:'+(row.accent?'var(--run)':'rgba(255,255,255,.4)')+';font-weight:'+(row.accent?'700':'400')+'">'+row.label+'</span>';
+            html+='<span style="font-size:var(--font-sm);font-weight:'+(row.accent?'700':'500')+';color:#fff;line-height:1.3">'+esc(row.val)+'</span>';
             html+='</div>';
           });
           html+='</div>';
@@ -2240,15 +2240,15 @@ function buildBody(s,i,type){
     h+='<div class="run-details">';
 
     // ── Unified session card ──────────────────────────────────────────────────
-    h+='<div class="run-prescription-card" style="background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015)), var(--surface);border:1px solid var(--border-mid);border-radius:10px;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)">';
+    h+='<div class="run-prescription-card" style="background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015)), var(--surface);border:1px solid var(--border-mid);border-radius:var(--radius-md);overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)">';
 
     // Header — session title + RPE + zone
     h+='<div class="run-prescription-head" style="padding:14px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.015)">';
-    h+='<div class="run-prescription-title" style="font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--text);line-height:1.1;margin-bottom:8px">'+esc(sessionTitle)+'</div>';
+    h+='<div class="run-prescription-title" style="font-family:var(--display);font-size:var(--font-xl);font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--text);line-height:1.1;margin-bottom:8px">'+esc(sessionTitle)+'</div>';
     h+='<div class="run-prescription-badges" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-    h+='<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;background:var(--run);padding:3px 9px;border-radius:5px;letter-spacing:.04em;white-space:nowrap">'+esc(rpeInfo.value)+'</div>';
-    h+='<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+zone.color+';background:'+zone.bg+';padding:3px 9px;border-radius:5px;letter-spacing:.04em;white-space:nowrap">'+esc(zone.label)+'</div>';
-    h+='<div style="font-size:12px;color:var(--muted);line-height:1.4">'+esc(rpeInfo.desc)+'</div>';
+    h+='<div style="font-family:var(--mono);font-size:var(--font-xs);font-weight:700;color:#fff;background:var(--run);padding:3px 9px;border-radius:var(--radius-xs);letter-spacing:.04em;white-space:nowrap">'+esc(rpeInfo.value)+'</div>';
+    h+='<div style="font-family:var(--mono);font-size:var(--font-xs);font-weight:700;color:'+zone.color+';background:'+zone.bg+';padding:3px 9px;border-radius:var(--radius-xs);letter-spacing:.04em;white-space:nowrap">'+esc(zone.label)+'</div>';
+    h+='<div style="font-size:var(--font-xs);color:var(--muted);line-height:1.4">'+esc(rpeInfo.desc)+'</div>';
     h+='</div></div>';
 
     // Body
@@ -2266,23 +2266,23 @@ function buildBody(s,i,type){
       if(_mainSet) _ovRows.push({label:'Main set',val:_mainSet,accent:true});
       if(_ov.rest) _ovRows.push({label:'Rest',val:_ov.rest,accent:false});
       if(_ov.cool_down) _ovRows.push({label:'Cool down',val:_ov.cool_down,accent:false});
-      h+='<div class="run-prescription-table" style="border:1px solid var(--border-mid);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.02)">';
+      h+='<div class="run-prescription-table" style="border:1px solid var(--border-mid);border-radius:var(--radius-sm);overflow:hidden;background:rgba(255,255,255,.02)">';
       _ovRows.forEach(function(row,ri){
         var borderB=ri<_ovRows.length-1?'border-bottom:1px solid var(--border);':'';
         h+='<div class="run-prescription-row" style="display:grid;grid-template-columns:80px 1fr;align-items:baseline;gap:8px;padding:9px 12px;'+borderB+'">';
-        h+='<span style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:'+(row.accent?'var(--run)':'var(--muted)')+';font-weight:'+(row.accent?'700':'400')+';padding-top:1px">'+row.label+'</span>';
-        h+='<span style="font-size:14px;font-weight:'+(row.accent?'700':'500')+';color:var(--text);line-height:1.4">'+esc(row.val)+'</span>';
+        h+='<span style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.07em;color:'+(row.accent?'var(--run)':'var(--muted)')+';font-weight:'+(row.accent?'700':'400')+';padding-top:1px">'+row.label+'</span>';
+        h+='<span style="font-size:var(--font-sm);font-weight:'+(row.accent?'700':'500')+';color:var(--text);line-height:1.4">'+esc(row.val)+'</span>';
         h+='</div>';
       });
       h+='</div>';
       if(_ov.notes){
-        h+='<div class="run-coach-note" style="background:rgba(146,210,237,.07);border:1px solid rgba(146,210,237,.18);border-radius:7px;padding:10px 13px">';
-        h+='<div style="font-family:var(--mono);font-size:9px;color:var(--run);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:5px">Coach Note</div>';
-        h+='<div style="font-size:13px;color:var(--text);line-height:1.55">'+esc(_ov.notes)+'</div>';
+        h+='<div class="run-coach-note" style="background:rgba(146,210,237,.07);border:1px solid rgba(146,210,237,.18);border-radius:var(--radius-sm);padding:10px 13px">';
+        h+='<div style="font-family:var(--mono);font-size:var(--font-xs);color:var(--run);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:5px">Coach Note</div>';
+        h+='<div style="font-size:var(--font-sm);color:var(--text);line-height:1.55">'+esc(_ov.notes)+'</div>';
         h+='</div>';
       }
     } else {
-      h+='<div style="font-size:15px;font-weight:600;color:var(--text);line-height:1.55">'+esc(workoutText)+'</div>';
+      h+='<div style="font-size:var(--font-md);font-weight:600;color:var(--text);line-height:1.55">'+esc(workoutText)+'</div>';
     }
 
     // Rest pill + optional chips — subtle, secondary
@@ -2291,9 +2291,9 @@ function buildBody(s,i,type){
     if(hasSecondary&&!_ovHasStructure){
       h+='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:-4px">';
       if(intervalRest){
-        h+='<div style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border-radius:6px;padding:4px 10px">';
-        h+='<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--run);letter-spacing:.04em">'+esc(intervalRest.restTime)+'</span>';
-        h+='<span style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">'+esc(intervalRest.restType)+'</span>';
+        h+='<div style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border-radius:var(--radius-sm);padding:4px 10px">';
+        h+='<span style="font-family:var(--mono);font-size:var(--font-xs);font-weight:700;color:var(--run);letter-spacing:.04em">'+esc(intervalRest.restTime)+'</span>';
+        h+='<span style="font-family:var(--mono);font-size:var(--font-xs);color:var(--muted);letter-spacing:.05em;text-transform:uppercase">'+esc(intervalRest.restType)+'</span>';
         h+='</div>';
       }
       chips.forEach(function(x){ h+='<div class="chip">'+esc(x)+'</div>'; });
@@ -2302,9 +2302,9 @@ function buildBody(s,i,type){
 
     // Coaching note — own row, breathing room
     if(intervalRest&&intervalRest.recoveryNote&&!_ovHasStructure){
-      h+='<div style="border-left:3px solid var(--run);padding:8px 12px;background:var(--surface2);border-radius:0 6px 6px 0">';
-      h+='<div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px">Coach Note</div>';
-      h+='<div style="font-size:12px;color:var(--text);line-height:1.6">'+esc(intervalRest.recoveryNote)+'</div>';
+      h+='<div style="border-left:3px solid var(--run);padding:8px 12px;background:var(--surface2);border-radius:0 var(--radius-sm) var(--radius-sm) 0">';
+      h+='<div style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px">Coach Note</div>';
+      h+='<div style="font-size:var(--font-xs);color:var(--text);line-height:1.6">'+esc(intervalRest.recoveryNote)+'</div>';
       h+='</div>';
     }
 
@@ -2312,18 +2312,18 @@ function buildBody(s,i,type){
     var isLowIntensity=/\beasy\b|\brecovery\b|\blong run\b|\blong\b/.test(zHaystack);
     if(!isLowIntensity&&!_ovHasStructure){
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-      h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Warm up</div>';
-      h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(warmUp)+'</div></div>';
-      h+='<div><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Cool down</div>';
-      h+='<div style="font-size:12px;color:var(--text);line-height:1.45">'+esc(coolDown)+'</div></div>';
+      h+='<div><div style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Warm up</div>';
+      h+='<div style="font-size:var(--font-xs);color:var(--text);line-height:1.45">'+esc(warmUp)+'</div></div>';
+      h+='<div><div style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Cool down</div>';
+      h+='<div style="font-size:var(--font-xs);color:var(--text);line-height:1.45">'+esc(coolDown)+'</div></div>';
       h+='</div>';
     }
 
     // Alternative
     h+='<div class="run-alternative" style="border-top:1px solid var(--border);padding-top:10px;margin-top:-2px">';
-    h+='<div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Alternative</div>';
-    h+='<div style="font-size:13px;font-weight:700;color:var(--run);margin-bottom:3px">'+esc(altInfo.title)+'</div>';
-    h+='<div style="font-size:12px;color:var(--muted);line-height:1.45">'+esc(altInfo.description)+'</div>';
+    h+='<div style="font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">Alternative</div>';
+    h+='<div style="font-size:var(--font-sm);font-weight:700;color:var(--run);margin-bottom:3px">'+esc(altInfo.title)+'</div>';
+    h+='<div style="font-size:var(--font-xs);color:var(--muted);line-height:1.45">'+esc(altInfo.description)+'</div>';
     h+='</div>';
 
     h+='</div></div>'; // end body + card
@@ -2346,7 +2346,7 @@ function buildBody(s,i,type){
     h+='<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>';
     h+='</div>';
     h+='<div id="run_form_'+i+'" style="display:'+(hasSaved?'none':'block')+';">';
-    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="run_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
+    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:var(--font-xs);display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:var(--font-xs);font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="run_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     h+='<div class="run-log-title">Log your session</div><div class="run-inputs">';
     h+='<div class="run-field"><label>Distance (km)</label><input type="number" step="0.1" id="rd_'+i+'" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
     h+='<div class="run-field"><label>Duration (min)</label><input type="number" step="1" id="rdur_'+i+'" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
@@ -2366,7 +2366,7 @@ function buildBody(s,i,type){
 
     var splitKey=splitKeyForSession(s,'Upper A');
     var exercises=getSplit(splitKey),sl2=logs[s.id]||{},gymSubmitted=isSessionLogged(s.id),sessionRpeRequired=strengthLogRequiresRpe(sl2,gymSubmitted),sessionEffortRequired=strengthLogRequiresEffort(sl2,gymSubmitted,s.date);
-    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:10px;font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
+    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:var(--font-xs);display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:var(--font-xs);font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     if(exercises.length){
       var restTimerOn=typeof restTimerEnabled==='function'?restTimerEnabled():true;
       var strengthRpeOn=typeof strengthRpeEnabled==='function'?strengthRpeEnabled():true;
@@ -2530,7 +2530,7 @@ function buildBody(s,i,type){
       setTimeout(function(idx,key){return function(){refreshMuscleCoverage(idx,key);};}(i,splitKey),0);
     }
     var sl2notes=(logs[s.id]&&logs[s.id].__notes)||'';
-    h+='<div class="run-field run-input-full" style="margin-top:12px;margin-bottom:8px"><label>Session notes <span style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--dim)">(PRs, wins, niggles, anything worth logging)</span></label><textarea id="gn_'+i+'" class="li" placeholder="e.g. Hit a new squat PR, left knee felt a bit off on lunges..." oninput="draftGym('+i+',\''+esc(splitKey)+'\')" style="min-height:70px;resize:vertical;font-size:13px">'+esc(sl2notes)+'</textarea></div>';
+    h+='<div class="run-field run-input-full" style="margin-top:12px;margin-bottom:8px"><label>Session notes <span style="font-family:var(--mono);font-size:var(--font-xs);font-weight:400;color:var(--dim)">(PRs, wins, niggles, anything worth logging)</span></label><textarea id="gn_'+i+'" class="li" placeholder="e.g. Hit a new squat PR, left knee felt a bit off on lunges..." oninput="draftGym('+i+',\''+esc(splitKey)+'\')" style="min-height:70px;resize:vertical;font-size:var(--font-sm)">'+esc(sl2notes)+'</textarea></div>';
     var gymHasDraft=gymDraftHasData(sl2);
     h+='<div id="gym_saved_'+i+'" class="session-submit-status '+(gymSubmitted?'is-submitted':'is-draft')+'" style="display:'+(gymSubmitted||gymHasDraft?'flex':'none')+';">';
     if(gymSubmitted) h+='<span class="submit-status-icon"><svg class="icon"><use href="#i-check"/></svg></span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>';
@@ -2546,14 +2546,14 @@ function buildBody(s,i,type){
     var sl3=logs[s.id]||{};
     var noteVal=(typeof sl3.__notes==='string')?sl3.__notes:(sl3.notes||'');
     var instruction=s.runDetails||(_sessionOverrides[s.id]&&_sessionOverrides[s.id].notes)||'';
-    h+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border-mid);border-radius:8px;padding:12px 14px">';
-    if(instruction) h+='<div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:12px">'+esc(instruction)+'</div>';
-    h+='<div class="run-field run-input-full" style="margin-bottom:10px"><label>What did you do? <span style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--dim)">(training + how it felt, anything worth logging)</span></label><textarea id="nt_'+i+'" class="li" placeholder="e.g. 45min easy run + mobility, legs felt good. Hit chest at the gym, normal week..." oninput="draftNote('+i+')" style="min-height:90px;resize:vertical;font-size:13px">'+esc(noteVal)+'</textarea></div>';
+    h+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:12px 14px">';
+    if(instruction) h+='<div style="font-size:var(--font-sm);color:var(--text);line-height:1.55;margin-bottom:12px">'+esc(instruction)+'</div>';
+    h+='<div class="run-field run-input-full" style="margin-bottom:10px"><label>What did you do? <span style="font-family:var(--mono);font-size:var(--font-xs);font-weight:400;color:var(--dim)">(training + how it felt, anything worth logging)</span></label><textarea id="nt_'+i+'" class="li" placeholder="e.g. 45min easy run + mobility, legs felt good. Hit chest at the gym, normal week..." oninput="draftNote('+i+')" style="min-height:90px;resize:vertical;font-size:var(--font-sm)">'+esc(noteVal)+'</textarea></div>';
     h+='<div id="note_saved_'+i+'" class="saved-data" style="display:'+(isSessionLogged(s.id)?'block':'none')+';"><div class="saved-label"><svg class="icon"><use href="#i-check"/></svg>Submitted to your coaches</div></div>';
     h+='<button class="savebtn" id="sb_'+i+'" onclick="saveNote('+i+')">Save</button>';
     if(isSessionLogged(s.id)){setTimeout(function(idx){lockSaveButton(idx,'Save');}(i),0);}
     h+='</div>';
-  }else{h+='<div style="font-family:var(--mono);font-size:12px;color:var(--dim);padding:8px 0">Rest up. Recovery is training too.</div>';}
+  }else{h+='<div style="font-family:var(--mono);font-size:var(--font-xs);color:var(--dim);padding:8px 0">Rest up. Recovery is training too.</div>';}
   return h;
 }
 

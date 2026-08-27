@@ -1,19 +1,19 @@
-const CACHE_NAME = 'dp-athlete-v174'; // v174: Inter + DM Mono design-system typography
+const CACHE_NAME = 'dp-athlete-v175'; // v175: seven-step type scale and unified radius scale
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=135', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=136', '/desktop.css?v=6', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=116',
   '/js/02-login-goals.js?v=110',
   '/js/03-nav-nudges.js?v=104',
-  '/js/04-checkin.js?v=92',
-  '/js/05-handbook.js?v=84',
+  '/js/04-checkin.js?v=93',
+  '/js/05-handbook.js?v=85',
   '/js/06-nutrition.js?v=91',
-  '/js/07-progress.js?v=88',
+  '/js/07-progress.js?v=89',
   '/js/strava-match.js?v=6',
-  '/js/08-training.js?v=126',
+  '/js/08-training.js?v=127',
   '/js/09-logging.js?v=119',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=108',
+  '/js/10-boot.js?v=109',
   '/login.js?v=49', '/icons.css?v=3',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
