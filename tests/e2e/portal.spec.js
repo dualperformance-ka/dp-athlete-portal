@@ -48,7 +48,7 @@ async function installSupabaseStub(page) {
 }
 
 async function mockPortal(page, options = {}) {
-  const state = { offline: false, note: options.note || '', bookingRows: options.bookingRows || [] };
+  const state = { offline: false, note: options.note || '', bookingRows: options.bookingRows || [], notifications: options.notifications || [] };
   await installSupabaseStub(page);
   await page.route('**/_vercel/**', route => route.abort());
   await page.route('https://fonts.googleapis.com/**', route => route.abort());
@@ -79,7 +79,18 @@ async function mockPortal(page, options = {}) {
     } else if (url.pathname.startsWith('/api/strava')) {
       json = { connected: false, activities: [] };
     } else if (url.pathname === '/api/reminders') {
-      json = request.method() === 'GET' ? { ok: true, notifications: [] } : { ok: true };
+      if (request.method() === 'GET') {
+        json = { ok: true, notifications: state.notifications, unread: state.notifications.filter(item => !item.read_at).length };
+      } else if (body.action === 'read-notification') {
+        state.notifications = state.notifications.map(item => item.id === body.id ? { ...item, read_at: new Date().toISOString() } : item);
+        json = { ok: true, notifications: state.notifications, unread: state.notifications.filter(item => !item.read_at).length };
+      } else if (body.action === 'dismiss-notification') {
+        state.notifications = state.notifications.filter(item => item.id !== body.id);
+        json = { ok: true, notifications: state.notifications, unread: state.notifications.filter(item => !item.read_at).length };
+      } else if (body.action === 'clear-notifications') {
+        state.notifications = [];
+        json = { ok: true, notifications: [], unread: 0 };
+      }
     }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json) });
   });
@@ -204,4 +215,27 @@ test('7. booking leads the collapsed stack and a cancellation clears the stale c
   await expect(page.locator('#callNudge')).toBeVisible();
   await expect.poll(() => page.locator('.top-shell-priority > .nudge-strip:visible').first().getAttribute('id')).toBe('callNudge');
   await expect.poll(() => page.evaluate(key => localStorage.getItem(key), localKey)).toBe(null);
+});
+
+test('8. athlete can clear one notification or clear the whole inbox', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await codeLogin(page, {
+    notifications: [
+      { id: '11111111-1111-4111-8111-111111111111', title: 'Programme published', body: 'Your next training block is live.', url: '/', created_at: '2026-08-27T07:15:00Z', read_at: null, pushed_at: null },
+      { id: '22222222-2222-4222-8222-222222222222', title: "Today's training", body: 'VO2 5×1km + 4×200m', url: '/?tab=training', created_at: '2026-08-27T06:00:00Z', read_at: null, pushed_at: '2026-08-27T06:00:05Z' },
+    ],
+  });
+
+  await expect(page.getByRole('button', { name: 'Open notifications, 2 unread' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open notifications, 2 unread' }).click();
+  await expect(page.getByRole('button', { name: 'Clear Programme published notification' })).toBeVisible();
+  await page.getByRole('button', { name: 'Clear Programme published notification' }).click();
+  await expect(page.getByText('Programme published', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open notifications, 1 unread' })).toBeVisible();
+
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Clear all' }).click();
+  await expect(page.getByText('You’re all caught up')).toBeVisible();
+  await expect(page.locator('#notificationCount')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Clear all' })).toBeHidden();
 });
