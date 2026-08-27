@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v175'; // v175: seven-step type scale and unified radius scale
+const CACHE_NAME = 'dp-athlete-v176'; // v176: consolidated design-system cascade
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=136', '/desktop.css?v=6', '/config.js',
+  '/index.html', '/styles.css?v=137', '/desktop.css?v=6', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=116',
   '/js/02-login-goals.js?v=110',
