@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v176'; // v176: consolidated design-system cascade
+const CACHE_NAME = 'dp-athlete-v177'; // v177: extracted interval rest parser
 const APP_SHELL = [
   '/index.html', '/styles.css?v=137', '/desktop.css?v=6', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -10,7 +10,8 @@ const APP_SHELL = [
   '/js/06-nutrition.js?v=91',
   '/js/07-progress.js?v=89',
   '/js/strava-match.js?v=6',
-  '/js/08-training.js?v=127',
+  '/js/08-training-interval-rest.js?v=1',
+  '/js/08-training.js?v=128',
   '/js/09-logging.js?v=119',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=109',
