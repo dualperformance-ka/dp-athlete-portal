@@ -5,6 +5,7 @@
 import { upsert, select, remove } from './supabase-rest.js';
 
 export const TZ = 'Australia/Adelaide';
+export const INACTIVE_APPOINTMENT_STATUSES = new Set(['cancelled', 'canceled', 'noshow', 'no_show', 'invalid']);
 
 // Date shifted into Adelaide wall-clock so week math matches the athlete.
 export function adelaideDate(date) {
@@ -38,6 +39,109 @@ export function displayTime(date) {
   const month = String(p.month || '').slice(0, 3);
   const ampm = String(t.dayPeriod || '').toLowerCase();
   return `${p.weekday} ${p.day} ${month} · ${t.hour}:${t.minute} ${ampm}`;
+}
+
+export function appointmentStart(event) {
+  const raw = event?.startTime || event?.start_time || event?.startTimestamp;
+  const date = raw ? new Date(raw) : null;
+  return date && !isNaN(date) ? date : null;
+}
+
+export function appointmentEventId(event) {
+  return String(event?.id || event?.eventId || event?.event_id || '').trim();
+}
+
+export function appointmentStatus(event) {
+  return String(event?.appointmentStatus || event?.appoinmentStatus || event?.status || '').trim().toLowerCase();
+}
+
+export function bookingWeekKeysBetween(start, end) {
+  const from = new Date(start);
+  const to = new Date(end);
+  const keys = new Set();
+  if (isNaN(from) || isNaN(to) || from > to) return keys;
+  // Step through UTC days; Adelaide conversion below supplies the authoritative
+  // local week and naturally absorbs daylight-saving transitions.
+  for (let at = from.getTime(); at <= to.getTime(); at += 86400000) {
+    keys.add(isoWeekKey(adelaideDate(new Date(at))));
+  }
+  keys.add(isoWeekKey(adelaideDate(to)));
+  return keys;
+}
+
+// Reconcile the one-row-per-week portal projection with the authoritative GHL
+// event set. Multiple active events in one week retain the existing behaviour:
+// the appointment with the latest start time is the row the portal displays.
+// If that event is cancelled, the next active event wins; if none remain, the
+// stale weekly row is removed. Events in different weeks retain separate rows.
+export async function reconcileCallBookings(code, events, dependencies = {}) {
+  const selectRows = dependencies.selectRows || select;
+  const removeRows = dependencies.removeRows || remove;
+  const storeBooking = dependencies.storeBooking || storeCallBooked;
+  const now = dependencies.now ? new Date(dependencies.now) : new Date();
+  const start = dependencies.start ? new Date(dependencies.start) : new Date(now.getTime() - 14 * 86400000);
+  const end = dependencies.end ? new Date(dependencies.end) : new Date(now.getTime() + 60 * 86400000);
+  const dryRun = dependencies.dryRun === true;
+  const winners = new Map();
+  const inactiveEventIds = new Set();
+  let skipped = 0;
+
+  for (const event of events || []) {
+    const status = appointmentStatus(event);
+    const eventId = appointmentEventId(event);
+    if (status && INACTIVE_APPOINTMENT_STATUSES.has(status)) {
+      if (eventId) inactiveEventIds.add(eventId);
+      skipped++;
+      continue;
+    }
+    const date = appointmentStart(event);
+    if (!date) { skipped++; continue; }
+    const key = isoWeekKey(adelaideDate(date));
+    const prior = winners.get(key);
+    if (!prior || date > prior.date) winners.set(key, { key, date, event });
+  }
+
+  const existing = dependencies.existingRows !== undefined
+    ? dependencies.existingRows
+    : await selectRows('athlete_data', {
+      athlete_code: `eq.${code}`,
+      key: 'like.call_booked_*',
+      select: 'key,value',
+      limit: '100',
+    });
+  const desiredKeys = new Set(winners.keys());
+  const authoritativeKeys = bookingWeekKeysBetween(start, end);
+  const updated = [];
+  const removed = [];
+
+  for (const winner of [...winners.values()].sort((a, b) => a.date - b.date)) {
+    const appointment = {
+      eventId: appointmentEventId(winner.event),
+      calendarId: winner.event?.calendarId || winner.event?.calendar_id || dependencies.calendarId || '',
+    };
+    if (dryRun) {
+      const value = { time: displayTime(winner.date), startsAt: winner.date.toISOString() };
+      if (appointment.eventId) value.eventId = appointment.eventId;
+      if (appointment.calendarId) value.calendarId = appointment.calendarId;
+      updated.push({ key: winner.key, value });
+    } else {
+      updated.push(await storeBooking(code, winner.date, appointment));
+    }
+  }
+
+  for (const row of existing || []) {
+    const key = String(row?.key || '');
+    if (!/^call_booked_\d{4}_\d{2}$/.test(key)) continue;
+    const existingEventId = String(row?.value?.eventId || row?.value?.event_id || '').trim();
+    const cancelled = !!(existingEventId && inactiveEventIds.has(existingEventId));
+    // A different active event may replace the cancelled one in the same week;
+    // its upsert has already made this key current, so never delete a desired key.
+    if (desiredKeys.has(key) || (!cancelled && !authoritativeKeys.has(key))) continue;
+    removed.push({ key, eventId: existingEventId || null });
+    if (!dryRun) await removeRows('athlete_data', { athlete_code: `eq.${code}`, key: `eq.${key}` });
+  }
+
+  return { updated, removed, skipped, activeWeeks: winners.size };
 }
 
 // Writes the weekly call_booked key for an athlete. Returns { key, value }.

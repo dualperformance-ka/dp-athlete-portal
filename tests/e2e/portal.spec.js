@@ -4,6 +4,14 @@ function localISO(date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Adelaide', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
 
+function isoWeekSuffix(date = new Date()) {
+  const local = new Date(localISO(date));
+  local.setDate(local.getDate() + 3 - ((local.getDay() + 6) % 7));
+  const weekOne = new Date(local.getFullYear(), 0, 4);
+  const week = 1 + Math.round(((local - weekOne) / 86400000 - 3 + ((weekOne.getDay() + 6) % 7)) / 7);
+  return `${local.getFullYear()}_${String(week).padStart(2, '0')}`;
+}
+
 const today = localISO();
 const athlete = { ok: true, exists: true, active: true, code: 'KARL', name: 'Karl', auth_mode: 'both', email: 'karl@example.com', access_token: 'signed-session' };
 const exercise = { exercise: 'Leg Extension', sets: '3', reps: '8', repRange: '8-12', warmupSets: '0', workingSets: '3', rest: '0s', notes: '' };
@@ -40,7 +48,7 @@ async function installSupabaseStub(page) {
 }
 
 async function mockPortal(page, options = {}) {
-  const state = { offline: false, note: options.note || '' };
+  const state = { offline: false, note: options.note || '', bookingRows: options.bookingRows || [] };
   await installSupabaseStub(page);
   await page.route('**/_vercel/**', route => route.abort());
   await page.route('https://fonts.googleapis.com/**', route => route.abort());
@@ -67,7 +75,7 @@ async function mockPortal(page, options = {}) {
       else if (action === 'nutrition-week') json = { ok: true, rows: [] };
       else if (action === 'weekly-sport-targets') json = { ok: true, rows: [] };
       else if (action === 'programme-data') json = { ok: true, rows: [] };
-      else if (action === 'booking-sync') json = { ok: true, rows: [] };
+      else if (action === 'booking-sync' || action === 'booking-read') json = { ok: true, rows: state.bookingRows };
     } else if (url.pathname.startsWith('/api/strava')) {
       json = { connected: false, activities: [] };
     } else if (url.pathname === '/api/reminders') {
@@ -173,4 +181,27 @@ test('6. coach cue avatars appear only for a real override note', async ({ page 
   await page.evaluate(() => refreshWeekInBackground());
   await expect(page.getByText('Today’s focus')).toBeVisible();
   await expect(page.locator('.coach-avatars')).toHaveCount(0);
+});
+
+test('7. booking leads the collapsed stack and a cancellation clears the stale confirmation', async ({ page }) => {
+  const suffix = isoWeekSuffix();
+  const localKey = `dp_call_booked_KARL_${suffix}`;
+  const state = await codeLogin(page, {
+    bookingRows: [{
+      key: `call_booked_${suffix}`,
+      value: { time: 'Sat 29 Aug · 9:30 am', startsAt: '2026-08-29T00:00:00.000Z', eventId: 'event-123' },
+    }],
+  });
+
+  await expect(page.locator('#callConfirmedNudge')).toBeVisible();
+  await expect.poll(() => page.locator('.top-shell-priority > .nudge-strip:visible').first().getAttribute('id')).toBe('callConfirmedNudge');
+  await expect.poll(() => page.evaluate(key => !!localStorage.getItem(key), localKey)).toBe(true);
+
+  state.bookingRows = [];
+  await page.evaluate(() => refreshCallBookingsFromCloud(0, true));
+
+  await expect(page.locator('#callConfirmedNudge')).toBeHidden();
+  await expect(page.locator('#callNudge')).toBeVisible();
+  await expect.poll(() => page.locator('.top-shell-priority > .nudge-strip:visible').first().getAttribute('id')).toBe('callNudge');
+  await expect.poll(() => page.evaluate(key => localStorage.getItem(key), localKey)).toBe(null);
 });
