@@ -1,4 +1,4 @@
--- Athletes can clear inbox items without deleting the durable delivery record.
+-- Athletes may clear inbox items without deleting the durable delivery record.
 -- Keeping the row preserves deduplication, delivery audit data and the 30-day
 -- retention boundary while hiding it from the athlete-facing inbox.
 alter table public.athlete_notifications
