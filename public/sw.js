@@ -1,10 +1,10 @@
-const CACHE_NAME = 'dp-athlete-v178'; // v178: reconcile cancelled bookings and pin call priority
+const CACHE_NAME = 'dp-athlete-v179'; // v179: client notification clearing
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=137', '/desktop.css?v=6', '/config.js',
+  '/index.html', '/styles.css?v=138', '/desktop.css?v=6', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=116',
   '/js/02-login-goals.js?v=110',
-  '/js/03-nav-nudges.js?v=105',
+  '/js/03-nav-nudges.js?v=106',
   '/js/04-checkin.js?v=93',
   '/js/05-handbook.js?v=85',
   '/js/06-nutrition.js?v=91',

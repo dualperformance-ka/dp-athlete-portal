@@ -736,6 +736,7 @@ async function enableAllReminderNotifications(){
 // Push is only a courtesy copy. The Supabase-backed inbox is the record, so an
 // OS permission denial, stale endpoint or daily-cap suppression loses nothing.
 var _notificationInbox=[];
+var _notificationInboxMutating=false;
 function updateNotificationBadge(unread){
   var badge=document.getElementById('notificationCount'),bell=document.getElementById('notificationBell');
   unread=Math.max(0,Number(unread)||0);
@@ -747,19 +748,45 @@ function notificationTime(value){
   return date.toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
 }
 function renderNotificationInbox(){
-  var list=document.getElementById('notificationInboxList');if(!list)return;
+  var list=document.getElementById('notificationInboxList'),clearAll=document.getElementById('clearAllNotificationsBtn');if(!list)return;
+  if(clearAll){clearAll.hidden=!_notificationInbox.length;clearAll.disabled=_notificationInboxMutating;}
   if(!_notificationInbox.length){list.innerHTML='<div class="notification-empty"><strong>You’re all caught up</strong><span>Programme changes and coaching reminders will stay here for 30 days.</span></div>';return;}
   list.innerHTML=_notificationInbox.map(function(item){
-    return '<button class="notification-item'+(item.read_at?'':' is-unread')+'" type="button" onclick="openNotificationItem(\''+esc(item.id)+'\',decodeURIComponent(\''+encodeURIComponent(String(item.url||'/'))+'\'))">'
-      +'<span class="notification-item-dot"></span><span class="notification-item-copy"><strong>'+esc(item.title)+'</strong><span>'+esc(item.body)+'</span><small>'+esc(notificationTime(item.created_at))+(item.pushed_at?' · Sent to your device':' · Inbox')+'</small></span><b>›</b></button>';
+    var id=esc(item.id),title=esc(item.title);
+    return '<div class="notification-item'+(item.read_at?'':' is-unread')+'">'
+      +'<button class="notification-item-open" type="button" onclick="openNotificationItem(\''+id+'\',decodeURIComponent(\''+encodeURIComponent(String(item.url||'/'))+'\'))">'
+      +'<span class="notification-item-dot"></span><span class="notification-item-copy"><strong>'+title+'</strong><span>'+esc(item.body)+'</span><small>'+esc(notificationTime(item.created_at))+(item.pushed_at?' · Sent to your device':' · Inbox')+'</small></span><b>›</b></button>'
+      +'<button class="notification-item-clear" type="button" onclick="clearNotification(\''+id+'\')" aria-label="Clear '+title+' notification"'+(_notificationInboxMutating?' disabled':'')+'>×</button></div>';
   }).join('');
+}
+function applyNotificationInboxResponse(data){
+  _notificationInbox=Array.isArray(data.notifications)?data.notifications:[];
+  updateNotificationBadge(data.unread);renderNotificationInbox();
+}
+async function mutateNotificationInbox(action,id){
+  if(_notificationInboxMutating)return false;
+  _notificationInboxMutating=true;renderNotificationInbox();
+  try{
+    var response=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:action,id:id})});
+    var data=await response.json();if(!response.ok||data.ok===false)throw new Error(data.error||'Notification update failed');
+    applyNotificationInboxResponse(data);return true;
+  }catch(e){showToast(e&&e.message?e.message:'Couldn’t clear notifications','error');return false;}
+  finally{_notificationInboxMutating=false;renderNotificationInbox();}
+}
+async function clearNotification(id){
+  if(await mutateNotificationInbox('dismiss-notification',id))showToast('Notification cleared');
+}
+async function clearAllNotifications(){
+  if(!_notificationInbox.length||_notificationInboxMutating)return;
+  if(!window.confirm('Clear all notifications from your inbox?'))return;
+  if(await mutateNotificationInbox('clear-notifications'))showToast('Notifications cleared');
 }
 // Single implementation of the inbox read POST. Used by an inbox tap and by a
 // push tap arriving with ?n=<id>; there is deliberately no second code path.
 async function markNotificationRead(id){
   try{
     var response=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'read-notification',id:id})});
-    var data=await response.json();if(response.ok&&data.ok){_notificationInbox=data.notifications||_notificationInbox;updateNotificationBadge(data.unread);}
+    var data=await response.json();if(response.ok&&data.ok)applyNotificationInboxResponse(data);
   }catch(e){}
 }
 // A push tap lands on the session with ?n=<id>. Mark it read, then take the
@@ -779,8 +806,7 @@ async function refreshNotificationInbox(){
   try{
     var response=await fetch('/api/reminders?portal=1',{headers:authHeaders({}),cache:'no-store'});
     var data=await response.json();if(!response.ok||data.ok===false)throw new Error(data.error||'Inbox unavailable');
-    _notificationInbox=Array.isArray(data.notifications)?data.notifications:[];
-    updateNotificationBadge(data.unread);renderNotificationInbox();
+    applyNotificationInboxResponse(data);
   }catch(e){
     var list=document.getElementById('notificationInboxList');if(list)list.innerHTML='<div class="notification-empty"><strong>Couldn’t load notifications</strong><span>Check your connection and try again.</span></div>';
   }

@@ -1,5 +1,6 @@
 // ── ATHLETE REMINDERS ─────────────────────────────────────────────────────────
-// POST (from portal client): save/remove push subscription or mark inbox read.
+// POST (from portal client): save/remove push subscription, mark inbox read,
+//   or soft-dismiss one/all inbox notifications for the signed-in athlete.
 //   The client includes its timezone; the durable inbox works without push.
 // GET  ?portal=1          : return due state and the athlete's notification inbox.
 // GET  (scheduled)        : authorised with REMINDERS_CRON_SECRET or CRON_SECRET.
@@ -17,6 +18,7 @@ import webpush from 'web-push';
 import { select, upsert, patch, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
 import { getRequestAthlete } from './_lib/auth.js';
 import { allowPortalRequest, safeError } from './_lib/http.js';
+import { clearInbox, dismissInboxNotification, listInbox, markInboxRead } from './_lib/notification-inbox.js';
 import { groupByAthlete, mergeLastSent, resolvePrefs, selectLiveDevices } from './_lib/push-devices.js';
 import {
   DAILY_PUSH_CAP, MORNING_HOUR, MORNING_MINUTE, LOGGING_HOUR, LOGGING_MINUTE,
@@ -259,32 +261,6 @@ async function saveInboxMessage(code, message, localDate) {
   return Array.isArray(rows) ? rows[0] : null;
 }
 
-async function listInbox(code) {
-  const [rows, unreadRows] = await Promise.all([
-    select('athlete_notifications', {
-      athlete_code: `eq.${code}`,
-      select: 'id,type,title,body,url,created_at,read_at,pushed_at',
-      order: 'created_at.desc',
-      limit: '50',
-    }),
-    select('athlete_notifications', {
-      athlete_code: `eq.${code}`, read_at: 'is.null', select: 'id', limit: '1000',
-    }),
-  ]);
-  const notifications = Array.isArray(rows) ? rows : [];
-  return { notifications, unread: Array.isArray(unreadRows) ? unreadRows.length : 0 };
-}
-
-async function markInboxRead(code, id) {
-  if (!/^[0-9a-f-]{36}$/i.test(String(id || ''))) {
-    const error = new Error('A valid notification id is required');
-    error.status = 400;
-    throw error;
-  }
-  await patch('athlete_notifications', { id: `eq.${id}`, athlete_code: `eq.${code}` }, { read_at: new Date().toISOString() });
-  return listInbox(code);
-}
-
 async function pushedToday(code, iso) {
   const rows = await select('athlete_notifications', {
     athlete_code: `eq.${code}`, local_date: `eq.${iso}`, pushed_at: 'not.is.null',
@@ -295,7 +271,7 @@ async function pushedToday(code, iso) {
 
 async function unreadSuppressed(code, iso) {
   const rows = await select('athlete_notifications', {
-    athlete_code: `eq.${code}`, local_date: `lt.${iso}`, pushed_at: 'is.null', read_at: 'is.null',
+    athlete_code: `eq.${code}`, local_date: `lt.${iso}`, pushed_at: 'is.null', read_at: 'is.null', dismissed_at: 'is.null',
     select: 'id', limit: '25',
   });
   return Array.isArray(rows) ? rows.length : 0;
@@ -314,7 +290,9 @@ function withNotificationId(url, id) {
 }
 
 async function pushInboxMessage(athlete, row, message) {
-  if (!row || row.pushed_at) return { reached: false, sent: 0, alreadyPushed: !!row?.pushed_at };
+  if (!row || row.pushed_at || row.dismissed_at) {
+    return { reached: false, sent: 0, alreadyPushed: !!row?.pushed_at, dismissed: !!row?.dismissed_at };
+  }
   const payload = JSON.stringify({
     title: message.title, body: message.body, tag: `dp-${message.type}`,
     url: withNotificationId(message.url || '/', row.id), notificationId: row.id,
@@ -579,6 +557,14 @@ export default async function handler(req, res) {
       if (!identity) return send(res, 401, { ok: false, error: 'invalid_session' });
       if (req.body?.action === 'read-notification') {
         const inbox = await markInboxRead(String(identity.athlete.code).toUpperCase(), req.body?.id);
+        return send(res, 200, { ok: true, ...inbox });
+      }
+      if (req.body?.action === 'dismiss-notification') {
+        const inbox = await dismissInboxNotification(String(identity.athlete.code).toUpperCase(), req.body?.id);
+        return send(res, 200, { ok: true, ...inbox });
+      }
+      if (req.body?.action === 'clear-notifications') {
+        const inbox = await clearInbox(String(identity.athlete.code).toUpperCase());
         return send(res, 200, { ok: true, ...inbox });
       }
       return await handleSubscribe(req, res, identity);

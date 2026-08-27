@@ -318,6 +318,10 @@ create index on public.athlete_notifications (athlete_code, created_at desc);
 - The portal shows a bell in the header with an unread count, reading from
   `/api/reminders?portal=1` (the endpoint already exists for due-checks).
 - Tapping an item marks it read and follows `url`.
+- Athletes can clear one item or the whole visible inbox. Clearing stamps
+  `dismissed_at` rather than deleting the row, so delivery history and the
+  dedupe key remain authoritative while the item disappears from the inbox,
+  unread badge and missed-update summaries.
 - 30-day retention, purged by the same pg_cron job that trims
   `coach_change_log`.
 

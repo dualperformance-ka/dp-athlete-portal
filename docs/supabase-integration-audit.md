@@ -18,7 +18,7 @@ normalised copies from Supabase.
 | Weekly check-ins and goals | `weekly_checkins`, `athlete_goals` | bootstrap / state hydration | same structured tables |
 | Progress photos | private Storage bucket `progress-photos` + `progress_photos` metadata | signed URLs from `/api/progress-photos` | metadata is directly queryable; bytes stay private |
 | Push devices | `push_subscriptions` | `/api/reminders` subscription flow | `notify_status` reachability |
-| Notification record | `athlete_notifications` | bell/inbox via `/api/reminders?portal=1` | `notify_status` unread and delivery timestamps |
+| Notification record | `athlete_notifications` | bell/inbox via `/api/reminders?portal=1`; athlete-scoped soft dismissal | `notify_status` visible unread and delivery timestamps |
 | Programme-change queue | `coach_change_log` | near-term pushes + durable inbox | `notify_status.queued` |
 | Strava | `strava_activities` and private token/event tables | `/api/strava` | same cached activities |
 | Coaching calls | GHL events normalised into `athlete_data.call_booked_*` | booking nudge and notification cron | same stored booking timestamp |
