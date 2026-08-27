@@ -22,7 +22,7 @@ function nudgeVisible(el){
 // Collapsing uses a class, never an inline style. Each nudge's own init writes
 // el.style.display and must stay the single authority on whether it is due at
 // all; this pass only decides whether a due row is shown now or folded away.
-var NUDGE_PRIORITY=['goalsBanner','checkinNudge','callNudge','photoNudge'];
+var NUDGE_PRIORITY=['callNudge','goalsBanner','checkinNudge','photoNudge'];
 var _nudgeSummaryOpen=false,_nudgeSummaryHidden=0,_nudgePriorityPass=false;
 function nudgeSummaryRow(card){
   var row=document.getElementById('nudgeSummaryRow');
@@ -46,6 +46,13 @@ function toggleNudgeSummary(){
 function applyNudgePriority(card){
   var row=nudgeSummaryRow(card);
   var nodes=NUDGE_PRIORITY.map(function(id){return document.getElementById(id);});
+  // A confirmed call is useful status rather than another demand, but it still
+  // answers the most important weekly question. Pin it above the collapsed
+  // demand stack; when no call is booked, callNudge leads NUDGE_PRIORITY.
+  var confirmed=document.getElementById('callConfirmedNudge');
+  if(confirmed&&!confirmed.classList.contains('is-clearing')&&nudgeVisible(confirmed)&&card.firstElementChild!==confirmed){
+    card.insertBefore(confirmed,card.firstElementChild);
+  }
   // Start from each row's own state. Reading dueness through our own collapse
   // would fold the same rows away permanently after the first pass.
   nodes.forEach(function(el){if(el) el.classList.remove('nudge-collapsed');});
@@ -224,15 +231,30 @@ function renderBookingPrompts(){
   syncWeekCardState();
   return st;
 }
-var _callBookingRefreshTimer=null;
-function applyCloudBookingRows(rows){
+var _callBookingRefreshTimer=null,_callBookingLastSyncAt=0;
+function applyCloudBookingRows(rows,authoritative){
   var prefix=callBookedPrefix();
+  var cloudKeys={};
   (rows||[]).forEach(function(row){
     var key=String(row&&row.key||'');
     if(!/^call_booked_\d{4}_\d{2}$/.test(key))return;
     var suffix=key.slice('call_booked_'.length);
+    cloudKeys[prefix+suffix]=true;
     localStorage.setItem(prefix+suffix,JSON.stringify(row.value));
   });
+  // booking-sync has just reconciled Supabase with GHL, so absence is
+  // authoritative. Remove local weekly rows that no longer exist in cloud;
+  // booking-read alone never prunes because a webhook may still be arriving.
+  if(authoritative){
+    var stale=[];
+    try{
+      for(var i=0;i<localStorage.length;i++){
+        var localKey=localStorage.key(i);
+        if(localKey&&localKey.indexOf(prefix)===0&&/^\d{4}_\d{2}$/.test(localKey.slice(prefix.length))&&!cloudKeys[localKey])stale.push(localKey);
+      }
+      stale.forEach(function(key){localStorage.removeItem(key);});
+    }catch(e){}
+  }
   // If the widget could not expose a timestamp, it temporarily marked the
   // current week locally. Once the webhook supplies an authoritative booking
   // in another week, remove that optimistic flag rather than showing a
@@ -256,9 +278,11 @@ async function refreshCallBookingsFromCloud(attempt,forceSync){
     // later retries stay cheap and read Supabase only.
     var action=(attempt===0&&(forceSync||(before.booked&&!before.displayTime)))?'booking-sync':'booking-read';
     var result=await portalRequest(action);
-    applyCloudBookingRows(result.rows||[]);
+    if(action==='booking-sync')_callBookingLastSyncAt=Date.now();
+    applyCloudBookingRows(result.rows||[],action==='booking-sync');
     var state=renderBookingPrompts();
     if((state.booked&&state.displayTime)||(!state.booked&&state.upcoming&&state.upcoming.displayTime))return;
+    if(action==='booking-sync'&&!state.booked&&!state.upcoming)return;
   }catch(e){console.warn('Booking time refresh failed',e);}
   if(attempt<2){
     if(_callBookingRefreshTimer)clearTimeout(_callBookingRefreshTimer);
@@ -266,9 +290,19 @@ async function refreshCallBookingsFromCloud(attempt,forceSync){
   }
 }
 function initCallNudge(){
-  var state=renderBookingPrompts();
-  if(state.booked&&!state.displayTime)refreshCallBookingsFromCloud(0);
+  renderBookingPrompts();
+  // Always reconcile in the background on entry. This is deliberately after
+  // the primary week render, so cancellation/reschedule accuracy never blocks
+  // the athlete from seeing today's training.
+  refreshCallBookingsFromCloud(0,true);
 }
+function refreshCallBookingsOnResume(){
+  if(typeof document!=='undefined'&&document.visibilityState&&document.visibilityState!=='visible')return;
+  if(Date.now()-_callBookingLastSyncAt<30000)return;
+  refreshCallBookingsFromCloud(0,true);
+}
+document.addEventListener('visibilitychange',refreshCallBookingsOnResume);
+window.addEventListener('focus',refreshCallBookingsOnResume);
 function checkinWeekSuffix(date){
   var d=new Date(date||new Date());d.setHours(0,0,0,0);
   // Weeks reset at Monday midnight. The form's completion state is therefore

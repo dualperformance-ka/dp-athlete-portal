@@ -15,15 +15,17 @@ const css = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
 // were giving them.
 
 test('the priority order is explicit and unchanged', () => {
-  assert.match(nav, /var NUDGE_PRIORITY=\['goalsBanner','checkinNudge','callNudge','photoNudge'\];/);
+  assert.match(nav, /var NUDGE_PRIORITY=\['callNudge','goalsBanner','checkinNudge','photoNudge'\];/);
 });
 
-test('a done state is never part of the demand stack', () => {
+test('a confirmed booking is pinned first without becoming part of the demand stack', () => {
   const start = nav.indexOf('var NUDGE_PRIORITY=');
   const end = nav.indexOf('function syncWeekCardState(');
   const pass = nav.slice(start, end);
   assert.ok(start >= 0 && end > start, 'the priority pass should remain discoverable');
-  assert.doesNotMatch(pass, /getElementById\('callConfirmedNudge'\)/);
+  assert.match(pass, /getElementById\('callConfirmedNudge'\)/);
+  assert.match(pass, /card\.insertBefore\(confirmed,card\.firstElementChild\)/);
+  assert.doesNotMatch(nav.match(/var NUDGE_PRIORITY=\[[^\n]+/)[0], /callConfirmedNudge/);
   assert.doesNotMatch(pass, /strava-ack-banner/);
 });
 

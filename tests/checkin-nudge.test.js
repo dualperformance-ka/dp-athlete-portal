@@ -5,7 +5,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { bookingRead, bookingSync, stateRead } from '../api/write.js';
 import { syncBookingsForAthlete } from '../api/bookings.js';
-import { adelaideDate, displayTime, isoWeekKey, storeCallBooked } from '../api/_lib/booking.js';
+import {
+  adelaideDate, displayTime, isoWeekKey, storeCallBooked, reconcileCallBookings,
+} from '../api/_lib/booking.js';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const navSource = readFileSync(join(root, 'public', 'js', '03-nav-nudges.js'), 'utf8');
@@ -139,6 +141,87 @@ test('timestamp-free widget confirmations cannot overwrite the cloud booking val
   assert.match(navSource, /\?'booking-sync':'booking-read'/);
   assert.match(navSource, /refreshCallBookingsFromCloud\(0,true\)/);
   assert.match(navSource, /currentRaw&&!currentRaw\.time&&hasDatedFuture/);
+  assert.match(navSource, /applyCloudBookingRows\(result\.rows\|\|\[\],action==='booking-sync'\)/);
+  assert.match(navSource, /refreshCallBookingsFromCloud\(0,true\);/);
+  assert.match(navSource, /visibilitychange',refreshCallBookingsOnResume/);
+  assert.match(navSource, /Date\.now\(\)-_callBookingLastSyncAt<30000/);
+});
+
+test('an authoritative booking sync removes a cancelled weekly projection even when GHL omits the event', async () => {
+  const removals = [];
+  const result = await reconcileCallBookings('KARL', [], {
+    start: '2026-08-20T00:00:00Z',
+    end: '2026-09-20T00:00:00Z',
+    existingRows: [{
+      key: 'call_booked_2026_35',
+      value: { eventId: 'cancelled-event', startsAt: '2026-08-29T00:00:00Z' },
+    }],
+    removeRows: async (...args) => { removals.push(args); },
+    storeBooking: async () => { throw new Error('cancelled appointments must not be stored'); },
+  });
+
+  assert.deepEqual(result.updated, []);
+  assert.deepEqual(result.removed, [{ key: 'call_booked_2026_35', eventId: 'cancelled-event' }]);
+  assert.deepEqual(removals, [[
+    'athlete_data',
+    { athlete_code: 'eq.KARL', key: 'eq.call_booked_2026_35' },
+  ]]);
+});
+
+test('authoritative cloud rows prune only stale booking keys from the device cache', () => {
+  const values = new Map([
+    ['dp_call_booked_KARL_2026_35', JSON.stringify({ time: 'Sat 29 Aug · 9:30 am' })],
+    ['dp_call_booked_KARL_2026_36', JSON.stringify({ time: 'Sat 5 Sep · 9:30 am' })],
+    ['dp_logs_KARL', '{}'],
+  ]);
+  const localStorage = {
+    get length() { return values.size; },
+    key(index) { return [...values.keys()][index] || null; },
+    getItem(key) { return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { values.set(key, String(value)); },
+    removeItem(key) { values.delete(key); },
+  };
+  const start = navSource.indexOf('function callAdelaideDate');
+  const end = navSource.indexOf('async function refreshCallBookingsFromCloud', start);
+  const context = { athlete: { code: 'KARL' }, localStorage, Intl, Date };
+  vm.createContext(context);
+  vm.runInContext(navSource.slice(start, end), context);
+
+  context.applyCloudBookingRows([
+    { key: 'call_booked_2026_36', value: { time: 'Sat 5 Sep · 10:30 am' } },
+  ], true);
+
+  assert.equal(localStorage.getItem('dp_call_booked_KARL_2026_35'), null);
+  assert.match(localStorage.getItem('dp_call_booked_KARL_2026_36'), /10:30 am/);
+  assert.equal(localStorage.getItem('dp_logs_KARL'), '{}');
+});
+
+test('multiple and altered bookings reconcile deterministically', async () => {
+  const stored = [];
+  const removed = [];
+  const result = await reconcileCallBookings('KARL', [
+    { id: 'early-active', startTime: '2026-08-28T00:00:00Z', appointmentStatus: 'confirmed' },
+    { id: 'later-cancelled', startTime: '2026-08-29T00:00:00Z', appointmentStatus: 'cancelled' },
+    { id: 'next-week', startTime: '2026-09-05T00:00:00Z', appointmentStatus: 'confirmed' },
+  ], {
+    start: '2026-08-20T00:00:00Z',
+    end: '2026-09-20T00:00:00Z',
+    existingRows: [
+      { key: 'call_booked_2026_35', value: { eventId: 'later-cancelled' } },
+      { key: 'call_booked_2026_37', value: { eventId: 'stale-event' } },
+    ],
+    storeBooking: async (code, date, appointment) => {
+      const entry = { key: isoWeekKey(adelaideDate(date)), value: { eventId: appointment.eventId } };
+      stored.push(entry);
+      return entry;
+    },
+    removeRows: async (table, query) => { removed.push({ table, query }); },
+  });
+
+  assert.deepEqual(stored.map((entry) => entry.value.eventId), ['early-active', 'next-week']);
+  assert.deepEqual(result.updated.map((entry) => entry.key), ['call_booked_2026_35', 'call_booked_2026_36']);
+  assert.deepEqual(result.removed.map((entry) => entry.key), ['call_booked_2026_37']);
+  assert.equal(removed.length, 1);
 });
 
 test('authenticated booking recovery stores only the matching athlete appointment', async () => {
@@ -176,11 +259,12 @@ test('authenticated booking recovery stores only the matching athlete appointmen
 test('booking sync returns freshly recovered cloud rows', async () => {
   const result = await bookingSync(
     'THOMAS',
-    async (code) => ({ updated: [{ key: 'call_booked_2026_32' }], code }),
+    async (code) => ({ updated: [{ key: 'call_booked_2026_32' }], removed: [{ key: 'call_booked_2026_31' }], code }),
     async () => ({ rows: [{ key: 'call_booked_2026_32', value: { time: 'Tue 4 Aug · 6:30 pm' } }] }),
   );
   assert.equal(result.rows[0].value.time, 'Tue 4 Aug · 6:30 pm');
   assert.equal(result.synced[0].key, 'call_booked_2026_32');
+  assert.equal(result.removed[0].key, 'call_booked_2026_31');
 });
 
 test('cloud hydration uses structured check-ins, not legacy cache rows', async () => {

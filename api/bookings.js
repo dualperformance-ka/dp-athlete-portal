@@ -18,13 +18,14 @@
 // Matching: athletes.ghl_contact_id first, then athletes.email. Email matches
 // backfill ghl_contact_id onto the roster row for instant future matching.
 
-import { select, patch } from './_lib/supabase-rest.js';
-import { storeCallBooked, isoWeekKey, adelaideDate, displayTime } from './_lib/booking.js';
+import { select, patch, remove } from './_lib/supabase-rest.js';
+import {
+  storeCallBooked, reconcileCallBookings,
+} from './_lib/booking.js';
 import crypto from 'node:crypto';
 
 const GHL_BASE = 'https://services.leadconnectorhq.com';
 const DEFAULT_CALENDAR = 'WRivrNxfNTVER2xMit1z';
-const SKIP_STATUSES = new Set(['cancelled', 'canceled', 'noshow', 'no_show', 'invalid']);
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
@@ -66,6 +67,12 @@ async function ghl(path, version) {
   return data;
 }
 
+function calendarEvents(response) {
+  if (Array.isArray(response?.events)) return response.events;
+  if (Array.isArray(response?.data)) return response.data;
+  throw new Error('GHL calendar response did not contain an events array');
+}
+
 // Authenticated portal recovery path. GHL's embedded widget sometimes reports
 // a successful booking without including the selected timestamp in its
 // postMessage payload. In that case /api/portal-data calls this function with
@@ -74,6 +81,7 @@ async function ghl(path, version) {
 export async function syncBookingsForAthlete(code, options = {}) {
   const selectRows = options.selectRows || select;
   const patchRows = options.patchRows || patch;
+  const removeRows = options.removeRows || remove;
   const fetchGhl = options.fetchGhl || ghl;
   const storeBooking = options.storeBooking || storeCallBooked;
   const now = Number.isFinite(options.now) ? options.now : Date.now();
@@ -101,7 +109,7 @@ export async function syncBookingsForAthlete(code, options = {}) {
       `/calendars/events?locationId=${encodeURIComponent(locationId)}&calendarId=${encodeURIComponent(calendarId)}&startTime=${from}&endTime=${to}`,
       '2021-04-15'
     );
-    const batch = (response && (response.events || response.data)) || [];
+    const batch = calendarEvents(response);
     for (const event of batch) events.push(event);
   }
 
@@ -109,7 +117,7 @@ export async function syncBookingsForAthlete(code, options = {}) {
   let targetContactId = String(athlete.ghl_contact_id || '').trim();
   const contactEmails = new Map();
   const seen = new Set();
-  const updated = [];
+  const matchedEvents = [];
   const ordered = events
     .filter((event) => {
       const id = event.id || event.eventId || `${event.contactId || event.contact_id}:${event.startTime || event.start_time}`;
@@ -120,8 +128,6 @@ export async function syncBookingsForAthlete(code, options = {}) {
     .sort((a, b) => new Date(a.startTime || a.start_time || 0) - new Date(b.startTime || b.start_time || 0));
 
   for (const event of ordered) {
-    const status = String(event.appointmentStatus || event.appoinmentStatus || '').toLowerCase();
-    if (status && SKIP_STATUSES.has(status)) continue;
     const contactId = String(event.contactId || event.contact_id || '').trim();
     const inlineEmail = String(
       event.email || event.contactEmail || event.contact_email || (event.contact && event.contact.email) || ''
@@ -155,16 +161,19 @@ export async function syncBookingsForAthlete(code, options = {}) {
     }
     if (!matches) continue;
 
-    const startRaw = event.startTime || event.start_time || event.startTimestamp;
-    const startDate = startRaw ? new Date(startRaw) : null;
-    if (!startDate || isNaN(startDate)) continue;
-    updated.push(await storeBooking(athlete.code, startDate, {
-      eventId: event.id || event.eventId || '',
-      calendarId: event.calendarId || event.calendar_id || calendarId,
-    }));
+    matchedEvents.push(event);
   }
 
-  return { updated, calendarId };
+  const reconciled = await reconcileCallBookings(athlete.code, matchedEvents, {
+    start,
+    end,
+    now,
+    calendarId,
+    selectRows,
+    removeRows,
+    storeBooking,
+  });
+  return { ...reconciled, calendarId };
 }
 
 // ── WEBHOOK MODE ──────────────────────────────────────────────────────────────
@@ -252,7 +261,7 @@ async function handleSync(req, res) {
         `/calendars/events?locationId=${encodeURIComponent(locationId)}&calendarId=${encodeURIComponent(calendarId)}&startTime=${from}&endTime=${to}`,
         '2021-04-15'
       );
-      const batch = (eventsRes && (eventsRes.events || eventsRes.data)) || [];
+      const batch = calendarEvents(eventsRes);
       if (debug) {
         windows.push({
           from: new Date(from).toISOString().slice(0, 10),
@@ -294,6 +303,7 @@ async function handleSync(req, res) {
       dryRun,
       events: ordered.length,
       updated: [],
+      removed: [],
       skipped: 0,
       unmatched: [],
     };
@@ -307,13 +317,8 @@ async function handleSync(req, res) {
       }));
     }
 
+    const eventsByAthlete = {};
     for (const ev of ordered) {
-      const status = String(ev.appointmentStatus || ev.appoinmentStatus || '').toLowerCase();
-      if (status && SKIP_STATUSES.has(status)) { results.skipped++; continue; }
-      const startRaw = ev.startTime || ev.start_time || ev.startTimestamp;
-      const startDate = startRaw ? new Date(startRaw) : null;
-      if (!startDate || isNaN(startDate)) { results.skipped++; continue; }
-
       const contactId = ev.contactId || ev.contact_id || '';
       let athlete = contactId ? byContact[contactId] : null;
 
@@ -340,16 +345,41 @@ async function handleSync(req, res) {
       }
 
       if (!athlete) { if (!contactId) results.unmatched.push('(no contact on event)'); continue; }
+      const athleteCode = String(athlete.code || '').toUpperCase();
+      if (!eventsByAthlete[athleteCode]) eventsByAthlete[athleteCode] = [];
+      eventsByAthlete[athleteCode].push(ev);
+    }
 
-      if (dryRun) {
-        results.updated.push({ code: athlete.code, key: isoWeekKey(adelaideDate(startDate)), value: displayTime(startDate) });
-      } else {
-        const stored = await storeCallBooked(athlete.code, startDate, {
-          eventId: ev.id || ev.eventId || '',
-          calendarId: ev.calendarId || ev.calendar_id || calendarId,
-        });
-        results.updated.push({ code: athlete.code, ...stored });
-      }
+    // Pull the existing projection once. Athletes whose cancelled event has
+    // disappeared from GHL's response still enter reconciliation through this
+    // set, which is what lets an all-cancelled week clear reliably.
+    const existingBookingRows = await select('athlete_data', {
+      key: 'like.call_booked_*',
+      select: 'athlete_code,key,value',
+      limit: '5000',
+    });
+    const existingByAthlete = {};
+    for (const row of existingBookingRows || []) {
+      const code = String(row.athlete_code || '').toUpperCase();
+      if (!code) continue;
+      if (!existingByAthlete[code]) existingByAthlete[code] = [];
+      existingByAthlete[code].push(row);
+    }
+    const rosterCodes = new Set((roster || []).map((row) => String(row.code || '').toUpperCase()).filter(Boolean));
+    const reconcileCodes = new Set([...Object.keys(eventsByAthlete), ...Object.keys(existingByAthlete)]);
+    for (const code of reconcileCodes) {
+      if (!rosterCodes.has(String(code).toUpperCase())) continue;
+      const reconciled = await reconcileCallBookings(code, eventsByAthlete[code] || [], {
+        start,
+        end,
+        now: Date.now(),
+        calendarId,
+        dryRun,
+        existingRows: existingByAthlete[String(code).toUpperCase()] || [],
+      });
+      results.updated.push(...reconciled.updated.map((entry) => ({ code, ...entry })));
+      results.removed.push(...reconciled.removed.map((entry) => ({ code, ...entry })));
+      results.skipped += reconciled.skipped;
     }
 
     results.unmatched = [...new Set(results.unmatched)];

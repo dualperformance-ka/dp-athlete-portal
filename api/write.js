@@ -616,7 +616,7 @@ export async function bookingRead(code, selectRows = select) {
 export async function bookingSync(code, syncBookings = syncBookingsForAthlete, readBookings = bookingRead) {
   const sync = await syncBookings(code);
   const current = await readBookings(code);
-  return { ...current, synced: sync.updated || [] };
+  return { ...current, synced: sync.updated || [], removed: sync.removed || [] };
 }
 
 // Full read snapshot for the primary portal screen. Each section settles
