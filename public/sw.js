@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v173'; // v173: athlete-scoped outboxes and durable portal-state recovery
+const CACHE_NAME = 'dp-athlete-v174'; // v174: Inter + DM Mono design-system typography
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=134', '/desktop.css?v=5', '/config.js',
+  '/index.html', '/styles.css?v=135', '/desktop.css?v=5', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=116',
   '/js/02-login-goals.js?v=110',

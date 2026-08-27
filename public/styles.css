@@ -9,7 +9,6 @@
   --pb:#a78bfa;--pb-bg:rgba(167,139,250,0.14);--pb-border:rgba(167,139,250,0.34);
   --vpb:#2dd4bf;--vpb-bg:rgba(45,212,191,0.16);--vpb-border:rgba(45,212,191,0.40);
   --shadow-soft:0 10px 30px rgba(0,0,0,0.28);--shadow-blue:0 14px 36px rgba(146,210,237,0.10);
-  --mono:'DM Mono',monospace;--display:'Barlow Condensed',sans-serif;--body:'Barlow',sans-serif;
   --dp-logo:url('dp_baby_blue_transparent_512x512.png');
 }
 
@@ -2525,7 +2524,7 @@ input[type=range].sl-untouched{opacity:.45}
 :root{
   --display:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
   --body:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
-  --mono:ui-monospace,SFMono-Regular,Menlo,'DM Mono',monospace;
+  --mono:'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
 
   --run-strong:#d7f1fc;
   --ok:#73d1a7;--ok-bg:rgba(115,209,167,.12);--ok-border:rgba(115,209,167,.28);
