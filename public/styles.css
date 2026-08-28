@@ -5255,3 +5255,59 @@ html.outdoor-mode .photo-next-btn{background:var(--run-deep);color:var(--color-w
 }
 .hero-week-streak[hidden]{display:none}
 .outdoor-mode .hero-week-streak{color:var(--run-strong)}
+
+/* ══════════════════════════════════════════════════════════════════════
+   DATA RIGHTS CONTROLS
+   The support page promises an in-portal deletion option, so it has to
+   look like a control rather than a link. Destructive actions are quiet
+   by default and only carry danger colour on the confirm step — a red
+   button sitting in Preferences reads as an error, not an option.
+   ══════════════════════════════════════════════════════════════════════ */
+.data-request-btn{
+  display:block;width:100%;text-align:left;
+  background:var(--surface2);border:1px solid var(--border-mid);color:var(--text);
+  font-family:var(--body);font-size:15px;font-weight:600;
+  border-radius:var(--r-sm);padding:12px 14px;margin-top:8px;cursor:pointer;
+  transition:border-color .15s ease,background .15s ease
+}
+.data-request-btn:hover{border-color:var(--border-strong);background:var(--surface3)}
+.data-request-danger{color:var(--danger,#ff8879)}
+.data-support-link,.comms-support-link{
+  display:inline-flex;align-items:center;gap:6px;margin-top:12px;
+  font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--run);text-decoration:none
+}
+.data-support-link:hover,.comms-support-link:hover{text-decoration:underline}
+.data-support-link .icon,.comms-support-link .icon{width:13px;height:13px}
+
+.data-request-inner{max-width:460px}
+.data-request-explain{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:14px 16px;font-size:15px;line-height:1.55;color:var(--muted)
+}
+.data-request-label{
+  display:block;margin:16px 0 6px;
+  font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)
+}
+.data-request-note{
+  width:100%;background:var(--surface2);border:1px solid var(--border-mid);
+  border-radius:var(--r-sm);color:var(--text);font-family:var(--body);font-size:15px;
+  padding:11px 13px;resize:vertical
+}
+.data-request-note:focus{outline:none;border-color:var(--run)}
+.data-request-status{margin-top:12px;font-size:14px;line-height:1.5;color:var(--muted)}
+.data-request-status.is-sent{color:var(--ok)}
+.data-request-status.is-error{color:var(--danger,#ff8879)}
+.data-request-confirm{
+  width:100%;margin-top:16px;padding:13px 16px;cursor:pointer;
+  background:var(--run);border:1px solid var(--run);color:#071015;
+  font-family:var(--body);font-size:15px;font-weight:700;border-radius:var(--r-sm)
+}
+.data-request-confirm.is-danger{
+  background:transparent;color:var(--danger,#ff8879);border-color:var(--danger,#ff8879)
+}
+.data-request-confirm:disabled{opacity:.6;cursor:default}
+.data-request-policy{
+  display:block;text-align:center;margin-top:12px;
+  font-size:13px;color:var(--dim);text-decoration:underline
+}
