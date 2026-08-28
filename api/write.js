@@ -821,6 +821,124 @@ export async function notifyCoachOfMessage(code, message, deps = {}) {
   return { sent: true, reason: 'ghl_email' };
 }
 
+// ── DATA RIGHTS REQUESTS ─────────────────────────────────────────────────────
+// dualperformance.au/support tells athletes they can request account deletion
+// from inside the portal, and that verified requests are completed within 30
+// days. Both statements need a record to be true: an email in an inbox has no
+// requested_at, so the 30-day commitment cannot be demonstrated to a reviewer
+// or a regulator. Every request is therefore a row first, a notification second.
+//
+// Nothing here deletes anything. It raises a request a human actions.
+const DATA_REQUEST_KINDS = new Set(['account_deletion', 'wearable_deletion']);
+const DATA_REQUEST_NOTE_MAX = 1000;
+const DATA_REQUEST_DAILY_LIMIT = 3;
+
+// Where each kind is published on the support page. Carried into the
+// notification subject so the coaching inbox shows which queue a request
+// belongs to, and so these stay in step with the public page.
+const DATA_REQUEST_CONTACT = {
+  account_deletion: 'delete@dualperformance.au',
+  wearable_deletion: 'data@dualperformance.au',
+};
+
+const DATA_REQUEST_LABEL = {
+  account_deletion: 'Account deletion',
+  wearable_deletion: 'Wearable data deletion',
+};
+
+// Same transport and same constraint as notifyCoachOfMessage: GHL delivers to
+// the dedicated inbox contact, never to an arbitrary address. The published
+// delete@ / data@ addresses remain the route for athletes who email directly;
+// this notification tells the coaches a portal request has landed.
+export async function notifyCoachOfDataRequest(code, kind, note, deps = {}) {
+  const fetchImpl = deps.fetchImpl || fetch;
+  const selectRows = deps.selectRows || select;
+  const token = process.env.GHL_API_TOKEN;
+  const locationId = process.env.GHL_LOCATION_ID;
+  if (!token || !locationId) return { sent: false, reason: 'ghl_not_configured' };
+
+  const inboxContactId = String(process.env.COACH_NOTIFY_CONTACT_ID || '').trim();
+  if (!inboxContactId) return { sent: false, reason: 'no_notify_contact' };
+
+  const rows = await selectRows('athletes', { code: `eq.${code}`, select: 'name', limit: '1' })
+    .catch(() => []);
+  const athlete = (Array.isArray(rows) && rows[0]) || null;
+  const who = `${athlete?.name ? `${athlete.name} ` : ''}(${code})`;
+  const label = DATA_REQUEST_LABEL[kind] || 'Data request';
+  const queue = DATA_REQUEST_CONTACT[kind] || 'privacy@dualperformance.au';
+
+  const response = await fetchImpl(`${GHL_BASE}/conversations/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Version: '2021-04-15',
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'Email',
+      contactId: inboxContactId,
+      emailFrom: process.env.GHL_FROM_EMAIL || 'noreply@mail.dualperformance.au',
+      subject: `${label} requested — ${who}`,
+      html: `<p><strong>${escapeHtml(who)}</strong> raised a <strong>${escapeHtml(label.toLowerCase())}</strong> request from the athlete portal.</p>`
+        + (note ? `<blockquote style="margin:12px 0;padding:10px 14px;border-left:3px solid #92d2ed;white-space:pre-wrap">${escapeHtml(note)}</blockquote>` : '')
+        + `<p>Published queue for this kind: <strong>${escapeHtml(queue)}</strong>.</p>`
+        + `<p style="color:#666;font-size:12px">The support page commits to completing verified requests within 30 days. The row in <code>data_requests</code> carries requested_at — set completed_at when it is actioned.</p>`,
+    }),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    console.warn('[data-request] GHL email refused', response.status, detail.slice(0, 300));
+    return { sent: false, reason: `ghl_${response.status}` };
+  }
+  return { sent: true, reason: 'ghl_email' };
+}
+
+export async function dataRequest(code, body, deps = {}) {
+  const selectRows = deps.selectRows || select;
+  const insertRow = deps.insertRow || insert;
+  const notify = deps.notify || notifyCoachOfDataRequest;
+
+  const kind = String(body?.kind == null ? '' : body.kind).trim();
+  if (!DATA_REQUEST_KINDS.has(kind)) throw requestError('Unknown request type', 400);
+  const note = String(body?.note == null ? '' : body.note).trim().slice(0, DATA_REQUEST_NOTE_MAX);
+
+  // Rate limit per kind, so raising a wearable request never blocks an account
+  // deletion. Deletion is a right; it must not be rationed by unrelated traffic.
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const recent = await selectRows('data_requests', {
+    athlete_code: `eq.${code}`,
+    kind: `eq.${kind}`,
+    requested_at: `gte.${since}`,
+    select: 'id',
+    limit: String(DATA_REQUEST_DAILY_LIMIT + 1),
+  }).catch(() => []);
+  if (Array.isArray(recent) && recent.length >= DATA_REQUEST_DAILY_LIMIT) {
+    throw requestError('That request is already with your coaches. They will be in touch.', 429);
+  }
+
+  // Persist first, always. A failed notification must never lose a request that
+  // starts a 30-day clock.
+  const saved = await insertRow('data_requests', { athlete_code: code, kind, note: note || null });
+  const row = (Array.isArray(saved) && saved[0]) || null;
+
+  let notified = { sent: false, reason: 'not_attempted' };
+  try {
+    notified = await notify(code, kind, note);
+  } catch (error) {
+    console.warn('[data-request] notification failed', error && error.message);
+    notified = { sent: false, reason: 'notify_threw' };
+  }
+  return {
+    saved: true,
+    id: row?.id ?? null,
+    kind,
+    requested_at: row?.requested_at ?? null,
+    contact: DATA_REQUEST_CONTACT[kind],
+    notified: !!notified?.sent,
+  };
+}
+
 export async function contactCoach(code, body, deps = {}) {
   const selectRows = deps.selectRows || select;
   const insertRow = deps.insertRow || insert;
@@ -859,6 +977,7 @@ async function dispatch(action, code, body) {
   if (action === 'bootstrap') return bootstrapRead(code);
   if (action === 'export-data') return exportData(code);
   if (action === 'contact-coach') return contactCoach(code, body);
+  if (action === 'data-request') return dataRequest(code, body);
   if (action === 'training-read') return trainingRead(code, body);
   if (action === 'booking-read') return bookingRead(code);
   if (action === 'booking-sync') return bookingSync(code);

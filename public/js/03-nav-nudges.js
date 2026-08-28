@@ -896,6 +896,89 @@ async function exportAthleteData(){
   downloadAthleteJson(data);
 }
 
+// ── DATA RIGHTS REQUESTS ──────────────────────────────────────────────────────
+// dualperformance.au/support tells athletes they can request deletion from
+// inside the portal. This is that control. It deletes nothing locally — it
+// raises a recorded request, because the support page also commits to a 30-day
+// turnaround and that clock has to start somewhere a coach can see.
+var DATA_REQUEST_COPY={
+  account_deletion:{
+    title:'Request account deletion',
+    subtitle:'This removes you from Dual Performance.',
+    explain:'We will delete your athlete account and the training, check-in, nutrition and photo history attached to it. Your coaches are notified straight away, and verified requests are completed within 30 days. Some records are kept where the law requires it. This cannot be undone.',
+    confirm:'Request account deletion',
+    contact:'delete@dualperformance.au'
+  },
+  wearable_deletion:{
+    title:'Delete my wearable data',
+    subtitle:'This removes synced activity data only.',
+    explain:'We will delete the activity data synced from your connected wearables. Your account, training plan and logged sessions stay exactly as they are. Verified requests are completed within 30 days.',
+    confirm:'Request wearable data deletion',
+    contact:'data@dualperformance.au'
+  }
+};
+var _dataRequestKind=null;
+function dataRequestStateKey(kind){return 'dp_data_request_'+((athlete&&athlete.code)||'default')+'_'+kind;}
+function setDataRequestStatus(text,state){
+  var el=document.getElementById('dataRequestStatus');if(!el)return;
+  el.textContent=text||'';
+  el.className='data-request-status'+(state?' is-'+state:'');
+}
+function openDataRequest(kind){
+  var copy=DATA_REQUEST_COPY[kind];if(!copy)return;
+  _dataRequestKind=kind;
+  var modal=document.getElementById('dataRequestModal');if(!modal)return;
+  document.getElementById('dataRequestTitle').textContent=copy.title;
+  document.getElementById('dataRequestSubtitle').textContent=copy.subtitle;
+  document.getElementById('dataRequestExplain').textContent=copy.explain;
+  var note=document.getElementById('dataRequestNote');if(note){note.value='';note.disabled=false;}
+  var btn=document.getElementById('dataRequestConfirm');
+  if(btn){btn.disabled=false;btn.textContent=copy.confirm;btn.classList.toggle('is-danger',kind==='account_deletion');}
+  // An outstanding request is shown rather than silently allowing a duplicate,
+  // so nobody is left wondering whether the first one landed.
+  var prior=null;try{prior=JSON.parse(localStorage.getItem(dataRequestStateKey(kind))||'null');}catch(e){}
+  if(prior&&prior.at){
+    var when=new Date(prior.at);
+    var stamp=isNaN(when.getTime())?'':when.toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'});
+    setDataRequestStatus('You already asked for this'+(stamp?' on '+stamp:'')+'. Your coaches have it. You can send it again if something has changed.','sent');
+  }else{
+    setDataRequestStatus('');
+  }
+  modal.classList.add('open');modal.setAttribute('aria-hidden','false');
+  track('data_request_opened',{kind:kind});
+}
+function closeDataRequest(){
+  var modal=document.getElementById('dataRequestModal');if(!modal)return;
+  modal.classList.remove('open');modal.setAttribute('aria-hidden','true');
+  _dataRequestKind=null;
+}
+async function submitDataRequest(){
+  var kind=_dataRequestKind,copy=DATA_REQUEST_COPY[kind];
+  if(!kind||!copy)return;
+  var btn=document.getElementById('dataRequestConfirm'),note=document.getElementById('dataRequestNote');
+  if(!btn)return;
+  btn.disabled=true;btn.textContent='Sending\u2026';setDataRequestStatus('');
+  try{
+    var res=await portalRequest('data-request',{kind:kind,note:(note&&note.value.trim())||''});
+    var at=(res&&res.requested_at)||new Date().toISOString();
+    try{localStorage.setItem(dataRequestStateKey(kind),JSON.stringify({at:at}));}catch(e){}
+    if(note){note.value='';note.disabled=true;}
+    btn.textContent='Request sent \u2713';
+    setDataRequestStatus('Received. Your coaches have been notified and will complete this within 30 days. Questions go to '+copy.contact+'.','sent');
+    track('data_request_sent',{kind:kind});
+    showToast('Request sent \u2713');
+    setTimeout(closeDataRequest,3000);
+  }catch(e){
+    btn.disabled=false;btn.textContent=copy.confirm;
+    setDataRequestStatus((e&&e.message)||('Could not send that just now. You can email '+copy.contact+' instead.'),'error');
+  }
+}
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape')return;
+  var modal=document.getElementById('dataRequestModal');
+  if(modal&&modal.classList.contains('open')) closeDataRequest();
+});
+
 // ── PRIVATE NOTE TO COACH ─────────────────────────────────────────────────────
 // A composer, not a messaging system. One direction, no threads, no inbox.
 // Discord covers community and general questions; an athlete will not post
