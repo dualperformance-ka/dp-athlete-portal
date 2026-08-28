@@ -1,4 +1,5 @@
-{
+{  "//regions": "Athletes are in Australia and Supabase is in ap-southeast-1 (Singapore). The Vercel default region is iad1 (Washington DC), which sent every API call across the Pacific twice. Measured from Adelaide before the change, a no-op OPTIONS on /api/portal-data took ~510-900ms with TCP connect at ~30ms.",
+  "regions": ["syd1"],
   "buildCommand": "npm run build:vercel",
   "crons": [
     {
