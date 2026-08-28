@@ -131,14 +131,17 @@ test('the read route never accepts a coach or athlete-code override', () => {
 
 // ── Deployment shape ─────────────────────────────────────────────────────────
 
-// Vercel's Hobby plan caps a deployment at 12 serverless functions. Every Strava
-// mode shares one file for exactly this reason. Exceeding the cap fails the
-// deploy, not the build — so it is discovered in production.
-test('the api directory stays under the Vercel Hobby function cap', () => {
+// This was Vercel's Hobby cap of 12; the project is on Pro now and no platform
+// limit applies. The budget stays as a deliberate one, kept in step with
+// scripts/check-portal.mjs: every Strava mode shares one file, and new server
+// behaviour belongs in a ?mode= branch or an /api/portal-data action rather than
+// a new function. Crossing it should be a decision, not drift.
+const API_FUNCTION_BUDGET = 24;
+test('the api directory stays within the self-imposed function budget', () => {
   const functions = readdirSync(fileURLToPath(new URL('../api', import.meta.url)))
     .filter((name) => name.endsWith('.js'));
-  assert.ok(functions.length <= 12,
-    `api/ has ${functions.length} functions; the Hobby cap is 12. Add a ?mode= branch to an existing file instead.`);
+  assert.ok(functions.length <= API_FUNCTION_BUDGET,
+    `api/ has ${functions.length} functions, over the budget of ${API_FUNCTION_BUDGET}. Not a platform limit — add a ?mode= branch or a portal-data action, or raise the budget deliberately in both here and scripts/check-portal.mjs.`);
 });
 
 test('every Strava mode has a rewrite pointing at the one function', () => {
