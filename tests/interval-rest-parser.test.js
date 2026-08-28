@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
 
-const root = new URL('..', import.meta.url).pathname;
+// decodeURIComponent, because a checkout path containing a space arrives here as
+// %20 and readFileSync then throws. Matches scripts/check-portal.mjs.
+const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const parserSource = readFileSync(join(root, 'public', 'js', '08-training-interval-rest.js'), 'utf8');
 const trainingSource = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
 const indexSource = readFileSync(join(root, 'public', 'index.html'), 'utf8');

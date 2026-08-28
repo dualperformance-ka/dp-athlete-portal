@@ -73,8 +73,16 @@ if (!rewrites.some((item) => item.source === '/api/portal-data' && item.destinat
   failures.push('Authenticated /api/portal-data rewrite is missing');
 }
 
+// Vercel Pro removed the 12-function deployment cap that Hobby enforced, so this
+// is no longer a platform limit — it is a deliberate sanity check. Serverless
+// functions are the unit of cold-start cost and of surface area to secure, and
+// this repo's convention is to add a ?mode= branch or a /api/portal-data action
+// rather than a new file. Crossing this number should be a decision, not a drift.
+const API_FUNCTION_BUDGET = 24;
 const apiFunctions = readdirSync(join(root, 'api')).filter((name) => name.endsWith('.js'));
-if (apiFunctions.length > 12) failures.push(`Vercel function limit exceeded: ${apiFunctions.length}/12`);
+if (apiFunctions.length > API_FUNCTION_BUDGET) {
+  failures.push(`api/ has ${apiFunctions.length} functions, over the self-imposed budget of ${API_FUNCTION_BUDGET}. This is not a Vercel Pro limit — raise the budget deliberately if the new route is genuinely warranted.`);
+}
 
 if (!index.includes('accessibility.js?v=1')) failures.push('Accessibility runtime is not loaded');
 if (!loginGoals.includes("portalRequest('bootstrap')") ||
