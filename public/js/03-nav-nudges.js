@@ -126,8 +126,9 @@ function dismissNudge(el,done){
 // ISO week suffix ("2026_31"). Zero-padded so week keys sort chronologically
 // as plain strings — that is what lets us find the next booked call.
 //
-// Weeks reset at Monday midnight. A booking from Sunday belongs only to the
-// week that just ended, so Monday always starts with a fresh booking prompt.
+// The portal's current week still resets at Monday midnight. Appointment dates
+// use a separate booking-cycle helper below because Saturday, Sunday and Monday
+// calls all review the week that just finished.
 function callAdelaideDate(date){
   var p={};
   try{
@@ -136,18 +137,26 @@ function callAdelaideDate(date){
     return new Date(Number(p.year),Number(p.month)-1,Number(p.day));
   }catch(e){return new Date(date);}
 }
-function callWeekSuffix(date){
-  var d=callAdelaideDate(new Date(date||new Date()));d.setHours(0,0,0,0);
+function callIsoWeekSuffix(localDate){
+  var d=new Date(localDate);d.setHours(0,0,0,0);
   d.setDate(d.getDate()+3-(d.getDay()+6)%7);
   var w1=new Date(d.getFullYear(),0,4);
   var isoWeek=1+Math.round(((d-w1)/86400000-3+(w1.getDay()+6)%7)/7);
   return d.getFullYear()+'_'+(isoWeek<10?'0':'')+isoWeek;
 }
+function callWeekSuffix(date){
+  return callIsoWeekSuffix(callAdelaideDate(new Date(date||new Date())));
+}
+function callBookingWeekSuffix(date){
+  var d=callAdelaideDate(new Date(date||new Date()));
+  if(d.getDay()===1)d.setDate(d.getDate()-1);
+  return callIsoWeekSuffix(d);
+}
 function callBookedPrefix(){
   var acode=(athlete&&athlete.code)?athlete.code.toUpperCase()+'_':'';
   return 'dp_call_booked_'+acode;
 }
-function callNudgeWeekKey(date){return callBookedPrefix()+callWeekSuffix(date);}
+function callNudgeWeekKey(date){return callBookedPrefix()+callBookingWeekSuffix(date);}
 // Three stored shapes, all still in the wild:
 //   {time,startsAt,eventId,calendarId}  current — written by the webhook/sync
 //   "Tue 15 Jul · 6:30 pm"  older server rows and portal self-reports
@@ -452,7 +461,10 @@ function dpExtractBookingStart(data,payloadStr){
 }
 function dpMarkCallBooked(startTime){
   var start=dpBookingStart(startTime);
-  var wkey=callNudgeWeekKey(start||new Date());
+  // A real Monday appointment reviews the preceding week. If the widget does
+  // not expose its selected time, keep the temporary marker on the portal's
+  // current week until the authoritative GHL sync supplies the real date.
+  var wkey=start?callNudgeWeekKey(start):(callBookedPrefix()+callWeekSuffix());
   var saveVal=start?{time:dpFormatBookedTime(start),startsAt:start.toISOString()}:'1';
   var reschedule=_activeCallReschedule;
   if(start&&reschedule&&reschedule.eventId){

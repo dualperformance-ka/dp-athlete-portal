@@ -15,12 +15,14 @@ export function adelaideDate(date) {
   return new Date(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
 }
 
-// Same ISO-week math as the portal client's callNudgeWeekKey().
+// Same booking-cycle math as the portal client's callBookingWeekSuffix().
 //
-// Weeks reset at Monday midnight in Adelaide. A Sunday booking belongs to the
-// week that just ended; any booking from Monday onward belongs to the new week.
+// Coaching calls review the week that just finished and are offered Saturday,
+// Sunday and Monday. Monday is therefore deliberately attributed to the ISO
+// week that ended the day before; Tuesday starts the next booking cycle.
 export function isoWeekKey(localDate) {
   const d = new Date(localDate); d.setHours(0, 0, 0, 0);
+  if (d.getDay() === 1) d.setDate(d.getDate() - 1);
   d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
   const w1 = new Date(d.getFullYear(), 0, 4);
   const week = 1 + Math.round(((d - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7);
