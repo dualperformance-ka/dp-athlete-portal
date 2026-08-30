@@ -47,23 +47,33 @@ test('weekly completion state resets on Monday', () => {
   assert.equal(keys.checkinWeekSuffix(new Date(2026, 7, 4)), '2026_32');
 });
 
-test('server booking keys reset on Monday too', () => {
+test('server booking cycle groups Saturday through Monday with the week just reviewed', () => {
+  assert.equal(isoWeekKey(new Date(2026, 7, 1)), 'call_booked_2026_31');
   assert.equal(isoWeekKey(new Date(2026, 7, 2)), 'call_booked_2026_31');
-  assert.equal(isoWeekKey(new Date(2026, 7, 3)), 'call_booked_2026_32');
+  assert.equal(isoWeekKey(new Date(2026, 7, 3)), 'call_booked_2026_31');
   assert.equal(isoWeekKey(new Date(2026, 7, 4)), 'call_booked_2026_32');
 });
 
-test('portal booking nudge does not carry a Sunday booking into Monday', () => {
+test('portal current-week prompt still resets on Monday', () => {
   const keys = callKeys();
   assert.equal(keys.callWeekSuffix(new Date(2026, 7, 2)), '2026_31');
   assert.equal(keys.callWeekSuffix(new Date(2026, 7, 3)), '2026_32');
   assert.equal(keys.callWeekSuffix(new Date(2026, 7, 4)), '2026_32');
 });
 
+test('portal attributes a Monday appointment to the preceding week', () => {
+  const keys = callKeys();
+  assert.equal(keys.callBookingWeekSuffix(new Date(2026, 7, 1)), '2026_31');
+  assert.equal(keys.callBookingWeekSuffix(new Date(2026, 7, 2)), '2026_31');
+  assert.equal(keys.callBookingWeekSuffix(new Date(2026, 7, 3)), '2026_31');
+  assert.equal(keys.callBookingWeekSuffix(new Date(2026, 7, 4)), '2026_32');
+});
+
 test('booking week boundaries use Adelaide time even for UTC timestamps', () => {
   const sundayUtcButMondayAdelaide = new Date('2026-08-02T15:00:00Z');
   assert.equal(callKeys().callWeekSuffix(sundayUtcButMondayAdelaide), '2026_32');
-  assert.equal(isoWeekKey(adelaideDate(sundayUtcButMondayAdelaide)), 'call_booked_2026_32');
+  assert.equal(callKeys().callBookingWeekSuffix(sundayUtcButMondayAdelaide), '2026_31');
+  assert.equal(isoWeekKey(adelaideDate(sundayUtcButMondayAdelaide)), 'call_booked_2026_31');
 });
 
 test('booked calls display both their Adelaide date and time', () => {
