@@ -258,6 +258,28 @@ test('a too-light first set carries the calibrated load into the next workout', 
   assert.equal(recommendation.calibrated, true);
 });
 
+test('an adjusted load that misses the rep floor is not carried forward', () => {
+  const press = {
+    exercise: 'Incline Dumbbell Press',
+    sets: '3',
+    workingSets: '3',
+    reps: '8',
+    repRange: '8-12'
+  };
+  const current = [
+    { weight: '30', reps: '10', effort: 'reserve' },
+    { weight: '32.5', reps: '6' },
+    { weight: '30', reps: '8' }
+  ];
+
+  const recommendation = context.computeOverload(press, current, press.exercise, []);
+
+  assert.equal(recommendation.status, 'Adjustment Not Confirmed');
+  assert.equal(recommendation.action, 'Start at 30kg');
+  assert.equal(recommendation.weightKg, 30);
+  assert.match(recommendation.reason, /did not confirm/);
+});
+
 test('broken form makes the next workout start lighter', () => {
   const press = {
     exercise: 'Incline Dumbbell Press',

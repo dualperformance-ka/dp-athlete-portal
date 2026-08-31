@@ -59,6 +59,37 @@ test('assisted exercises get harder by reducing assistance', () => {
   assert.match(result.message, /reduce assistance/);
 });
 
+test('a load adjustment resets the remaining rep prompt to the range floor', () => {
+  const repInput = { value: '', placeholder: '10' };
+  const card = { getAttribute: (name) => name === 'data-split-key' ? 'Upper A' : null };
+  const row = {
+    querySelectorAll: () => [repInput],
+    closest: (selector) => selector === '.exc' ? card : null
+  };
+  const weightInput = {
+    value: '',
+    closest: () => row
+  };
+  const previousGetter = context.document.getElementById;
+  const previousDraft = context.draftGym;
+  const previousToast = context.showToast;
+  let toast = '';
+  context.document.getElementById = (id) => id === 'w_0_0_1' ? weightInput : null;
+  context.draftGym = () => {};
+  context.showToast = (message) => { toast = message; };
+
+  const changed = context.applyStrengthEffortLoadToRemaining(0, 0, 1, 1, 66, 8);
+
+  assert.equal(changed, 1);
+  assert.equal(weightInput.value, '66');
+  assert.equal(repInput.placeholder, '8');
+  assert.match(toast, /target 8 reps/);
+
+  context.document.getElementById = previousGetter;
+  context.draftGym = previousDraft;
+  context.showToast = previousToast;
+});
+
 test('every unfinished workout requires effort while legacy submitted sessions stay complete', () => {
   assert.equal(context.strengthLogRequiresEffort({}, false), true);
   assert.equal(context.strengthLogRequiresEffort({ __submittedAt: '2026-08-01' }, true), false);
