@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { sessionLibrary, trainingRead } from '../api/write.js';
+import { coachChanges, sessionLibrary, trainingRead } from '../api/write.js';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const trainingSource = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
@@ -18,6 +18,7 @@ test('training snapshot settles sections independently and omits a warm cached l
   }, {
     plannedSessions: async () => ({ rows: [{ id: 'plan-1' }], next: null }),
     workoutSplits: async () => { throw new Error('temporary split failure'); },
+    coachChanges: async () => ({ rows: [] }),
     sessionLibrary: async () => { libraryCalls++; return { rows: [] }; },
   });
 
@@ -34,10 +35,29 @@ test('training snapshot includes the library only on a cold client', async () =>
   }, {
     plannedSessions: async () => ({ rows: [] }),
     workoutSplits: async () => ({ rows: [] }),
+    coachChanges: async () => ({ rows: [] }),
     sessionLibrary: async (body) => ({ rows: [{ id: 'run-1' }], revision: body.libraryRevision + '-new' }),
   });
   assert.equal(result.library.rows[0].id, 'run-1');
   assert.equal(result.library.revision, 'old-new');
+});
+
+test('coach change summaries are athlete-scoped, date-bounded and stripped to safe fields', async () => {
+  let captured;
+  const result = await coachChanges('KARL', { start: '2026-08-03', end: '2026-08-09' }, async (table, query) => {
+    captured = { table, query };
+    return [
+      { source: 'programme', changed_at: '2026-08-04T02:00:00Z', detail: { date: '2026-08-04', item: 'Upper A', action: 'reps updated', internal_note: 'do not expose' }, secret: 'hidden' },
+      { source: 'programme', changed_at: '2026-08-11T02:00:00Z', detail: { date: '2026-08-11', item: 'Outside week', action: 'updated' } },
+    ];
+  });
+  assert.equal(captured.table, 'coach_change_log');
+  assert.equal(captured.query.athlete_code, 'eq.KARL');
+  assert.equal(captured.query.select, 'source,changed_at,detail');
+  assert.deepEqual(result.rows, [{
+    source: 'programme', changed_at: '2026-08-04T02:00:00Z',
+    detail: { date: '2026-08-04', item: 'Upper A', action: 'reps updated' },
+  }]);
 });
 
 test('session library revisions suppress unchanged response payloads', async () => {
@@ -54,6 +74,7 @@ test('client persists a compact athlete-scoped week snapshot and preserves compa
   assert.match(trainingSource, /portalRequest\('training-read'/);
   assert.match(trainingSource, /loadRunningLibrary\(bundle&&bundle\.library\)/);
   assert.match(trainingSource, /loadWorkoutSplits\(bundle&&bundle\.splits\)/);
+  assert.match(trainingSource, /registerCoachChanges\(bundle&&bundle\.changes\)/);
   assert.match(trainingSource, /loadPlannedSessions\([^\n]+bundle&&bundle\.planned\)/);
   assert.match(trainingSource, /dp_training_week_v1_/);
   assert.match(trainingSource, /source:'persistent'/);

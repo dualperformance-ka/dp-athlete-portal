@@ -8,6 +8,7 @@ const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const source = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
 const context = {
   console,
+  esc: (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]),
   Date,
   Math,
   Intl,
@@ -32,6 +33,27 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(source, context);
+
+test('compact history trend uses top load and reverses newest-first history chronologically', () => {
+  const html = context.strengthHistorySparklineHtml([
+    { date: '2026-08-20', sets: [{ weight: '50' }, { weight: '45' }] },
+    { date: '2026-08-13', sets: [{ weight: '45' }] },
+    { date: '2026-08-06', sets: [{ weight: '40' }] },
+  ], false);
+  assert.match(html, /Top-load trend/);
+  assert.match(html, /40 → 50kg/);
+  assert.match(html, /polyline/);
+});
+
+test('coach change context is escaped and contains no internal audit detail', () => {
+  context.COACH_CHANGES_BY_DATE = {
+    '2026-08-20': [{ item: '<Leg press>', action: 'reps updated', internal: 'private note' }],
+  };
+  const html = context.strengthCoachChangesHtml({ date: '2026-08-20' });
+  assert.match(html, /Your coach adjusted this session/);
+  assert.match(html, /&lt;Leg press&gt;/);
+  assert.doesNotMatch(html, /private note/);
+});
 
 const exercise = {
   exercise: 'Single Leg Extension',

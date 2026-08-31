@@ -968,6 +968,8 @@ async function saveGym(i,splitKey){
     if(sbBtn){gymSavedBanner=document.createElement('div');gymSavedBanner.id='gym_saved_'+i;sbBtn.parentNode.insertBefore(gymSavedBanner,sbBtn);}
   }
   refreshGymSubmitState(i,s.id,logs[s.id]);
+  if(typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(i);
+  if(typeof showStrengthSessionRecap==='function')showStrengthSessionRecap(i,splitKey,{queued:gymQueued,pbCount:pbHits.length});
   if(gymDate!==s.date)setSessionDateOverride(s.id,gymDate,{silent:true});
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';btn.disabled=true;setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;btn.disabled=false;},2500);}}

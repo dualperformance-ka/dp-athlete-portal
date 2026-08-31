@@ -88,7 +88,7 @@ function persistTrainingSnapshot(startISO,endISO,bundle){
   try{
     // session_library already has its own compact cache. Do not duplicate that
     // potentially large dataset inside the week snapshot.
-    var compact={planned:bundle.planned||null,splits:bundle.splits||null,library:null,errors:bundle.errors||[]};
+    var compact={planned:bundle.planned||null,splits:bundle.splits||null,changes:bundle.changes||null,library:null,errors:bundle.errors||[]};
     localStorage.setItem(trainingReadCacheKey(startISO,endISO),JSON.stringify({ts:Date.now(),bundle:compact}));
   }catch(e){}
 }
@@ -172,6 +172,7 @@ async function loadWeek(){
     var bundle=null;
     try{bundle=await loadTrainingReadSnapshot(localISO(fetchStart),localISO(fetchEnd));}
     catch(e){console.warn('Combined training read failed; using compatibility reads',e);}
+    registerCoachChanges(bundle&&bundle.changes);
     results=await Promise.all([
       loadRunningLibrary(bundle&&bundle.library),
       loadWorkoutSplits(bundle&&bundle.splits),
@@ -2067,6 +2068,9 @@ function refreshStrengthExerciseState(card){
   ['green','yellow','blue','red'].forEach(function(t){card.classList.toggle('ns-t-'+t,state==='todo'&&rec.tone===t);});
   var pill=card.querySelector('.exc-entry-pill');
   if(pill){pill.textContent=complete?'Done':'In progress';}
+  if(!complete){var prompt=card.querySelector('.next-exercise-prompt');if(prompt)prompt.remove();}
+  var sessionIndex=parseInt(card.getAttribute('data-session-index'),10);
+  if(!isNaN(sessionIndex)&&typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(sessionIndex);
 }
 function refreshStrengthExerciseStates(i){
   document.querySelectorAll('.exc[data-session-index="'+i+'"]').forEach(refreshStrengthExerciseState);
@@ -2093,9 +2097,46 @@ function gymDraftHasData(log){
   if(String(log.__notes||'').trim()) return true;
   return Object.keys(log).some(function(k){return k.indexOf('__')!==0&&Array.isArray(log[k])&&log[k].length;});
 }
+function strengthCoachChangesHtml(session){
+  var sessionDate=String(session&&session.date||'').slice(0,10);
+  var rows=(typeof COACH_CHANGES_BY_DATE!=='undefined'&&COACH_CHANGES_BY_DATE[sessionDate])||[];
+  if(!rows.length)return '';
+  var seen={},items=[];
+  rows.forEach(function(row){
+    var item=String(row&&row.item||'Session').trim()||'Session';
+    var action=String(row&&row.action||'updated').trim().replace(/[_-]+/g,' ')||'updated';
+    var key=(item+'|'+action).toLowerCase();
+    if(seen[key]||items.length>=3)return;seen[key]=true;
+    items.push('<li><strong>'+esc(item)+'</strong><span>'+esc(action)+'</span></li>');
+  });
+  if(!items.length)return '';
+  return '<aside class="strength-coach-change"><span class="strength-coach-change-badge">Coach update</span><div><strong>Your coach adjusted this session</strong><ul>'+items.join('')+'</ul></div></aside>';
+}
+function strengthHistorySparklineHtml(history,assisted){
+  var points=(history||[]).slice(0,5).reverse().map(function(entry){
+    var loads=(entry.sets||[]).map(function(set){return parseFloat(set.weight);}).filter(function(v){return !isNaN(v);});
+    if(!loads.length)return null;
+    return {value:assisted?Math.min.apply(null,loads):Math.max.apply(null,loads),date:entry.date||''};
+  }).filter(Boolean);
+  if(points.length<2)return '';
+  var values=points.map(function(point){return point.value;}),min=Math.min.apply(null,values),max=Math.max.apply(null,values),spread=max-min||1;
+  var coords=points.map(function(point,index){
+    var x=4+(index*(92/Math.max(1,points.length-1))),y=26-((point.value-min)/spread)*20;
+    return x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  var first=points[0].value,last=points[points.length-1].value;
+  return '<div class="exercise-history-mini"><div><small>'+(assisted?'Assistance trend':'Top-load trend')+'</small><strong>'+esc(_nsBare(first))+' → '+esc(_nsBare(last))+'kg</strong></div><svg viewBox="0 0 100 32" role="img" aria-label="Recent '+(assisted?'assistance':'top load')+' trend"><polyline points="'+coords+'"></polyline></svg></div>';
+}
+function toggleExerciseStats(button){
+  var wrap=button&&button.closest?button.closest('.exercise-stats'):null,details=wrap&&wrap.querySelector('.exercise-stats-details');
+  if(!details)return;
+  var open=details.hasAttribute('hidden');
+  if(open)details.removeAttribute('hidden');else details.setAttribute('hidden','');
+  button.setAttribute('aria-expanded',open?'true':'false');button.textContent=open?'Hide stats':'Stats';
+}
 function setGymSubmissionStatus(i,state){
   var status=document.getElementById('gym_saved_'+i);if(!status) return;
-  if(state==='hidden'){status.style.display='none';return;}
+  if(state==='hidden'){status.style.display='none';if(typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(i);return;}
   status.style.display='flex';
   status.className='session-submit-status '+(state==='submitted'?'is-submitted':'is-draft');
   // 'resubmit' is the session that was sent, then added to. Saying "submitted"
@@ -2105,7 +2146,8 @@ function setGymSubmissionStatus(i,state){
     ?'<span class="submit-status-icon"><svg class="icon"><use href="#i-check"/></svg></span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>'
     :state==='resubmit'
     ?'<span class="submit-status-icon">•••</span><span><strong>Changes not yet submitted</strong><small>You have added to this session since submitting it — press Update session to send the rest.</small></span>'
-    :'<span class="submit-status-icon">•••</span><span><strong>Draft saved on this device</strong><small>Press Save session below to submit it to your coaches.</small></span>';
+    :'<span class="submit-status-icon">•••</span><span><strong>Draft saved on this device</strong><small>Review it below when you’re ready to submit it to your coaches.</small></span>';
+  if(typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(i);
 }
 
 function buildBody(s,i,type){
@@ -2282,6 +2324,7 @@ function buildBody(s,i,type){
     var splitKey=splitKeyForSession(s,'Upper A');
     var exercises=getSplit(splitKey),sl2=logs[s.id]||{},gymSubmitted=isSessionLogged(s.id),sessionRpeRequired=strengthLogRequiresRpe(sl2,gymSubmitted),sessionEffortRequired=strengthLogRequiresEffort(sl2,gymSubmitted,s.date);
     h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:var(--font-xs);display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:var(--font-xs);font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
+    h+=strengthCoachChangesHtml(s);
     if(exercises.length){
       var restTimerOn=typeof restTimerEnabled==='function'?restTimerEnabled():true;
       var strengthRpeOn=typeof strengthRpeEnabled==='function'?strengthRpeEnabled():true;
@@ -2335,7 +2378,7 @@ function buildBody(s,i,type){
         var _nsSummary=(_nsTopW!=null?_nsBare(_nsTopW)+(isAssisted?'kg assist × ':'kg × '):'')+_nsParts.join(' · ');
         var _nsStateCls=exerciseIsComplete?' ns-logged':(hasExerciseData?' ns-inprogress':' ns-t-'+_ov.tone);
         var _nsLiveUnlocked=!!(_ov.live&&_ov.live.unlocked);
-        h+='<div class="exc'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-rpe-required="'+(sessionRpeRequired?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'" data-ns-live-unlocked="'+(_nsLiveUnlocked?'true':'false')+'" data-ns-unlock-celebrated="'+(_nsLiveUnlocked?'true':'false')+'">';
+        h+='<div class="exc'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-rest-seconds="'+(parseInt(ex.rest,10)||0)+'" data-rpe-required="'+(sessionRpeRequired?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'" data-ns-live-unlocked="'+(_nsLiveUnlocked?'true':'false')+'" data-ns-unlock-celebrated="'+(_nsLiveUnlocked?'true':'false')+'">';
         h+='<div class="exc-summary" onclick="toggleExc(this)">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn-row"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>'+(isTimeCrunchPriority?'<span class="female-priority-badge">Priority</span>':'')+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div></div>'+_nsChip(_ov)+'<div class="exc-chev">▾</div></div>';
         h+='<div class="exc-body">'+_nsBody(_ov);
         h+='<div class="exh">';
@@ -2345,12 +2388,16 @@ function buildBody(s,i,type){
         if(ex.prescriptionLine) h+='<div class="exnotes exnotes-rx">'+esc(ex.prescriptionLine)+'</div>';
         if(ex.notes) h+='<div class="exnotes">'+esc(ex.notes)+'</div>';
         h+='</div>';
-        h+='<div id="exstat_'+i+'_'+ei+'" style="text-align:right;flex-shrink:0">';
+        h+='<div id="exstat_'+i+'_'+ei+'" class="exercise-stats">';
+          h+='<div class="exercise-stats-primary">';
           if(!isAssisted&&stored.load) h+='<div class="ex-stat ex-stat-pb"><svg class="icon"><use href="#i-trophy"/></svg> PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
+          h+='<button type="button" class="exercise-stats-toggle" aria-expanded="false" onclick="toggleExerciseStats(this)">Stats</button></div>';
+          h+='<div class="exercise-stats-details" hidden>';
           if(!isAssisted&&!isSingleLeg&&stored.volume) h+='<div class="ex-stat ex-stat-vol-pb"><svg class="icon"><use href="#i-trophy"/></svg> Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
           if(!isAssisted&&stored.e1rm) h+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
           if(!isAssisted&&!isSingleLeg) h+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol'+(isVolPB?' pb':'')+'">'+(isVolPB?'<svg class="icon"><use href="#i-trophy"/></svg> ':'')+'Vol '+Math.round(initVol).toLocaleString()+'kg</div>';
-          h+='</div>';
+          h+=strengthHistorySparklineHtml(_ovHistory,isAssisted);
+          h+='</div></div>';
         h+='</div>';
         h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center">';
         if(prevEffort){var prevStr=formatSetSummary(prevEffort,resolvedEx);h+='<div id="prev_'+i+'_'+ei+'" class="prev-effort has-last">LAST: '+esc(prevStr)+'</div>';}
@@ -2450,9 +2497,9 @@ function buildBody(s,i,type){
     var gymHasDraft=gymDraftHasData(sl2);
     h+='<div id="gym_saved_'+i+'" class="session-submit-status '+(gymSubmitted?'is-submitted':'is-draft')+'" style="display:'+(gymSubmitted||gymHasDraft?'flex':'none')+';">';
     if(gymSubmitted) h+='<span class="submit-status-icon"><svg class="icon"><use href="#i-check"/></svg></span><span><strong>Session submitted</strong><small>Your coaches can now review this data.</small></span>';
-    else h+='<span class="submit-status-icon">•••</span><span><strong>Draft saved on this device</strong><small>Press Save session below to submit it to your coaches.</small></span>';
+    else h+='<span class="submit-status-icon">•••</span><span><strong>Draft saved on this device</strong><small>Review it below when you’re ready to submit it to your coaches.</small></span>';
     h+='</div>';
-    h+='<button class="savebtn" id="sb_'+i+'" onclick="saveGym('+i+',\''+esc(splitKey)+'\')">Save session</button>';
+    h+='<button class="savebtn strength-submit-primary" id="sb_'+i+'" onclick="openStrengthSubmitReview('+i+',\''+esc(splitKey)+'\')">Review &amp; submit</button>';
     // Re-derived on render rather than assumed: an athlete who added an
     // exercise and then closed the app must come back to an open button, not a
     // locked one hiding unsent work.
@@ -2474,11 +2521,92 @@ function buildBody(s,i,type){
 }
 
 var focusedSessionIndex=null,focusedSessionGenerated=false,focusedSessionReturnFocus=null;
+var strengthReviewContext=null;
+function ensureStrengthReviewModal(){
+  var modal=document.getElementById('strengthReviewModal');if(modal)return modal;
+  modal=document.createElement('div');modal.id='strengthReviewModal';modal.className='ql-modal strength-review-modal';
+  modal.onclick=function(event){if(event.target===modal)closeStrengthReview();};
+  modal.innerHTML='<div class="ql-modal-inner strength-review-inner" role="dialog" aria-modal="true" aria-labelledby="strengthReviewTitle"><div class="ql-modal-header"><div><div class="ql-modal-title" id="strengthReviewTitle">Review session</div><div class="modal-subtitle" id="strengthReviewSubtitle">One last check before this reaches your coaches.</div></div><button class="ql-modal-close" onclick="closeStrengthReview()" aria-label="Close review">×</button></div><div class="ql-modal-body" id="strengthReviewBody"></div></div>';
+  document.body.appendChild(modal);return modal;
+}
+function strengthSessionReviewData(i){
+  var progress=strengthSessionProgress(i),cards=Array.prototype.slice.call(document.querySelectorAll('.exc[data-session-index="'+i+'"]')),unlocks=[];
+  cards.forEach(function(card){if(card.getAttribute('data-ns-live-unlocked')==='true'){var name=card.querySelector('.exn');if(name)unlocks.push(name.textContent.trim());}});
+  var pbCount=document.querySelectorAll('.exc[data-session-index="'+i+'"] .pb-badge').length;
+  return {progress:progress,unlocks:unlocks,pbCount:pbCount};
+}
+function strengthReviewMetricsHtml(data){
+  var p=data.progress;
+  return '<div class="strength-review-grid"><div><small>Exercises</small><strong>'+p.doneExercises+' / '+p.totalExercises+'</strong></div><div><small>Sets logged</small><strong>'+p.doneSets+' / '+p.totalSets+'</strong></div><div><small>PBs today</small><strong>'+data.pbCount+'</strong></div><div><small>Next-session unlocks</small><strong>'+data.unlocks.length+'</strong></div></div>';
+}
+function openStrengthSubmitReview(i,splitKey){
+  try{if(typeof persistGymDraft==='function')persistGymDraft(i,splitKey);}catch(e){}
+  var modal=ensureStrengthReviewModal(),data=strengthSessionReviewData(i),body=document.getElementById('strengthReviewBody'),title=document.getElementById('strengthReviewTitle'),subtitle=document.getElementById('strengthReviewSubtitle');
+  strengthReviewContext={i:i,splitKey:splitKey};title.textContent='Review session';subtitle.textContent='One last check before this reaches your coaches.';
+  var incomplete=data.progress.totalSets-data.progress.doneSets;
+  body.innerHTML='<div class="strength-review-hero"><span>✓</span><div><strong>'+data.progress.doneSets+' set'+(data.progress.doneSets===1?'':'s')+' ready</strong><small>'+(incomplete?incomplete+' set'+(incomplete===1?' is':'s are')+' still open. You can submit now or keep training.':'Everything programmed is complete.')+'</small></div></div>'+strengthReviewMetricsHtml(data)+(data.unlocks.length?'<div class="strength-review-unlocks"><small>Earned for next session</small><strong>'+data.unlocks.map(esc).join(' · ')+'</strong></div>':'')+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Keep training</button><button type="button" class="strength-review-primary" '+(data.progress.doneSets?'':'disabled')+' onclick="submitStrengthFromReview()">Submit to coaches</button></div>'+(data.progress.doneSets?'':'<p class="strength-review-hint">Log at least one completed set before submitting.</p>');
+  modal.classList.add('open');
+}
+function submitStrengthFromReview(){
+  var context=strengthReviewContext;if(!context)return;
+  closeStrengthReview();saveGym(context.i,context.splitKey);
+}
+function showStrengthSessionRecap(i,splitKey,options){
+  options=options||{};var modal=ensureStrengthReviewModal(),data=strengthSessionReviewData(i),body=document.getElementById('strengthReviewBody'),title=document.getElementById('strengthReviewTitle'),subtitle=document.getElementById('strengthReviewSubtitle');
+  strengthReviewContext={i:i,splitKey:splitKey};title.textContent=options.queued?'Session saved':'Session sent ✓';subtitle.textContent=options.queued?'It will reach your coaches when the connection recovers.':'Your coaches can now review the full session.';
+  if(options.pbCount!=null)data.pbCount=options.pbCount;
+  body.innerHTML='<div class="strength-review-hero is-complete"><span>✓</span><div><strong>'+data.progress.doneSets+' sets logged</strong><small>'+data.progress.doneExercises+' of '+data.progress.totalExercises+' exercises fully completed.</small></div></div>'+strengthReviewMetricsHtml(data)+(data.unlocks.length?'<div class="strength-review-unlocks"><small>Ready for next session</small><strong>Increase '+data.unlocks.map(esc).join(' · ')+'</strong></div>':'<div class="strength-review-unlocks is-quiet"><small>Next session</small><strong>Keep building through the rep range.</strong></div>')+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Review workout</button><button type="button" class="strength-review-primary" onclick="closeStrengthReview();closeFocusedSession()">Back to plan</button></div>';
+  modal.classList.add('open');
+}
+function closeStrengthReview(){var modal=document.getElementById('strengthReviewModal');if(modal)modal.classList.remove('open');}
+function strengthSessionProgress(i){
+  var cards=Array.prototype.slice.call(document.querySelectorAll('.exc[data-session-index="'+i+'"]'));
+  var totalExercises=cards.length,doneExercises=0,totalSets=0,doneSets=0,remainingSeconds=0,hasData=false;
+  cards.forEach(function(card){
+    var rows=Array.prototype.slice.call(card.querySelectorAll('.setrow,.setrow-single'));
+    var remaining=0;
+    if(strengthExerciseIsComplete(card))doneExercises++;
+    if(strengthExerciseHasData(card))hasData=true;
+    rows.forEach(function(row){var tick=row.querySelector('.st');totalSets++;if(tick&&tick.classList.contains('on'))doneSets++;else remaining++;});
+    if(remaining){var rest=parseInt(card.getAttribute('data-rest-seconds'),10)||0;remainingSeconds+=remaining*45+Math.max(0,remaining-1)*rest;}
+  });
+  var session=sessions[i]||{};
+  var minutes=Math.max(0,Math.ceil(remainingSeconds/60));
+  if(!cards.length&&session.estimatedMinutes)minutes=parseInt(session.estimatedMinutes,10)||0;
+  return {totalExercises:totalExercises,doneExercises:doneExercises,totalSets:totalSets,doneSets:doneSets,minutes:minutes,hasData:hasData};
+}
+function focusedSessionSubmitState(i,progress){
+  var session=sessions[i]||{},entry=logs[session.id]||{},submitted=!!entry.__submittedAt;
+  var changed=!!(submitted&&entry.__submittedSig&&gymLogSignature(entry)!==entry.__submittedSig);
+  if(changed)return {title:'Changes saved as a draft',detail:'Review the update before sending it.',action:'Review update',submit:true};
+  if(submitted)return {title:'Sent to your coaches',detail:'This session is fully submitted.',action:'Back to plan',submit:false};
+  if(progress.hasData||gymDraftHasData(entry))return {title:'Draft saved on this device',detail:'Review it when you’re ready.',action:'Review & submit',submit:true};
+  return {title:'Session in progress',detail:'Your entries save as you go.',action:'Back to plan',submit:false};
+}
+function refreshFocusedSessionChrome(i){
+  if(focusedSessionIndex!==i)return;
+  var progress=strengthSessionProgress(i),meta=document.getElementById('focusOverlayMeta'),time=document.getElementById('focusOverlayTime'),fill=document.getElementById('focusProgressFill');
+  if(meta)meta.textContent=progress.totalExercises?(progress.doneExercises+' of '+progress.totalExercises+' exercises'):'';
+  if(time)time.textContent=progress.minutes?(progress.minutes+' min remaining'):(progress.totalExercises?'Session sets complete':'');
+  if(fill)fill.style.width=(progress.totalSets?Math.round(progress.doneSets/progress.totalSets*100):0)+'%';
+  var state=focusedSessionSubmitState(i,progress),title=document.getElementById('focusFooterTitle'),detail=document.getElementById('focusFooterDetail'),action=document.getElementById('focusFooterAction');
+  if(title)title.textContent=state.title;if(detail)detail.textContent=state.detail;
+  if(action){action.textContent=state.action;action.setAttribute('data-submit',state.submit?'true':'false');}
+}
+function handleFocusedSessionAction(){
+  if(focusedSessionIndex==null)return;
+  var button=document.getElementById('focusFooterAction');
+  if(button&&button.getAttribute('data-submit')==='true'){
+    var card=document.getElementById('sc_'+focusedSessionIndex),first=card&&card.querySelector('.exc'),splitKey=first&&first.getAttribute('data-split-key');
+    if(splitKey){openStrengthSubmitReview(focusedSessionIndex,splitKey);return;}
+  }
+  closeFocusedSession();
+}
 function ensureFocusOverlay(){
   var ov=document.getElementById('focusOverlay');
   if(ov)return ov;
   ov=document.createElement('div');ov.id='focusOverlay';ov.className='focus-overlay';
-  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" onclick="closeFocusedSession()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong></div><span id="focusOverlayMeta"></span></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><button class="focus-done-btn" onclick="closeFocusedSession()">Done — back to plan</button></div>';
+  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" onclick="closeFocusedSession()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong><div class="focus-progress" aria-hidden="true"><i id="focusProgressFill"></i></div></div><div class="focus-overlay-meta"><strong id="focusOverlayMeta"></strong><small id="focusOverlayTime"></small></div></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><div class="focus-footer-state"><strong id="focusFooterTitle">Session in progress</strong><small id="focusFooterDetail">Your entries save as you go.</small></div><button class="focus-done-btn" id="focusFooterAction" data-submit="false" onclick="handleFocusedSessionAction()">Back to plan</button></div>';
   document.body.appendChild(ov);
   return ov;
 }
@@ -2509,10 +2637,8 @@ function startFocusedSession(i){
   }
   card.classList.add('in-focus-overlay');
   var nameEl=document.getElementById('focusOverlayName');if(nameEl)nameEl.textContent=(sessions[i]&&sessions[i].name)||'Workout';
-  var exCount=card.querySelectorAll('.exc').length,metaEl=document.getElementById('focusOverlayMeta');
-  if(metaEl)metaEl.textContent=exCount?exCount+(exCount===1?' exercise':' exercises'):'';
   document.body.classList.add('focus-session-open');
-  void ov.offsetHeight;ov.classList.add('open');scroll.scrollTop=0;
+  void ov.offsetHeight;ov.classList.add('open');scroll.scrollTop=0;refreshFocusedSessionChrome(i);
 }
 function openMobileWeekSession(i,trigger){
   focusedSessionReturnFocus=trigger||document.activeElement;startFocusedSession(i);
@@ -2606,8 +2732,29 @@ function settleStrengthExerciseCompletion(card){
   if(!strengthExerciseIsComplete(card))return;
   setTimeout(function(){
     if(!card||!strengthExerciseIsComplete(card))return;
-    card.classList.remove('open');refreshStrengthExerciseState(card);
+    card.classList.remove('open');refreshStrengthExerciseState(card);showNextStrengthExercisePrompt(card);
   },320);
+}
+function showNextStrengthExercisePrompt(card){
+  if(!card)return;
+  var sessionIndex=card.getAttribute('data-session-index'),cards=Array.prototype.slice.call(document.querySelectorAll('.exc[data-session-index="'+sessionIndex+'"]'));
+  cards.forEach(function(item){var old=item.querySelector('.next-exercise-prompt');if(old)old.remove();});
+  var current=cards.indexOf(card),next=null;
+  for(var offset=1;offset<=cards.length;offset++){
+    var candidate=cards[(current+offset)%cards.length];
+    if(candidate&&candidate!==card&&!strengthExerciseIsComplete(candidate)){next=candidate;break;}
+  }
+  if(!next)return;
+  var name=next.querySelector('.exn'),button=document.createElement('button');
+  button.type='button';button.className='next-exercise-prompt';button.setAttribute('data-next-exercise',next.getAttribute('data-exercise-index'));
+  button.innerHTML='<span>Up next</span><strong>'+esc(name?name.textContent.trim():'Next exercise')+'</strong><b>›</b>';
+  button.onclick=function(){openNextStrengthExercise(button);};card.appendChild(button);
+}
+function openNextStrengthExercise(button){
+  var card=button&&button.closest?button.closest('.exc'):null;if(!card)return;
+  var i=card.getAttribute('data-session-index'),ei=button.getAttribute('data-next-exercise'),next=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
+  if(!next)return;next.classList.add('open');refreshStrengthExerciseState(next);
+  var summary=next.querySelector('.exc-summary');next.scrollIntoView({behavior:'smooth',block:'start'});if(summary&&summary.setAttribute){summary.setAttribute('tabindex','-1');setTimeout(function(){summary.focus();},350);}
 }
 function togSet(i,ei,si){
   var btn=document.getElementById('st_'+i+'_'+ei+'_'+si);if(!btn) return;
