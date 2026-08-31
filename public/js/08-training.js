@@ -502,11 +502,14 @@ function logHasRealData(v){
   });
 }
 function trainingSessionIsComplete(s){
-  return !!(s&&!trainingSessionNeedsFeedback(s)&&(logHasRealData(logs[s.id])||s.status==='Completed'));
+  return !!(s&&!trainingSessionNeedsFeedback(s)&&(isSessionLogged(s.id)||s.status==='Completed'));
 }
 function trainingSessionNeedsFeedback(s){
   var entry=s&&logs&&logs[s.id];
   return !!(entry&&entry.__stravaMatch&&!entry.__stravaFeedbackAt);
+}
+function trainingSessionAwaitsSubmission(s){
+  return !!(s&&!trainingSessionIsComplete(s)&&(logHasRealData(logs[s.id])||ticked[s.id]));
 }
 function buildCard(s,i){
   var type=getType(s);
@@ -730,7 +733,7 @@ function calculateDailyReadiness(body){
 
 function getHomeInsights(){
   var planned=sessions.filter(function(s){return getType(s)!=='rest';}).length;
-  var completed=sessions.filter(function(s){return getType(s)!=='rest'&&(isSessionLogged(s.id)||logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id]);}).length;
+  var completed=sessions.filter(function(s){return getType(s)!=='rest'&&trainingSessionIsComplete(s);}).length;
   var compliance=planned?Math.min(100,Math.round(completed/planned*100)):0;
   var readiness=null,body=null;
   try{body=JSON.parse(localStorage.getItem('dp_daily_body_'+athlete.code+'_'+localISO(new Date()))||'null');}catch(e){}
@@ -964,7 +967,7 @@ function todayFocusContext(todaySessions,insights){
   try{
     (allSessions||[]).forEach(function(s){
       if(!s||!s.date||s.date>=todayISO)return;
-      if(isSessionLogged(s.id)||logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id])loggedDates.push(s.date);
+      if(trainingSessionIsComplete(s))loggedDates.push(s.date);
     });
   }catch(e){}
   var week=null;try{week=getCurrentProgrammeWeek();}catch(e){}
@@ -1011,7 +1014,7 @@ function syncHeroStreak(){
     var dates=[];
     (allSessions||[]).forEach(function(s){
       if(!s||!s.date||s.date>todayISO)return;
-      if(isSessionLogged(s.id)||logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id])dates.push(s.date);
+      if(trainingSessionIsComplete(s))dates.push(s.date);
     });
     weeks=computeLoggingStreak(dates,todayISO);
   }catch(e){weeks=0;}
@@ -1094,10 +1097,11 @@ function renderTodaySection(){
   }else{
     html+='<div class="todaylist">';
     todaySessions.forEach(function(s){
-      var type=getType(s),meta=[],resolved=type==='run'?resolveRunDisplay(s):null,done=trainingSessionIsComplete(s);
+      var type=getType(s),meta=[],resolved=type==='run'?resolveRunDisplay(s):null,done=trainingSessionIsComplete(s),awaiting=trainingSessionAwaitsSubmission(s);
       if(s.intensity) meta.push(s.intensity);
       if(s.week) meta.push(s.week);
       if(done) meta.push('Completed');
+      else if(awaiting) meta.push('Awaiting submission');
       else if(s.status) meta.push(s.status);
       var displayName=s.name||'Session';
       html+='<div class="todayitem'+(done?' done':'')+'"><div class="todaytop"><div class="todaydot '+type+'"></div><div class="todaymain">';
@@ -1159,7 +1163,7 @@ function renderTodaySection(){
         html+='<div class="todaytarget"><div class="label">Recovery</div><div class="value">Rest day</div><div class="desc">Recovery is part of the programme. Use today to reset and be ready for the next session.</div></div>';
       }
       if(type!=='rest'&&sessionIdx>=0){
-        html+='<button type="button" class="today-action '+(done?'completed':'primary')+'" onclick="startFocusedSession('+sessionIdx+')" style="width:100%;margin-top:12px" aria-label="Open '+(done?'completed ':'')+esc(displayName)+'">'+(done?'Completed <svg class="icon"><use href="#i-check"/></svg>':'Open session <svg class="icon"><use href="#i-arrow-right"/></svg>')+'</button>';
+        html+='<button type="button" class="today-action '+(done?'completed':'primary')+'" onclick="startFocusedSession('+sessionIdx+')" style="width:100%;margin-top:12px" aria-label="Open '+(done?'completed ':awaiting?'awaiting submission ':'')+esc(displayName)+'">'+(done?'Completed <svg class="icon"><use href="#i-check"/></svg>':awaiting?'Review &amp; submit <svg class="icon"><use href="#i-arrow-right"/></svg>':'Open session <svg class="icon"><use href="#i-arrow-right"/></svg>')+'</button>';
       }
       html+='</div></div></div>';
     });

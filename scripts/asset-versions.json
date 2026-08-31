@@ -28,8 +28,8 @@
     "sha": "2f675dd19017"
   },
   "js/04-checkin.js": {
-    "version": 93,
-    "sha": "df7e858c5a51"
+    "version": 94,
+    "sha": "46257f613ee0"
   },
   "js/05-handbook.js": {
     "version": 85,
@@ -52,8 +52,8 @@
     "sha": "ce83ae62b788"
   },
   "js/08-training.js": {
-    "version": 128,
-    "sha": "32c32d12e6f6"
+    "version": 129,
+    "sha": "7e6414b99cd8"
   },
   "js/09-logging.js": {
     "version": 119,

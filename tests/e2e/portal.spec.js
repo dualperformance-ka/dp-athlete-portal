@@ -146,6 +146,22 @@ test('3. three strength sets submit and persist across reload', async ({ page })
   await expect(page.locator('#w_0_0_2')).toHaveValue('50');
 });
 
+test('a locally saved workout awaits submission and does not count as complete', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+  await codeLogin(page);
+  await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await page.locator('#w_0_0_0').fill('40');
+  await page.locator('#r_0_0_0').fill('10');
+  await page.getByRole('button', { name: /Right load/ }).click();
+  await page.getByRole('button', { name: 'Done — back to plan' }).click();
+  await page.evaluate(() => renderTodaySection());
+
+  await expect(page.locator('.todaymeta')).toContainText('Awaiting submission');
+  await expect(page.getByRole('button', { name: 'Open awaiting submission Lower A' })).toHaveText(/Review & submit/);
+  await expect(page.locator('#heroStatCompliance')).toHaveText('0/1');
+  await expect(page.locator('#gymDoneVal')).toHaveText('0');
+});
+
 test('4. body check-in updates the dock state', async ({ page }) => {
   await codeLogin(page);
   await page.getByRole('button', { name: 'Body check-in' }).click();
