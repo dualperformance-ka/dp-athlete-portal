@@ -92,7 +92,7 @@ function initCheckin(){
     var wk=(allSessions||[]).filter(function(s){return s.date&&s.date>=monISO&&s.date<=endISO;});
     var wkRuns=wk.filter(function(s){return getType(s)==='run';});
     var wkLifts=wk.filter(function(s){return getType(s)==='strength';});
-    var isDone=function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];};
+    var isDone=trainingSessionIsComplete;
     var setIfEmpty=function(id,v){var el=document.getElementById(id);if(el&&el.value==='')el.value=v;};
     if(wk.length){
       setIfEmpty('ciRunPlan',wkRuns.length);
@@ -152,7 +152,7 @@ function renderGymTracker(){
   if(!bar) return;
   var lifts=(sessions||[]).filter(function(s){return getType(s)==='strength';});
   if(!lifts.length){bar.style.display='none';return;}
-  var done=lifts.filter(function(s){return logHasRealData(logs[s.id])||s.status==='Completed'||ticked[s.id];}).length;
+  var done=lifts.filter(trainingSessionIsComplete).length;
   document.getElementById('gymTargetVal').textContent=lifts.length;
   document.getElementById('gymDoneVal').textContent=done;
   var progress=document.getElementById('gymProgress');
@@ -170,12 +170,12 @@ function renderGymTracker(){
 function updateSessionCounter(){
   try{renderGymTracker();}catch(e){}
   var total=sessions.length;
-  var done=sessions.filter(function(s){return logHasRealData(logs[s.id])||s.status==='Completed';}).length;
-  var marked=sessions.filter(function(s){return !(logHasRealData(logs[s.id])||s.status==='Completed')&&ticked[s.id];}).length;
+  var done=sessions.filter(trainingSessionIsComplete).length;
+  var awaiting=sessions.filter(trainingSessionAwaitsSubmission).length;
   var el=document.getElementById('heroSessionsDone');
   var val=document.getElementById('heroSessionsDoneVal');
   if(!el||!val) return;
-  if(total>0){val.textContent=done+' / '+total+' done'+(marked>0?' · '+marked+' marked':'');el.style.display='';}
+  if(total>0){val.textContent=done+' / '+total+' done'+(awaiting>0?' · '+awaiting+' awaiting submission':'');el.style.display='';}
   else{el.style.display='none';}
 }
 

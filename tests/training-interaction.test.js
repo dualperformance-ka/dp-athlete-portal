@@ -7,6 +7,7 @@ import { join } from 'node:path';
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const source = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
 const logging = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
+const checkin = readFileSync(join(root, 'public', 'js', '04-checkin.js'), 'utf8');
 const styles = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
 
 test('mobile week workouts are separate controls without invented AM or PM slots', () => {
@@ -28,15 +29,21 @@ test('completed mobile workouts get their own colour and tick', () => {
   assert.match(styles, /\.mobile-week-session\.done \.mobile-week-complete\{display:grid\}/);
 });
 
-test('Strava synced workouts stay orange until RPE and niggle feedback is saved', () => {
+test('only submitted workouts are complete; local drafts await submission', () => {
   const helperStart=source.indexOf('function trainingSessionIsComplete');
   const helperEnd=source.indexOf('function buildCard',helperStart);
-  const context={logs:{tempo:{distance:'14',__stravaMatch:{activity:{distance:14000}}}},logHasRealData:(value)=>Object.keys(value||{}).length>0};
+  const submitted=new Set();
+  const context={logs:{tempo:{distance:'14',__stravaMatch:{activity:{distance:14000}}},gym:{Squat:[{weight:'80',reps:'5',done:true}]}},ticked:{gym:true},isSessionLogged:(id)=>submitted.has(id),logHasRealData:(value)=>Object.keys(value||{}).length>0};
   vm.createContext(context);
   vm.runInContext(source.slice(helperStart,helperEnd),context);
 
   assert.equal(context.trainingSessionNeedsFeedback({id:'tempo',status:'Completed'}),true);
   assert.equal(context.trainingSessionIsComplete({id:'tempo',status:'Completed'}),false);
+  assert.equal(context.trainingSessionIsComplete({id:'gym',status:'Planned'}),false);
+  assert.equal(context.trainingSessionAwaitsSubmission({id:'gym',status:'Planned'}),true);
+  submitted.add('gym');
+  assert.equal(context.trainingSessionIsComplete({id:'gym',status:'Planned'}),true);
+  assert.equal(context.trainingSessionAwaitsSubmission({id:'gym',status:'Planned'}),false);
   context.logs.tempo.rpe='8';
   context.logs.tempo.__stravaFeedbackAt='2026-08-25T00:00:00.000Z';
   assert.equal(context.trainingSessionNeedsFeedback({id:'tempo',status:'Completed'}),false);
@@ -64,11 +71,28 @@ test('Home uses the Training tab completion state and marks completed sessions c
   assert.match(source, /function trainingSessionIsComplete\(s\)/);
   assert.match(calendarSource, /var sessionDone=trainingSessionIsComplete/);
   assert.match(homeSource, /done=trainingSessionIsComplete\(s\)/);
+  assert.match(homeSource, /awaiting=trainingSessionAwaitsSubmission\(s\)/);
   assert.match(homeSource, /todayitem'\+\(done\?' done':''\)/);
   assert.match(homeSource, /meta\.push\('Completed'\)/);
+  assert.match(homeSource, /meta\.push\('Awaiting submission'\)/);
   assert.match(homeSource, /done\?'Completed <svg class="icon"><use href="#i-check"\/>/);
   assert.match(styles, /\.todayitem\.done\{border-color:var\(--ok-border\);background:var\(--ok-bg\)\}/);
   assert.match(styles, /\.today-action\.completed\{/);
+});
+
+test('weekly completion indicators use submitted sessions, not local drafts or ticks', () => {
+  const insightsStart=source.indexOf('function getHomeInsights');
+  const insightsEnd=source.indexOf('function miniSparkline',insightsStart);
+  const insightsSource=source.slice(insightsStart,insightsEnd);
+  const trackerStart=checkin.indexOf('function renderGymTracker');
+  const trackerEnd=checkin.indexOf('// ── QUICK LOG',trackerStart);
+  const trackerSource=checkin.slice(trackerStart,trackerEnd);
+
+  assert.match(insightsSource, /completed=sessions\.filter\(function\(s\)\{return getType\(s\)!=='rest'&&trainingSessionIsComplete\(s\);\}\)/);
+  assert.doesNotMatch(insightsSource, /logHasRealData|ticked\[/);
+  assert.match(trackerSource, /done=lifts\.filter\(trainingSessionIsComplete\)\.length/);
+  assert.match(trackerSource, /awaiting=sessions\.filter\(trainingSessionAwaitsSubmission\)\.length/);
+  assert.match(trackerSource, /awaiting submission/);
 });
 
 test('Strava match controls stay inside the opened session, not the Home card', () => {
