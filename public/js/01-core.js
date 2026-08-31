@@ -27,6 +27,17 @@ function getSplit(key){return SPLITS_BY_NAME[key]||STR[key]||[];}
 var SESSION_PRESCRIPTIONS={};   // sessionId -> synthetic split key
 var SESSION_RUN_STEPS={};       // sessionId -> ordered run step tree
 var SESSION_SPLIT_ALIAS={};     // synthetic split key -> real split name, for priority lookups
+var COACH_CHANGES_BY_DATE={};   // YYYY-MM-DD -> safe athlete-facing audit summaries
+
+function registerCoachChanges(result){
+  COACH_CHANGES_BY_DATE={};
+  ((result&&result.rows)||[]).forEach(function(row){
+    var detail=row&&row.detail||{},date=String(detail.date||'').slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return;
+    if(!COACH_CHANGES_BY_DATE[date])COACH_CHANGES_BY_DATE[date]=[];
+    COACH_CHANGES_BY_DATE[date].push({source:row.source||'training',changedAt:row.changed_at||'',item:detail.item||'Session',action:detail.action||'updated'});
+  });
+}
 
 function prescriptionSplitKey(sessionId){
   return '__s_'+String(sessionId).replace(/[^A-Za-z0-9_-]/g,'-');

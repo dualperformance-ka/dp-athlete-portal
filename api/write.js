@@ -371,6 +371,39 @@ async function plannedSessions(code, body) {
   };
 }
 
+// Athlete-facing programme changes for the visible date range. The audit table
+// may contain internal columns, so expose only the human-readable action/item
+// summary and its date. Authentication supplies `code`; the browser cannot ask
+// for another athlete's changes.
+export async function coachChanges(code, body = {}, selectRows = select) {
+  const start = date(body.start);
+  const end = date(body.end);
+  if (!start || !end || start > end) return { rows: [] };
+  const since = new Date(`${start}T00:00:00.000Z`);
+  since.setUTCDate(since.getUTCDate() - 45);
+  const rows = await selectRows('coach_change_log', {
+    athlete_code: `eq.${code}`,
+    changed_at: `gte.${since.toISOString()}`,
+    select: 'source,changed_at,detail',
+    order: 'changed_at.desc',
+    limit: '200',
+  });
+  return {
+    rows: (Array.isArray(rows) ? rows : []).filter((row) => {
+      const changedDate = date(row?.detail?.date);
+      return changedDate && changedDate >= start && changedDate <= end;
+    }).map((row) => ({
+      source: text(row.source, 80) || 'training',
+      changed_at: row.changed_at,
+      detail: {
+        date: date(row?.detail?.date),
+        item: text(row?.detail?.item, 160) || 'Session',
+        action: text(row?.detail?.action, 120) || 'updated',
+      },
+    })),
+  };
+}
+
 async function workoutSplits(code) {
   const rows = await select('workout_splits', {
     archived: 'eq.false',
@@ -626,15 +659,16 @@ export async function trainingRead(code, body = {}, readers = {}) {
   const readPlanned = readers.plannedSessions || plannedSessions;
   const readSplits = readers.workoutSplits || workoutSplits;
   const readLibrary = readers.sessionLibrary || sessionLibrary;
+  const readChanges = readers.coachChanges || coachChanges;
   const includeLibrary = body.includeLibrary === true;
-  const names = ['planned', 'splits'];
-  const tasks = [readPlanned(code, body), readSplits(code)];
+  const names = ['planned', 'splits', 'changes'];
+  const tasks = [readPlanned(code, body), readSplits(code), readChanges(code, body)];
   if (includeLibrary) {
     names.push('library');
     tasks.push(readLibrary({ libraryRevision: body.libraryRevision || '' }));
   }
   const settled = await Promise.allSettled(tasks);
-  const result = { planned: null, splits: null, library: null, errors: [] };
+  const result = { planned: null, splits: null, changes: null, library: null, errors: [] };
   settled.forEach((entry, index) => {
     const name = names[index];
     if (entry.status === 'fulfilled') result[name] = entry.value;

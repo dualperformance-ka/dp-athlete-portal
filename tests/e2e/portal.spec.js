@@ -16,14 +16,15 @@ const today = localISO();
 const athlete = { ok: true, exists: true, active: true, code: 'KARL', name: 'Karl', auth_mode: 'both', email: 'karl@example.com', access_token: 'signed-session' };
 const exercise = { exercise: 'Leg Extension', sets: '3', reps: '8', repRange: '8-12', warmupSets: '0', workingSets: '3', rest: '0s', notes: '' };
 
-function trainingBundle(note = '') {
+function trainingBundle(note = '', exercises = [exercise], changes = []) {
   return {
     planned: {
       rows: [{ id: 'session-1', notion_page_id: 'session-1', title: 'Lower A', planned_date: today, session_type: 'strength', status: 'Planned', week_label: 'Week 3', notes: note }],
       next: null,
       prescriptions: { exercises: {}, runSteps: {} },
     },
-    splits: { rows: [{ name: 'Lower A', athlete_code: null, exercises: [exercise] }] },
+    splits: { rows: [{ name: 'Lower A', athlete_code: null, exercises }] },
+    changes: { rows: changes },
     library: { rows: [], revision: 'e2e', notModified: false },
     errors: [],
   };
@@ -48,7 +49,7 @@ async function installSupabaseStub(page) {
 }
 
 async function mockPortal(page, options = {}) {
-  const state = { offline: false, note: options.note || '', bookingRows: options.bookingRows || [], notifications: options.notifications || [] };
+  const state = { offline: false, note: options.note || '', exercises: options.exercises || [exercise], changes: options.changes || [], bookingRows: options.bookingRows || [], notifications: options.notifications || [] };
   await installSupabaseStub(page);
   await page.route('**/_vercel/**', route => route.abort());
   await page.route('https://fonts.googleapis.com/**', route => route.abort());
@@ -68,7 +69,7 @@ async function mockPortal(page, options = {}) {
     } else if (url.pathname === '/api/portal-data') {
       const action = body.action;
       if (action === 'bootstrap') json = { ok: true, state: { rows: [], checkins: [] }, bodyLogs: { rows: [] }, nutritionLogs: { rows: [] }, sessionLogs: { rows: [] }, dailyLogged: { body: [], nutrition: [] } };
-      else if (action === 'training-read') json = trainingBundle(state.note);
+      else if (action === 'training-read') json = trainingBundle(state.note, state.exercises, state.changes);
       else if (action === 'state-read') json = { ok: true, rows: [], checkins: [] };
       else if (action === 'body-logs' || action === 'nutrition-logs' || action === 'session-logs-read') json = { ok: true, rows: [] };
       else if (action === 'daily-log-dates') json = { ok: true, body: [], nutrition: [] };
@@ -136,8 +137,11 @@ test('3. three strength sets submit and persist across reload', async ({ page })
     await page.locator(`#r_0_0_${set}`).fill(String(10 - set));
   }
   await page.getByRole('button', { name: /Right load/ }).click();
-  await page.getByRole('button', { name: 'Save session' }).click();
-  await expect(page.getByText('Session submitted', { exact: true })).toBeVisible();
+  await page.locator('#focusFooterAction').click();
+  await expect(page.locator('#strengthReviewTitle')).toHaveText('Review session');
+  await page.getByRole('button', { name: 'Submit to coaches' }).click();
+  await expect(page.getByText('Your coaches can now review the full session.')).toBeVisible();
+  await expect(page.locator('#gym_saved_0')).toContainText('Session submitted');
 
   await page.reload();
   await expect(page.locator('#portalScreen')).toBeVisible();
@@ -171,13 +175,38 @@ test('a locally saved workout awaits submission and does not count as complete',
   await page.locator('#w_0_0_0').fill('40');
   await page.locator('#r_0_0_0').fill('10');
   await page.getByRole('button', { name: /Right load/ }).click();
-  await page.getByRole('button', { name: 'Done — back to plan' }).click();
+  await page.getByRole('button', { name: 'Close session' }).click();
   await page.evaluate(() => renderTodaySection());
 
   await expect(page.locator('.todaymeta')).toContainText('Awaiting submission');
   await expect(page.getByRole('button', { name: 'Open awaiting submission Lower A' })).toHaveText(/Review & submit/);
   await expect(page.locator('#heroStatCompliance')).toHaveText('0/1');
   await expect(page.locator('#gymDoneVal')).toHaveText('0');
+});
+
+test('focused strength flow shows coach context, live progress, calm stats and the next exercise', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+  const secondExercise = { ...exercise, exercise: 'Leg Curl', sets: '2', workingSets: '2', rest: '90s' };
+  await codeLogin(page, {
+    exercises: [exercise, secondExercise],
+    changes: [{ source: 'programme', changed_at: `${today}T01:00:00Z`, detail: { date: today, item: 'Leg Extension', action: 'load target updated' } }],
+  });
+  await page.getByRole('button', { name: 'Open Lower A' }).click();
+
+  await expect(page.getByText('Your coach adjusted this session')).toBeVisible();
+  await expect(page.locator('#focusOverlayMeta')).toHaveText('0 of 2 exercises');
+  await expect(page.locator('#focusOverlayTime')).toContainText('min remaining');
+  await expect(page.getByRole('button', { name: 'Stats' }).first()).toBeVisible();
+
+  for (let set = 0; set < 3; set++) {
+    await page.locator(`#w_0_0_${set}`).fill('40');
+    await page.locator(`#r_0_0_${set}`).fill('10');
+  }
+  await page.getByRole('button', { name: /Right load/ }).click();
+
+  await expect(page.getByRole('button', { name: /Up next.*Leg Curl/ })).toBeVisible();
+  await expect(page.locator('#focusOverlayMeta')).toHaveText('1 of 2 exercises');
+  await expect(page.getByRole('button', { name: 'Review & submit' }).last()).toBeVisible();
 });
 
 test('4. body check-in updates the dock state', async ({ page }) => {

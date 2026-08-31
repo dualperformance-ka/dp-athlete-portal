@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 140,
-    "sha": "8480e0e4553f"
+    "version": 142,
+    "sha": "cb1338cecdf1"
   },
   "desktop.css": {
     "version": 6,
@@ -16,8 +16,8 @@
     "sha": "842c8ed8f92e"
   },
   "js/01-core.js": {
-    "version": 116,
-    "sha": "6ee878683bb5"
+    "version": 117,
+    "sha": "dfafe5abcb87"
   },
   "js/02-login-goals.js": {
     "version": 110,
@@ -52,12 +52,12 @@
     "sha": "ce83ae62b788"
   },
   "js/08-training.js": {
-    "version": 131,
-    "sha": "bd6da77f31c9"
+    "version": 133,
+    "sha": "525b7e1364a0"
   },
   "js/09-logging.js": {
-    "version": 119,
-    "sha": "23f372a3bebc"
+    "version": 120,
+    "sha": "711da8652abd"
   },
   "accessibility.js": {
     "version": 1,

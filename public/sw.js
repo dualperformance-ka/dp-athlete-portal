@@ -1,8 +1,8 @@
-const CACHE_NAME = 'dp-athlete-v181'; // v181: Monday calls review the preceding week
+const CACHE_NAME = 'dp-athlete-v182'; // v182: focused strength progress, review and recap flow
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=140', '/desktop.css?v=6', '/config.js',
+  '/index.html', '/styles.css?v=142', '/desktop.css?v=6', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=116',
+  '/js/01-core.js?v=117',
   '/js/02-login-goals.js?v=110',
   '/js/03-nav-nudges.js?v=108',
   '/js/04-checkin.js?v=94',
@@ -11,8 +11,8 @@ const APP_SHELL = [
   '/js/07-progress.js?v=89',
   '/js/strava-match.js?v=6',
   '/js/08-training-interval-rest.js?v=1',
-  '/js/08-training.js?v=131',
-  '/js/09-logging.js?v=119',
+  '/js/08-training.js?v=133',
+  '/js/09-logging.js?v=120',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=109',
   '/login.js?v=49', '/icons.css?v=3',
