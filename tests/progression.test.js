@@ -89,6 +89,36 @@ test('completed working sets show a consistent Today comparison and next-session
   assert.equal(live.msg, '36 reps · 3 up on last session');
   assert.match(live.prompt, /^Next session: Increase to/);
   assert.equal(live.ahead, true);
+  assert.equal(live.unlocked, true);
+  assert.match(live.unlockAction, /^Increase to/);
+});
+
+test('progression encouragement is compact and only fires once per exercise view', () => {
+  const attributes = new Map([
+    ['data-ns-live-unlocked', 'false'],
+    ['data-ns-unlock-celebrated', 'false']
+  ]);
+  const classes = new Set();
+  const card = {
+    offsetWidth: 320,
+    getAttribute: (name) => attributes.get(name) || null,
+    setAttribute: (name, value) => attributes.set(name, value),
+    classList: {
+      add: (name) => classes.add(name),
+      remove: (name) => classes.delete(name)
+    }
+  };
+  const previousToast = context.showToast;
+  const messages = [];
+  context.showToast = (message) => messages.push(message);
+  const live = { unlocked: true, unlockAction: 'Increase to 92kg' };
+
+  assert.equal(context.maybeCelebrateStrengthProgression(card, live), true);
+  assert.equal(context.maybeCelebrateStrengthProgression(card, live), false);
+  assert.deepEqual(messages, ['Nice work — 92kg unlocked for next session']);
+  assert.equal(classes.has('ns-unlock-celebrate'), true);
+
+  context.showToast = previousToast;
 });
 
 test('bonus set counts as volume but cannot replace a programmed working set', () => {
