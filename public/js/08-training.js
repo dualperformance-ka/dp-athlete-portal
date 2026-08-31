@@ -1567,6 +1567,26 @@ function applyStrengthEffortLoad(i,ei,si,weight){
   input.value=_nsBare(weight);var row=input.closest('.setrow,.setrow-single'),card=row&&row.closest('.exc'),splitKey=card&&card.getAttribute('data-split-key')||'Upper A';draftGym(i,splitKey);
   var reps=row&&row.querySelector('input[id^="r_"],input[id^="rL_"]');if(reps)reps.focus();if(typeof showToast==='function')showToast(_nsKg(weight)+' loaded for the next set');
 }
+function strengthProgressionUnlockMessage(action){
+  var text=String(action||'').trim(),match=text.match(/^Increase to (.+)$/i);
+  if(match)return 'Nice work — '+match[1]+' unlocked for next session';
+  match=text.match(/^Top set to (.+)$/i);if(match)return 'Nice work — a '+match[1]+' top set is unlocked for next session';
+  match=text.match(/^Reduce assistance to (.+)$/i);if(match)return 'Nice work — '+match[1]+' assistance unlocked for next session';
+  if(/^Try bodyweight$/i.test(text))return 'Nice work — bodyweight unlocked for next session';
+  match=text.match(/^Add reps beyond (.+)$/i);if(match)return 'Nice work — reps beyond '+match[1]+' unlocked for next session';
+  return 'Nice work — progression unlocked for next session';
+}
+function maybeCelebrateStrengthProgression(card,live){
+  if(!card)return false;
+  var unlocked=!!(live&&live.unlocked);
+  card.setAttribute('data-ns-live-unlocked',unlocked?'true':'false');
+  if(!unlocked||card.getAttribute('data-ns-unlock-celebrated')==='true')return false;
+  card.setAttribute('data-ns-unlock-celebrated','true');
+  card.classList.remove('ns-unlock-celebrate');void card.offsetWidth;card.classList.add('ns-unlock-celebrate');
+  setTimeout(function(){if(card)card.classList.remove('ns-unlock-celebrate');},1800);
+  if(typeof showToast==='function')showToast(strengthProgressionUnlockMessage(live.unlockAction));
+  return true;
+}
 function refreshStrengthFeedback(i,splitKey){
   var exercises=getSplit(splitKey);var s=sessions[i];
   exercises.forEach(function(ex,ei){
@@ -1588,6 +1608,7 @@ function refreshStrengthFeedback(i,splitKey){
       card.setAttribute('data-ns-action',rec.action);card.setAttribute('data-ns-tone',rec.tone);
       var chip=card.querySelector('.ns-chip');if(chip) chip.outerHTML=_nsChip(rec);
       var blk=card.querySelector('.ns-block');if(blk) blk.outerHTML=_nsBody(rec);
+      maybeCelebrateStrengthProgression(card,rec.live);
       refreshStrengthExerciseState(card);
     }
     var lastEl=document.getElementById('prev_'+i+'_'+ei);
@@ -1833,6 +1854,8 @@ function repaintOverload(i,ei){
   if(!card) return;
   card.setAttribute('data-assisted',_isAssistedExercise(resolvedEx)?'true':'false');
   card.setAttribute('data-ns-action',rec.action);card.setAttribute('data-ns-tone',rec.tone);
+  var liveUnlocked=!!(rec.live&&rec.live.unlocked);card.setAttribute('data-ns-live-unlocked',liveUnlocked?'true':'false');
+  if(liveUnlocked)card.setAttribute('data-ns-unlock-celebrated','true');
   var chip=card.querySelector('.ns-chip');if(chip) chip.outerHTML=_nsChip(rec);
   var blk=card.querySelector('.ns-block');if(blk) blk.outerHTML=_nsBody(rec);
   refreshStrengthExerciseState(card);
@@ -1919,7 +1942,8 @@ function _nsLiveProgress(ex,currentEffort,rec,resolvedName,history,previousEffor
     nextRec=_nsRecommendation(ex,currentEffort,resolvedName,history);
     prompt='Next session: '+nextRec.action;
   }
-  return {msg:msg,prompt:prompt,ahead:(beat!=null&&total>beat)||topped>=wantSets||(assisted&&previousLoad!=null&&currentLoad!=null&&currentLoad<previousLoad),nextTone:nextRec?nextRec.tone:null};
+  var unlocked=!!(nextRec&&(nextRec.status==='Ready to Increase'||nextRec.status==='Ready to Progress'));
+  return {msg:msg,prompt:prompt,ahead:(beat!=null&&total>beat)||topped>=wantSets||(assisted&&previousLoad!=null&&currentLoad!=null&&currentLoad<previousLoad),nextTone:nextRec?nextRec.tone:null,unlocked:unlocked,unlockAction:unlocked?nextRec.action:''};
 }
 function _nsBody(rec){
   var t='';
@@ -2310,7 +2334,8 @@ function buildBody(s,i,type){
         });
         var _nsSummary=(_nsTopW!=null?_nsBare(_nsTopW)+(isAssisted?'kg assist × ':'kg × '):'')+_nsParts.join(' · ');
         var _nsStateCls=exerciseIsComplete?' ns-logged':(hasExerciseData?' ns-inprogress':' ns-t-'+_ov.tone);
-        h+='<div class="exc'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-rpe-required="'+(sessionRpeRequired?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'">';
+        var _nsLiveUnlocked=!!(_ov.live&&_ov.live.unlocked);
+        h+='<div class="exc'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-rpe-required="'+(sessionRpeRequired?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'" data-ns-live-unlocked="'+(_nsLiveUnlocked?'true':'false')+'" data-ns-unlock-celebrated="'+(_nsLiveUnlocked?'true':'false')+'">';
         h+='<div class="exc-summary" onclick="toggleExc(this)">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn-row"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>'+(isTimeCrunchPriority?'<span class="female-priority-badge">Priority</span>':'')+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div></div>'+_nsChip(_ov)+'<div class="exc-chev">▾</div></div>';
         h+='<div class="exc-body">'+_nsBody(_ov);
         h+='<div class="exh">';

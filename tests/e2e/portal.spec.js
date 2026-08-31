@@ -146,6 +146,24 @@ test('3. three strength sets submit and persist across reload', async ({ page })
   await expect(page.locator('#w_0_0_2')).toHaveValue('50');
 });
 
+test('unlocking the next load gives brief encouragement without interrupting the session', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+  await codeLogin(page);
+  await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await page.locator('#w_0_0_0').fill('40');
+  await page.locator('#r_0_0_0').fill('12');
+  await page.getByRole('button', { name: /Right load/ }).click();
+  for (let set = 1; set < 3; set++) {
+    await page.locator(`#w_0_0_${set}`).fill('40');
+    await page.locator(`#r_0_0_${set}`).fill('12');
+  }
+
+  await expect(page.locator('#toast')).toContainText(/Nice work.*unlocked for next session/);
+  await expect(page.locator('.exc').first()).toHaveClass(/ns-unlock-celebrate/);
+  await expect(page.getByText(/Next session: Increase to/)).toBeVisible();
+  await expect(page.locator('#focusOverlay')).toHaveClass(/open/);
+});
+
 test('a locally saved workout awaits submission and does not count as complete', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
   await codeLogin(page);
