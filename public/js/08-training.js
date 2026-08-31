@@ -1530,16 +1530,21 @@ function toggleStrengthEffortPanel(i,ei,si){
   var panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(!panel)return;
   panel.classList.toggle('is-editing');
 }
-function applyStrengthEffortLoadToRemaining(i,ei,startRow,endRow,weight){
+function applyStrengthEffortLoadToRemaining(i,ei,startRow,endRow,weight,repTarget){
   var changed=0,firstChanged=null;
   for(var rowIndex=startRow;rowIndex<=endRow;rowIndex++){
     var input=document.getElementById('w_'+i+'_'+ei+'_'+rowIndex);if(!input||String(input.value||'').trim()!=='')continue;
-    input.value=_nsBare(weight);changed++;if(!firstChanged)firstChanged=input;
+    input.value=_nsBare(weight);
+    var row=input.closest('.setrow,.setrow-single');
+    if(row&&repTarget!=null)row.querySelectorAll('input[id^="r_"],input[id^="rL_"],input[id^="rR_"]').forEach(function(repInput){
+      if(String(repInput.value||'').trim()==='')repInput.placeholder=String(repTarget);
+    });
+    changed++;if(!firstChanged)firstChanged=input;
   }
   if(changed&&firstChanged){
     var row=firstChanged.closest('.setrow,.setrow-single'),card=row&&row.closest('.exc'),splitKey=card&&card.getAttribute('data-split-key')||'Upper A';
     draftGym(i,splitKey);
-    if(typeof showToast==='function')showToast(_nsKg(weight)+' loaded for '+changed+' remaining set'+(changed===1?'':'s'));
+    if(typeof showToast==='function')showToast(_nsKg(weight)+' loaded'+(repTarget!=null?' · target '+repTarget+' reps':'')+' for '+changed+' remaining set'+(changed===1?'':'s'));
   }
   return changed;
 }
@@ -1553,7 +1558,8 @@ function setStrengthEffort(i,ei,si,effort,button){
   var warmups=parseInt(ex.warmupSets,10)||0,working=parseInt(ex.workingSets||ex.sets,10)||1,finalSet=si>=warmups+working-1,nextRowIndex=finalSet?null:si+1;
   var guidance=strengthEffortGuidance(ex,effort,current,resolvedEx,history,finalSet),advice=document.getElementById('effort_advice_'+i+'_'+ei+'_'+si);
   if(advice){advice.className='set-effort-advice tone-'+(guidance&&guidance.tone||'blue');advice.innerHTML=strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex);}
-  if(guidance&&guidance.targetWeight!=null&&guidance.direction!=='same'&&!finalSet)applyStrengthEffortLoadToRemaining(i,ei,si+1,warmups+working-1,guidance.targetWeight);
+  var repTarget=parseInt(String(ex.repRange||ex.reps||'').split('-')[0],10)||parseInt(ex.reps,10)||null;
+  if(guidance&&guidance.targetWeight!=null&&guidance.direction!=='same'&&!finalSet)applyStrengthEffortLoadToRemaining(i,ei,si+1,warmups+working-1,guidance.targetWeight,repTarget);
   draftGym(i,splitKey);autoCompleteStrengthSet(i,ei,si);
 }
 function applyStrengthEffortLoad(i,ei,si,weight){
@@ -1703,9 +1709,23 @@ function computeOverload(ex,effort,resolvedName,history){
   }
   var calibrationTooLight=calibrationEffort==='reserve'||(calibrationEffort==='failure'&&calibrationReps!=null&&calibrationReps>top);
   if(calibrationTooLight&&calibration&&calibration.targetWeight!=null){
-    var laterLoads=working.slice(1).map(function(s){return parseFloat(s.weight);}).filter(function(n){return !isNaN(n)&&n>0;});
-    var applied=laterLoads.some(function(v){return assisted?v<=calibration.targetWeight+0.01:v>=calibration.targetWeight-0.01;});
-    var nextStart=applied&&laterLoads.length?(assisted?Math.min.apply(null,laterLoads):Math.max.apply(null,laterLoads)):calibration.targetWeight;
+    var adjustedSets=working.slice(1).filter(function(s){
+      var load=parseFloat(s.weight);
+      return !isNaN(load)&&load>0&&(assisted?load<=calibration.targetWeight+0.01:load>=calibration.targetWeight-0.01);
+    });
+    var confirmedSets=adjustedSets.filter(function(s){
+      var setReps=_effReps(s);
+      return setReps!=null&&setReps!==Infinity&&setReps>=low&&s.effort!=='form_break';
+    });
+    if(adjustedSets.length&&!confirmedSets.length){
+      var previousLoad=parseFloat(calibrationSet.weight);
+      return {tone:'yellow',status:'Adjustment Not Confirmed',action:assisted?('Start with '+_nsKg(previousLoad)+' assistance'):('Start at '+_nsKg(previousLoad)),weightKg:previousLoad,arrow:'↻',assisted:assisted,calibrated:true,
+        target:_nsFilled(wantSets,low),targetNote:null,
+        reason:'The adjusted setting did not reach '+low+' clean reps, so it did not confirm the change. Return to the previous setting and build from there.'};
+    }
+    var confirmedLoads=confirmedSets.map(function(s){return parseFloat(s.weight);});
+    var applied=confirmedLoads.length>0;
+    var nextStart=applied?(assisted?Math.min.apply(null,confirmedLoads):Math.max.apply(null,confirmedLoads)):calibration.targetWeight;
     return {tone:'green',status:'Load Calibrated',action:assisted?('Start with '+_nsKg(nextStart)+' assistance'):('Start at '+_nsKg(nextStart)),weightKg:nextStart,arrow:assisted?'↘':'↗',assisted:assisted,calibrated:true,
       target:_nsFilled(wantSets,low),targetNote:null,
       reason:applied
