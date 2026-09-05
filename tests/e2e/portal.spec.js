@@ -303,10 +303,12 @@ test('8. athlete can clear one notification or clear the whole inbox', async ({ 
   await expect(page.getByRole('button', { name: 'Clear all' })).toBeHidden();
 });
 
-test('9. coaching-call prep answers sync to the coach and survive a new device', async ({ page }) => {
-  // Prep rides the existing athlete_data state store (key calls_prep_<ISO week>),
-  // the same channel as call_booked_*, so it inherits the debounce, the
-  // force-flush on background and the offline queue.
+test('9. the Calls tab routes to the one check-in rather than asking again', async ({ page }) => {
+  // The Calls tab used to collect its own wins/niggles prep answers, duplicating
+  // the weekly check-in and syncing them through a state key that never reached
+  // the database. It now reports the check-in's status and links to it, and the
+  // one question that had no home elsewhere lives in the check-in's last step.
+  const ingested = [];
   const stateRows = [];
   await installSupabaseStub(page);
   await page.route('**/_vercel/**', route => route.abort());
@@ -317,6 +319,9 @@ test('9. coaching-call prep answers sync to the coach and survive a new device',
     let json = { ok: true };
     if (url.pathname === '/api/auth-athlete') {
       json = url.searchParams.get('action') === 'eligibility' ? { ok: true, enabled: true, eligible: true, active: true } : athlete;
+    } else if (url.pathname === '/api/ingest') {
+      ingested.push(body.payload || {});
+      json = { ok: true };
     } else if (url.pathname === '/api/portal-data') {
       if (body.action === 'state-write') { stateRows.push({ key: body.key, value: body.value }); json = { key: body.key, synced_at: 'now' }; }
       else if (body.action === 'state-read') json = { ok: true, rows: stateRows, checkins: [] };
@@ -333,24 +338,31 @@ test('9. coaching-call prep answers sync to the coach and survive a new device',
   await page.getByRole('button', { name: 'Enter Portal' }).click();
   await expect(page.locator('#portalScreen')).toBeVisible();
 
+  // No second set of questions on the Calls tab, just the check-in's state.
   await page.evaluate(() => switchTab('calls'));
-  await page.locator('#callsPrep0').fill('Threshold felt controlled.');
-  await expect.poll(() => stateRows.filter(row => /^calls_prep_\d{4}_\d{2}$/.test(row.key)).length, { timeout: 8000 }).toBeGreaterThan(0);
+  const calls = page.locator('#callsSurface');
+  await expect(calls).toContainText('Weekly check-in');
+  await expect(calls).toContainText('Not yet');
+  await expect(page.locator('#callsPrep0')).toHaveCount(0);
 
-  // A fresh device holds the session but no cached answers: they must come back
-  // from the server, not from localStorage.
-  await page.evaluate(() => {
-    const token = localStorage.getItem('dp_auth_token');
-    const code = localStorage.getItem('dp_auth_code');
-    const method = localStorage.getItem('dp_auth_method');
-    localStorage.clear();
-    localStorage.setItem('dp_auth_token', token);
-    localStorage.setItem('dp_auth_code', code);
-    if (method) localStorage.setItem('dp_auth_method', method);
-  });
-  await page.reload();
-  await expect(page.locator('#portalScreen')).toBeVisible();
-  await page.waitForTimeout(1200);
-  await page.evaluate(() => switchTab('calls'));
-  await expect(page.locator('#callsPrep0')).toHaveValue(/Threshold felt controlled/, { timeout: 8000 });
+  await calls.getByRole('button', { name: 'Complete your check-in' }).click();
+  await expect(page.locator('#tab-checkin')).toBeVisible();
+
+  // The one prep question that survived, drafted like every other field. It
+  // sits in the wizard's last step, so walk there the way an athlete would.
+  await page.evaluate(() => ciGoStep(5));
+  await expect(page.locator('.ci-step-panel[data-step="5"]')).toHaveClass(/active/);
+  await page.locator('#ciCallDecision').fill('Whether to move Thursday intervals to Friday.');
+  await expect.poll(async () => page.evaluate(() => {
+    const raw = localStorage.getItem('dp_ci_draft_KARL_' + checkinWeekSuffix());
+    return raw ? (JSON.parse(raw).ciCallDecision || '') : '';
+  }), { timeout: 8000 }).toContain('Thursday intervals');
+
+  await page.evaluate(() => { document.getElementById('ciName').value = 'Karl Sexon'; });
+  await page.evaluate(() => submitCheckin());
+  await expect.poll(() => ingested.filter(p => p.type === 'weekly_checkin').length, { timeout: 8000 }).toBeGreaterThan(0);
+  const submitted = ingested.find(p => p.type === 'weekly_checkin');
+  expect(submitted.callDecision).toContain('Thursday intervals');
+  // The neighbouring field keeps its own meaning rather than being overloaded.
+  expect(submitted).toHaveProperty('upcomingImpact');
 });

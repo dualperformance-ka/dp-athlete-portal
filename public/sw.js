@@ -1,11 +1,11 @@
-const CACHE_NAME = 'dp-athlete-v188'; // v188: trim Strava payloads in the worker drain too
+const CACHE_NAME = 'dp-athlete-v189'; // v189: Calls prep folded into the weekly check-in
 const APP_SHELL = [
   '/index.html', '/styles.css?v=143', '/desktop.css?v=7', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=121',
+  '/js/01-core.js?v=122',
   '/js/02-login-goals.js?v=112',
-  '/js/03-nav-nudges.js?v=111',
-  '/js/04-checkin.js?v=94',
+  '/js/03-nav-nudges.js?v=112',
+  '/js/04-checkin.js?v=95',
   '/js/05-handbook.js?v=85',
   '/js/06-nutrition.js?v=91',
   '/js/07-progress.js?v=89',

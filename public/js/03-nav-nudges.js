@@ -1132,60 +1132,38 @@ try{applyOutdoorMode(localStorage.getItem('dp_outdoor_mode')==='1');}catch(e){ap
 //
 // LIVE:  `next` — getCallBookedState(), kept current by the GHL webhook and
 //        the booking-sync action.
-// LIVE:  `prep` — answers round-trip through the athlete_data state store
-//        (key calls_prep_<ISO week>), the same channel as call_booked_*.
+//        Read from the same completion cache the check-in nudge uses.
+// LIVE:  `checkin` — whether this week's weekly check-in has been submitted.
 // STUB:  `last` — the previous call's recap and action items have no
 //        backend yet; returning null omits the card rather than drawing an
 //        empty one. Replace the marked block below with a real read.
 //
 //   { next: { booked, displayTime, startsAt, eventId },
-//     prep: { answered, total, items: [{ q, a }] },
+//     checkin: { done },
 //     last: null | { when, quote, actions: [{ text, done, due }] } }
 //
-var CALLS_PREP_QUESTIONS=[
-  'What went well this week?',
-  'Anything hurting or holding you back?',
-  'One thing to decide with your coaches'
-];
-// Prep answers are per athlete, per call week, so a new week starts clean.
-function callsPrepKey(){
-  var acode=(athlete&&athlete.code)?athlete.code.toUpperCase()+'_':'';
-  return 'dp_calls_prep_'+acode+callWeekSuffix();
+// The Calls tab used to carry three free-text prep questions of its own. Two
+// duplicated the weekly check-in's Wins and Niggles fields, the third moved
+// into the check-in's final step as ciCallDecision, and the whole thing synced
+// through a calls_prep_* state key that never once reached the database. So the
+// tab now reports the check-in's status instead of collecting a second,
+// competing answer to the same questions.
+function callsCheckinState(){
+  var done=false;
+  try{done=!!localStorage.getItem(checkinWeekKey());}catch(e){done=false;}
+  return {done:done};
 }
-function loadCallsPrep(){
-  var saved={};
-  try{saved=JSON.parse(localStorage.getItem(callsPrepKey())||'{}')||{};}catch(e){saved={};}
-  var items=CALLS_PREP_QUESTIONS.map(function(q,i){return {q:q,a:String(saved[i]||'')};});
-  return {answered:items.filter(function(it){return it.a.trim();}).length,total:items.length,items:items};
-}
-// Persisted immediately so a half-written answer is never lost, then synced
-// to the coach through the athlete_data state store.
-function setCallsPrepAnswer(index,value){
-  var saved={};
-  try{saved=JSON.parse(localStorage.getItem(callsPrepKey())||'{}')||{};}catch(e){saved={};}
-  saved[index]=String(value||'').slice(0,2000);
-  // setItem IS the sync: 01-core maps dp_calls_prep_* onto the athlete_data
-  // state store, debounced ~1.5s per key, force-flushed on background, and
-  // queued offline. The header pill reports the real state.
-  try{localStorage.setItem(callsPrepKey(),JSON.stringify(saved));}catch(e){}
-  var head=document.getElementById('callsPrepCount');
-  if(head){
-    var n=Object.keys(saved).filter(function(k){return String(saved[k]||'').trim();}).length;
-    head.textContent='Prep · '+n+'/'+CALLS_PREP_QUESTIONS.length;
-  }
-  var badge=document.getElementById('callsPrepSaved');
-  if(badge) badge.textContent='Saved';
-}
+
 function fetchCallsSurfaceData(){
   var next=(typeof getCallBookedState==='function')?getCallBookedState():{booked:false,displayTime:'',startsAt:'',eventId:''};
-  var prep=loadCallsPrep();
+  var checkin=callsCheckinState();
   // ── BEGIN STUB ──────────────────────────────────────────────────────────
   // The previous call's recap and its action items have no backend yet, so
   // there is nothing to show. Returning null omits the card entirely rather
   // than rendering an empty one. Replace with a real read; see the shape above.
   var last=null;
   // ── END STUB ────────────────────────────────────────────────────────────
-  return {next:next,prep:prep,last:last};
+  return {next:next,checkin:checkin,last:last};
 }
 
 
@@ -1226,15 +1204,17 @@ function renderCallsTab(){
   }
   html+='</div>';
 
-  var prep=data.prep||{items:[]};
-  html+='<div class="calls-card"><div class="calls-head"><span class="calls-label" id="callsPrepCount">Prep · '+prep.answered+'/'+prep.total+'</span>'+
-        '<span class="calls-label calls-label-ok" id="callsPrepSaved">'+(prep.answered?'Saved':'')+'</span></div>';
-  (prep.items||[]).forEach(function(item,i){
-    if(i) html+='<div class="calls-hair"></div>';
-    html+='<div class="calls-prep"><label class="calls-q" for="callsPrep'+i+'">'+esc(item.q)+'</label>'+
-          '<textarea id="callsPrep'+i+'" class="calls-input" rows="2" placeholder="Add a note for your coaches" '+
-          'oninput="setCallsPrepAnswer('+i+',this.value)">'+esc(item.a)+'</textarea></div>';
-  });
+  // One weekly ritual, one place. The card routes to the check-in rather than
+  // reproducing any of its questions here.
+  var checkin=data.checkin||{done:false};
+  html+='<div class="calls-card"><div class="calls-head"><span class="calls-label">Weekly check-in</span>'+
+        (checkin.done?'<span class="calls-label calls-label-ok">Submitted</span>':'<span class="calls-label calls-label-dim">Not yet</span>')+'</div>';
+  html+='<div class="calls-well'+(checkin.done?'':' calls-empty')+'">'+
+        (checkin.done
+          ? 'Karl and Alex have your week. They\'ll work from it on the call.'
+          : 'Fill this in before your call so the 30 minutes go on decisions, not catch-up.')+'</div>';
+  html+='<div class="calls-actions"><button type="button" class="calls-btn'+(checkin.done?'':' calls-btn-primary')+'" onclick="switchTab(\'checkin\')">'+
+        (checkin.done?'Review your check-in':'Complete your check-in')+'</button></div>';
   html+='</div>';
 
   var last=data.last;
