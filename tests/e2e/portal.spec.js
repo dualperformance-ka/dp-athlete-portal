@@ -302,3 +302,55 @@ test('8. athlete can clear one notification or clear the whole inbox', async ({ 
   await expect(page.locator('#notificationCount')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Clear all' })).toBeHidden();
 });
+
+test('9. coaching-call prep answers sync to the coach and survive a new device', async ({ page }) => {
+  // Prep rides the existing athlete_data state store (key calls_prep_<ISO week>),
+  // the same channel as call_booked_*, so it inherits the debounce, the
+  // force-flush on background and the offline queue.
+  const stateRows = [];
+  await installSupabaseStub(page);
+  await page.route('**/_vercel/**', route => route.abort());
+  await page.route('**/api/**', async route => {
+    const url = new URL(route.request().url());
+    let body = {};
+    try { body = route.request().postDataJSON() || {}; } catch (error) {}
+    let json = { ok: true };
+    if (url.pathname === '/api/auth-athlete') {
+      json = url.searchParams.get('action') === 'eligibility' ? { ok: true, enabled: true, eligible: true, active: true } : athlete;
+    } else if (url.pathname === '/api/portal-data') {
+      if (body.action === 'state-write') { stateRows.push({ key: body.key, value: body.value }); json = { key: body.key, synced_at: 'now' }; }
+      else if (body.action === 'state-read') json = { ok: true, rows: stateRows, checkins: [] };
+      else if (body.action === 'bootstrap') json = { ok: true, state: { rows: stateRows, checkins: [] }, bodyLogs: { rows: [] }, nutritionLogs: { rows: [] }, sessionLogs: { rows: [] }, dailyLogged: { body: [], nutrition: [] } };
+      else json = { ok: true, rows: [], checkins: [], body: [], nutrition: [] };
+    } else if (url.pathname.startsWith('/api/strava')) json = { connected: false, activities: [] };
+    else if (url.pathname === '/api/reminders') json = { ok: true, notifications: [], unread: 0 };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json) });
+  });
+
+  await page.goto('/index.html');
+  await page.getByRole('button', { name: 'Use athlete access code' }).click();
+  await page.getByLabel('Athlete access code').fill('KARL');
+  await page.getByRole('button', { name: 'Enter Portal' }).click();
+  await expect(page.locator('#portalScreen')).toBeVisible();
+
+  await page.evaluate(() => switchTab('calls'));
+  await page.locator('#callsPrep0').fill('Threshold felt controlled.');
+  await expect.poll(() => stateRows.filter(row => /^calls_prep_\d{4}_\d{2}$/.test(row.key)).length, { timeout: 8000 }).toBeGreaterThan(0);
+
+  // A fresh device holds the session but no cached answers: they must come back
+  // from the server, not from localStorage.
+  await page.evaluate(() => {
+    const token = localStorage.getItem('dp_auth_token');
+    const code = localStorage.getItem('dp_auth_code');
+    const method = localStorage.getItem('dp_auth_method');
+    localStorage.clear();
+    localStorage.setItem('dp_auth_token', token);
+    localStorage.setItem('dp_auth_code', code);
+    if (method) localStorage.setItem('dp_auth_method', method);
+  });
+  await page.reload();
+  await expect(page.locator('#portalScreen')).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => switchTab('calls'));
+  await expect(page.locator('#callsPrep0')).toHaveValue(/Threshold felt controlled/, { timeout: 8000 });
+});
