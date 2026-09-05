@@ -144,8 +144,79 @@ async function submitCheckin(){
     hideCheckinNudge();
     clearCiDraft();
     document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
-    showToast(checkinResult.queued?'Check-in saved - coach dashboard sync pending':'Check-in submitted ✓');
+    // Say which of the two actually happened. "Sent" when it reached the
+    // coaches, "saved" when it is sitting in the outbox — claiming delivery for
+    // a queued write is how the old Calls prep card ended up reporting Saved
+    // for answers no coach ever saw.
+    showToast(checkinResult.queued?'Check-in saved · will send to your coaches when you’re back online':'Check-in sent to your coaches ✓');
+    var sheet=document.getElementById('checkinModal');
+    if(sheet&&sheet.classList.contains('open')){
+      var confirmation=document.getElementById('ciSuccess');
+      if(confirmation)confirmation.scrollIntoView({block:'center',behavior:'smooth'});
+      // Long enough to read the confirmation, short enough not to trap them.
+      setTimeout(function(){
+        if(sheet.classList.contains('open')){
+          // Put the form back into its submitted-and-reset state on the way
+          // out, so reopening the sheet is not a dead success screen.
+          if(typeof resetCheckin==='function')resetCheckin();
+          closeCheckinSheet();
+        }
+      },2600);
+    }
   }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit your check-in — please try again','error');}
+}
+// ── CHECK-IN SHEET ────────────────────────────────────────────────────────────
+// The Calls tab opens the check-in in place rather than switching tabs. The form
+// is moved, not copied: a second copy of the markup would mean duplicate element
+// ids, and every getElementById in this file would silently bind to whichever
+// copy the browser found first. Moving keeps one form, one draft, one submit.
+var _ciSheetHome=null;
+function ciSheetNodes(){
+  return [document.getElementById('ciFormContent'),document.getElementById('ciSuccess')].filter(Boolean);
+}
+function openCheckinSheet(){
+  var modal=document.getElementById('checkinModal'),body=document.getElementById('checkinModalBody');
+  var nodes=ciSheetNodes();
+  if(!modal||!body||!nodes.length){
+    // No sheet in this shell: fall back to the tab so the check-in is never
+    // unreachable, whatever state the DOM is in.
+    if(typeof switchTab==='function')switchTab('checkin');
+    return;
+  }
+  if(!_ciSheetHome){
+    var first=nodes[0];
+    _ciSheetHome={parent:first.parentNode,before:first.nextSibling};
+  }
+  nodes.forEach(function(node){body.appendChild(node);});
+  // Same entry point the tab uses: restores the draft, prefills from the plan
+  // and this week's Strava kilometres, and wires the autosave listener once.
+  if(typeof initCheckin==='function')initCheckin();
+  ciGoStep(1);
+  body.scrollTop=0;
+  modal.classList.add('open');
+  document.body.style.overflow='hidden';
+  track('weekly_checkin_sheet_opened');
+}
+function closeCheckinSheet(){
+  var modal=document.getElementById('checkinModal');
+  // Anything typed is already in the draft (400ms debounce on input), so
+  // closing is safe and deliberately silent — no "discard?" prompt for work
+  // that was never lost.
+  if(typeof saveCiDraft==='function')saveCiDraft();
+  if(_ciSheetHome&&_ciSheetHome.parent){
+    ciSheetNodes().forEach(function(node){
+      if(_ciSheetHome.before&&_ciSheetHome.before.parentNode===_ciSheetHome.parent){
+        _ciSheetHome.parent.insertBefore(node,_ciSheetHome.before);
+      }else{
+        _ciSheetHome.parent.appendChild(node);
+      }
+    });
+  }
+  if(modal)modal.classList.remove('open');
+  document.body.style.overflow='';
+  // The Calls card reads the completion cache, so repaint it: a check-in
+  // submitted in the sheet must flip that card to Submitted on the way out.
+  if(typeof renderCallsTab==='function'&&document.getElementById('callsSurface'))renderCallsTab();
 }
 function resetCheckin(){
   clearCiDraft();

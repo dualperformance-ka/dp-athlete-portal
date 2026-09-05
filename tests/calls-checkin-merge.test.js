@@ -81,3 +81,38 @@ test('the check-in still collects every field the coaches read', () => {
     assert.match(checkin, new RegExp(`${field}:`), `${field} must still be submitted`);
   }
 });
+
+// The sheet moves the live form in rather than rendering a second copy. Two
+// copies would mean duplicate element ids, and every getElementById in
+// 04-checkin.js would bind to whichever the browser found first — the draft,
+// the prefill and the submit would silently read the wrong one.
+test('the check-in sheet moves the one form rather than duplicating it', () => {
+  const shell = read('public/index.html');
+  assert.equal((shell.match(/id="ciFormContent"/g) || []).length, 1, 'exactly one form in the shell');
+  assert.equal((shell.match(/id="ciSuccess"/g) || []).length, 1, 'exactly one success panel');
+  assert.match(shell, /id="checkinModalBody"/, 'the sheet needs a body to move it into');
+  assert.match(shell, /id="checkinModal"/);
+  assert.match(checkin, /body\.appendChild\(node\)/, 'open must move the nodes in');
+  assert.match(checkin, /_ciSheetHome=\{parent:first\.parentNode,before:first\.nextSibling\}/,
+    'and remember where they came from so close can put them back');
+});
+
+test('closing the sheet keeps the draft and hands the form back', () => {
+  const close = checkin.slice(checkin.indexOf('function closeCheckinSheet'));
+  const body = close.slice(0, close.indexOf('\nfunction '));
+  assert.match(body, /saveCiDraft\(\)/, 'nothing typed may be lost on close');
+  assert.match(body, /insertBefore\(node,_ciSheetHome\.before\)/, 'the form must return to its original place');
+  assert.match(body, /renderCallsTab\(\)/, 'the Calls card must repaint so a submission flips it to Submitted');
+});
+
+test('the confirmation distinguishes sent from queued', () => {
+  assert.match(checkin, /checkinResult\.queued\?'Check-in saved[^']*'/, 'a queued write must not claim delivery');
+  assert.match(checkin, /'Check-in sent to your coaches ✓'/, 'a real send says so');
+  assert.match(checkin, /clearCiDraft\(\);/, 'a submitted check-in clears its draft');
+});
+
+test('the sheet degrades to the tab rather than becoming unreachable', () => {
+  const open = checkin.slice(checkin.indexOf('function openCheckinSheet'));
+  assert.match(open.slice(0, 900), /switchTab\('checkin'\)/,
+    'a shell without the sheet must still be able to open the check-in');
+});
