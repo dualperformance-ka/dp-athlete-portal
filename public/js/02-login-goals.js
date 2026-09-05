@@ -133,6 +133,12 @@ async function hydratePortalData(code){
 function hydrateLocalPortalState(code){
   ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
   logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
+  // One-time repair for devices carrying full Strava activity payloads from an
+  // older build. Rewrite the local copy immediately so the next save is small
+  // enough for the server to accept, without waiting for a sync round trip.
+  if(typeof pruneStravaMatchPayloads==='function'&&pruneStravaMatchPayloads(logs)){
+    try{localStorage.setItem('dp_logs_'+code,JSON.stringify(logs));}catch(e){}
+  }
   stravaMatchRejections=JSON.parse(localStorage.getItem('dp_strava_match_rejections_'+code)||'{}');
   exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
   var picksChanged=false;

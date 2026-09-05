@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v186'; // v184: Instrument redesign + Calls tab; 08-training focus split out
+const CACHE_NAME = 'dp-athlete-v187'; // v187: trim Strava payloads out of the logs blob
 const APP_SHELL = [
   '/index.html', '/styles.css?v=143', '/desktop.css?v=7', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=120',
-  '/js/02-login-goals.js?v=111',
+  '/js/01-core.js?v=121',
+  '/js/02-login-goals.js?v=112',
   '/js/03-nav-nudges.js?v=111',
   '/js/04-checkin.js?v=94',
   '/js/05-handbook.js?v=85',
@@ -14,7 +14,7 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=1',
   '/js/08-training.js?v=135',
-  '/js/09-logging.js?v=120',
+  '/js/09-logging.js?v=121',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=109',
   '/login.js?v=49', '/icons.css?v=4',
