@@ -189,6 +189,7 @@ async function doLogin(code,prevalidatedRoster){
   registerBackgroundQueueSync();
   try{syncQuickLogDock();}catch(e){}
   document.getElementById('heroName').textContent=athlete.name;
+  renderHeroGreeting();
   populateStatic();
   // The primary plan gets the network first. Strava, nutrition and programme
   // metrics start only after today's session has rendered; they update their

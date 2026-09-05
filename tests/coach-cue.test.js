@@ -5,7 +5,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
-const source = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
+// The focus helpers were split out of 08-training.js into
+// 08-training-focus.js. They share one global scope in the browser, so the
+// slices below read both files concatenated IN LOAD ORDER — the same order
+// index.html and APP_SHELL use — rather than pinning one filename.
+const source = [
+  readFileSync(join(root, 'public', 'js', '08-training-focus.js'), 'utf8'),
+  readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8'),
+].join('\n');
 
 // The focus helpers live in a browser bundle with no module boundary, so lift
 // the pure range out by source markers — the same technique readiness.test.js
@@ -315,4 +322,13 @@ test('only a coach note renders the avatars, and it renders verbatim', () => {
   assert.match(render, /fromCoach\?'Coach cue for today':'Today’s focus'/);
   assert.match(render, /esc\(note\)/);
   assert.match(render, /track\('coach_cue_shown',\{source:fromCoach\?'coach':'derived'\}\)/);
+});
+
+test('the focus split loads before the training bundle that calls into it', () => {
+  const index = readFileSync(join(root, 'public', 'index.html'), 'utf8');
+  const sw = readFileSync(join(root, 'public', 'sw.js'), 'utf8');
+  assert.ok(index.indexOf('src="js/08-training-focus.js') < index.indexOf('src="js/08-training.js'),
+    'index.html must load 08-training-focus.js before 08-training.js');
+  assert.ok(sw.indexOf("/js/08-training-focus.js") < sw.indexOf("/js/08-training.js?"),
+    'APP_SHELL must list 08-training-focus.js before 08-training.js');
 });

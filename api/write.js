@@ -27,6 +27,9 @@ const ALLOWED_STATE_KEYS = [
   // historic row still round-trips.
   /^call_booked_\d{4}_\d{2}$/,
   /^call_booked_\d{4}-\d{2}-\d{2}$/,
+  // Coaching-call prep answers, one row per ISO call week, same shape as
+  // call_booked_* above.
+  /^calls_prep_\d{4}_\d{2}$/,
   /^checkin_[a-z0-9_-]{1,80}$/i,
   /^daily_body_\d{4}-\d{2}-\d{2}$/,
   /^daily_nut_\d{4}-\d{2}-\d{2}$/,

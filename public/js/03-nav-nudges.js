@@ -238,6 +238,7 @@ function renderBookingPrompts(){
     if(a) a.style.color=st.booked?'#22c55e':'#f59e0b';
   }
   syncWeekCardState();
+  try{if(document.getElementById('callsSurface'))renderCallsTab();}catch(e){}
   return st;
 }
 var _callBookingRefreshTimer=null,_callBookingLastSyncAt=0;
@@ -532,7 +533,7 @@ function switchTab(tab){
   document.querySelectorAll('[data-portal-dest]').forEach(function(item){item.classList.toggle('active',item.dataset.portalDest===tab);});
   var sectionLabel=document.getElementById('portalSectionLabel');
   if(sectionLabel){
-    var labels={training:'Today\'s Plan',weekly:'Weekly Plan',nutrition:'Nutrition',checkin:'Weekly Check-in',progress:'Progress',goals:'Goals',handbook:'Athlete Guide',comms:'Contact'};
+    var labels={training:'Today\'s Plan',weekly:'Weekly Plan',nutrition:'Nutrition',checkin:'Weekly Check-in',progress:'Progress',calls:'Calls',goals:'Goals',handbook:'Athlete Guide',comms:'Contact'};
     sectionLabel.textContent=labels[tab]||'Athlete Portal';
   }
   toggleMoreMenu(false);
@@ -545,6 +546,7 @@ function switchTab(tab){
   document.body.classList.toggle('mobile-portal-home',!isDesktop&&tab==='training'&&trainingView==='home');
   document.body.classList.toggle('mobile-checkin-tab',!isDesktop&&tab==='checkin');
   document.body.classList.toggle('mobile-progress-tab',!isDesktop&&tab==='progress');
+  document.body.classList.toggle('mobile-calls-tab',!isDesktop&&tab==='calls');
   document.body.classList.toggle('mobile-secondary-tab',isMobileSecondary);
   syncMobileHomePlacement();
   document.getElementById('wbar').style.display=showWeekBar?'':'none';
@@ -555,6 +557,7 @@ function switchTab(tab){
     if(!isDesktop) window.scrollTo({top:0,behavior:'smooth'});
   }
   if(isMobileSecondary) window.scrollTo({top:0,behavior:'smooth'});
+  if(tab==='calls') renderCallsTab();
   if(tab==='progress')ensureProgressModule().then(function(){loadProgress();}).catch(function(){showToast('Progress is unavailable — check your connection');});
   if(tab==='training'||tab==='weekly') applyTrainingView();
 }
@@ -576,12 +579,26 @@ function syncMobileHomePlacement(){
   var priority=document.querySelector('.top-shell-priority');
   if(!today||!anchor||!topShell||!priority)return;
   if(document.body.classList.contains('mobile-portal-home')){
-    if(today.parentNode!==topShell)topShell.insertBefore(today,priority);
+    // Instrument composition: the hero leads with TODAY'S SESSION, not the
+    // athlete's name. The session sits directly under the greeting and above
+    // the week metrics, so the first thing on screen is what to do today.
+    // The name moves to the header (see renderHeroGreeting). Done here at
+    // runtime rather than in index.html, which check-portal asserts.
+    var heroMain=document.querySelector('.hero-main');
+    var greeting=heroMain?heroMain.querySelector('.hi'):null;
+    if(heroMain&&greeting){
+      if(today.parentNode!==heroMain||today.previousElementSibling!==greeting){
+        heroMain.insertBefore(today,greeting.nextSibling);
+      }
+    }else if(today.parentNode!==topShell){
+      topShell.insertBefore(today,priority);
+    }
   }else if(anchor.parentNode&&today.parentNode!==anchor.parentNode){
     anchor.parentNode.insertBefore(today,anchor.nextSibling);
   }
 }
 function applyTrainingView(){
+  try{renderHeroGreeting();}catch(e){}
   var t=document.getElementById('todayEl');
   var c=document.getElementById('calEl');
   var wc=document.getElementById('weeklyCalEl');
@@ -1107,3 +1124,133 @@ function applyOutdoorMode(enabled){
 }
 function toggleOutdoorMode(){applyOutdoorMode(!document.documentElement.classList.contains('outdoor-mode'));}
 try{applyOutdoorMode(localStorage.getItem('dp_outdoor_mode')==='1');}catch(e){applyOutdoorMode(false);}
+
+// ══════════════════════════════════════════════════════════════════════════
+// CALLS SURFACE
+// ══════════════════════════════════════════════════════════════════════════
+// fetchCallsSurfaceData() is the ONLY place the Calls tab reads data.
+//
+// LIVE:  `next` — getCallBookedState(), kept current by the GHL webhook and
+//        the booking-sync action.
+// LIVE:  `prep` — answers round-trip through the athlete_data state store
+//        (key calls_prep_<ISO week>), the same channel as call_booked_*.
+// STUB:  `last` — the previous call's recap and action items have no
+//        backend yet; returning null omits the card rather than drawing an
+//        empty one. Replace the marked block below with a real read.
+//
+//   { next: { booked, displayTime, startsAt, eventId },
+//     prep: { answered, total, items: [{ q, a }] },
+//     last: null | { when, quote, actions: [{ text, done, due }] } }
+//
+var CALLS_PREP_QUESTIONS=[
+  'What went well this week?',
+  'Anything hurting or holding you back?',
+  'One thing to decide with your coaches'
+];
+// Prep answers are per athlete, per call week, so a new week starts clean.
+function callsPrepKey(){
+  var acode=(athlete&&athlete.code)?athlete.code.toUpperCase()+'_':'';
+  return 'dp_calls_prep_'+acode+callWeekSuffix();
+}
+function loadCallsPrep(){
+  var saved={};
+  try{saved=JSON.parse(localStorage.getItem(callsPrepKey())||'{}')||{};}catch(e){saved={};}
+  var items=CALLS_PREP_QUESTIONS.map(function(q,i){return {q:q,a:String(saved[i]||'')};});
+  return {answered:items.filter(function(it){return it.a.trim();}).length,total:items.length,items:items};
+}
+// Persisted immediately so a half-written answer is never lost, then synced
+// to the coach through the athlete_data state store.
+function setCallsPrepAnswer(index,value){
+  var saved={};
+  try{saved=JSON.parse(localStorage.getItem(callsPrepKey())||'{}')||{};}catch(e){saved={};}
+  saved[index]=String(value||'').slice(0,2000);
+  // setItem IS the sync: 01-core maps dp_calls_prep_* onto the athlete_data
+  // state store, debounced ~1.5s per key, force-flushed on background, and
+  // queued offline. The header pill reports the real state.
+  try{localStorage.setItem(callsPrepKey(),JSON.stringify(saved));}catch(e){}
+  var head=document.getElementById('callsPrepCount');
+  if(head){
+    var n=Object.keys(saved).filter(function(k){return String(saved[k]||'').trim();}).length;
+    head.textContent='Prep · '+n+'/'+CALLS_PREP_QUESTIONS.length;
+  }
+  var badge=document.getElementById('callsPrepSaved');
+  if(badge) badge.textContent='Saved';
+}
+function fetchCallsSurfaceData(){
+  var next=(typeof getCallBookedState==='function')?getCallBookedState():{booked:false,displayTime:'',startsAt:'',eventId:''};
+  var prep=loadCallsPrep();
+  // ── BEGIN STUB ──────────────────────────────────────────────────────────
+  // The previous call's recap and its action items have no backend yet, so
+  // there is nothing to show. Returning null omits the card entirely rather
+  // than rendering an empty one. Replace with a real read; see the shape above.
+  var last=null;
+  // ── END STUB ────────────────────────────────────────────────────────────
+  return {next:next,prep:prep,last:last};
+}
+
+
+// Whole days and hours until the call. Returns null when there is no dated
+// booking, which is a real state: the widget can confirm before the webhook
+// has supplied a timestamp.
+function callsCountdown(startsAt){
+  if(!startsAt) return null;
+  var when=new Date(startsAt);
+  if(isNaN(when)) return null;
+  var ms=when.getTime()-Date.now();
+  if(ms<=0) return null;
+  return {days:Math.floor(ms/86400000),hours:Math.floor((ms%86400000)/3600000)};
+}
+
+function renderCallsTab(){
+  var mount=document.getElementById('callsSurface');
+  if(!mount) return;
+  var data=fetchCallsSurfaceData();
+  var next=data.next||{},count=callsCountdown(next.startsAt);
+  var html='';
+
+  html+='<div class="calls-card calls-next">';
+  html+='<div class="calls-head"><span class="calls-label">Next call</span><span class="calls-label calls-label-dim">Karl &amp; Alex</span></div>';
+  if(next.booked){
+    html+='<div class="calls-well calls-countdown">';
+    if(count){
+      html+='<div><div class="calls-label">Countdown</div><div class="calls-readout"><span>'+count.days+'</span><i>d</i><span>'+count.hours+'</span><i>h</i></div></div>';
+    }else{
+      html+='<div><div class="calls-label">Confirmed</div><div class="calls-readout calls-readout-soft">Time pending</div></div>';
+    }
+    html+='<div class="calls-when">'+(next.displayTime?'<div class="calls-when-main">'+esc(next.displayTime)+'</div>':'')+'<div class="calls-label calls-label-dim">30 min</div></div>';
+    html+='</div>';
+    html+='<div class="calls-actions"><button type="button" class="calls-btn calls-btn-primary" onclick="openCallBooking()">View booking</button><button type="button" class="calls-btn" onclick="openCallBooking()">Reschedule</button></div>';
+  }else{
+    html+='<div class="calls-well calls-empty">No call booked for this week.</div>';
+    html+='<div class="calls-actions"><button type="button" class="calls-btn calls-btn-primary" onclick="openCallBooking()">Book your call</button></div>';
+  }
+  html+='</div>';
+
+  var prep=data.prep||{items:[]};
+  html+='<div class="calls-card"><div class="calls-head"><span class="calls-label" id="callsPrepCount">Prep · '+prep.answered+'/'+prep.total+'</span>'+
+        '<span class="calls-label calls-label-ok" id="callsPrepSaved">'+(prep.answered?'Saved':'')+'</span></div>';
+  (prep.items||[]).forEach(function(item,i){
+    if(i) html+='<div class="calls-hair"></div>';
+    html+='<div class="calls-prep"><label class="calls-q" for="callsPrep'+i+'">'+esc(item.q)+'</label>'+
+          '<textarea id="callsPrep'+i+'" class="calls-input" rows="2" placeholder="Add a note for your coaches" '+
+          'oninput="setCallsPrepAnswer('+i+',this.value)">'+esc(item.a)+'</textarea></div>';
+  });
+  html+='</div>';
+
+  var last=data.last;
+  if(last){
+    html+='<div class="calls-card"><div class="calls-head"><span class="calls-label">Last call · '+esc(last.when)+'</span></div>';
+    if(last.quote) html+='<div class="calls-quote">'+esc(last.quote)+'</div>';
+    (last.actions||[]).forEach(function(a){
+      html+='<div class="calls-action'+(a.done?' is-done':'')+'"><span class="calls-bullet"></span><span class="calls-action-text">'+esc(a.text)+'</span>'+
+            (a.due?'<span class="calls-label calls-label-dim">'+esc(a.due)+'</span>':'')+'</div>';
+    });
+    html+='</div>';
+  }
+
+  mount.innerHTML=html;
+  var dot=document.getElementById('mobileCallsDot');
+  if(dot) dot.classList.toggle('visible',!next.booked);
+  var railDot=document.getElementById('tabDotCalls');
+  if(railDot) railDot.classList.toggle('visible',!next.booked);
+}

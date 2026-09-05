@@ -388,6 +388,7 @@ window.addEventListener('offline',function(){setSaveState('offline');});
     else if(key==='dp_strava_match_rejections_'+code) sbKey='strava_match_rejections';
     else if(key==='dp_photos_'+code) sbKey='photos';
     else if(key.startsWith('dp_call_booked_')&&athlete&&athlete.code){var _cpfx='dp_call_booked_'+athlete.code.toUpperCase()+'_';if(key.startsWith(_cpfx))sbKey='call_booked_'+key.slice(_cpfx.length);}
+    else if(key.startsWith('dp_calls_prep_')&&athlete&&athlete.code){var _ppfx='dp_calls_prep_'+athlete.code.toUpperCase()+'_';if(key.startsWith(_ppfx))sbKey='calls_prep_'+key.slice(_ppfx.length);}
     else if(key.startsWith('dp_daily_body_'+code+'_')) sbKey='daily_body_'+key.slice(('dp_daily_body_'+code+'_').length);
     else if(key.startsWith('dp_daily_nut_'+code+'_')) sbKey='daily_nut_'+key.slice(('dp_daily_nut_'+code+'_').length);
     if(!sbKey) return;
@@ -894,6 +895,7 @@ async function loadCloudData(code,preloaded){
       else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);
       else if(row.key==='ex_picks') lsKey='dp_ex_picks_'+code;
       else if(row.key.startsWith('call_booked_')) lsKey='dp_call_booked_'+(code?code.toUpperCase()+'_':'')+row.key.slice('call_booked_'.length);
+      else if(row.key.startsWith('calls_prep_')) lsKey='dp_calls_prep_'+(code?code.toUpperCase()+'_':'')+row.key.slice('calls_prep_'.length);
       else if(row.key==='pending_writes') return;
       if(!lsKey||!row.value) return;
       localStorage.setItem(lsKey,JSON.stringify(row.value));
@@ -1620,3 +1622,42 @@ function logout(){
   logoutToLogin(false);
   authSignOut(); // ends the Supabase session too (no-op for legacy code logins)
 }
+
+// ── Personalisation ─────────────────────────────────────────────────────────
+// The hero greets the athlete by first name and time of day. Deliberately
+// driven from a render pass that owns the current date rather than from
+// doLogin: a session left open overnight would otherwise keep saying
+// "Evening" until the athlete signed in again. Display only — the name comes
+// from the Supabase roster (athletes.name), which the coach dashboard owns.
+function dpFirstName(full){
+  var name=String(full||'').trim();
+  if(!name) return '';
+  return name.split(/\s+/)[0];
+}
+function dpGreetingWord(when){
+  var hour=(when||new Date()).getHours();
+  if(hour<12) return 'Morning';
+  if(hour<17) return 'Afternoon';
+  return 'Evening';
+}
+function dpGreetingDate(when){
+  // en-AU renders "Fri, 4 Sep"; the engraved label drops the comma.
+  try{
+    return (when||new Date()).toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}).replace(',','');
+  }catch(e){return '';}
+}
+function renderHeroGreeting(){
+  var el=document.querySelector('.hero-main .hi');
+  var first=dpFirstName(typeof athlete!=='undefined'&&athlete&&athlete.name);
+  var now=new Date(),date=dpGreetingDate(now);
+  if(el) el.textContent=first?(dpGreetingWord(now)+', '+first+(date?' · '+date:'')):'Training Portal';
+  // The header carries the athlete's full name above the section label — the
+  // hero itself now leads with today's session, so the name lives here.
+  var kicker=document.querySelector('.portal-context-kicker');
+  var full=String((typeof athlete!=='undefined'&&athlete&&athlete.name)||'').trim();
+  if(kicker&&full) kicker.textContent=full;
+}
+// Re-render on resume so the greeting and date follow real time, not session age.
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible') try{renderHeroGreeting();}catch(e){}
+});
