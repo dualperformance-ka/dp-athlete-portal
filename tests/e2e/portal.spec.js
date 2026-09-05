@@ -178,7 +178,9 @@ test('a locally saved workout awaits submission and does not count as complete',
   await page.getByRole('button', { name: 'Close session' }).click();
   await page.evaluate(() => renderTodaySection());
 
-  await expect(page.locator('.todaymeta')).toContainText('Awaiting submission');
+  // Stated once, on the button (asserted next), not duplicated into the meta
+  // line where it truncated the prescription.
+  await expect(page.locator('.todaymeta')).not.toContainText('Awaiting submission');
   await expect(page.getByRole('button', { name: 'Open awaiting submission Lower A' })).toHaveText(/Review & submit/);
   await expect(page.locator('#heroStatCompliance')).toHaveText('0/1');
   await expect(page.locator('#gymDoneVal')).toHaveText('0');

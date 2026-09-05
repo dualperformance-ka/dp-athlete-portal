@@ -14,11 +14,15 @@ function ciGoStep(n){
   var counter=document.getElementById('ciStepCounter');
   if(counter) counter.textContent='Step '+n+' of '+CI_TOTAL;
   var back=document.getElementById('ciBtnBack'),next=document.getElementById('ciBtnNext');
+  var submit=document.getElementById('ciSubmitBtn');
   var navRow=document.getElementById('ciNavRow');
   var isLast=n===CI_TOTAL;
   if(back){back.style.display=n>1?'':'none';}
   if(next){next.style.display=isLast?'none':'';}
-  if(navRow){navRow.classList.toggle('solo',n===1||isLast);}
+  // Submit shares the nav row with Back on the last step, so the action for the
+  // step is always in the same place rather than at the foot of the panel.
+  if(submit){submit.style.display=isLast?'':'none';}
+  if(navRow){navRow.classList.toggle('solo',n===1);}
   var tab=document.getElementById('tab-checkin');
   var y=tab?tab.getBoundingClientRect().top+window.scrollY-70:0;
   window.scrollTo({top:Math.max(0,y),behavior:'smooth'});

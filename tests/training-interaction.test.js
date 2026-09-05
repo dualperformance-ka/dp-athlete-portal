@@ -73,8 +73,17 @@ test('Home uses the Training tab completion state and marks completed sessions c
   assert.match(homeSource, /done=trainingSessionIsComplete\(s\)/);
   assert.match(homeSource, /awaiting=trainingSessionAwaitsSubmission\(s\)/);
   assert.match(homeSource, /todayitem'\+\(done\?' done':''\)/);
-  assert.match(homeSource, /meta\.push\('Completed'\)/);
-  assert.match(homeSource, /meta\.push\('Awaiting submission'\)/);
+  // Completion state is communicated ONCE, by the action button below (and the
+  // card's green treatment). It used to be repeated in the meta line too, which
+  // pushed the prescription off the end of a nowrap line: athletes saw
+  // "Z1-2 / RPE 2-3 · Wee..." and lost the zones. The button assertion below is
+  // what guarantees the state is still shown.
+  assert.ok(!/meta\.push\('Completed'\)/.test(homeSource),
+    'completion must not be duplicated into the meta line');
+  assert.ok(!/meta\.push\('Awaiting submission'\)/.test(homeSource),
+    'awaiting-submission must not be duplicated into the meta line');
+  assert.match(homeSource, /awaiting\?'Review &amp; submit/,
+    'the action button is where awaiting-submission is stated');
   assert.match(homeSource, /done\?'Completed <svg class="icon"><use href="#i-check"\/>/);
   assert.match(styles, /\.todayitem\.done\{border-color:var\(--ok-border\);background:var\(--ok-bg\)\}/);
   assert.match(styles, /\.today-action\.completed\{/);
