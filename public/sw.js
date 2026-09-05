@@ -1,11 +1,11 @@
 const CACHE_NAME = 'dp-athlete-v192'; // v192: check-in sheet field type
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=150', '/desktop.css?v=7', '/config.js',
+  '/index.html', '/styles.css?v=152', '/desktop.css?v=7', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=122',
   '/js/02-login-goals.js?v=112',
   '/js/03-nav-nudges.js?v=113',
-  '/js/04-checkin.js?v=96',
+  '/js/04-checkin.js?v=97',
   '/js/05-handbook.js?v=85',
   '/js/06-nutrition.js?v=91',
   '/js/07-progress.js?v=89',

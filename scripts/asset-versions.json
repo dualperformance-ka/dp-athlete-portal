@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 150,
-    "sha": "a02f5cd07dd7"
+    "version": 152,
+    "sha": "e6d273a4a361"
   },
   "desktop.css": {
     "version": 7,
@@ -28,8 +28,8 @@
     "sha": "64ff85b40fae"
   },
   "js/04-checkin.js": {
-    "version": 96,
-    "sha": "8ea444600092"
+    "version": 97,
+    "sha": "f0aa99fe4eba"
   },
   "js/05-handbook.js": {
     "version": 85,

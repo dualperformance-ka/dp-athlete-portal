@@ -66,6 +66,21 @@ test('check-in sheet fields are sized for the sheet, and the tab is untouched', 
   });
   expect(clipped, 'placeholder copy clipped inside these textareas').toEqual([]);
 
+  // Next must be on screen the moment the sheet opens, on every step, without
+  // scrolling to hunt for it.
+  const modalBox = await page.locator('#checkinModal .ql-modal-inner').boundingBox();
+  for (const step of [1, 2, 3, 4, 5]) {
+    await page.evaluate(s => ciGoStep(s), step);
+    await page.waitForTimeout(150);
+    const isLast = step === 5;
+    const btn = page.locator(isLast ? '#ciSubmitBtn' : '#ciBtnNext');
+    await expect(btn, `step ${step} action button hidden`).toBeVisible();
+    const b = await btn.boundingBox();
+    expect(b.y + b.height, `step ${step} action button sits below the sheet`).toBeLessThanOrEqual(modalBox.y + modalBox.height + 1);
+    expect(b.y, `step ${step} action button sits above the sheet`).toBeGreaterThanOrEqual(modalBox.y);
+  }
+  await page.evaluate(() => ciGoStep(1));
+  await page.waitForTimeout(150);
   await page.screenshot({ path: 'test-results/sheet-type.png' });
 
   // And closing hands it back at the tab's size.
