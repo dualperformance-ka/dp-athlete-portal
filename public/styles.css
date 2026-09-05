@@ -3043,24 +3043,30 @@ body.day-plan-open{overflow:hidden}
   .month-calendar-actions .month-today-btn{background:var(--run);border-color:var(--run);color:var(--ink-action);font-weight:800;box-shadow:0 7px 18px rgba(146,210,237,.18)}
 
   .mobile-week-agenda{
-    display:flex;flex:1 1 auto;min-height:0;flex-direction:column;overflow-y:auto;
+    /* flex-basis:0 so the agenda takes exactly the slack the locked viewport
+       leaves and no more. With flex-basis:auto its unshrinkable rows pushed it
+       past the frame and it ran under the tab bar on a short phone instead of
+       scrolling inside itself. */
+    display:flex;flex:1 1 0;min-height:0;flex-direction:column;overflow-y:auto;
     border-top:1px solid var(--border);border-bottom:1px solid var(--border);
     overscroll-behavior:contain;scroll-padding-block:8px;scrollbar-width:thin;
     -webkit-overflow-scrolling:touch;
   }
   .mobile-week-day{
     position:relative;display:grid;grid-template-columns:48px minmax(0,1fr) 20px;align-items:center;gap:10px;
-    /* Grow by how much the day has to show, shrink to fit the locked viewport.
-       The min-height is the floor that keeps a row tappable: past it the agenda
-       scrolls rather than shrinking rows into something nobody can hit. */
-    flex:var(--day-weight,1) 1 0;min-width:0;min-height:calc(44px * var(--day-weight,1));
-    padding:6px 5px 6px 2px;border:0;border-bottom:1px solid rgba(236,233,226,.065);
-    background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer;overflow:hidden;
+    /* Size to content first, then grow into whatever slack the locked viewport
+       leaves, weighted by how much the day has to show. flex-basis:auto (not 0)
+       is the important part: rows never shrink below their own content, so
+       nothing is ever clipped mid-word, and the leftover space is shared out
+       across the week instead of pooling as dead air under Sunday. */
+    flex:var(--day-weight,1) 0 auto;min-width:0;
+    padding:5px 5px 5px 2px;border:0;border-bottom:1px solid rgba(236,233,226,.065);
+    background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer;
   }
   .mobile-week-day:last-child{border-bottom:0}
   .mobile-week-day button:focus-visible{z-index:2;outline:2px solid var(--run);outline-offset:2px}
   .mobile-week-day.selected{background:rgba(146,210,237,.055)}
-  .mobile-week-day.multi-session{align-items:start;padding-top:8px;padding-bottom:8px}
+  .mobile-week-day.multi-session{align-items:center;padding-top:6px;padding-bottom:6px}
   .mobile-week-day.multi-session .mobile-week-date,.mobile-week-day.multi-session .mobile-week-status{margin-top:3px}
   .mobile-week-day.today{
     background:linear-gradient(90deg,rgba(146,210,237,.16),rgba(146,210,237,.025) 62%,transparent);
@@ -3071,8 +3077,8 @@ body.day-plan-open{overflow:hidden}
   .mobile-week-date strong{width:30px;height:30px;display:grid;place-items:center;margin-top:4px;border-radius:var(--radius-pill);font-size:var(--font-md);line-height:1}
   .mobile-week-date em{margin-top:2px;font:700 var(--font-xs)/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--run)}
   .mobile-week-day.today .mobile-week-date strong{background:var(--run);color:var(--ink-action);box-shadow:0 6px 18px rgba(146,210,237,.3)}
-  .mobile-week-sessions{display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0;min-height:0;height:100%}
-  .mobile-week-session{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;min-height:34px;flex:1 1 0;padding:6px 8px;border:0;border-radius:var(--radius-sm);background:rgba(236,233,226,.055);box-shadow:inset 3px 0 0 rgba(236,233,226,.48);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .16s ease,box-shadow .16s ease,transform .12s ease}
+  .mobile-week-sessions{display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:0;min-height:0}
+  .mobile-week-session{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;min-height:32px;padding:5px 8px;border:0;border-radius:var(--radius-sm);background:rgba(236,233,226,.055);box-shadow:inset 3px 0 0 rgba(236,233,226,.48);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .16s ease,box-shadow .16s ease,transform .12s ease}
   .mobile-week-session:active{transform:scale(.985)}
   .mobile-week-session.run{background:rgba(146,210,237,.12);box-shadow:inset 3px 0 0 var(--run)}
   .mobile-week-session.note{background:rgba(182,144,255,.11);box-shadow:inset 3px 0 0 var(--pb)}
@@ -5641,5 +5647,29 @@ html.outdoor-mode .page-kicker{color:var(--t-3)}
 /* !important because the min-height is set inline per field in the shell, and
    inline beats any plain rule. Scoped to the sheet so the tab is untouched, and
    :not(#ciTestimonial) so the reflection box keeps its deliberate 180px. */
-#checkinModal textarea.li:not(#ciTestimonial){min-height:104px!important;line-height:1.45}
+/* 16px, not 17. Smaller as asked, and exactly ON the iOS threshold rather than
+   under it: Safari zooms the page only when a focused field is BELOW 16px, so
+   this is the smallest the fields can go without every tap zooming the form.
+   !important because the accessibility block pins controls with !important too;
+   scoped to #checkinModal so the Check-in tab keeps its own sizing. */
+#checkinModal .li,#checkinModal input.li,#checkinModal textarea.li,#checkinModal select.li{font-size:16px!important}
+#checkinModal textarea.li:not(#ciTestimonial){min-height:98px!important;line-height:1.45}
 #checkinModal .li::placeholder{line-height:1.4}
+
+/* ── Training week on a short phone ──────────────────────────────────────────
+   Ten sessions at full row height do not fit a 667px-tall screen, and the
+   agenda was running under the tab bar rather than compressing. On short
+   viewports the secondary line ("Run session", "12 exercises") is the least
+   load-bearing thing on the row: the session name and its completion state are
+   what the athlete is scanning for. Drop it and the week fits without shrinking
+   anything below a tappable height. */
+@media(max-width:760px) and (max-height:700px){
+  .mobile-week-session small{display:none}
+  .mobile-week-session{min-height:30px;padding:4px 8px}
+  .mobile-week-day{padding-top:3px;padding-bottom:3px}
+  .mobile-week-sessions{gap:3px}
+  .mobile-week-date strong{width:26px;height:26px;margin-top:2px}
+  /* The week heading is the other thing eating the frame on a short screen. */
+  .week-plan-shell{padding:4px 2px 8px}
+  .week-plan-shell .week-plan-title{font-size:var(--font-xl);margin-top:2px}
+}

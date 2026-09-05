@@ -49,7 +49,11 @@ test('check-in sheet fields are sized for the sheet, and the tab is untouched', 
   await page.evaluate(() => openCheckinSheet());
   await expect(page.locator('#checkinModal')).toHaveClass(/open/);
   const inSheet = await size();
+  // Smaller than the tab, but exactly on the threshold: below 16px iOS zooms
+  // the page on every field tap, which on a five-step form is worse than the
+  // extra pixel. This asserts both halves of that trade.
   expect(inSheet.font, 'the sheet must not drop below the iOS zoom floor').toBeGreaterThanOrEqual(16);
+  expect(inSheet.font, 'and should be smaller than the tab').toBeLessThan(onTab.font);
 
   // The placeholder must actually fit rather than being clipped by min-height.
   const clipped = await page.evaluate(() => {

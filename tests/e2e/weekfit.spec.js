@@ -86,7 +86,16 @@ test(`every day of a 10-session week is visible without scrolling on ${size.name
     return el ? getComputedStyle(el).display : 'none-el';
   });
   expect(dock, 'the quicklog dock must not cover the week agenda').toBe('none');
+  // The email-upgrade prompt is a one-off nag, not part of this layout; it
+  // steals ~150px and would make the measurements lie about a normal week.
+  await page.evaluate(() => { const p = document.getElementById('emailUpgradePrompt'); if (p) { p.hidden = true; p.style.display = 'none'; } });
+  await page.waitForTimeout(300);
   if (size.name === 'iPhone 15 Pro') await page.screenshot({ path: 'test-results/week-fits.png' });
+
+  // The agenda must sit above the tab bar, not run underneath it.
+  const nav = await page.locator('.mobile-nav').boundingBox();
+  const agendaBox = await agenda.boundingBox();
+  if (nav) expect(agendaBox.y + agendaBox.height, 'agenda runs under the tab bar').toBeLessThanOrEqual(nav.y + 1);
   const box = await agenda.boundingBox();
   // Sunday's row must sit inside the agenda, not clipped below it.
   const last = await days.nth(6).boundingBox();
@@ -99,6 +108,28 @@ test(`every day of a 10-session week is visible without scrolling on ${size.name
   // The weekly volume strip stays on screen alongside it.
   const vstrip = page.locator('.vstrip').first();
   if (await vstrip.count()) await expect(vstrip).toBeInViewport();
+
+  // Nothing may be clipped mid-content. This is what the first attempt got
+  // wrong: rows were forced to a computed share and the overflow was hidden,
+  // so Saturday's "9km" was sliced in half.
+  const clipped = await page.evaluate(() => {
+    const out = [];
+    document.querySelectorAll('#calEl .mobile-week-day').forEach(day => {
+      if (day.scrollHeight > day.clientHeight + 1) out.push(day.dataset.date + ':day');
+      day.querySelectorAll('.mobile-week-session').forEach(b => {
+        if (b.scrollHeight > b.clientHeight + 1) out.push(day.dataset.date + ':' + b.textContent.trim().slice(0, 18));
+      });
+    });
+    return out;
+  });
+  expect(clipped, 'content clipped inside these rows').toEqual([]);
+
+  // No dead block under Sunday: the rows fill the agenda they were given.
+  const slack = await agenda.evaluate(el => {
+    const last = el.lastElementChild.getBoundingClientRect();
+    return el.getBoundingClientRect().bottom - last.bottom;
+  });
+  expect(slack, 'empty space left inside the agenda under the last day').toBeLessThanOrEqual(8);
 
   // Every session row stays big enough to hit.
   const buttons = page.locator('#calEl .mobile-week-session');
