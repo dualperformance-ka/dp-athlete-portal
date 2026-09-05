@@ -1,31 +1,31 @@
 {
   "styles.css": {
-    "version": 142,
-    "sha": "cb1338cecdf1"
+    "version": 143,
+    "sha": "f78dbb9ad315"
   },
   "desktop.css": {
-    "version": 6,
-    "sha": "6265ef56e573"
+    "version": 7,
+    "sha": "218fad691380"
   },
   "icons.css": {
-    "version": 3,
-    "sha": "d145afd663d9"
+    "version": 4,
+    "sha": "57dc01b3f1fa"
   },
   "login.js": {
     "version": 49,
     "sha": "842c8ed8f92e"
   },
   "js/01-core.js": {
-    "version": 117,
-    "sha": "dfafe5abcb87"
+    "version": 120,
+    "sha": "d1b6db6ffde0"
   },
   "js/02-login-goals.js": {
-    "version": 110,
-    "sha": "83de33f745f4"
+    "version": 111,
+    "sha": "5f48035e9a0b"
   },
   "js/03-nav-nudges.js": {
-    "version": 108,
-    "sha": "2f675dd19017"
+    "version": 111,
+    "sha": "324b8bda80cc"
   },
   "js/04-checkin.js": {
     "version": 94,
@@ -51,9 +51,17 @@
     "version": 1,
     "sha": "ce83ae62b788"
   },
+  "js/08-training-muscle-coverage.js": {
+    "version": 1,
+    "sha": "31115aaa0715"
+  },
+  "js/08-training-focus.js": {
+    "version": 1,
+    "sha": "24321002123e"
+  },
   "js/08-training.js": {
-    "version": 133,
-    "sha": "525b7e1364a0"
+    "version": 135,
+    "sha": "3c71233667c5"
   },
   "js/09-logging.js": {
     "version": 120,
