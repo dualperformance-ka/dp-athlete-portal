@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v187'; // v187: trim Strava payloads out of the logs blob
+const CACHE_NAME = 'dp-athlete-v188'; // v188: trim Strava payloads in the worker drain too
 const APP_SHELL = [
   '/index.html', '/styles.css?v=143', '/desktop.css?v=7', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -86,6 +86,35 @@ function queuedWriteBelongsToAthlete(item, athleteCode) {
     String(item.payload && item.payload.athleteCode || '').toUpperCase() === athleteCode;
 }
 
+// The service worker drains the same outbox as the page, on activate and on
+// background sync, but it cannot call into 01-core.js. So the Strava trimming
+// is duplicated here rather than imported. Without it this path keeps posting
+// the untrimmed logs blob that api/write.js refuses with a 413, and the queue
+// entry survives every drain: the page can trim its copy all it likes while
+// the worker quietly re-fails behind it.
+//
+// tests/strava-log-size.test.js asserts this list stays identical to
+// STRAVA_MATCH_ACTIVITY_FIELDS in 01-core.js.
+const STRAVA_MATCH_ACTIVITY_FIELDS = ['id', 'name', 'type', 'sport_type', 'distance', 'moving_time', 'elapsed_time', 'start_date', 'start_date_local', 'suffer_score', 'relative_effort'];
+function pruneStravaMatchPayloads(logsObject) {
+  if (!logsObject || typeof logsObject !== 'object') return false;
+  let changed = false;
+  for (const sessionId of Object.keys(logsObject)) {
+    const entry = logsObject[sessionId];
+    if (!entry || typeof entry !== 'object') continue;
+    const match = entry.__stravaMatch;
+    if (!match || typeof match !== 'object' || !match.activity) continue;
+    const slim = {};
+    for (const field of STRAVA_MATCH_ACTIVITY_FIELDS) {
+      if (match.activity[field] !== undefined) slim[field] = match.activity[field];
+    }
+    if (JSON.stringify(slim) === JSON.stringify(match.activity)) continue;
+    match.activity = slim;
+    changed = true;
+  }
+  return changed;
+}
+
 async function flushOfflineQueue(trigger) {
   const db = await openOfflineDb();
   if (!db) return 0;
@@ -142,6 +171,7 @@ async function flushOfflineQueue(trigger) {
     }
   }
   for (const item of currentStateWrites.filter(row => row.key !== 'pending_writes')) {
+    if (item.key === 'logs') pruneStravaMatchPayloads(item.value);
     if (!await writePortalState(item.key, item.value)) continue;
     const tx = db.transaction(DP_STATE_QUEUE_STORE, 'readwrite');
     tx.objectStore(DP_STATE_QUEUE_STORE).delete(item.id);
