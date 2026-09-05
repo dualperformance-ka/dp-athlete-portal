@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v190'; // v190: weekly check-in opens as a sheet from Calls
+const CACHE_NAME = 'dp-athlete-v191'; // v191: training week fits the viewport, days share the height
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=143', '/desktop.css?v=7', '/config.js',
+  '/index.html', '/styles.css?v=144', '/desktop.css?v=7', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=122',
   '/js/02-login-goals.js?v=112',
@@ -13,7 +13,7 @@ const APP_SHELL = [
   '/js/08-training-interval-rest.js?v=1',
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=1',
-  '/js/08-training.js?v=135',
+  '/js/08-training.js?v=136',
   '/js/09-logging.js?v=121',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=109',
