@@ -346,7 +346,12 @@ test('9. the Calls tab routes to the one check-in rather than asking again', asy
   await expect(page.locator('#callsPrep0')).toHaveCount(0);
 
   await calls.getByRole('button', { name: 'Complete your check-in' }).click();
-  await expect(page.locator('#tab-checkin')).toBeVisible();
+  // Opens in place as a sheet rather than switching tabs, and the form is moved
+  // in rather than copied: a second copy would mean duplicate element ids.
+  await expect(page.locator('#checkinModal')).toHaveClass(/open/);
+  await expect(page.locator('#checkinModalBody #ciFormContent')).toBeVisible();
+  expect(await page.locator('#ciFormContent').count()).toBe(1);
+  expect(await page.locator('#ciRunKm').count()).toBe(1);
 
   // The one prep question that survived, drafted like every other field. It
   // sits in the wizard's last step, so walk there the way an athlete would.
@@ -366,3 +371,56 @@ test('9. the Calls tab routes to the one check-in rather than asking again', asy
   // The neighbouring field keeps its own meaning rather than being overloaded.
   expect(submitted).toHaveProperty('upcomingImpact');
 });
+
+test('10. the check-in sheet drafts, confirms delivery, and hands the form back', async ({ page }) => {
+  const ingested = [];
+  const stateRows = [];
+  await installSupabaseStub(page);
+  await page.route('**/_vercel/**', route => route.abort());
+  await page.route('**/api/**', async route => {
+    const url = new URL(route.request().url());
+    let body = {};
+    try { body = route.request().postDataJSON() || {}; } catch (error) {}
+    let json = { ok: true };
+    if (url.pathname === '/api/auth-athlete') {
+      json = url.searchParams.get('action') === 'eligibility' ? { ok: true, enabled: true, eligible: true, active: true } : athlete;
+    } else if (url.pathname === '/api/ingest') { ingested.push(body.payload || {}); json = { ok: true }; }
+    else if (url.pathname === '/api/portal-data') {
+      if (body.action === 'state-write') { stateRows.push({ key: body.key, value: body.value }); json = { key: body.key, synced_at: 'now' }; }
+      else if (body.action === 'state-read') json = { ok: true, rows: stateRows, checkins: [] };
+      else if (body.action === 'bootstrap') json = { ok: true, state: { rows: stateRows, checkins: [] }, bodyLogs: { rows: [] }, nutritionLogs: { rows: [] }, sessionLogs: { rows: [] }, dailyLogged: { body: [], nutrition: [] } };
+      else json = { ok: true, rows: [], checkins: [], body: [], nutrition: [] };
+    } else if (url.pathname.startsWith('/api/strava')) json = { connected: false, activities: [] };
+    else if (url.pathname === '/api/reminders') json = { ok: true, notifications: [], unread: 0 };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json) });
+  });
+
+  await page.goto('/index.html');
+  await page.getByRole('button', { name: 'Use athlete access code' }).click();
+  await page.getByLabel('Athlete access code').fill('KARL');
+  await page.getByRole('button', { name: 'Enter Portal' }).click();
+  await expect(page.locator('#portalScreen')).toBeVisible();
+
+  // Closing the sheet must never cost the athlete what they typed.
+  await page.evaluate(() => switchTab('calls'));
+  await page.evaluate(() => openCheckinSheet());
+  await page.locator('#ciRunWins').fill('Negative split on the long run.');
+  await page.evaluate(() => closeCheckinSheet());
+  await expect(page.locator('#checkinModal')).not.toHaveClass(/open/);
+  // The form goes home rather than being left orphaned inside a closed sheet.
+  await expect(page.locator('#tab-checkin #ciFormContent')).toHaveCount(1);
+
+  await page.evaluate(() => openCheckinSheet());
+  await expect(page.locator('#ciRunWins')).toHaveValue(/Negative split/);
+
+  await page.evaluate(() => { document.getElementById('ciName').value = 'Karl Sexon'; });
+  await page.evaluate(() => submitCheckin());
+  await expect(page.locator('#ciSuccess')).toBeVisible();
+  await expect.poll(() => ingested.filter(p => p.type === 'weekly_checkin').length, { timeout: 8000 }).toBeGreaterThan(0);
+
+  // Submitted means the draft is gone and the Calls card reflects it.
+  await expect.poll(async () => page.evaluate(() => localStorage.getItem(ciDraftKey())), { timeout: 8000 }).toBeNull();
+  await expect(page.locator('#checkinModal')).not.toHaveClass(/open/, { timeout: 8000 });
+  await expect(page.locator('#callsSurface')).toContainText('Submitted');
+});
+

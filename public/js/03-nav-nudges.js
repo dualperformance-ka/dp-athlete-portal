@@ -1213,7 +1213,7 @@ function renderCallsTab(){
         (checkin.done
           ? 'Karl and Alex have your week. They\'ll work from it on the call.'
           : 'Fill this in before your call so the 30 minutes go on decisions, not catch-up.')+'</div>';
-  html+='<div class="calls-actions"><button type="button" class="calls-btn'+(checkin.done?'':' calls-btn-primary')+'" onclick="switchTab(\'checkin\')">'+
+  html+='<div class="calls-actions"><button type="button" class="calls-btn'+(checkin.done?'':' calls-btn-primary')+'" onclick="openCheckinSheet()">'+
         (checkin.done?'Review your check-in':'Complete your check-in')+'</button></div>';
   html+='</div>';
 
