@@ -159,3 +159,28 @@ test('an existing device repairs its stored logs on the next sign-in', () => {
   assert.match(cloud.slice(0, 900), /pruneStravaMatchPayloads\(_cloudLogs\)/,
     'a cloud row written by an older build must be pruned before it re-inflates the device');
 });
+
+// The service worker drains the same outbox as the page, on activate and on
+// background sync, and it cannot import from 01-core.js. A fix applied only to
+// the page leaves the worker posting the untrimmed blob behind it, so the queue
+// entry never clears and the pending banner never goes away.
+test('the service worker trims a queued logs value before posting it', () => {
+  const worker = readFileSync(join(root, 'public', 'sw.js'), 'utf8');
+  const flush = worker.slice(worker.indexOf('async function flushOfflineQueue'));
+  assert.match(flush, /if \(item\.key === 'logs'\) pruneStravaMatchPayloads\(item\.value\);\s*\n\s*if \(!await writePortalState/,
+    'the worker must prune a logs value immediately before writing it');
+});
+
+test('the worker and the page agree on which activity fields survive', () => {
+  const worker = readFileSync(join(root, 'public', 'sw.js'), 'utf8');
+  const workerFields = worker.match(/const STRAVA_MATCH_ACTIVITY_FIELDS = (\[[^\]]*\])/);
+  assert.ok(workerFields, 'sw.js should declare its own copy of the keep list');
+  // Joined rather than deepEqual: the page's list is lifted out of a vm
+  // context, so its Array comes from another realm and fails a strict
+  // prototype comparison even when the contents are identical.
+  assert.equal(
+    JSON.parse(workerFields[1].replace(/'/g, '"')).join(','),
+    [...STRAVA_MATCH_ACTIVITY_FIELDS].join(','),
+    'sw.js and 01-core.js must keep the same activity fields, or the two drain paths disagree',
+  );
+});
