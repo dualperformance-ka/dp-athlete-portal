@@ -5626,3 +5626,20 @@ html.outdoor-mode .page-intro::before{display:none}
    out-shouting it. */
 .outdoor-mode .page-kicker,
 html.outdoor-mode .page-kicker{color:var(--t-3)}
+
+/* ── Weekly check-in sheet: field copy ───────────────────────────────────────
+   Scoped to #checkinModal, so it applies only while the form is moved into the
+   sheet; on the Check-in tab the fields keep their original sizing.
+
+   NOT a font-size override, deliberately. Form controls are pinned to 16px+ at
+   <=760px by the accessibility block above ("kills iOS zoom-on-focus"), because
+   below 16px Safari zooms the whole page on every field tap and this is a
+   five-step form with twenty-odd fields. The sheet's fields reading "too big"
+   is really long placeholder copy clipped against a 70px min-height in a
+   narrower column, so give the copy room and tighten the leading rather than
+   trade a legibility floor for zoom-on-focus. */
+/* !important because the min-height is set inline per field in the shell, and
+   inline beats any plain rule. Scoped to the sheet so the tab is untouched, and
+   :not(#ciTestimonial) so the reflection box keeps its deliberate 180px. */
+#checkinModal textarea.li:not(#ciTestimonial){min-height:104px!important;line-height:1.45}
+#checkinModal .li::placeholder{line-height:1.4}
