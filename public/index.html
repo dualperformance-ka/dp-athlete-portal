@@ -16,8 +16,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=150" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=150'></noscript>
+<link rel="preload" as="style" href="/styles.css?v=154" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=154'></noscript>
 <link rel="stylesheet" href="/desktop.css?v=7">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
@@ -807,13 +807,16 @@
                 <div class="u-help-copy">• What would you say to someone thinking about starting?</div>
               </div>
             </div>
-            <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()" style="margin-bottom:8px">Submit Check-in</button>
             <div style="font-size:var(--font-xs,12px);color:var(--dim);line-height:1.5;text-align:center;margin-bottom:10px">By submitting, you agree Dual Performance may use your testimonial on social media.</div>
           </div>
           <!-- Nav buttons -->
+          <!-- Submit lives in the nav row, not at the foot of step 5. The row is
+               sticky inside the sheet, so the action for the current step is
+               always on screen instead of being found by scrolling. -->
           <div class="ci-nav-row solo" id="ciNavRow">
             <button class="ci-btn-back" id="ciBtnBack" onclick="ciStep(-1)" style="display:none"><svg class="icon"><use href="#i-arrow-left"/></svg> Back</button>
             <button class="ci-btn-next" id="ciBtnNext" onclick="ciStep(1)">Next <svg class="icon"><use href="#i-arrow-right"/></svg></button>
+            <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()" style="display:none">Submit Check-in</button>
           </div>
         </div>
         <div id="ciSuccess" style="display:none;text-align:center;padding:40px 10px">
@@ -1426,7 +1429,7 @@
 <script src="js/01-core.js?v=122"></script>
 <script src="js/02-login-goals.js?v=112"></script>
 <script src="js/03-nav-nudges.js?v=113"></script>
-<script src="js/04-checkin.js?v=96"></script>
+<script src="js/04-checkin.js?v=97"></script>
 <script src="js/05-handbook.js?v=85"></script>
 <script src="js/06-nutrition.js?v=91"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=89" hidden></span>
@@ -1434,7 +1437,7 @@
 <script src="js/08-training-interval-rest.js?v=1"></script>
 <script src="js/08-training-muscle-coverage.js?v=1"></script>
 <script src="js/08-training-focus.js?v=1"></script>
-<script src="js/08-training.js?v=136"></script>
+<script src="js/08-training.js?v=137"></script>
 <script src="js/09-logging.js?v=121"></script>
 <script src="accessibility.js?v=1"></script>
 <script src="js/10-boot.js?v=109"></script>

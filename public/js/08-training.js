@@ -903,9 +903,11 @@ function renderTodaySection(){
       var type=getType(s),meta=[],resolved=type==='run'?resolveRunDisplay(s):null,done=trainingSessionIsComplete(s),awaiting=trainingSessionAwaitsSubmission(s);
       if(s.intensity) meta.push(s.intensity);
       if(s.week) meta.push(s.week);
-      if(done) meta.push('Completed');
-      else if(awaiting) meta.push('Awaiting submission');
-      else if(s.status) meta.push(s.status);
+      // Completion state is already stated twice over by the action button
+      // ("Completed", "Review & submit") and the card's green treatment.
+      // Repeating it here pushed the prescription off the end of a nowrap line,
+      // so the athlete saw "Z1-2 / RPE 2-3 · Wee…" and lost the zones entirely.
+      if(!done&&!awaiting&&s.status&&s.status!=='Completed') meta.push(s.status);
       var displayName=s.name||'Session';
       html+='<div class="todayitem'+(done?' done':'')+'"><div class="todaytop"><div class="todaydot '+type+'"></div><div class="todaymain">';
       html+='<div class="todayname '+type+'">'+esc(displayName)+'</div>';
