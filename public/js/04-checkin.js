@@ -26,7 +26,7 @@ function ciGoStep(n){
 function ciStep(dir){ciGoStep(CI_STEP+dir);}
 
 // ── CHECK-IN DRAFTS + CONSENT ─────────────────────────────────────────────────
-var CI_DRAFT_FIELDS=['ciName','ciWeekEnding','ciRunComp','ciRunPlan','ciRunKm','ciRunFeel','ciRunWins','ciRunNiggles','ciLiftComp','ciLiftPlan','ciLiftFeel','ciLiftWins','ciLiftNiggles','ciSleep','ciEnergy','ciSoreness','ciNut','ciFuelling','ciStress','ciMot','ciSocial','ciNotes','ciTestimonial'];
+var CI_DRAFT_FIELDS=['ciName','ciWeekEnding','ciRunComp','ciRunPlan','ciRunKm','ciRunFeel','ciRunWins','ciRunNiggles','ciLiftComp','ciLiftPlan','ciLiftFeel','ciLiftWins','ciLiftNiggles','ciSleep','ciEnergy','ciSoreness','ciNut','ciFuelling','ciStress','ciMot','ciSocial','ciNotes','ciCallDecision','ciTestimonial'];
 var _ciDraftTimer=null,_ciDraftHooked=false;
 function ciDraftKey(){return 'dp_ci_draft_'+((athlete&&athlete.code)||'default')+'_'+checkinWeekSuffix();}
 function draftCheckin(){
@@ -100,6 +100,13 @@ function initCheckin(){
       setIfEmpty('ciLiftPlan',wkLifts.length);
       setIfEmpty('ciLiftComp',wkLifts.filter(isDone).length);
     }
+    // The home screen already shows this week's kilometres from Strava, so
+    // asking the athlete to recall a number the portal is displaying two taps
+    // away is friction for its own sake. Prefilled, not forced: setIfEmpty
+    // leaves a typed value alone and the field stays editable.
+    if(typeof currentWeekKmData!=='undefined'&&currentWeekKmData&&Number(currentWeekKmData.completed)>0){
+      setIfEmpty('ciRunKm',Math.round(Number(currentWeekKmData.completed)*10)/10);
+    }
   }catch(e){}
 }
 
@@ -126,6 +133,7 @@ async function submitCheckin(){
     nutrition:document.getElementById('ciNut').value,fuelling:document.getElementById('ciFuelling').value||'Not selected',
     socialEating:document.getElementById('ciSocial').value||'None',stress:document.getElementById('ciStress').value,
     motivation:document.getElementById('ciMot').value,upcomingImpact:document.getElementById('ciNotes').value||'',
+    callDecision:document.getElementById('ciCallDecision').value||'',
     testimonial:document.getElementById('ciTestimonial').value||''};
   try{
     var checkinResult=await coachWrite(CHECKIN_WEBHOOK,Object.assign({type:'weekly_checkin'},payload));

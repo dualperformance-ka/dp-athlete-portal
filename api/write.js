@@ -27,8 +27,11 @@ const ALLOWED_STATE_KEYS = [
   // historic row still round-trips.
   /^call_booked_\d{4}_\d{2}$/,
   /^call_booked_\d{4}-\d{2}-\d{2}$/,
-  // Coaching-call prep answers, one row per ISO call week, same shape as
-  // call_booked_* above.
+  // RETIRED 2026-09-05: the Calls tab prep questions were folded into the
+  // weekly check-in. Nothing writes this any more. The pattern stays allowed
+  // on purpose — a device still running an older build would otherwise get a
+  // 400 for a key it was built to send, and a rejected write sits in its
+  // outbox forever. Remove it once no old clients remain.
   /^calls_prep_\d{4}_\d{2}$/,
   /^checkin_[a-z0-9_-]{1,80}$/i,
   /^daily_body_\d{4}-\d{2}-\d{2}$/,

@@ -229,6 +229,7 @@ async function persistStructured(payload) {
       stress: number(payload.stress),
       motivation: number(payload.motivation),
       upcoming_impact: text(payload.upcomingImpact, 2000),
+      call_decision: text(payload.callDecision, 2000),
       testimonial: text(payload.testimonial, 2000),
       raw_payload: payload,
       updated_at: new Date().toISOString(),

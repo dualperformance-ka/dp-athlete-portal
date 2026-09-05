@@ -785,6 +785,12 @@
           <!-- Step 5: This week -->
           <div class="ci-step-panel" data-step="5">
             <div class="ci-step-title"><svg class="icon"><use href="#i-sparkle"/></svg> Your Week in Words</div>
+            <!-- Folded in from the Calls tab prep card. Its other two questions
+                 duplicated Wins and Niggles above; this one did not exist
+                 anywhere else and is what the call actually turns on. -->
+            <div class="card u-mb-12">
+              <div class="lf"><label>One thing to decide with your coaches</label><textarea class="li" id="ciCallDecision" placeholder="What's the single call you want made this week? A session to move, a target to change, a niggle to plan around." style="min-height:70px;resize:vertical;font-size:var(--font-sm,14px)"></textarea></div>
+            </div>
             <div class="ci-reflection-intro" style="background:var(--surface-void);border-radius:var(--radius-md,12px);padding:18px;margin-bottom:14px">
               <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.45);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
               <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.15;margin-bottom:8px">What did this week mean to you?</div>
@@ -1401,10 +1407,10 @@
 })();
 </script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=121"></script>
+<script src="js/01-core.js?v=122"></script>
 <script src="js/02-login-goals.js?v=112"></script>
-<script src="js/03-nav-nudges.js?v=111"></script>
-<script src="js/04-checkin.js?v=94"></script>
+<script src="js/03-nav-nudges.js?v=112"></script>
+<script src="js/04-checkin.js?v=95"></script>
 <script src="js/05-handbook.js?v=85"></script>
 <script src="js/06-nutrition.js?v=91"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=89" hidden></span>

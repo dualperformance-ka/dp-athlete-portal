@@ -433,7 +433,6 @@ window.addEventListener('offline',function(){setSaveState('offline');});
     else if(key==='dp_strava_match_rejections_'+code) sbKey='strava_match_rejections';
     else if(key==='dp_photos_'+code) sbKey='photos';
     else if(key.startsWith('dp_call_booked_')&&athlete&&athlete.code){var _cpfx='dp_call_booked_'+athlete.code.toUpperCase()+'_';if(key.startsWith(_cpfx))sbKey='call_booked_'+key.slice(_cpfx.length);}
-    else if(key.startsWith('dp_calls_prep_')&&athlete&&athlete.code){var _ppfx='dp_calls_prep_'+athlete.code.toUpperCase()+'_';if(key.startsWith(_ppfx))sbKey='calls_prep_'+key.slice(_ppfx.length);}
     else if(key.startsWith('dp_daily_body_'+code+'_')) sbKey='daily_body_'+key.slice(('dp_daily_body_'+code+'_').length);
     else if(key.startsWith('dp_daily_nut_'+code+'_')) sbKey='daily_nut_'+key.slice(('dp_daily_nut_'+code+'_').length);
     if(!sbKey) return;
@@ -961,7 +960,9 @@ async function loadCloudData(code,preloaded){
       else if(row.key.startsWith('daily_nut_')) lsKey='dp_daily_nut_'+code+'_'+row.key.slice('daily_nut_'.length);
       else if(row.key==='ex_picks') lsKey='dp_ex_picks_'+code;
       else if(row.key.startsWith('call_booked_')) lsKey='dp_call_booked_'+(code?code.toUpperCase()+'_':'')+row.key.slice('call_booked_'.length);
-      else if(row.key.startsWith('calls_prep_')) lsKey='dp_calls_prep_'+(code?code.toUpperCase()+'_':'')+row.key.slice('calls_prep_'.length);
+      // calls_prep_* is retired: the Calls tab prep questions were folded into
+      // the weekly check-in. Any row an old build wrote is ignored, not rehydrated.
+      else if(row.key.startsWith('calls_prep_')) return;
       else if(row.key==='pending_writes') return;
       if(!lsKey||!row.value) return;
       localStorage.setItem(lsKey,JSON.stringify(row.value));
