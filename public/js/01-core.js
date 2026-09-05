@@ -288,7 +288,52 @@ async function portalRequest(action,payload,options){
   if(!response.ok||data.ok===false)throw new Error(data.error||('Sync failed '+response.status));
   return data;
 }
+// STRAVA MATCH PAYLOAD TRIMMING
+//
+// A matched Strava run used to be stored in the log entry in full: the entire
+// detailed-activity response, including segment_efforts, laps, best_efforts,
+// splits_metric, splits_standard, the map polyline, similar_activities and
+// photos. One matched run cost ~71KB while the log the athlete actually filled
+// in was ~30 bytes, and api/write.js rejects a state value over 750,000 chars
+// with a 413. The logs blob crossed that line, every save was refused, and the
+// outbox retried the same oversized payload forever, so the pending banner
+// could never clear: retrying could never succeed.
+//
+// Only the fields below are ever read back out of a stored match. Anything
+// richer is re-fetched from /api/strava when it is genuinely needed, so
+// trimming costs nothing and keeps the blob an order of magnitude smaller.
+var STRAVA_MATCH_ACTIVITY_FIELDS=['id','name','type','sport_type','distance','moving_time','elapsed_time','start_date','start_date_local','suffer_score','relative_effort'];
+function slimStravaActivity(activity){
+  if(!activity||typeof activity!=='object'||Array.isArray(activity))return activity;
+  var slim={},i,field;
+  for(i=0;i<STRAVA_MATCH_ACTIVITY_FIELDS.length;i++){
+    field=STRAVA_MATCH_ACTIVITY_FIELDS[i];
+    if(activity[field]!==undefined)slim[field]=activity[field];
+  }
+  return slim;
+}
+// Trims every stored match in place. Returns true when anything changed, so
+// callers can persist the smaller copy instead of rewriting an identical blob
+// on every load.
+function pruneStravaMatchPayloads(logsObject){
+  if(!logsObject||typeof logsObject!=='object')return false;
+  var changed=false;
+  Object.keys(logsObject).forEach(function(sessionId){
+    var entry=logsObject[sessionId];
+    if(!entry||typeof entry!=='object')return;
+    var match=entry.__stravaMatch;
+    if(!match||typeof match!=='object'||!match.activity)return;
+    var slim=slimStravaActivity(match.activity);
+    if(JSON.stringify(slim)===JSON.stringify(match.activity))return;
+    match.activity=slim;
+    changed=true;
+  });
+  return changed;
+}
 function portalStateWrite(key,value,options){
+  // Belt and braces: no oversized logs blob can leave the device, whatever
+  // path built it or how long it has been sitting in the outbox.
+  if(key==='logs')pruneStravaMatchPayloads(value);
   return portalRequest('state-write',{key:key,value:value},options).then(async function(result){
     await removePendingPortalStateWrite(key,null,value);
     return result;
@@ -627,7 +672,22 @@ async function retryPendingPortalStateWrites(silent,trigger){
   var list=await readPendingPortalStateWrites(code),synced=0;
   for(var i=0;i<list.length;i++){
     var item=list[i];
-    try{await portalRequest('state-write',{key:item.key,value:item.value},{keepalive:true});await removePendingPortalStateWrite(item.key,code,item.value);synced++;}
+    // A logs value queued by an older build still carries the full Strava
+    // payloads that made the server reject it. Retrying it verbatim fails
+    // forever, so trim it here before the send. pruneStravaMatchPayloads
+    // mutates in place, so snapshot the fat value first: removal matches on
+    // the stored value, and without the snapshot the queue entry is orphaned.
+    var original=null,trimmed=false;
+    if(item.key==='logs'){
+      try{original=JSON.parse(JSON.stringify(item.value));}catch(e){original=null;}
+      trimmed=pruneStravaMatchPayloads(item.value)&&!!original;
+    }
+    try{
+      await portalRequest('state-write',{key:item.key,value:item.value},{keepalive:true});
+      if(trimmed)await removePendingPortalStateWrite(item.key,code,original);
+      await removePendingPortalStateWrite(item.key,code,item.value);
+      synced++;
+    }
     catch(e){}
   }
   if(synced)track('offline_state_flushed',{count:synced,trigger:trigger||'visibility'});
@@ -876,8 +936,14 @@ async function loadCloudData(code,preloaded){
         var _localLogs=null;try{_localLogs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'null');}catch(e){}
         var _cloudT=(_cloudLogs&&_cloudLogs.__savedAt)||0;
         var _localT=(_localLogs&&_localLogs.__savedAt)||0;
+        // Trim both copies before the comparison. A cloud row written by an
+        // older build still carries the full Strava payloads, and copying it
+        // into localStorage unpruned would just re-inflate the device.
+        pruneStravaMatchPayloads(_cloudLogs);
+        var _localTrimmed=pruneStravaMatchPayloads(_localLogs);
         if(_localLogs&&_localT>_cloudT){
           // Local draft is newer — keep it, and push it up so other devices catch up.
+          if(_localTrimmed){try{localStorage.setItem('dp_logs_'+code,JSON.stringify(_localLogs));}catch(e){}}
           portalStateWrite('logs',_localLogs).catch(function(){});
         }else if(_cloudLogs){
           localStorage.setItem('dp_logs_'+code,JSON.stringify(_cloudLogs));
