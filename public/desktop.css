@@ -299,7 +299,7 @@
 
 /* ---------- 9 · Reduced motion (desktop scope) ----------------------- */
 @media (min-width:900px) and (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1;transition-duration:.001ms;scroll-behavior:auto}
 }
 
 /* ---------- 9b · Restrained desktop login (lower priority) ----------- */
@@ -356,10 +356,10 @@
   #tab-progress.active,
   #tab-handbook.active,
   #tab-comms.active{
-    width:auto!important;
-    max-width:none!important;
-    margin-left:var(--railw)!important;
-    margin-right:0!important;
+    width:auto;
+    max-width:none;
+    margin-left:var(--railw);
+    margin-right:0;
   }
 
   .tab-content,

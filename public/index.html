@@ -14,12 +14,12 @@
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=142" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=142'></noscript>
-<link rel="stylesheet" href="/desktop.css?v=6">
-<link rel="stylesheet" href="/icons.css?v=3">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
+<link rel="preload" as="style" href="/styles.css?v=143" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=143'></noscript>
+<link rel="stylesheet" href="/desktop.css?v=7">
+<link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
      if this request is blocked or fails, window.Sentry is simply absent and
      every call site below is guarded. -->
@@ -56,6 +56,7 @@
     <symbol id="i-book" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" fill-rule="evenodd" d="M6.9 2.5h10.2a2.6 2.6 0 0 1 2.6 2.6v13.8a2.6 2.6 0 0 1-2.6 2.6H6.9a2.6 2.6 0 0 1-2.6-2.6V5.1a2.6 2.6 0 0 1 2.6-2.6zm2.1 2.5v14h8.1a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zm3.3 2.4a1.05 1.05 0 0 0 0 2.1h4a1.05 1.05 0 0 0 0-2.1zm0 3.7a1.05 1.05 0 0 0 0 2.1h2.6a1.05 1.05 0 0 0 0-2.1z"/></symbol>
     <symbol id="i-camera" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" fill-rule="evenodd" d="M9.05 4.1a1.5 1.5 0 0 0-1.29.73L6.9 6.3H5.4A2.9 2.9 0 0 0 2.5 9.2v8.4a2.9 2.9 0 0 0 2.9 2.9h13.2a2.9 2.9 0 0 0 2.9-2.9V9.2a2.9 2.9 0 0 0-2.9-2.9h-1.5l-.86-1.47a1.5 1.5 0 0 0-1.29-.73zM12 9.4a3.9 3.9 0 1 1 0 7.8 3.9 3.9 0 0 1 0-7.8z"/></symbol>
     <symbol id="i-chat" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 3.1a8.9 8.9 0 0 1 3.9 16.9 8.85 8.85 0 0 1-6.85.36l-5.02 1.44a.6.6 0 0 1-.74-.74l1.44-5.02A8.9 8.9 0 0 1 12 3.1z"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M4.6 5.7h9.1c1.27 0 2.3 1.03 2.3 2.3v8c0 1.27-1.03 2.3-2.3 2.3H4.6a2.3 2.3 0 0 1-2.3-2.3V8a2.3 2.3 0 0 1 2.3-2.3zm14.02 3.03 2.3-1.42a.7.7 0 0 1 1.08.6v8.18a.7.7 0 0 1-1.08.6l-2.3-1.42a.7.7 0 0 1-.32-.6V9.33a.7.7 0 0 1 .32-.6z"/></symbol>
     <symbol id="i-utensils" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M6.2 2.4a1.2 1.2 0 0 1 1.2 1.2v4.2h1.05V3.6a1.2 1.2 0 0 1 2.4 0v4.2h1.05V3.6a1.2 1.2 0 0 1 2.4 0v4.6a3.6 3.6 0 0 1-2.7 3.48v9.12a1.2 1.2 0 0 1-2.4 0v-9.12A3.6 3.6 0 0 1 5 8.2V3.6a1.2 1.2 0 0 1 1.2-1.2z" transform="translate(-.6 0) scale(1.02 1)"/><path fill="currentColor" stroke="none" d="M18.6 2.3c.6 0 1.1.42 1.2 1.02.35 2.2.5 4.1.5 5.78 0 1.85-.9 3.2-2.3 3.72v8.5a1.2 1.2 0 0 1-2.4 0V12.8c-1.4-.5-2.3-1.85-2.3-3.7 0-1.7.15-3.6.5-5.78a1.2 1.2 0 0 1 1.2-1.02z" transform="translate(1.2 0)"/></symbol>
     <symbol id="i-leaf" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" fill-rule="evenodd" d="M20.6 3.4c.02 9.1-5.4 16.3-14.2 16.3-1.15 0-2.15-.36-2.88-1C6.6 12.4 11 8.25 16.5 5.75l-.72-1.5C9.85 7.05 5.2 11.75 3 18.25a3.5 3.5 0 0 1-.4-1.7C2.6 8.2 8.6 3.4 20.6 3.4z"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M20.6 14.3A8.8 8.8 0 1 1 9.55 3.35a6.9 6.9 0 0 0 11.05 10.95z"/></symbol>
@@ -149,13 +150,13 @@
 </div>
 
 <!-- PAUSED ACCESS — shown when the roster marks this athlete active=false -->
-<div id="pausedScreen" style="display:none;position:fixed;inset:0;z-index:2000;background:#0a0d10;align-items:center;justify-content:center;padding:24px">
-  <div style="max-width:400px;width:100%;text-align:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius-lg,16px);padding:38px 28px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">
+<div id="pausedScreen" style="display:none;position:fixed;inset:0;z-index:2000;background:var(--surface-void);align-items:center;justify-content:center;padding:24px">
+  <div style="max-width:400px;width:100%;text-align:center;background:rgba(236,233,226,.04);border:1px solid rgba(236,233,226,.08);border-radius:var(--radius-lg,16px);padding:38px 28px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">
     <div style="font-size:var(--font-2xl,32px);line-height:1;margin-bottom:14px">⏸</div>
     <div id="pausedName" style="color:#92d2ed;font-size:var(--font-sm,14px);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Hey —</div>
     <div style="color:#f0ede8;font-size:var(--font-lg,20px);font-weight:800;margin-bottom:10px">Your portal access is paused</div>
     <div style="color:rgba(240,237,232,.55);font-size:var(--font-sm,14px);line-height:1.55;margin-bottom:26px">Your coaching programme is currently on hold, so the portal is locked for now. Message your coach and we'll get you back training.</div>
-    <a href="mailto:support@dualperformance.au?subject=Portal%20access%20paused" rel="noopener" style="display:inline-block;background:#92d2ed;color:#0a0d10;font-weight:800;font-size:var(--font-sm,14px);letter-spacing:.04em;text-transform:uppercase;border-radius:var(--radius-md,12px);padding:12px 22px;text-decoration:none;margin-bottom:14px">Email your coach</a>
+    <a href="mailto:support@dualperformance.au?subject=Portal%20access%20paused" rel="noopener" style="display:inline-block;background:#92d2ed;color:var(--surface-void);font-weight:800;font-size:var(--font-sm,14px);letter-spacing:.04em;text-transform:uppercase;border-radius:var(--radius-md,12px);padding:12px 22px;text-decoration:none;margin-bottom:14px">Email your coach</a>
     <div><button onclick="pausedBackToLogin()" style="background:transparent;border:0;color:rgba(240,237,232,.4);font-size:var(--font-xs,12px);cursor:pointer;text-decoration:underline;padding:6px">Back to sign in</button></div>
   </div>
 </div>
@@ -215,7 +216,7 @@
         <div class="hero-support" id="heroSupport">Your training week, coaching context, and key signals in one place.</div>
         <div class="hero-bottom">
           <div class="hpills">
-            <a id="dp-strava-btn" href="#" class="hp" style="display:none;color:rgba(255,255,255,.9)"></a>
+            <a id="dp-strava-btn" href="#" class="hp" style="display:none;color:var(--t-1)"></a>
             <button class="readiness-chip" id="heroReadinessCard" type="button" onclick="openQuickLog('body')" aria-label="Open readiness check-in">
               <span class="hero-readiness-ring" id="heroReadinessRing" style="--value:0"><span class="hero-stat-value" id="heroStatReadiness">—</span></span>
               <span class="readiness-chip-text">
@@ -275,7 +276,7 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="#22c55e" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg>
         <div style="flex:1">
           <div style="color:#22c55e;font-weight:700;font-size:var(--font-sm,14px);">Strava Connected!</div>
-          <div style="color:rgba(255,255,255,.6);font-size:var(--font-xs,12px);margin-top:2px;">Your runs will now sync automatically to your dashboard.</div>
+          <div style="color:rgba(236,233,226,.6);font-size:var(--font-xs,12px);margin-top:2px;">Your runs will now sync automatically to your dashboard.</div>
         </div>
         <button id="strava-ack-btn" onclick="acknowledgeStrava()" style="background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:var(--radius-sm,8px);padding:6px 12px;font-size:var(--font-xs,12px);font-weight:600;cursor:pointer;">Got it</button>
       </div>
@@ -293,7 +294,7 @@
       </button>
 
       <!-- NUDGE STRIP — call + photos -->
-      <div id="callNudge" class="nudge-strip is-due" style="display:none;border-top:1px solid rgba(255,255,255,.05)" onclick="openCallBooking()">
+      <div id="callNudge" class="nudge-strip is-due" style="display:none;border-top:1px solid rgba(236,233,226,.05)" onclick="openCallBooking()">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-calendar"/></svg></span>
           <div class="nudge-strip-text">
@@ -317,7 +318,7 @@
       </div>
 
       <!-- CALL CONFIRMED NUDGE — compact, appears once call is booked, shows day/time -->
-      <div id="callConfirmedNudge" class="nudge-strip is-done" style="display:none;border-top:1px solid rgba(255,255,255,.05)">
+      <div id="callConfirmedNudge" class="nudge-strip is-done" style="display:none;border-top:1px solid rgba(236,233,226,.05)">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-check"/></svg></span>
           <div class="nudge-strip-text">
@@ -359,6 +360,7 @@
     <button class="tab desktop-weekly-tab" type="button" role="tab" aria-selected="false" data-tab="weekly" onclick="switchTab('weekly')">Weekly Plan</button>
     <button class="tab" type="button" role="tab" aria-selected="false" data-tab="nutrition" onclick="switchTab('nutrition')">Nutrition</button>
     <button class="tab" type="button" role="tab" aria-selected="false" data-tab="checkin" onclick="switchTab('checkin')">Weekly Check-in<span class="tab-dot" id="tabDotCheckin"></span></button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="calls" onclick="switchTab('calls')">Calls<span class="tab-dot" id="tabDotCalls"></span></button>
     <button class="tab" type="button" role="tab" aria-selected="false" data-tab="progress" onclick="switchTab('progress')">Progress<span class="tab-dot" id="tabDotProgress"></span></button>
     <div class="rail-group-label rail-only">More</div>
     <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="goals" onclick="switchTab('goals')">Goals<span class="tab-dot" id="tabDotGoalsRail" style="display:none"></span></button>
@@ -388,6 +390,18 @@
     <div class="card vstrip-card" id="trainingVolumeStrip" style="display:none"></div>
     <div id="calEl" class="weeklyplan-wrap" style="display:none"></div>
     <div class="noplan" id="noplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
+  </div>
+
+  <!-- CALLS — the coaching-call surface. The next-call half reads the live
+       booking state; prep notes, the recap and action items are stubbed
+       behind fetchCallsSurfaceData() until the booking backend is wired. -->
+  <div class="tab-content" id="tab-calls">
+    <div class="page-intro">
+      <div class="page-kicker">Coaching</div>
+      <div class="page-title">Calls</div>
+      <div class="page-copy">Your next call, what to bring to it, and what you agreed last time.</div>
+    </div>
+    <div id="callsSurface" class="calls-surface"></div>
   </div>
 
   <div class="tab-content" id="tab-weekly">
@@ -648,12 +662,12 @@
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
     </div>
         <!-- STEP 1: BOOK — state-aware: renderBookingPrompts() flips it to "booked" once the call is confirmed -->
-        <div id="ciBookCard" onclick="openCallModal()" role="button" tabindex="0" style="background:#0a0a0a;border:1px solid rgba(245,158,11,.22);box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.22);border-radius:var(--radius-md,12px);margin-bottom:16px;overflow:hidden;cursor:pointer">
+        <div id="ciBookCard" onclick="openCallModal()" role="button" tabindex="0" style="background:var(--surface-void);border:1px solid rgba(245,158,11,.22);box-shadow:0 0 0 1px rgba(236,233,226,.03) inset, 0 10px 28px rgba(0,0,0,.22);border-radius:var(--radius-md,12px);margin-bottom:16px;overflow:hidden;cursor:pointer">
           <div style="padding:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative">
             <div style="flex:1;min-width:0">
-              <div id="ciBookKicker" style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">Step 1 — Do this first</div>
+              <div id="ciBookKicker" style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.35);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">Step 1 — Do this first</div>
               <div id="ciBookTitle" style="font-family:var(--display);font-size:var(--font-xl,24px);font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.1;margin-bottom:4px">Book your coaching call</div>
-              <div id="ciBookSub" style="font-size:var(--font-sm,14px);color:rgba(255,255,255,.45);line-height:1.5">30 min with Karl &amp; Alex · Tap to open booking</div>
+              <div id="ciBookSub" style="font-size:var(--font-sm,14px);color:rgba(236,233,226,.45);line-height:1.5">30 min with Karl &amp; Alex · Tap to open booking</div>
             </div>
             <div id="ciBookArrow" style="color:#f59e0b;flex-shrink:0;line-height:1"><svg class="icon" style="width:18px;height:18px"><use href="#i-chevron-right"/></svg></div>
           </div>
@@ -771,10 +785,10 @@
           <!-- Step 5: This week -->
           <div class="ci-step-panel" data-step="5">
             <div class="ci-step-title"><svg class="icon"><use href="#i-sparkle"/></svg> Your Week in Words</div>
-            <div class="ci-reflection-intro" style="background:#0a0a0a;border-radius:var(--radius-md,12px);padding:18px;margin-bottom:14px">
-              <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
+            <div class="ci-reflection-intro" style="background:var(--surface-void);border-radius:var(--radius-md,12px);padding:18px;margin-bottom:14px">
+              <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.45);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
               <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.15;margin-bottom:8px">What did this week mean to you?</div>
-              <div style="font-size:var(--font-sm,14px);color:rgba(255,255,255,.82);line-height:1.6">Your progress is worth sharing. Other people are sitting on the couch wondering if they could do what you're doing — your words might be exactly what they need to hear.</div>
+              <div style="font-size:var(--font-sm,14px);color:rgba(236,233,226,.82);line-height:1.6">Your progress is worth sharing. Other people are sitting on the couch wondering if they could do what you're doing — your words might be exactly what they need to hear.</div>
             </div>
             <div class="card ci-testimonial-card u-mb-10">
               <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Write freely — we may share this (with your permission) <svg class="icon icon-sm icon-run"><use href="#i-sparkle"/></svg></div>
@@ -797,7 +811,7 @@
           </div>
         </div>
         <div id="ciSuccess" style="display:none;text-align:center;padding:40px 10px">
-          <div style="width:48px;height:48px;border-radius:var(--radius-pill,999px);background:#0a0a0a;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+          <div style="width:48px;height:48px;border-radius:var(--radius-pill,999px);background:var(--surface-void);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
           </div>
           <div style="font-family:var(--display);font-size:var(--font-xl,24px);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">Check-in received</div>
@@ -1000,8 +1014,8 @@
       </div>
       <div class="ql-modal-body">
         <!-- Previous day reference panel -->
-        <div id="qlbPrevDay" style="display:none;background:#0a0a0a;border-radius:var(--radius-md,12px);padding:12px 14px;margin-bottom:14px">
-          <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" id="qlbPrevDayLabel">Yesterday</div>
+        <div id="qlbPrevDay" style="display:none;background:var(--surface-void);border-radius:var(--radius-md,12px);padding:12px 14px;margin-bottom:14px">
+          <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" id="qlbPrevDayLabel">Yesterday</div>
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px">
             <div class="u-text-center">
               <div style="font-family:var(--display);font-size:var(--font-xl,24px);font-weight:700;color:#fff;line-height:1" id="qlbPrevWeight">—</div>
@@ -1026,7 +1040,7 @@
               </div>
             </div>
           </div>
-          <div id="qlbPrevNotes" style="display:none;font-size:var(--font-xs,12px);color:rgba(255,255,255,.4);font-style:italic;border-top:1px solid rgba(255,255,255,.08);padding-top:8px"></div>
+          <div id="qlbPrevNotes" style="display:none;font-size:var(--font-xs,12px);color:rgba(236,233,226,.4);font-style:italic;border-top:1px solid rgba(236,233,226,.08);padding-top:8px"></div>
         </div>
         <div class="rlog u-mb-14">
           <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm,8px);padding:10px 12px">
@@ -1079,8 +1093,8 @@
       </div>
       <div class="ql-modal-body">
         <!-- Previous day reference panel -->
-        <div id="qlnPrevDay" style="display:none;background:#0a0a0a;border-radius:var(--radius-md,12px);padding:12px 14px;margin-bottom:14px">
-          <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px" id="qlnPrevDayLabel">Yesterday</div>
+        <div id="qlnPrevDay" style="display:none;background:var(--surface-void);border-radius:var(--radius-md,12px);padding:12px 14px;margin-bottom:14px">
+          <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px" id="qlnPrevDayLabel">Yesterday</div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px">
             <div class="u-text-center">
               <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:700;color:#fff;line-height:1" id="qlnPrevCal">—</div>
@@ -1097,15 +1111,15 @@
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div class="u-text-center">
-              <div style="font-family:var(--display);font-size:var(--font-md,16px);font-weight:700;color:rgba(255,255,255,.7);line-height:1" id="qlnPrevFat">—</div>
+              <div style="font-family:var(--display);font-size:var(--font-md,16px);font-weight:700;color:rgba(236,233,226,.7);line-height:1" id="qlnPrevFat">—</div>
               <div class="u-metric-label">fat g</div>
             </div>
             <div class="u-text-center">
-              <div style="font-family:var(--display);font-size:var(--font-md,16px);font-weight:700;color:rgba(255,255,255,.7);line-height:1" id="qlnPrevFibre">—</div>
+              <div style="font-family:var(--display);font-size:var(--font-md,16px);font-weight:700;color:rgba(236,233,226,.7);line-height:1" id="qlnPrevFibre">—</div>
               <div class="u-metric-label">fibre g</div>
             </div>
           </div>
-          <div id="qlnPrevNotes" style="display:none;margin-top:8px;font-size:var(--font-xs,12px);color:rgba(255,255,255,.45);font-style:italic;border-top:1px solid rgba(255,255,255,.08);padding-top:8px"></div>
+          <div id="qlnPrevNotes" style="display:none;margin-top:8px;font-size:var(--font-xs,12px);color:rgba(236,233,226,.45);font-style:italic;border-top:1px solid rgba(236,233,226,.08);padding-top:8px"></div>
         </div>
         <div class="rlog u-mb-14">
           <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm,8px);padding:10px 12px">
@@ -1168,16 +1182,16 @@
         <div class="ql-modal-title" id="callModalTitle">Book Your Call</div>
         <button class="ql-modal-close" onclick="closeCallModal()" aria-label="Close booking">×</button>
       </div>
-      <div class="ql-modal-body" style="padding:0;background:#0a0a0a;flex:1;min-height:0;overflow:hidden">
-        <div id="callModalStatus" role="status" aria-live="polite" style="display:none;height:100%;padding:28px;align-items:center;justify-content:center;text-align:center;color:rgba(255,255,255,.78);font-size:var(--font-sm,14px);line-height:1.6"></div>
-        <iframe title="Book or reschedule your coaching call" data-src="https://api.leadconnectorhq.com/widget/booking/WRivrNxfNTVER2xMit1z" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:#0a0a0a" scrolling="yes" id="WRivrNxfNTVER2xMit1z_1782710919820"></iframe>
+      <div class="ql-modal-body" style="padding:0;background:var(--surface-void);flex:1;min-height:0;overflow:hidden">
+        <div id="callModalStatus" role="status" aria-live="polite" style="display:none;height:100%;padding:28px;align-items:center;justify-content:center;text-align:center;color:rgba(236,233,226,.78);font-size:var(--font-sm,14px);line-height:1.6"></div>
+        <iframe title="Book or reschedule your coaching call" data-src="https://api.leadconnectorhq.com/widget/booking/WRivrNxfNTVER2xMit1z" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:var(--surface-void)" scrolling="yes" id="WRivrNxfNTVER2xMit1z_1782710919820"></iframe>
       </div>
     </div>
   </div>
 
   <!-- FLOATING PRIVATE NOTE — Discord stays the community channel; this is the
        one-to-one line for the message an athlete will not post in a group. -->
-  <button class="wa-fab" type="button" onclick="openCoachNote()" title="Send your coaches a private note" aria-label="Send your coaches a private note" style="bottom:76px;color:#050505;border:0;padding:0;cursor:pointer">
+  <button class="wa-fab" type="button" onclick="openCoachNote()" title="Send your coaches a private note" aria-label="Send your coaches a private note" style="bottom:76px;color:var(--surface-void);border:0;padding:0;cursor:pointer">
     <svg class="icon" style="width:24px;height:24px"><use href="#i-chat"/></svg>
   </button>
 
@@ -1215,6 +1229,7 @@
   <nav class="mobile-nav" aria-label="Primary navigation">
     <button class="mobile-nav-item active" type="button" data-mobile-tab="home" onclick="goPortalHome()"><svg class="icon"><use href="#i-target"/></svg><span>Home</span></button>
     <button class="mobile-nav-item" type="button" data-mobile-tab="training" onclick="goTrainingPlan()"><svg class="icon"><use href="#i-calendar"/></svg><span>Training</span></button>
+    <button class="mobile-nav-item" type="button" data-mobile-tab="calls" onclick="switchTab('calls')"><svg class="icon"><use href="#i-video"/></svg><span>Calls</span><span class="mobile-nav-dot" id="mobileCallsDot"></span></button>
     <button class="mobile-nav-item" type="button" data-mobile-tab="nutrition" onclick="switchTab('nutrition')"><svg class="icon"><use href="#i-utensils"/></svg><span>Nutrition</span></button>
     <button class="mobile-nav-item" type="button" data-mobile-tab="progress" onclick="switchTab('progress')"><svg class="icon"><use href="#i-trend-up"/></svg><span>Progress</span><span class="mobile-nav-dot" id="mobileProgressDot"></span></button>
     <button class="mobile-nav-item" type="button" data-mobile-tab="more" onclick="toggleMoreMenu(true)" aria-controls="moreMenu" aria-expanded="false"><svg class="icon"><use href="#i-bars"/></svg><span>More</span><span class="mobile-nav-dot" id="mobileCheckinDot"></span></button>
@@ -1386,16 +1401,18 @@
 })();
 </script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=117"></script>
-<script src="js/02-login-goals.js?v=110"></script>
-<script src="js/03-nav-nudges.js?v=108"></script>
+<script src="js/01-core.js?v=120"></script>
+<script src="js/02-login-goals.js?v=111"></script>
+<script src="js/03-nav-nudges.js?v=111"></script>
 <script src="js/04-checkin.js?v=94"></script>
 <script src="js/05-handbook.js?v=85"></script>
 <script src="js/06-nutrition.js?v=91"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=89" hidden></span>
 <script type="module" src="js/strava-match.js?v=6"></script>
 <script src="js/08-training-interval-rest.js?v=1"></script>
-<script src="js/08-training.js?v=133"></script>
+<script src="js/08-training-muscle-coverage.js?v=1"></script>
+<script src="js/08-training-focus.js?v=1"></script>
+<script src="js/08-training.js?v=135"></script>
 <script src="js/09-logging.js?v=120"></script>
 <script src="accessibility.js?v=1"></script>
 <script src="js/10-boot.js?v=109"></script>

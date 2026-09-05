@@ -52,15 +52,12 @@
 .ns-hd .icon{width:13px;height:13px;stroke-width:2.3;color:var(--run);margin-right:6px;vertical-align:-0.16em}
 .ns-ic .icon{width:11px;height:11px;stroke-width:2.7}
 .submit-status-icon .icon{width:12px;height:12px;stroke-width:2.35}
-.dpsc-i .icon{width:14px;height:14px;stroke-width:2.2}
-.dpsc-tick .icon{width:11px;height:11px;stroke-width:2.5}
 .mobile-week-key .icon{width:9px;height:9px}
 .mobile-week-status .icon{width:12px;height:12px;stroke-width:2.8}
 .wg-done .icon{width:10px;height:10px;stroke-width:2.7}
 .ov-node-ic .icon{width:12px;height:12px;stroke-width:2.35}
 .slbl-tick .icon{width:10px;height:10px;stroke-width:2.5;vertical-align:-0.1em}
-.dpsc-set-head .icon{width:10px;height:10px;stroke-width:2.5;vertical-align:-0.1em}
-.dpsc-rung .icon,.exc-rung .icon{width:11px;height:11px;stroke-width:2.5;vertical-align:-0.12em}
+.exc-rung .icon{width:11px;height:11px;stroke-width:2.5;vertical-align:-0.12em}
 .strava-btn .icon,.btn-ic .icon{width:12px;height:12px;stroke-width:2.35;margin-right:5px;vertical-align:-0.14em}
 
 @media (prefers-reduced-motion:reduce){
