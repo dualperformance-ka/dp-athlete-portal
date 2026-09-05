@@ -3021,7 +3021,13 @@ body.day-plan-open{overflow:hidden}
   body.mobile-training-calendar #calEl{
     display:flex;flex:1 1 auto;min-height:0;flex-direction:column;
   }
-  body.mobile-training-calendar .quicklog-strip,body.mobile-training-calendar .wa-fab{display:none}
+  /* !important because two things outrank a plain rule here: the mobile dock
+     style at (max-width:760px) uses display:grid!important, and 02-login-goals
+     sets style.display='flex' inline on sign-in. Without this the dock floated
+     over the bottom of the height-locked week agenda and hid Saturday and
+     Sunday behind it. The inline style is the root cause and is worth removing
+     in favour of a body class, but that touches the dock on every surface. */
+  body.mobile-training-calendar .quicklog-strip,body.mobile-training-calendar .wa-fab{display:none!important}
   .week-plan-title-desktop,.week-plan-subtitle-desktop{display:none}
   .week-plan-title-mobile,.week-plan-subtitle-mobile{display:inline}
   .week-plan-shell{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:8px 2px 14px;margin-bottom:0;border-bottom:0}
@@ -3044,8 +3050,12 @@ body.day-plan-open{overflow:hidden}
   }
   .mobile-week-day{
     position:relative;display:grid;grid-template-columns:48px minmax(0,1fr) 20px;align-items:center;gap:10px;
-    flex:0 0 auto;min-width:0;min-height:68px;padding:6px 5px 6px 2px;border:0;border-bottom:1px solid rgba(236,233,226,.065);
-    background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer;
+    /* Grow by how much the day has to show, shrink to fit the locked viewport.
+       The min-height is the floor that keeps a row tappable: past it the agenda
+       scrolls rather than shrinking rows into something nobody can hit. */
+    flex:var(--day-weight,1) 1 0;min-width:0;min-height:calc(44px * var(--day-weight,1));
+    padding:6px 5px 6px 2px;border:0;border-bottom:1px solid rgba(236,233,226,.065);
+    background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer;overflow:hidden;
   }
   .mobile-week-day:last-child{border-bottom:0}
   .mobile-week-day button:focus-visible{z-index:2;outline:2px solid var(--run);outline-offset:2px}
@@ -3061,8 +3071,8 @@ body.day-plan-open{overflow:hidden}
   .mobile-week-date strong{width:30px;height:30px;display:grid;place-items:center;margin-top:4px;border-radius:var(--radius-pill);font-size:var(--font-md);line-height:1}
   .mobile-week-date em{margin-top:2px;font:700 var(--font-xs)/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--run)}
   .mobile-week-day.today .mobile-week-date strong{background:var(--run);color:var(--ink-action);box-shadow:0 6px 18px rgba(146,210,237,.3)}
-  .mobile-week-sessions{display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0}
-  .mobile-week-session{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;min-height:34px;padding:6px 8px;border:0;border-radius:var(--radius-sm);background:rgba(236,233,226,.055);box-shadow:inset 3px 0 0 rgba(236,233,226,.48);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .16s ease,box-shadow .16s ease,transform .12s ease}
+  .mobile-week-sessions{display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0;min-height:0;height:100%}
+  .mobile-week-session{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;min-height:34px;flex:1 1 0;padding:6px 8px;border:0;border-radius:var(--radius-sm);background:rgba(236,233,226,.055);box-shadow:inset 3px 0 0 rgba(236,233,226,.48);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .16s ease,box-shadow .16s ease,transform .12s ease}
   .mobile-week-session:active{transform:scale(.985)}
   .mobile-week-session.run{background:rgba(146,210,237,.12);box-shadow:inset 3px 0 0 var(--run)}
   .mobile-week-session.note{background:rgba(182,144,255,.11);box-shadow:inset 3px 0 0 var(--pb)}
@@ -5577,7 +5587,12 @@ html.outdoor-mode .page-intro::before{display:none}
 /* The training week is one plate of hairline rows; the date is a readout. */
 @media(max-width:899px){
   .mobile-week-agenda{
-    background:var(--g-1);border-radius:var(--r-3);box-shadow:var(--edge-plate);overflow:hidden
+    background:var(--g-1);border-radius:var(--r-3);box-shadow:var(--edge-plate);
+    /* Was overflow:hidden for the plate look, which CLIPPED any day that did
+       not fit — Saturday and Sunday became unreachable rather than scrollable.
+       The rows now shrink to fit (see --day-weight below); this stays scrollable
+       so an unusually heavy week degrades to a scroll instead of losing days. */
+    overflow-x:hidden;overflow-y:auto
   }
   .mobile-week-day{border-bottom:1px solid var(--hairline);background:transparent}
   .mobile-week-day:last-child{border-bottom:0}

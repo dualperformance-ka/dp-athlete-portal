@@ -271,7 +271,13 @@ function renderCal(ws){
       });
       var dayOpenLabel='Open '+cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+' day overview';
       if(!daySessions.length)labels='<button type="button" class="mobile-week-rest" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'">'+(hasRecoveryOnly?'Recovery day':'No session planned')+'</button>';
-      html+='<div role="row" class="mobile-week-day'+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(daySessions.length>1?' multi-session':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'"'+(isToday?' aria-current="date"':'')+'><button type="button" class="mobile-week-date" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'"><small>'+cellDate.toLocaleDateString('en-AU',{weekday:'short'})+'</small><strong>'+cellDate.getDate()+'</strong>'+(isToday?'<em>Today</em>':'')+'</button><span role="gridcell" class="mobile-week-sessions">'+labels+'</span><button type="button" class="mobile-week-status" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'">'+(dayDone?'<svg class="icon"><use href="#i-check"/></svg>':dayMissed?'!':'›')+'</button></div>';
+      // The agenda is height-locked to the viewport, so the seven days share it
+      // rather than overflowing: each row takes a share proportional to how much
+      // it has to show. A rest day gets one unit, a two-session day gets two, so
+      // a busy week compresses evenly instead of pushing Saturday and Sunday off
+      // the bottom. --day-weight drives flex-grow; the floor lives in the CSS.
+      var dayWeight=Math.max(1,daySessions.length);
+      html+='<div role="row" style="--day-weight:'+dayWeight+'" class="mobile-week-day'+(isToday?' today':'')+(daySessions.length?' has-sessions':'')+(daySessions.length>1?' multi-session':'')+(dayDone?' done':'')+(dayMissed?' missed':'')+'" data-date="'+miso+'"'+(isToday?' aria-current="date"':'')+'><button type="button" class="mobile-week-date" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'"><small>'+cellDate.toLocaleDateString('en-AU',{weekday:'short'})+'</small><strong>'+cellDate.getDate()+'</strong>'+(isToday?'<em>Today</em>':'')+'</button><span role="gridcell" class="mobile-week-sessions">'+labels+'</span><button type="button" class="mobile-week-status" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'">'+(dayDone?'<svg class="icon"><use href="#i-check"/></svg>':dayMissed?'!':'›')+'</button></div>';
     }
     html+='</div>';
   }else{
