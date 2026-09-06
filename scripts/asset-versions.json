@@ -16,16 +16,16 @@
     "sha": "842c8ed8f92e"
   },
   "js/01-core.js": {
-    "version": 122,
-    "sha": "c022efcad0fb"
+    "version": 123,
+    "sha": "7857ffd0c561"
   },
   "js/02-login-goals.js": {
-    "version": 112,
-    "sha": "7bdd9c948c36"
+    "version": 113,
+    "sha": "91de73972c16"
   },
   "js/03-nav-nudges.js": {
-    "version": 113,
-    "sha": "64ff85b40fae"
+    "version": 114,
+    "sha": "182f2d05229c"
   },
   "js/04-checkin.js": {
     "version": 96,
@@ -60,8 +60,8 @@
     "sha": "24321002123e"
   },
   "js/08-training.js": {
-    "version": 136,
-    "sha": "30124685e934"
+    "version": 137,
+    "sha": "4a9d8bb71641"
   },
   "js/09-logging.js": {
     "version": 121,
@@ -72,7 +72,7 @@
     "sha": "3e9bf44307a4"
   },
   "js/10-boot.js": {
-    "version": 109,
-    "sha": "25982d5a08f3"
+    "version": 110,
+    "sha": "db2a42e4f46e"
   }
 }

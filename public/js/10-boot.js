@@ -730,6 +730,9 @@ async function syncPushSubscription(){
 }
 async function hardRefreshPortal(){
   showToast('Refreshing portal\u2026');
+  // The plan the athlete is looking at is held in localStorage, not in Cache
+  // Storage, so clearing only the caches below left a stale week in place.
+  try{if(typeof clearTrainingWeekCache==='function')clearTrainingWeekCache();}catch(e){}
   try{var keys=await caches.keys();await Promise.all(keys.map(function(k){return caches.delete(k);}));}catch(e){}
   try{var reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update();}catch(e){}
   setTimeout(function(){location.reload();},300);

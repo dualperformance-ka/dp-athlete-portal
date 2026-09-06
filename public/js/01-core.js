@@ -1576,10 +1576,38 @@ function getRelationIds(prop){return prop&&prop.relation?(prop.relation||[]).map
 
 // Core programme/photo helpers are needed by the home nudges and check-in.
 // Keeping them here lets the heavier Progress renderer load only when opened.
+//
+// Athletes who started straight on Week 1, before the discovery week existed.
+// Closed set — everyone onboarded since goes through a Week 0 — and it mirrors
+// NO_DISCOVERY in the coaches dashboard, which decides the week number the
+// coach sees. The two must agree or the portal reads a week ahead.
+var NO_DISCOVERY_CODES=['JACOB','KHANG'];
+function athleteSkipsDiscoveryWeek(){
+  return NO_DISCOVERY_CODES.indexOf(String((typeof athlete!=='undefined'&&athlete&&athlete.code)||'').toUpperCase())>=0;
+}
 function getCurrentProgrammeWeek(){
   var wkS=sessions.find(function(s){return s.week;});
-  if(wkS){var m=wkS.week.match(/\d+/);if(m)return parseInt(m[0]);}
-  if(athlete.startDate&&athlete.startDate!=='—'){var start=localDateFromISO(athlete.startDate);var now=new Date();var diff=Math.floor((now-start)/(7*24*60*60*1000))+1;return Math.max(1,Math.min(programmeWeeks,diff));}
+  if(wkS){
+    // 'Discovery Week' carries no digit. Falling through to the date maths on
+    // that label is what let the nutrition week label sit a week away from the
+    // training one for the same athlete on the same day.
+    if(typeof isDiscoveryWeek==='function'&&isDiscoveryWeek(wkS.week))return 0;
+    var m=wkS.week.match(/\d+/);if(m)return parseInt(m[0]);
+  }
+  if(athlete.startDate&&athlete.startDate!=='—'){
+    var start=localDateFromISO(athlete.startDate);
+    var now=new Date();
+    var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    // Whole local days, rounded, so the 23 and 25 hour days either side of a
+    // daylight saving change still count as one day each. Measuring raw
+    // milliseconds put the week boundary an hour out every October.
+    var days=Math.round((today-start)/(24*60*60*1000));
+    // Day 0 is the discovery week (Week 0), matching the dashboard. The legacy
+    // codes above started on Week 1, so for them day 0 is week 1.
+    var skip=athleteSkipsDiscoveryWeek();
+    var floor=skip?1:0;
+    return Math.max(floor,Math.min(programmeWeeks,Math.floor(days/7)+(skip?1:0)));
+  }
   return 1;
 }
 function getPhotos(){return JSON.parse(localStorage.getItem('dp_photos_'+athlete.code)||'{}');}
