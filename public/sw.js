@@ -1,10 +1,10 @@
-const CACHE_NAME = 'dp-athlete-v192'; // v192: check-in sheet field type
+const CACHE_NAME = 'dp-athlete-v193'; // v193: discovery week + stale week refresh
 const APP_SHELL = [
   '/index.html', '/styles.css?v=150', '/desktop.css?v=7', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=122',
-  '/js/02-login-goals.js?v=112',
-  '/js/03-nav-nudges.js?v=113',
+  '/js/01-core.js?v=123',
+  '/js/02-login-goals.js?v=113',
+  '/js/03-nav-nudges.js?v=114',
   '/js/04-checkin.js?v=96',
   '/js/05-handbook.js?v=85',
   '/js/06-nutrition.js?v=91',
@@ -13,10 +13,10 @@ const APP_SHELL = [
   '/js/08-training-interval-rest.js?v=1',
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=1',
-  '/js/08-training.js?v=136',
+  '/js/08-training.js?v=137',
   '/js/09-logging.js?v=121',
   '/accessibility.js?v=1',
-  '/js/10-boot.js?v=109',
+  '/js/10-boot.js?v=110',
   '/login.js?v=49', '/icons.css?v=4',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

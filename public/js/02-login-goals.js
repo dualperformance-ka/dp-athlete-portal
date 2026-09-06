@@ -237,8 +237,9 @@ async function doLogin(code,prevalidatedRoster){
   // A persisted week paints immediately. Refresh it without clearing the
   // visible cards; on a cold start loadWeek already performs the network read.
   var weekRefreshPromise=initialWeekPromise.then(function(){
-    return window._trainingReadServedPersistent&&typeof refreshWeekInBackground==='function'
-      ?refreshWeekInBackground():null;
+    // loadWeek now kicks this for whichever week it painted, so boot goes
+    // through the same deduped helper rather than starting a second read.
+    return typeof refreshWeekIfStale==='function'?refreshWeekIfStale():null;
   }).catch(function(){});
   // Once cloud state and the fresh plan have both settled, re-apply reschedules
   // and completion state using the in-memory snapshot. This is a local rerender,

@@ -129,6 +129,45 @@ async function loadTrainingReadSnapshot(startISO,endISO,options){
   try{return await _trainingReadPromise;}
   finally{_trainingReadPromise=null;}
 }
+// The week snapshot lives in localStorage. Clearing Cache Storage and updating
+// the service worker — all the Refresh button used to do — left it untouched,
+// so the one action an athlete takes when their plan looks wrong reloaded the
+// app and served the same stale week straight back. Only the week snapshots go;
+// logs, drafts and goals are the athlete's own work and stay.
+function clearTrainingWeekCache(){
+  var removed=0;
+  try{
+    var keys=[];
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(k&&k.indexOf('dp_training_week_v1_')===0)keys.push(k);
+    }
+    for(var j=0;j<keys.length;j++){localStorage.removeItem(keys[j]);removed++;}
+  }catch(e){}
+  window._trainingReadSnapshot=null;
+  window._trainingReadServedPersistent=false;
+  return removed;
+}
+var _weekRefreshInFlight={};
+// A week can be served from the 24 hour persisted snapshot, and that can be ANY
+// week the athlete has opened before, not just the one on screen at boot — the
+// coach may have programmed it since. Re-read that week and re-render. Deduped
+// per week, because the re-render this triggers calls loadWeek again; the
+// forced read clears _trainingReadServedPersistent, so the second pass stops.
+function refreshWeekIfStale(){
+  if(!window._trainingReadServedPersistent)return null;
+  var ws=getWS(),we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);
+  var key=trainingReadCacheKey(localISO(ws),localISO(we));
+  if(_weekRefreshInFlight[key])return _weekRefreshInFlight[key];
+  // Deferred a tick so the render that is already in flight finishes painting
+  // before the re-read replaces it.
+  var pending=new Promise(function(resolve){
+    setTimeout(function(){resolve(refreshWeekInBackground());},0);
+  }).catch(function(){return false;});
+  _weekRefreshInFlight[key]=pending;
+  pending.then(function(){delete _weekRefreshInFlight[key];},function(){delete _weekRefreshInFlight[key];});
+  return pending;
+}
 async function refreshWeekInBackground(){
   var ws=getWS(),we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);
   var startISO=localISO(ws),endISO=localISO(we);
@@ -179,6 +218,10 @@ async function loadWeek(){
       loadPlannedSessions(localISO(fetchStart),localISO(fetchEnd),bundle&&bundle.planned)
     ]);
   }catch(e){console.warn('Week load failed',e);results=[null,null,null];}
+  // A plan that came out of the persisted snapshot can be up to a day behind
+  // the coach. Re-read this week in the background — before the early returns
+  // below, because an empty week is exactly the case that needs it.
+  refreshWeekIfStale();
   var mapped=results[2];
   setDisplay('loadingEl','none');
   setDisplay('weeklyLoadingEl','none');
