@@ -1644,7 +1644,13 @@ function _nsMileHTML(m,assisted){
     h+='<div class="ns-mnode'+(on?' on':'')+(cur?' cur':'')+'"><span class="ns-me ov-node-ic"><svg class="icon"><use href="#i-'+n[0]+'"/></svg></span><span class="ns-ml">'+n[1]+'</span></div>';
     if(ix<nodes.length-1) h+='<span class="ns-mbar'+(ix<m.stage-1?' on':'')+'"></span>';
   });
-  return h+'</div>';
+  h+='</div>';
+  // On a narrow phone four labels cannot be both legible and inside the card,
+  // so the per-node labels are visually hidden there (still read aloud, still
+  // in the DOM) and the current step gets this full-width line instead.
+  var current=nodes[Math.min(m.stage,nodes.length)-1];
+  if(current) h+='<div class="ns-mcur" aria-hidden="true">'+esc(current[1])+'</div>';
+  return '<div class="ns-mile-wrap">'+h+'</div>';
 }
 // Live progress for the session in front of them, computed from what's entered
 // right now. Separate from the (frozen) Next Session verdict so one never
@@ -1689,7 +1695,9 @@ function _nsLiveProgress(ex,currentEffort,rec,resolvedName,history,previousEffor
   }
   if(complete){
     nextRec=_nsRecommendation(ex,currentEffort,resolvedName,history);
-    prompt='Next session: '+nextRec.action;
+    // Only worth saying when it differs from the action already on the card.
+    // Repeating it verbatim under the headline is noise, not reinforcement.
+    if(!rec||rec.action!==nextRec.action)prompt='Next session: '+nextRec.action;
   }
   // Beating a per-set target is acknowledged immediately and precisely. It is
   // progress, not permission: the unlock still needs every required set.
@@ -1738,6 +1746,46 @@ function _nsRowRepPlaceholder(rec,ex,rowIndex,prevSet,side){
   if(side==='right')return (prevSet&&prevSet.repsRight)?String(prevSet.repsRight):'R';
   return (prevSet&&prevSet.reps)?String(prevSet.reps):'—';
 }
+// A recommendation below a load the athlete has already reached is a
+// consolidation step. Saying so at the point of confusion is the whole job:
+// the number went down, their strength did not.
+function _nsPeakHtml(rec){
+  if(!rec.belowPeak||!rec.reached||rec.reached.loadKg==null)return '';
+  var reached=_nsBare(rec.reached.loadKg)+(rec.assisted?'kg assist':'kg');
+  return '<div class="ns-peak"><span class="ns-pk-i ov-node-ic"><svg class="icon"><use href="#i-trophy"/></svg></span>'+
+    '<span>You have already reached '+esc(reached)+'. This is the step that locks it in, not a step backwards.</span></div>';
+}
+// The record behind the recommendation: completed sessions on this exercise,
+// oldest to newest. Two points is the minimum that reads as a direction.
+function _nsHistoryHtml(rec){
+  var points=rec.history;
+  if(!points||points.length<2)return '';
+  var best=null;
+  points.forEach(function(point){
+    if(point.loadKg==null)return;
+    if(best==null||(rec.assisted?point.loadKg<best:point.loadKg>best))best=point.loadKg;
+  });
+  var unit=rec.assisted?'kg assist':'kg';
+  var items=points.map(function(point){
+    var isBest=point.loadKg!=null&&point.loadKg===best;
+    var load=point.loadKg==null?'—':_nsBare(point.loadKg)+unit;
+    var when=point.date?_nsHistoryDate(point.date):'';
+    return '<li class="ns-hpt'+(isBest?' is-best':'')+'">'+
+      '<span class="ns-hl">'+esc(load)+'</span>'+
+      '<span class="ns-hr">'+point.totalReps+' reps</span>'+
+      (when?'<span class="ns-hd">'+esc(when)+'</span>':'')+
+      (isBest?'<span class="ns-hb">Best</span>':'')+'</li>';
+  }).join('');
+  return '<div class="ns-history"><div class="ns-tl">Your progress here</div>'+
+    '<ol class="ns-hlist" aria-label="Completed sessions on this exercise, oldest first">'+items+'</ol></div>';
+}
+function _nsHistoryDate(value){
+  var text=String(value||'').slice(0,10),parts=text.split('-');
+  if(parts.length!==3)return '';
+  var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var month=months[parseInt(parts[1],10)-1];
+  return month?(parseInt(parts[2],10)+' '+month):'';
+}
 function _nsBody(rec){
   var t='';
   if(rec.target&&rec.target.length){
@@ -1768,7 +1816,7 @@ function _nsBody(rec){
     '<div class="ns-status"><span class="ns-dot"></span>'+esc(rec.status)+'</div>'+
     todayLine+t+perSet+
     '<div class="ns-hd">'+'<svg class="icon"><use href="#i-target"/></svg>'+'Next session</div>'+
-    '<div class="ns-action">'+esc(rec.action)+'</div>'+approx+flag+mile+reason+live+'</div>';
+    '<div class="ns-action">'+esc(rec.action)+'</div>'+_nsPeakHtml(rec)+approx+flag+mile+reason+live+_nsHistoryHtml(rec)+'</div>';
 }
 function _nsSubtitle(rec,state,summary,doneCount,total){
   if(state==='done') return '<span class="ns-tag done">Done</span><span class="ns-sum">'+esc(summary||'')+'</span>';

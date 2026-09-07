@@ -4321,6 +4321,37 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   font-size:var(--font-xs);font-weight:750;letter-spacing:.02em
 }
 .ns-coach-review{color:var(--run)}
+/* High-water mark, shown where a stepped-back number would otherwise read as
+   a demotion. Text carries the meaning; the trophy is decoration. */
+.ns-peak{
+  display:flex;align-items:flex-start;gap:8px;margin-top:8px;padding:8px 10px;
+  border:1px solid var(--pb,rgba(167,139,250,.4));border-radius:var(--radius-sm);
+  background:rgba(167,139,250,.08);
+  font-size:var(--font-xs);line-height:1.45;color:var(--text)
+}
+.ns-peak .ns-pk-i{color:var(--pb,#a78bfa);flex-shrink:0;margin-top:1px}
+/* Progress strip: completed sessions on this exercise, oldest to newest. It
+   scrolls inside itself so a long block never widens the card. */
+.ns-history{margin-top:11px;border-top:1px dashed var(--border);padding-top:10px;min-width:0}
+.ns-hlist{
+  display:flex;gap:6px;margin:0;padding:0 0 2px;list-style:none;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none
+}
+.ns-hlist::-webkit-scrollbar{display:none}
+.ns-hpt{
+  flex:0 0 auto;display:flex;flex-direction:column;gap:1px;padding:6px 9px;
+  border:1px solid var(--border-mid,rgba(236,233,226,.16));border-radius:var(--radius-sm);
+  background:var(--surface);min-width:62px
+}
+.ns-hpt .ns-hl{font-size:var(--font-sm);font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;line-height:1.15}
+.ns-hpt .ns-hr{font-size:var(--font-xs);color:var(--muted);font-variant-numeric:tabular-nums}
+.ns-hpt .ns-hd{font-size:var(--font-xs);color:var(--dim);letter-spacing:.02em}
+.ns-hpt .ns-hb{
+  margin-top:2px;font-family:var(--mono);font-size:var(--font-xs);letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ok)
+}
+.ns-hpt.is-best{border-color:var(--ok-border);background:var(--ok-bg)}
+
 
 /* Live progression milestone ladder (v58) */
 .ns-mile{display:flex;align-items:center;margin-top:12px}
@@ -4334,6 +4365,44 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .ns-mnode.cur{transform:scale(1.06)}
 .ns-mbar{flex:1;height:2px;background:var(--border-mid,rgba(236,233,226,.16));margin:0 4px;margin-bottom:11px;border-radius:var(--radius-xs);transition:background .2s}
 .ns-mbar.on{background:var(--run,var(--brand-blue))}
+
+/* ── Recommendation card fitting ─────────────────────────────────────────────
+   The milestone ladder used to be four non-shrinking nodes with nowrap labels,
+   so at a narrow width or a large dynamic-type setting the last node ("Increase
+   next") ran off the right edge of the card. Nodes now share the width and the
+   labels wrap; the connecting bars take what is left. */
+.ns-block{min-width:0;overflow-wrap:break-word}
+.ns-mile{align-items:flex-start;min-width:0;gap:0}
+.ns-mnode{flex:1 1 0;min-width:0;flex-shrink:1}
+/* Labels wrap between words, never inside one. At 12px "Unlocked" was a hair
+   wider than its node and split as "UNLOCKE / D"; shrinking the type far enough
+   to fix that on a small phone would have taken it below a legible size, so
+   narrow widths drop to one full-width label instead (see the media query). */
+.ns-mnode .ns-ml{white-space:normal;overflow-wrap:break-word;max-width:100%;line-height:1.2}
+.ns-mile-wrap{margin-top:12px;min-width:0}
+.ns-mile-wrap .ns-mile{margin-top:0}
+.ns-mcur{display:none}
+@media(max-width:409px){
+  /* Visually hidden, not removed: a screen reader still reads every step. */
+  .ns-mnode .ns-ml{
+    position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0
+  }
+  .ns-mcur{
+    display:block;margin-top:7px;text-align:center;font-size:var(--font-xs);
+    letter-spacing:.04em;text-transform:uppercase;color:var(--text);font-weight:700
+  }
+  .ns-mbar{margin-bottom:0}
+}
+/* Scaling the whole node pushed the outer labels past the card edge; scale the
+   icon instead so the current step still stands out. */
+.ns-mnode.cur{transform:none}
+.ns-mnode.cur .ns-me{transform:scale(1.15);display:inline-block}
+.ns-mbar{flex:0 1 8px;min-width:5px;align-self:flex-start;margin:6px 2px 0}
+/* Rep targets wrap rather than overflow when a coach programmes many sets. */
+.ns-tgrid{flex-wrap:wrap}
+.ns-trep{flex:1 1 56px;min-width:0}
+.ns-today strong,.ns-action{overflow-wrap:break-word;min-width:0}
 
 /* ===================================================================== */
 /* Compact mobile home — Option B: two daily sessions as slim full-width  */
