@@ -243,6 +243,17 @@ function toSplitExercise(exercise) {
     // this file — see the explicit column list in sessionPrescriptions().
     notes: exercise.athlete_notes || '',
     prescriptionLine: line,
+    // The prescription line stays for display only. The recommendation engine
+    // reads these typed fields instead, so a coach's target load, effort target
+    // and rep bounds control the decision rather than being parsed back out of
+    // a human-readable string. Numeric fields keep their numeric type here on
+    // purpose: the legacy string fields above are what the old renderers read.
+    repMin: exercise.rep_min == null ? null : Number(exercise.rep_min),
+    repMax: exercise.rep_max == null ? null : Number(exercise.rep_max),
+    targetLoad: exercise.target_load == null ? null : Number(exercise.target_load),
+    percent1rm: exercise.percent_1rm == null ? null : Number(exercise.percent_1rm),
+    targetRpe: exercise.rpe == null ? null : Number(exercise.rpe),
+    targetRir: exercise.rir == null ? null : Number(exercise.rir),
     cues: exercise.technique_cues || '',
     progression: exercise.progression_rule || '',
     supersetGroup: exercise.superset_group || '',

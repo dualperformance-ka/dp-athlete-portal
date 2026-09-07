@@ -19,6 +19,7 @@ import { join } from 'node:path';
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const logging = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
 const training = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
+const engine = readFileSync(join(root, 'public', 'js', '08-strength-engine.js'), 'utf8');
 
 function slice(text, startMarker, endMarker) {
   const start = text.indexOf(startMarker);
@@ -64,8 +65,14 @@ function makeContext(presentIds, sets) {
     refreshStrengthExerciseStates() {},
     refreshGymSubmitState() {},
     markInlinePbs() {},
+    // This test is about which sets survive a draft merge, not about the
+    // recommendation snapshot stored alongside them.
+    strengthRecommendationSnapshot: () => ({}),
   };
   vm.createContext(context);
+  // STRENGTH_POLICY comes from the real engine so the stored policy version
+  // cannot drift away from the one the app writes.
+  vm.runInContext(engine, context);
   vm.runInContext(
     slice(training, 'function exerciseHistoryKey(', 'function getExerciseSetsFromLog(') +
     slice(logging, 'function mergeStrengthLog(', 'function draftGym(') +

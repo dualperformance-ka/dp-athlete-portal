@@ -6,6 +6,9 @@ import { join } from 'node:path';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const source = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
+// The progression engine is a separate script in index.html and must be in the
+// context before 08-training.js, which delegates every decision to it.
+const strengthEngine = readFileSync(join(root, 'public', 'js', '08-strength-engine.js'), 'utf8');
 const context = {
   console,
   esc: (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]),
@@ -32,6 +35,7 @@ const context = {
   }
 };
 vm.createContext(context);
+vm.runInContext(strengthEngine, context);
 vm.runInContext(source, context);
 
 test('compact history trend uses top load and reverses newest-first history chronologically', () => {

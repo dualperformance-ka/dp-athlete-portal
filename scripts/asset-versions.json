@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 150,
-    "sha": "a02f5cd07dd7"
+    "version": 151,
+    "sha": "09aca6d98a31"
   },
   "desktop.css": {
     "version": 7,
@@ -59,13 +59,17 @@
     "version": 1,
     "sha": "24321002123e"
   },
+  "js/08-strength-engine.js": {
+    "version": 1,
+    "sha": "d1f498ca093b"
+  },
   "js/08-training.js": {
-    "version": 137,
-    "sha": "4a9d8bb71641"
+    "version": 138,
+    "sha": "83312ff7f4ae"
   },
   "js/09-logging.js": {
-    "version": 121,
-    "sha": "8e2d66f5c809"
+    "version": 122,
+    "sha": "199293a7861e"
   },
   "accessibility.js": {
     "version": 1,

@@ -1116,7 +1116,19 @@ function getExerciseHistory(sessionId,exerciseName){
     if(!clean.length) return;
     var sessionDate=String(entry.__sessionDate||dateById[sid]||entry.__submittedAt||'').slice(0,10)||null;
     var updatedAt=Date.parse(entry.__updatedAt||entry.__submittedAt||sessionDate||'')||0;
-    out.push({sessionId:sid,date:sessionDate,updatedAt:updatedAt,sets:clean});
+    var rxSnapshot=entry.__strengthRx&&typeof entry.__strengthRx==='object'?entry.__strengthRx:null;
+    var rxEntry=null;
+    if(rxSnapshot)Object.keys(rxSnapshot).some(function(key){
+      if(exerciseHistoryKey(key)!==exerciseHistoryKey(exerciseName))return false;
+      rxEntry=rxSnapshot[key];return true;
+    });
+    // Sessions logged before the snapshot existed carry no context and stay
+    // comparable; anything logged since declares its unit and convention, so a
+    // change to either starts a fresh equipment ladder rather than mixing them.
+    var context=rxEntry&&rxEntry.rx
+      ?String(exerciseHistoryKey(exerciseName))+'|'+(rxEntry.rx.unit||'kg')+'|'+(rxEntry.rx.convention||'total')
+      :null;
+    out.push({sessionId:sid,date:sessionDate,updatedAt:updatedAt,sets:clean,context:context});
   });
   out.sort(function(a,b){
     if(a.date&&b.date&&a.date!==b.date) return a.date<b.date?1:-1;
@@ -1283,35 +1295,68 @@ function _strengthEasierStepInfo(name,load,history,ex,assisted){
   if(guess===0)return {next:load,exact:true};
   return {next:assisted?Math.round((load+guess)*2)/2:Math.max(0,Math.round((load-guess)*2)/2),exact:false};
 }
+// Which answers the calibration control accepts. New logs use the four typed
+// outcomes; the three legacy codes stay valid so drafts and submitted sessions
+// written before this change keep meaning what they meant.
+var STRENGTH_EFFORT_CODES=/^(on_target|too_easy|too_hard|form_pain|reserve|failure|form_break)$/;
+function strengthEffortLabel(effort){
+  var labels={on_target:'On target',too_easy:'Too easy',too_hard:'Too hard',form_pain:'Technique / niggle',
+    reserve:'Too easy',failure:'On target',form_break:'Technique / niggle'};
+  return labels[String(effort||'')]||'Set rated';
+}
+// How the prescribed effort reads on the card. A coach RIR/RPE wins; with no
+// coach target this is the conservative default, and it never asks for failure.
+function strengthEffortTargetLabel(pres){
+  if(!pres)return 'about 2 reps in reserve';
+  if(pres.targetRir<=0)return 'the effort your coach set';
+  return pres.targetRir+' rep'+(pres.targetRir===1?'':'s')+' in reserve (RPE '+_nsTrim(pres.targetRpe)+')';
+}
+function _nsTrim(value){var n=Math.round(Number(value)*10)/10;return Number.isInteger(n)?String(n):String(n);}
+function strengthPrescriptionFor(ex,resolvedName){
+  var pres=normaliseStrengthPrescription(ex,resolvedName||(ex&&ex.exercise));
+  // Share the portal's own history key so the engine's context matches the one
+  // stored on past sessions, including the canonicalised names it merges.
+  pres.contextKey=exerciseHistoryKey(pres.variation)+'|'+pres.unit+'|'+pres.convention;
+  return pres;
+}
+// The engine learns rungs from the programmed working window only, so it is
+// handed this exercise's own slicer rather than a raw session log.
+function strengthWorkingSlicer(ex){
+  return function(sets){return getWorkingSlice(ex,sets);};
+}
+// First-working-set calibration, delegated to the pure engine. Returns the
+// legacy {tone,direction,targetWeight,message} shape plus the structured
+// decision fields the card renders from.
 function strengthEffortGuidance(ex,effort,set,resolvedName,history,finalSet){
   if(!effort||!set)return null;
-  var name=resolvedName||ex.exercise||'',assisted=_isAssistedExercise(name),load=parseFloat(set.weight),reps=_effReps(set);
-  var low=parseInt(String(ex.repRange||ex.reps||'').split('-')[0],10)||8,top=getTopRep(ex)||low;
-  var scope=finalSet?'next session':'remaining sets',direction='same',tone='green',lead='Target hit';
-  if(effort==='reserve'){direction='harder';tone='yellow';lead='More reps were available';}
-  else if(effort==='form_break'){direction='easier';tone='red';lead='Technique broke before the target';}
-  else if(effort==='failure'&&reps!=null&&reps!==Infinity&&reps<low){direction='easier';tone='red';lead='Technical failure came below the rep range';}
-  else if(effort==='failure'&&reps!=null&&reps!==Infinity&&reps>top){direction='harder';tone='yellow';lead='Technical failure came above the rep range';}
-  if(isNaN(load)||load<0)return {tone:tone,direction:direction,targetWeight:null,message:lead+'. Log the load before adjusting the '+scope+'.'};
-  if(direction==='same')return {tone:tone,direction:direction,targetWeight:load,message:lead+' — keep '+_nsKg(load)+(assisted?' assistance':'')+' for the '+scope+'.'};
-  var info=direction==='harder'
-    ?(assisted?_ovAssistanceStepInfo(name,load,history,ex):_ovStepInfo(name,load,history,ex))
-    :_strengthEasierStepInfo(name,load,history,ex,assisted);
-  if(info.next===load)return {tone:tone,direction:direction,targetWeight:null,message:lead+' — use a harder variation or add clean reps for the '+scope+'.'};
-  var verb=assisted?(direction==='harder'?'reduce assistance to ':'increase assistance to '):(direction==='harder'?'move up to ':'reduce to ');
-  return {tone:tone,direction:direction,targetWeight:info.next,message:lead+' — '+verb+_nsKg(info.next)+' for the '+scope+'.'};
+  var pres=strengthPrescriptionFor(ex,resolvedName);
+  var ladder=strengthLadder(pres,history,strengthWorkingSlicer(ex));
+  var row=normaliseStrengthSets([{
+    weight:set.weight,reps:set.reps,repsLeft:set.repsLeft,repsRight:set.repsRight,
+    rpe:set.rpe,rir:set.rir,effort:effort
+  }],pres,'working')[0];
+  var decision=strengthCalibrationDecision({prescription:pres,set:row,ladder:ladder,finalSet:!!finalSet});
+  if(!decision)return null;
+  var direction=decision.outcome==='increase'?'harder':(decision.outcome==='reduce'?'easier':'same');
+  return {
+    tone:decision.tone,direction:direction,targetWeight:decision.targetLoad,
+    message:decision.message,repTarget:decision.repTarget,outcome:decision.outcome,
+    conflict:!!decision.conflict,flagCoach:!!decision.flagCoach,
+    confidence:decision.confidence,policyVersion:decision.policyVersion
+  };
 }
 function strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex){
   if(!guidance)return '';
   return '<span>'+esc(guidance.message)+'</span>';
 }
-function strengthEffortPickerHtml(i,ei,si,effort,guidance,nextRowIndex,required,prompting){
-  var options=[['reserve','Too light','More reps available'],['failure','Right load','No clean rep left'],['form_break','Form broke','Stopped for technique']];
-  var labels={reserve:'Too light',failure:'Right load',form_break:'Form broke'},label=labels[effort]||'Set calibrated';
+function strengthEffortPickerHtml(i,ei,si,effort,guidance,nextRowIndex,required,prompting,pres){
+  var options=[['on_target','On target','Effort as prescribed'],['too_easy','Too easy','Clean reps to spare'],['too_hard','Too hard','Under the range, or close to failing'],['form_pain','Technique / niggle','Form broke or something hurt']];
+  var label=strengthEffortLabel(effort);
   var h='<div class="set-effort'+(effort?' is-rated':(prompting?' is-prompting':''))+'" id="effort_'+i+'_'+ei+'_'+si+'">';
   h+='<button type="button" class="set-effort-summary" onclick="toggleStrengthEffortPanel('+i+','+ei+','+si+')"><span>'+esc(label)+' ✓</span><small>Change</small></button>';
-  h+='<div class="set-effort-editor"><div class="set-effort-head"><strong>How did the first working set finish?</strong>'+(required?'<small>Required · target 0 RIR</small>':'')+'</div><div class="set-effort-options">';
-  options.forEach(function(opt){h+='<button type="button" class="'+(effort===opt[0]?'active':'')+'" aria-pressed="'+(effort===opt[0]?'true':'false')+'" onclick="setStrengthEffort('+i+','+ei+','+si+',\''+opt[0]+'\',this)"><strong>'+opt[1]+'</strong><small>'+opt[2]+'</small></button>';});
+  var effortTarget=pres?strengthEffortTargetLabel(pres):'about 2 reps in reserve';
+  h+='<div class="set-effort-editor"><div class="set-effort-head"><strong>How did the first working set finish?</strong>'+(required?'<small>Required · aim for '+esc(effortTarget)+'</small>':'')+'</div><div class="set-effort-options" role="group" aria-label="First working set effort and quality">';
+  options.forEach(function(opt){h+='<button type="button" class="'+(effort===opt[0]?'active':'')+'" aria-pressed="'+(effort===opt[0]?'true':'false')+'" aria-label="'+esc(opt[1]+' — '+opt[2])+'" onclick="setStrengthEffort('+i+','+ei+','+si+',\''+opt[0]+'\',this)"><strong>'+opt[1]+'</strong><small>'+opt[2]+'</small></button>';});
   return h+'</div><div class="set-effort-advice tone-'+(guidance&&guidance.tone||'blue')+'" id="effort_advice_'+i+'_'+ei+'_'+si+'">'+strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex)+'</div></div></div>';
 }
 // Kept for callers that only want the number.
@@ -1398,14 +1443,17 @@ function setStrengthEffort(i,ei,si,effort,button){
   var row=document.getElementById('sr_'+i+'_'+ei+'_'+si),panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(!row||!panel)return;
   row.setAttribute('data-effort',effort);panel.classList.add('is-rated');panel.classList.remove('is-prompting','is-editing','needs-attention');
   panel.querySelectorAll('.set-effort-options button').forEach(function(opt){var active=opt===button;opt.classList.toggle('active',active);opt.setAttribute('aria-pressed',active?'true':'false');});
-  var labels={reserve:'Too light',failure:'Right load',form_break:'Form broke'},summary=panel.querySelector('.set-effort-summary span');if(summary)summary.textContent=(labels[effort]||'Set calibrated')+' ✓';
+  var summary=panel.querySelector('.set-effort-summary span');if(summary)summary.textContent=strengthEffortLabel(effort)+' ✓';
   var card=row.closest('.exc'),splitKey=card&&card.getAttribute('data-split-key')||'Upper A',exercises=getSplit(splitKey),ex=exercises[ei];if(!ex)return;
   var resolvedEx=exPicks[ex.exercise]||ex.exercise,history=getExerciseHistory(sessions[i].id,resolvedEx),sets=collectExerciseSets(i,ei,true),current=sets.find(function(set){return Number(set._rowIndex)===si;})||{};
   var warmups=parseInt(ex.warmupSets,10)||0,working=parseInt(ex.workingSets||ex.sets,10)||1,finalSet=si>=warmups+working-1,nextRowIndex=finalSet?null:si+1;
   var guidance=strengthEffortGuidance(ex,effort,current,resolvedEx,history,finalSet),advice=document.getElementById('effort_advice_'+i+'_'+ei+'_'+si);
   if(advice){advice.className='set-effort-advice tone-'+(guidance&&guidance.tone||'blue');advice.innerHTML=strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex);}
-  var repTarget=parseInt(String(ex.repRange||ex.reps||'').split('-')[0],10)||parseInt(ex.reps,10)||null;
+  // Only still-empty rows move, and their rep prompt resets to the floor (or the
+  // coach's exact target). A set already logged is never rewritten.
+  var repTarget=guidance&&guidance.repTarget!=null?guidance.repTarget:(parseInt(String(ex.repRange||ex.reps||'').split('-')[0],10)||parseInt(ex.reps,10)||null);
   if(guidance&&guidance.targetWeight!=null&&guidance.direction!=='same'&&!finalSet)applyStrengthEffortLoadToRemaining(i,ei,si+1,warmups+working-1,guidance.targetWeight,repTarget);
+  if(guidance&&guidance.flagCoach&&typeof showToast==='function')showToast('Logged — stop or reduce the load, and let your coach know');
   draftGym(i,splitKey);autoCompleteStrengthSet(i,ei,si);
 }
 function applyStrengthEffortLoad(i,ei,si,weight){
@@ -1479,154 +1527,61 @@ function refreshStrengthFeedback(i,splitKey){
 // ---------------------------------------------------------------------------
 function _nsFilled(n,v){var a=[];for(var i=0;i<n;i++)a.push(v);return a;}
 function computeOverload(ex,effort,resolvedName,history){
-  var name=resolvedName||ex.exercise||'';
-  var assisted=_isAssistedExercise(name);
-  var low=parseInt(String(ex.repRange||ex.reps||'').split('-')[0],10)||8;
-  var top=getTopRep(ex)||low;
-  var wantSets=parseInt(ex.workingSets||ex.sets,10)||3;
-
-  var working=getWorkingSlice(ex,effort||[]);
-  var loads=working.map(function(s){return parseFloat(s.weight);}).filter(function(n){return !isNaN(n)&&n>0;});
-  // On assisted movements, the lowest number is the hardest setting because it
-  // represents less help from the machine.
-  var maxLoad=loads.length?(assisted?Math.min.apply(null,loads):Math.max.apply(null,loads)):null;
-  var reps=working.map(_effReps).filter(function(v){return v!=null&&v!==Infinity;});
-
-  // 0. No usable history: set a base.
-  if(!working.length||(maxLoad==null&&!reps.length)){
-    return {tone:'blue',status:assisted?'Set Assistance':'Maintain Weight',action:assisted?'Find your assistance level':'Find your weight',weightKg:null,arrow:'',assisted:assisted,
-      target:null,targetNote:assisted?('Choose enough assistance for '+low+' clean reps, with 2 to 3 left in the tank.'):('Pick a weight you control for '+low+' clean reps, 2 to 3 left in the tank.'),
-      reason:'First working session. Form comes first, numbers after.'};
+  var pres=strengthPrescriptionFor(ex,resolvedName);
+  var slicer=strengthWorkingSlicer(ex);
+  var ladder=strengthLadder(pres,history,slicer);
+  // getWorkingSlice still decides which rows are programmed working sets: it
+  // carries the legacy row-index and warm-up rules that older logs depend on.
+  var rows=normaliseStrengthSets(getWorkingSlice(ex,effort||[]),pres,'working');
+  var rec=strengthProgressionDecision({
+    prescription:pres,sets:rows,history:history||[],ladder:ladder,sliceWorking:slicer
+  });
+  // Render-shape compatibility. `approx` has always meant "the equipment step is
+  // a guess", which is exactly the engine's `estimated`.
+  rec.assisted=pres.assisted;
+  rec.approx=!!rec.estimated;
+  rec.prescription=pres;
+  var reps=strengthCompletedRows(rows).map(function(row){return row.reps;});
+  if(reps.length&&/^(increase_load|increase_reps|add_reps|load_confirmed)$/.test(rec.decision)){
+    rec.milestone=_nsMilestone(reps,pres.repCeiling,pres.workingSets);
   }
-
-  // Only sets that carry reps count as completed work. A weight typed with the
-  // reps box left empty is an unfinished set, not a zero-rep one.
-  var completedAll=reps.length>=wantSets;
-  var allTop=reps.length>=wantSets&&reps.every(function(v){return v>=top;});
-  var exceeded=reps.length>=wantSets&&reps.every(function(v){return v>top;});
-  var wellBelow=reps.length>=wantSets&&reps.some(function(v){return v<low-2;});
-  var info=assisted?_ovAssistanceStepInfo(name,maxLoad||0,history,ex):_ovStepInfo(name,maxLoad||0,history,ex);
-  var step=info.step;
-  // The first working set calibrates the prescribed load. It can correct an
-  // obviously light/heavy starting point immediately, while the completed
-  // exercise still controls ordinary double progression. This keeps one odd
-  // day from replacing the full-session evidence.
-  var calibrationSet=working[0]||null,calibrationEffort=calibrationSet&&calibrationSet.effort||'',calibrationReps=_effReps(calibrationSet);
-  var calibration=/^(reserve|failure|form_break)$/.test(calibrationEffort)
-    ?strengthEffortGuidance(ex,calibrationEffort,calibrationSet,name,history,true):null;
-  var calibrationTooHeavy=calibrationEffort==='form_break'||(calibrationEffort==='failure'&&calibrationReps!=null&&calibrationReps<low);
-  if(calibrationTooHeavy&&calibration&&calibration.targetWeight!=null){
-    return {tone:'red',status:'Reduce Load',action:assisted?('Increase assistance to '+_nsKg(calibration.targetWeight)):('Start at '+_nsKg(calibration.targetWeight)),weightKg:calibration.targetWeight,arrow:'↻',assisted:assisted,calibrated:true,
-      target:_nsFilled(wantSets,low),targetNote:null,
-      reason:calibrationEffort==='form_break'
-        ?'Your first working set lost clean technique. The next workout starts lighter so every rep can reach technical failure safely.'
-        :'Technical failure arrived below the rep range. The next workout starts lighter so you can own the full range.'};
-  }
-  var calibrationTooLight=calibrationEffort==='reserve'||(calibrationEffort==='failure'&&calibrationReps!=null&&calibrationReps>top);
-  if(calibrationTooLight&&calibration&&calibration.targetWeight!=null){
-    var adjustedSets=working.slice(1).filter(function(s){
-      var load=parseFloat(s.weight);
-      return !isNaN(load)&&load>0&&(assisted?load<=calibration.targetWeight+0.01:load>=calibration.targetWeight-0.01);
-    });
-    var confirmedSets=adjustedSets.filter(function(s){
-      var setReps=_effReps(s);
-      return setReps!=null&&setReps!==Infinity&&setReps>=low&&s.effort!=='form_break';
-    });
-    if(adjustedSets.length&&!confirmedSets.length){
-      var previousLoad=parseFloat(calibrationSet.weight);
-      return {tone:'yellow',status:'Adjustment Not Confirmed',action:assisted?('Start with '+_nsKg(previousLoad)+' assistance'):('Start at '+_nsKg(previousLoad)),weightKg:previousLoad,arrow:'↻',assisted:assisted,calibrated:true,
-        target:_nsFilled(wantSets,low),targetNote:null,
-        reason:'The adjusted setting did not reach '+low+' clean reps, so it did not confirm the change. Return to the previous setting and build from there.'};
-    }
-    var confirmedLoads=confirmedSets.map(function(s){return parseFloat(s.weight);});
-    var applied=confirmedLoads.length>0;
-    var nextStart=applied?(assisted?Math.min.apply(null,confirmedLoads):Math.max.apply(null,confirmedLoads)):calibration.targetWeight;
-    return {tone:'green',status:'Load Calibrated',action:assisted?('Start with '+_nsKg(nextStart)+' assistance'):('Start at '+_nsKg(nextStart)),weightKg:nextStart,arrow:assisted?'↘':'↗',assisted:assisted,calibrated:true,
-      target:_nsFilled(wantSets,low),targetNote:null,
-      reason:applied
-        ?'Your first set showed the starting load was too light, and the remaining sets confirmed the adjustment. Begin there next workout and build through the rep range.'
-        :'Your first set showed the starting load was too light. Begin at the calibrated load next workout and build through the rep range.'};
-  }
-  // Ramped sets (47 / 54 / 61 up the working sets) aren't a single load, so
-  // "stay at 61kg" would read as a flat prescription. Speak about the top set.
-  var distinct={};loads.forEach(function(v){distinct[v]=1;});
-  var ramped=Object.keys(distinct).length>1;
-
-  // 1. Every working set at/over the top of the range -> add load.
-  if(maxLoad!=null&&allTop){
-    if(assisted){
-      var nextAssist=info.next;
-      var assistApprox=!info.exact;
-      return {tone:'green',status:'Ready to Progress',action:nextAssist>0?'Reduce assistance to '+_nsKg(nextAssist):'Try bodyweight',weightKg:nextAssist,arrow:'↘',approx:assistApprox,assisted:true,
-        target:_nsFilled(wantSets,low),targetNote:null,milestone:_nsMilestone(reps,top,wantSets),
-        reason:'Progression unlocked. You earned less assistance next session.'+(assistApprox?' Round to the next setting your machine actually has.':'')};
-    }
-    if(step===0){ // bodyweight: push reps past the range instead of adding load
-      return {tone:'green',status:'Ready to Increase',action:'Add reps beyond '+top,weightKg:maxLoad,arrow:'↗',
-        target:_nsFilled(wantSets,top+1),targetNote:null,milestone:_nsMilestone(reps,top,wantSets),
-        reason:'Progression unlocked. Push reps past '+top+' next session.'};
-    }
-    var next=info.next; if(next<=maxLoad) next=Math.round((maxLoad+step)*2)/2;
-    // approx = we're guessing the equipment's step because there isn't enough
-    // logged history yet. Say so rather than sending them after a weight that
-    // may not exist on their rack.
-    var approx=!info.exact;
-    return {tone:'green',status:'Ready to Increase',action:(ramped?'Top set to ':(approx?'Increase to about ':'Increase to '))+_nsKg(next),weightKg:next,arrow:'↗',approx:approx,
-      target:_nsFilled(wantSets,low),targetNote:null,milestone:_nsMilestone(reps,top,wantSets),
-      reason:(exceeded?'Progression unlocked. You blew past the range, so the load climbs next session.':'Progression unlocked. You earned the jump next session.')
-        +(approx?' Round to the next weight your equipment actually has.':'')};
-  }
-
-  // 2. Stall: 3+ sessions stuck at the same load, none topped, no rep gain -> deload.
-  if(maxLoad!=null&&history&&history.length>=3){
-    var recent=history.slice(0,3).map(function(h){
-      var w=getWorkingSlice(ex,h.sets||h);
-      var l=w.map(function(s){return parseFloat(s.weight);}).filter(function(n){return !isNaN(n)&&n>0;});
-      var rp=w.map(_effReps).filter(function(v){return v!=null&&v!==Infinity;});
-      return {ml:l.length?(assisted?Math.min.apply(null,l):Math.max.apply(null,l)):null,tot:rp.reduce(function(a,b){return a+b;},0),topped:rp.length&&rp.every(function(v){return v>=top;})};
-    });
-    var sameLoad=recent.every(function(x){return x.ml!=null&&x.ml===recent[0].ml;});
-    var noneTopped=recent.every(function(x){return !x.topped;});
-    var noGain=recent[0].tot<=recent[2].tot;
-    // Already backed off? Then the advice has been taken; don't keep repeating it.
-    var alreadyDeloaded=maxLoad!=null&&(assisted?maxLoad>recent[0].ml:maxLoad<recent[0].ml);
-    if(sameLoad&&noneTopped&&noGain&&!alreadyDeloaded){
-      var deload=assisted?_ovRungAtOrAbove(recent[0].ml*1.1,history,ex):_ovRungAtOrBelow(recent[0].ml*0.9,history,ex);
-      return {tone:'red',status:'Rebuild Technique',action:(assisted?'Increase assistance to ':'Reduce to ')+_nsKg(deload),weightKg:deload,arrow:'↻',assisted:assisted,
-        target:_nsFilled(wantSets,low),targetNote:null,
-        reason:assisted
-          ?'Stuck at '+_nsKg(recent[0].ml)+' assistance for several sessions. Add some help, sharpen form, then reduce it again.'
-          :'Stuck at '+_nsKg(recent[0].ml)+' for several sessions. Back off, sharpen form, then climb again with momentum.'};
-    }
-  }
-
-  // 3. Missed the minimum badly -> hold and rebuild.
-  if(wellBelow&&maxLoad!=null){
-    return {tone:'red',status:'Rebuild Technique',action:assisted?'Keep assistance at '+_nsKg(maxLoad):'Keep '+_nsKg(maxLoad),weightKg:maxLoad,arrow:'→',assisted:assisted,
-      target:_nsFilled(wantSets,low),targetNote:null,
-      reason:'You fell short of '+low+' reps. '+(assisted?'Own this assistance level before reducing the help.':'Own this weight before adding more.')};
-  }
-
-  // 4. Last session didn't finish the prescribed working sets -> finish them first.
-  if(!completedAll){
-    return {tone:'blue',status:assisted?'Maintain Assistance':'Maintain Weight',action:assisted?('Keep assistance at '+(maxLoad!=null?_nsKg(maxLoad):'this level')):('Keep '+(maxLoad!=null?_nsKg(maxLoad):'this weight')),weightKg:maxLoad,arrow:'→',assisted:assisted,
-      target:_nsFilled(wantSets,Math.max(low,reps.length?Math.max.apply(null,reps):low)),targetNote:null,
-      reason:'Only '+reps.length+' of '+wantSets+' working sets logged last time. Complete all '+wantSets+' before '+(assisted?'assistance changes.':'the weight moves.')};
-  }
-
-  // 5. In range, not topped -> hold and beat last session (+1 total rep).
-  var tgt=[];
-  for(var k=0;k<wantSets;k++){var b=reps[k]!=null?reps[k]:(reps.length?reps[reps.length-1]:low);tgt.push(Math.min(top,b));}
-  for(var m2=0;m2<tgt.length;m2++){if(tgt[m2]<top){tgt[m2]=tgt[m2]+1;break;}}
-  var lastTotal=reps.reduce(function(a,b){return a+b;},0);
-  return {tone:'yellow',status:'Beat Last Week',action:assisted?((ramped?'Hardest set stays at ':'Stay at ')+_nsKg(maxLoad)+' assistance'):((ramped?'Top set stays at ':'Stay at ')+_nsKg(maxLoad)),weightKg:maxLoad,arrow:'→',assisted:assisted,
-    target:tgt,targetNote:null,milestone:_nsMilestone(reps,top,wantSets),beatTotal:lastTotal,
-    reason:'Hit one extra rep before '+(assisted?'reducing assistance.':'the weight goes up.')+' Last session was '+lastTotal+' total reps across '+reps.length+' working sets. Beat it.'};
+  rec.beaten=strengthTargetBeaten(pres,rows,rec.target);
+  return rec;
+}
+// A compact, deterministic record of the prescription each exercise was logged
+// under and the recommendation that was on screen at the time, stored with the
+// session. It carries the policy version so a later rule change cannot silently
+// reinterpret an already-submitted workout as though it used the new rules.
+function strengthRecommendationSnapshot(sessionId,exercises){
+  var out={};
+  (exercises||[]).forEach(function(ex){
+    if(!ex||!ex.exercise)return;
+    var resolved=(typeof exPicks!=='undefined'&&exPicks[ex.exercise])||ex.exercise;
+    try{
+      var history=getExerciseHistory(sessionId,resolved);
+      var pres=strengthPrescriptionFor(ex,resolved);
+      var rec=_nsRecommendation(ex,getExercisePreviousEffort(sessionId,resolved),resolved,history);
+      out[resolved]={
+        policyVersion:STRENGTH_POLICY.version,
+        programmed:ex.exercise,
+        rx:{repMode:pres.repMode,repFloor:pres.repFloor,repCeiling:pres.repCeiling,
+          workingSets:pres.workingSets,warmupSets:pres.warmupSets,
+          targetLoad:pres.targetLoad,percent1rm:pres.percent1rm,
+          targetRir:pres.targetRir,targetRpe:pres.targetRpe,effortSource:pres.targetEffortSource,
+          loadMode:pres.loadMode,unit:pres.unit,convention:pres.convention,
+          progression:pres.progression.type,progressionRule:pres.progression.raw},
+        recommendation:{decision:rec.decision,status:rec.status,action:rec.action,
+          weightKg:rec.weightKg,target:rec.target,estimated:!!rec.estimated,
+          confidence:rec.confidence?rec.confidence.level:null,reason:rec.reason}
+      };
+    }catch(e){}
+  });
+  return out;
 }
 function _nsRecommendation(ex,effort,resolvedName,history){
   var rec=computeOverload(ex,effort,resolvedName,history);
   rec.warmupSets=parseInt(ex.warmupSets,10)||0;
-  rec.wantSets=parseInt(ex.workingSets||ex.sets,10)||3;
+  rec.wantSets=rec.prescription?rec.prescription.workingSets:(parseInt(ex.workingSets||ex.sets,10)||3);
   return rec;
 }
 function _nsKg(kg){if(kg==null)return '--';var n=Math.round(kg*100)/100;return (Number.isInteger(n)?String(n):n.toFixed(1))+'kg';}
@@ -1656,10 +1611,10 @@ function repaintOverload(i,ei){
   var nSets=parseInt(ex.sets)||2;
   for(var si=0;si<nSets;si++){
     var ps=prevEffort&&prevEffort[si]?prevEffort[si]:null;
-    var wEl=document.getElementById('w_'+i+'_'+ei+'_'+si);if(wEl) wEl.placeholder=(ps&&ps.weight)?ps.weight:'—';
-    var rEl=document.getElementById('r_'+i+'_'+ei+'_'+si);if(rEl) rEl.placeholder=(ps&&ps.reps)?ps.reps:'—';
-    var rLEl=document.getElementById('rL_'+i+'_'+ei+'_'+si);if(rLEl) rLEl.placeholder=(ps&&ps.repsLeft)?ps.repsLeft:'L';
-    var rREl=document.getElementById('rR_'+i+'_'+ei+'_'+si);if(rREl) rREl.placeholder=(ps&&ps.repsRight)?ps.repsRight:'R';
+    var wEl=document.getElementById('w_'+i+'_'+ei+'_'+si);if(wEl) wEl.placeholder=_nsRowLoadPlaceholder(rec,ex,si,ps);
+    var rEl=document.getElementById('r_'+i+'_'+ei+'_'+si);if(rEl) rEl.placeholder=_nsRowRepPlaceholder(rec,ex,si,ps);
+    var rLEl=document.getElementById('rL_'+i+'_'+ei+'_'+si);if(rLEl) rLEl.placeholder=_nsRowRepPlaceholder(rec,ex,si,ps,'left');
+    var rREl=document.getElementById('rR_'+i+'_'+ei+'_'+si);if(rREl) rREl.placeholder=_nsRowRepPlaceholder(rec,ex,si,ps,'right');
   }
 }
 function _ovLadder(steps){var h='<div class="exc-ladder">';steps.forEach(function(s){h+='<div class="exc-rung '+s[1]+'">'+(s[1].indexOf('done')>-1?'<span class="exc-rk"><svg class="icon"><use href="#i-check"/></svg></span>':'')+'<span class="exc-rt">'+s[0]+'</span></div>';});return h+'</div>';}
@@ -1736,33 +1691,85 @@ function _nsLiveProgress(ex,currentEffort,rec,resolvedName,history,previousEffor
     nextRec=_nsRecommendation(ex,currentEffort,resolvedName,history);
     prompt='Next session: '+nextRec.action;
   }
-  var unlocked=!!(nextRec&&(nextRec.status==='Ready to Increase'||nextRec.status==='Ready to Progress'));
-  return {msg:msg,prompt:prompt,ahead:(beat!=null&&total>beat)||topped>=wantSets||(assisted&&previousLoad!=null&&currentLoad!=null&&currentLoad<previousLoad),nextTone:nextRec?nextRec.tone:null,unlocked:unlocked,unlockAction:unlocked?nextRec.action:''};
+  // Beating a per-set target is acknowledged immediately and precisely. It is
+  // progress, not permission: the unlock still needs every required set.
+  var beaten=null;
+  try{
+    var beatPres=strengthPrescriptionFor(ex,resolvedName);
+    beaten=strengthTargetBeaten(beatPres,normaliseStrengthSets(working,beatPres,'working'),rec&&rec.target);
+  }catch(e){beaten=null;}
+  var unlocked=!!(nextRec&&nextRec.decision==='increase_load'&&nextRec.status!=='Ask Your Coach');
+  return {msg:msg,beaten:beaten,prompt:prompt,ahead:(beat!=null&&total>beat)||topped>=wantSets||(assisted&&previousLoad!=null&&currentLoad!=null&&currentLoad<previousLoad),nextTone:nextRec?nextRec.tone:null,unlocked:unlocked,unlockAction:unlocked?nextRec.action:''};
+}
+// One non-contradictory recommendation per exercise, in four labelled parts:
+// today's target, the live result, the confirmed next-session action, and why.
+// Nothing here promises a gain, and nothing celebrates a load change before the
+// evidence for it exists.
+function _nsTodayTarget(rec){
+  var pres=rec.prescription;
+  if(!pres)return '';
+  // With no load yet there is nothing to multiply, so the line reads as reps
+  // and effort rather than a dangling "× 8–12".
+  var hasLoad=rec.weightKg!=null,parts=[],times=hasLoad?'× ':'';
+  if(hasLoad)parts.push(_nsBare(rec.weightKg)+(rec.assisted?'kg assist':'kg'));
+  if(pres.repMode==='exact')parts.push(times+pres.exactReps+' reps');
+  else if(pres.repMode==='seconds')parts.push(times+pres.repFloor+'s');
+  else if(pres.repMode==='distance')parts.push(times+'as written');
+  else parts.push(times+(pres.repFloor===pres.repCeiling?pres.repFloor:pres.repFloor+'–'+pres.repCeiling)+(hasLoad?'':' reps'));
+  parts.push('@ '+strengthEffortTargetLabel(pres));
+  return parts.join(' ');
+}
+function _nsConfidenceHtml(rec){
+  if(!rec.confidence)return '';
+  return '<span class="ns-conf ns-conf-'+esc(rec.confidence.level)+'">'+esc(rec.confidence.label)+'</span>';
+}
+// The weight box suggests the load the engine recommends for this row, so the
+// athlete is not left copying last session's number by hand. Warm-up rows keep
+// their own history, and a logged value always wins over any suggestion.
+function _nsRowLoadPlaceholder(rec,ex,rowIndex,prevSet){
+  var warm=parseInt(ex.warmupSets,10)||0;
+  if(rowIndex>=warm&&rec&&rec.weightKg!=null)return _nsBare(rec.weightKg);
+  return (prevSet&&prevSet.weight)?String(prevSet.weight):'—';
+}
+function _nsRowRepPlaceholder(rec,ex,rowIndex,prevSet,side){
+  var warm=parseInt(ex.warmupSets,10)||0,slot=rowIndex-warm;
+  if(slot>=0&&rec&&rec.target&&rec.target[slot]!=null)return String(rec.target[slot]);
+  if(side==='left')return (prevSet&&prevSet.repsLeft)?String(prevSet.repsLeft):'L';
+  if(side==='right')return (prevSet&&prevSet.repsRight)?String(prevSet.repsRight):'R';
+  return (prevSet&&prevSet.reps)?String(prevSet.reps):'—';
 }
 function _nsBody(rec){
   var t='';
   if(rec.target&&rec.target.length){
-    t='<div class="ns-target"><div class="ns-tl">Working-set target</div><div class="ns-tgrid">'+rec.target.map(function(v,ix){
+    t='<div class="ns-target"><div class="ns-tl">Per working set</div><div class="ns-tgrid">'+rec.target.map(function(v,ix){
       return '<div class="ns-trep"><div class="ns-tn">'+v+'</div><div class="ns-ts">Work '+(ix+1)+'</div></div>';}).join('')+'</div>'+
       (rec.warmupSets?'<div class="ns-warmup-map">Warm-up row is separate · working sets '+(rec.warmupSets+1)+'–'+(rec.warmupSets+rec.target.length)+' decide progression.</div>':'')+'</div>';
   } else if(rec.targetNote){
-    t='<div class="ns-target"><div class="ns-tl">Target</div><div class="ns-tnote">'+esc(rec.targetNote)+'</div></div>';
+    // Before a load is known the note explains how to choose one, so it is
+    // labelled as such rather than repeating "Target" above the same words.
+    t='<div class="ns-target"><div class="ns-tl">'+(rec.weightKg==null?'How to pick it':'Target')+'</div><div class="ns-tnote">'+esc(rec.targetNote)+'</div></div>';
   }
+  // A ramped or top-set plan keeps its shape rather than collapsing into the
+  // session's heaviest load.
+  var perSet=(rec.perSet&&rec.perSet.length)?'<div class="ns-perset"><div class="ns-tl">Set roles</div>'+rec.perSet.map(function(role){
+    return '<div class="ns-perset-row"><span>'+esc(role.label)+'</span><strong>'+_nsBare(role.loadKg)+(rec.assisted?'kg assist':'kg')+' × '+role.reps+'</strong></div>';}).join('')+'</div>':'';
   var mile=rec.milestone?_nsMileHTML(rec.milestone,rec.assisted):'';
   var ri=(rec.milestone&&rec.milestone.stage>=4)?'rocket':(rec.tone==='red'?'alert':'bulb');
-  var reason=rec.reason?'<div class="ns-reason"><span class="ns-ri ov-node-ic"><svg class="icon"><use href="#i-'+ri+'"/></svg></span><span>'+esc(rec.reason)+'</span></div>':'';
-  // Today's running total, shown under the frozen verdict.
-  var live=rec.live?'<div class="ns-live-wrap"><div class="ns-live'+(rec.live.ahead?' ahead':'')+'"><span class="ns-live-k">Today</span><span>'+esc(rec.live.msg)+'</span></div>'+
+  var reason=rec.reason?'<div class="ns-reason"><span class="ns-ri ov-node-ic"><svg class="icon"><use href="#i-'+ri+'"/></svg></span><span><span class="ns-tl">Why</span>'+esc(rec.reason)+' '+_nsConfidenceHtml(rec)+'</span></div>':'';
+  var today=_nsTodayTarget(rec);
+  var todayLine=today?'<div class="ns-today"><span class="ns-tl">Today’s target</span><strong>'+esc(today)+'</strong></div>':'';
+  // Live result: what has actually been logged so far, and any target beaten.
+  var beaten=(rec.live&&rec.live.beaten)?'<div class="ns-beaten" role="status">'+esc(rec.live.beaten.label)+'</div>':'';
+  var live=rec.live?'<div class="ns-live-wrap"><div class="ns-live'+(rec.live.ahead?' ahead':'')+'"><span class="ns-live-k">Live result</span><span>'+esc(rec.live.msg)+'</span></div>'+beaten+
     (rec.live.prompt?'<div class="ns-live-prompt ns-t-'+(rec.live.nextTone||'blue')+'"><svg class="icon"><use href="#i-arrow-right"/></svg><span>'+esc(rec.live.prompt)+'</span></div>':'')+'</div>':'';
-  // Approximate load bump: the equipment's real step isn't known yet.
-  var approx=rec.approx?'<div class="ns-approx">'+(rec.assisted?'Estimated change — round to the next assistance setting your machine actually has.':'Estimated jump — round to the next weight your equipment actually has.')+'</div>':'';
-  return '<div class="ns-block ns-t-'+rec.tone+'">'+
+  var approx=(rec.approx&&rec.weightKg!=null)?'<div class="ns-approx">'+(rec.assisted?'Estimated change — pick the nearest assistance setting your machine actually has.':'Estimated step — pick the nearest weight your equipment actually has.')+'</div>':'';
+  var flag=rec.coachReview?'<div class="ns-approx ns-coach-review">Worth a message to your coach before the next session.</div>':'';
+  return '<div class="ns-block ns-t-'+rec.tone+'"'+(rec.decision?' data-ns-decision="'+esc(rec.decision)+'"':'')+' data-ns-policy="'+(rec.policyVersion||'')+'">'+
     '<div class="ns-status"><span class="ns-dot"></span>'+esc(rec.status)+'</div>'+
-    '<div class="ns-hd">'+'<svg class="icon"><use href="#i-target"/></svg>'+'Today’s progression target</div>'+
-    '<div class="ns-action">'+esc(rec.action)+'</div>'+approx+t+mile+reason+live+'</div>';
+    todayLine+t+perSet+
+    '<div class="ns-hd">'+'<svg class="icon"><use href="#i-target"/></svg>'+'Next session</div>'+
+    '<div class="ns-action">'+esc(rec.action)+'</div>'+approx+flag+mile+reason+live+'</div>';
 }
-// Collapsed subtitle driven by live state: done -> today's numbers, in progress
-// -> set count, not started -> the single recommended action.
 function _nsSubtitle(rec,state,summary,doneCount,total){
   if(state==='done') return '<span class="ns-tag done">Done</span><span class="ns-sum">'+esc(summary||'')+'</span>';
   if(state==='prog') return '<span class="ns-tag prog">In progress</span><span class="ns-sum">'+doneCount+' / '+total+' sets logged</span>';
@@ -1815,7 +1822,7 @@ function strengthSavedSetHasRequiredInputs(set,isSingleLeg,rpeRequired,effortReq
     :String(set.reps==null?'':set.reps).trim()!=='';
   if(typeof rpeRequired!=='boolean')rpeRequired=strengthRpeEnabled();
   var hasRpe=isSingleLeg||!rpeRequired||String(set.rpe==null?'':set.rpe).trim()!=='';
-  var hasEffort=!effortRequired||/^(reserve|failure|form_break)$/.test(String(set.effort||''));
+  var hasEffort=!effortRequired||STRENGTH_EFFORT_CODES.test(String(set.effort||''));
   return !!(hasWeight&&hasReps&&hasRpe&&hasEffort);
 }
 function strengthExerciseIsComplete(card){
@@ -2122,7 +2129,7 @@ function buildBody(s,i,type){
       var restTimerOn=typeof restTimerEnabled==='function'?restTimerEnabled():true;
       var strengthRpeOn=typeof strengthRpeEnabled==='function'?strengthRpeEnabled():true;
       h+='<div class="strength-log-heading"><div class="ltitle">Log your sets</div><div class="strength-log-prefs"><button type="button" class="rest-pref-toggle'+(strengthRpeOn?' is-on':'')+'" data-strength-rpe-toggle aria-pressed="'+(strengthRpeOn?'true':'false')+'" onclick="toggleStrengthRpePreference()"><span class="rest-pref-dot"></span><span>RPE</span><strong class="rest-pref-state">'+(strengthRpeOn?'On':'Off')+'</strong></button><button type="button" class="rest-pref-toggle'+(restTimerOn?' is-on':'')+'" data-rest-timer-toggle aria-pressed="'+(restTimerOn?'true':'false')+'" onclick="toggleRestTimerPreference()"><span class="rest-pref-dot"></span><span>Rest timer</span><strong class="rest-pref-state">'+(restTimerOn?'On':'Off')+'</strong></button></div></div>';
-      h+='<div class="strength-effort-note"><span>SET 1</span><div><strong>Calibrate at technical failure</strong><small>After the first working set, tell us whether the load was right. We’ll adjust today’s remaining sets and carry the result into your next workout.</small></div></div>';
+      h+='<div class="strength-effort-note"><span>SET 1</span><div><strong>Calibrate the first working set</strong><small>Work at the effort your coach set — stop when you could complete about two more clean reps unless they wrote otherwise. Tell us how it finished and we’ll adjust today’s remaining sets and carry a confirmed change into your next workout.</small></div></div>';
       if(isFemaleSplit(splitKey)){
         h+='<div class="female-priority-note"><span class="female-priority-note-badge">Priority</span><div><strong>Short on time?</strong><span>Complete the priority exercises first to cover the session’s main muscle groups. Keep going through the full session whenever time allows.</span></div></div>';
       }
@@ -2153,6 +2160,7 @@ function buildBody(s,i,type){
         var isBarbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust/i.test(resolvedEx)&&!/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/i.test(resolvedEx);
         var _ovHistory=getExerciseHistory(s.id,resolvedEx);
         var _ov=_nsRecommendation(ex,prevEffort,resolvedEx,_ovHistory);
+        var _ovPres=_ov.prescription||strengthPrescriptionFor(ex,resolvedEx);
         _ov.live=_nsLiveProgress(ex,savedEx,_ov,resolvedEx,_ovHistory,prevEffort);
         var hasExerciseData=!!savedEx.length;
 	        var renderedRows=[];for(var renderedIndex=0;renderedIndex<renderSets;renderedIndex++) renderedRows.push(savedByRow[renderedIndex]||{});
@@ -2249,12 +2257,12 @@ function buildBody(s,i,type){
 	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set">×</button>':'';
 	            var effortRequired=sessionEffortRequired&&si===warmupSets;
 	            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
-	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsLeft?prevSet.repsLeft:'L')+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="'+esc(prevSet&&prevSet.repsRight?prevSet.repsRight:'R')+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' load')+'" placeholder="'+esc(_nsRowLoadPlaceholder(_ov,ex,si,prevSet))+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' left reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet,'left'))+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' right reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet,'right'))+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
-	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,true,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt);}
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,true,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres);}
 	          }
 	        }else{
 	          h+='<div class="slbls"><div class="slbl"></div><div class="slbl">'+(isAssisted?'Assist kg':'kg')+'</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
@@ -2262,12 +2270,12 @@ function buildBody(s,i,type){
 	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set">×</button>':'';
 	            var effortRequired=sessionEffortRequired&&si===warmupSets;
 	            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
-	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="'+(prevSet&&prevSet.weight?prevSet.weight:'—')+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+esc((prevSet&&prevSet.reps)?prevSet.reps:'—')+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' load')+'" placeholder="'+esc(_nsRowLoadPlaceholder(_ov,ex,si,prevSet))+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet))+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' RPE out of 10')+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
-	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,false,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt);}
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,false,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres);}
 	          }
 	        }
         h+='</div>';
