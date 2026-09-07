@@ -136,7 +136,7 @@ test('3. three strength sets submit and persist across reload', async ({ page })
     await page.locator(`#w_0_0_${set}`).fill(String(40 + set * 5));
     await page.locator(`#r_0_0_${set}`).fill(String(10 - set));
   }
-  await page.getByRole('button', { name: /Right load/ }).click();
+  await page.getByRole('button', { name: /On target/ }).click();
   await page.locator('#focusFooterAction').click();
   await expect(page.locator('#strengthReviewTitle')).toHaveText('Review session');
   await page.getByRole('button', { name: 'Submit to coaches' }).click();
@@ -156,7 +156,7 @@ test('unlocking the next load gives brief encouragement without interrupting the
   await page.getByRole('button', { name: 'Open Lower A' }).click();
   await page.locator('#w_0_0_0').fill('40');
   await page.locator('#r_0_0_0').fill('12');
-  await page.getByRole('button', { name: /Right load/ }).click();
+  await page.getByRole('button', { name: /On target/ }).click();
   for (let set = 1; set < 3; set++) {
     await page.locator(`#w_0_0_${set}`).fill('40');
     await page.locator(`#r_0_0_${set}`).fill('12');
@@ -174,7 +174,7 @@ test('a locally saved workout awaits submission and does not count as complete',
   await page.getByRole('button', { name: 'Open Lower A' }).click();
   await page.locator('#w_0_0_0').fill('40');
   await page.locator('#r_0_0_0').fill('10');
-  await page.getByRole('button', { name: /Right load/ }).click();
+  await page.getByRole('button', { name: /On target/ }).click();
   await page.getByRole('button', { name: 'Close session' }).click();
   await page.evaluate(() => renderTodaySection());
 
@@ -202,11 +202,70 @@ test('focused strength flow shows coach context, live progress, calm stats and t
     await page.locator(`#w_0_0_${set}`).fill('40');
     await page.locator(`#r_0_0_${set}`).fill('10');
   }
-  await page.getByRole('button', { name: /Right load/ }).click();
+  await page.getByRole('button', { name: /On target/ }).click();
 
   await expect(page.getByRole('button', { name: /Up next.*Leg Curl/ })).toBeVisible();
   await expect(page.locator('#focusOverlayMeta')).toHaveText('1 of 2 exercises');
   await expect(page.getByRole('button', { name: 'Review & submit' }).last()).toBeVisible();
+});
+
+test('first-set calibration reads as effort and quality, never as a failure test', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+  await codeLogin(page);
+  await page.getByRole('button', { name: 'Open Lower A' }).click();
+
+  // The prompt calibrates against the prescribed effort, with no failure copy
+  // anywhere on the athlete's screen.
+  await expect(page.getByText('Calibrate the first working set')).toBeVisible();
+  const body = await page.locator('body').innerText();
+  expect(body).not.toMatch(/technical failure/i);
+  expect(body).not.toMatch(/0 RIR/);
+  expect(body).toMatch(/two more clean reps/);
+
+  // The recommendation is one card with four labelled parts.
+  const card = page.locator('.exc').first();
+  await expect(card.getByText('Today’s target')).toBeVisible();
+  await expect(card.getByText('Next session')).toBeVisible();
+  await expect(card.getByText('Why')).toBeVisible();
+  await card.screenshot({ path: 'test-results/strength-card-mobile.png' });
+
+  await page.locator('#w_0_0_0').fill('40');
+  await page.locator('#r_0_0_0').fill('10');
+  await expect(page.getByRole('button', { name: /On target/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Too easy/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Too hard/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Technique/ })).toBeVisible();
+  await expect(page.getByText(/aim for 2 reps in reserve/)).toBeVisible();
+
+  // Too easy moves only the sets that are still empty, and resets their rep
+  // prompt to the floor of the range.
+  await page.getByRole('button', { name: /Too easy/ }).click();
+  await expect(page.locator('#w_0_0_1')).toHaveValue('45');
+  await expect(page.locator('#w_0_0_2')).toHaveValue('45');
+  await expect(page.locator('#w_0_0_0')).toHaveValue('40');
+  await expect(page.locator('#r_0_0_1')).toHaveAttribute('placeholder', '8');
+  await page.screenshot({ path: 'test-results/strength-calibration-mobile.png', fullPage: false });
+  await card.screenshot({ path: 'test-results/strength-card-rated-mobile.png' });
+});
+
+test('a technique or niggle answer never earns more load', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+  await codeLogin(page);
+  await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await page.locator('#w_0_0_0').fill('40');
+  await page.locator('#r_0_0_0').fill('10');
+  await page.getByRole('button', { name: /Technique/ }).click();
+
+  // One rung easier for the sets still to come, and never an increase.
+  await expect(page.locator('#w_0_0_1')).toHaveValue('35');
+  await expect(page.locator('#w_0_0_2')).toHaveValue('35');
+  const advice = await page.locator('#effort_advice_0_0_0').textContent();
+  expect(advice).toMatch(/tell your coach/i);
+  expect(advice).toMatch(/stop/i);
+  const body = await page.locator('body').innerText();
+  expect(body).not.toMatch(/Ready to Increase/);
 });
 
 test('4. body check-in updates the dock state', async ({ page }) => {

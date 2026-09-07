@@ -6,6 +6,9 @@ import { join } from 'node:path';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const source = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
+// The progression engine is a separate script in index.html and must be in the
+// context before 08-training.js, which delegates every decision to it.
+const strengthEngine = readFileSync(join(root, 'public', 'js', '08-strength-engine.js'), 'utf8');
 const logging = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
 const checkin = readFileSync(join(root, 'public', 'js', '04-checkin.js'), 'utf8');
 const styles = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
@@ -214,7 +217,8 @@ test('completing an exercise collapses it without opening the next exercise', ()
     }
   };
   vm.createContext(context);
-  vm.runInContext(source, context);
+  vm.runInContext(strengthEngine, context);
+vm.runInContext(source, context);
   context.draftGym = () => {};
   context.refreshStrengthExerciseState = () => {};
   context.strengthExerciseIsComplete = () => true;
@@ -260,7 +264,8 @@ test('set auto-completion only waits for RPE while RPE logging is enabled', () =
     }
   };
   vm.createContext(context);
-  vm.runInContext(source, context);
+  vm.runInContext(strengthEngine, context);
+vm.runInContext(source, context);
   let completions = 0;
   context.togSet = () => { completions += 1; };
 
@@ -320,7 +325,8 @@ test('an already-ticked set collapses only after its final required column is fi
     }
   };
   vm.createContext(context);
-  vm.runInContext(source, context);
+  vm.runInContext(strengthEngine, context);
+vm.runInContext(source, context);
   context.refreshStrengthExerciseState = () => {};
 
   fields['input[id^="rpe_"]'].value = '';

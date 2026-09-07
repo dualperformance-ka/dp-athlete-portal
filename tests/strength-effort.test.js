@@ -6,6 +6,9 @@ import { join } from 'node:path';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const training = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
+// The progression engine is a separate script in index.html and must be in the
+// context before 08-training.js, which delegates every decision to it.
+const strengthEngine = readFileSync(join(root, 'public', 'js', '08-strength-engine.js'), 'utf8');
 const logging = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
 const styles = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
 const context = {
@@ -26,6 +29,7 @@ const context = {
   localStorage: { getItem: () => null, setItem: () => {} }
 };
 vm.createContext(context);
+vm.runInContext(strengthEngine, context);
 vm.runInContext(training, context);
 
 const exercise = { exercise: 'Incline Dumbbell Press', reps: '8', repRange: '8-12', workingSets: '3' };

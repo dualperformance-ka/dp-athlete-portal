@@ -128,9 +128,24 @@ if (!index.includes('progress-collapsible-card" id="pgVolumeCard"') ||
   failures.push('Secondary Progress sections must remain available as mobile collapsible cards');
 }
 const training = readFileSync(join(publicDir, 'js', '08-training.js'), 'utf8');
-for (const marker of ['_rowIndex', 'working-set-note', 'ns-warmup-map', 'Today’s progression target', 'Final working set: stay at ']) {
+const strengthEngine = readFileSync(join(publicDir, 'js', '08-strength-engine.js'), 'utf8');
+// The recommendation card is one block with four labelled parts. "Today's
+// progression target" was the single heading it replaced: keeping that marker
+// here would re-assert the merged copy this split was made to remove.
+for (const marker of ['_rowIndex', 'working-set-note', 'ns-warmup-map', 'Today’s target', 'Live result', 'Next session', 'ns-conf', 'Final working set: stay at ']) {
   if (!training.includes(marker) && !styles.includes(marker)) {
     failures.push(`Live strength progression guidance is missing: ${marker}`);
+  }
+}
+// Progression decisions must keep coming from the pure engine, and the athlete
+// must never be told that reaching failure is the default.
+for (const marker of ['strengthProgressionDecision', 'strengthCalibrationDecision', 'normaliseStrengthPrescription', 'STRENGTH_POLICY']) {
+  if (!strengthEngine.includes(marker)) failures.push(`Strength progression engine is missing: ${marker}`);
+  if (!training.includes(marker)) failures.push(`Strength tracker no longer uses the engine: ${marker}`);
+}
+for (const source of [training, strengthEngine, readFileSync(join(publicDir, 'js', '09-logging.js'), 'utf8')]) {
+  if (/technical failure|target 0 RIR/i.test(source)) {
+    failures.push('Athlete-facing strength copy must not default to technical failure or 0 RIR');
   }
 }
 
