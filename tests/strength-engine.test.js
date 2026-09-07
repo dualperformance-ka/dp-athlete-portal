@@ -253,12 +253,20 @@ test('a deliberate heavier load is recognised when every set holds the floor', (
   assert.equal(decision.weightKg, 65, 'fewer total reps than last week still counts as load progression');
 });
 
-test('a heavier load that drops later sets under the floor is noted but not confirmed', () => {
+test('a heavier load that drops later sets reads as consolidation, not a demotion', () => {
   const history = [{ sets: [set(60, 12), set(60, 12), set(60, 11)] }];
   const decision = decide(prescribe({ exercise: 'Leg Press' }), [set(65, 9), set(65, 6), set(65, 5)], history);
   assert.equal(decision.decision, 'change_unconfirmed');
-  assert.equal(decision.status, 'Load Attempt Noted');
   assert.equal(decision.weightKg, 60, 'the previously confirmed load stays the baseline');
+  // The athlete just lifted more than ever. The card must not answer that with
+  // a bare lower number, so the status and action name what they reached.
+  assert.equal(decision.status, 'Consolidating 65kg');
+  assert.equal(decision.action, 'Repeat 60kg to lock in 65kg');
+  assert.equal(decision.workingToward.loadKg, 65);
+  assert.equal(decision.belowPeak, true);
+  assert.equal(decision.reached.loadKg, 65);
+  assert.match(decision.reason, /You reached 65kg/);
+  assert.doesNotMatch(decision.action + decision.status, /Attempt Noted/);
 });
 
 // 13 ── Ramped, top-set and back-off loads keep their roles.
@@ -596,5 +604,105 @@ test('no athlete-facing copy tells every athlete to train to failure or 0 RIR', 
 test('progress is never promised and effort is never shamed', () => {
   for (const source of [engineSource, trainingSource]) {
     assert.doesNotMatch(source, /you will get stronger|guaranteed gains|no excuses|stop being lazy/i);
+  }
+});
+
+// ── Progression history and high-water marks ────────────────────────────────
+// A recommendation that steps back must arrive with the record that explains
+// it, or an athlete reads a lower number as losing the progress they made.
+
+test('the progression history reads oldest to newest and counts only completed working sets', () => {
+  const pres = prescribe({ exercise: 'Leg Press' });
+  // getExerciseHistory hands the engine newest-first entries.
+  const history = [
+    { date: '2026-09-01', sets: [set(60, 12), set(60, 12), set(60, 11)] },
+    { date: '2026-08-25', sets: [set(55, 11), set(55, 10), set(55, 10)] },
+    { date: '2026-08-18', sets: [set(50, 10), set(50, 10), set(50, 9)] },
+  ];
+  const points = engine.strengthProgressionHistory(pres, history);
+  assert.deepEqual(Array.from(points, (p) => p.loadKg), [50, 55, 60], 'oldest first');
+  assert.deepEqual(Array.from(points, (p) => p.totalReps), [29, 31, 35]);
+  assert.deepEqual(Array.from(points, (p) => p.date), ['2026-08-18', '2026-08-25', '2026-09-01']);
+  assert.equal(points[2].complete, true);
+});
+
+test('the history strip skips sessions with no usable reps and honours the limit', () => {
+  const pres = prescribe({ exercise: 'Leg Press' });
+  const history = [
+    { date: '2026-09-01', sets: [set(60, 10)] },
+    { date: '2026-08-25', sets: [{ weight: '60', reps: '' }] },
+    { date: '2026-08-18', sets: [set(55, 10)] },
+    { date: '2026-08-11', sets: [set(50, 10)] },
+  ];
+  const points = engine.strengthProgressionHistory(pres, history);
+  assert.deepEqual(Array.from(points, (p) => p.loadKg), [50, 55, 60], 'a weight-only session is not a data point');
+  assert.equal(engine.strengthProgressionHistory(pres, history, undefined, 2).length, 2);
+});
+
+test('history from another load context never enters the strip', () => {
+  const pres = prescribe({ exercise: 'Leg Press' });
+  const history = [
+    { date: '2026-09-01', context: pres.contextKey, sets: [set(60, 10)] },
+    { date: '2026-08-25', context: 'leg press|lb|total', sets: [set(140, 10)] },
+  ];
+  assert.deepEqual(Array.from(engine.strengthProgressionHistory(pres, history), (p) => p.loadKg), [60]);
+});
+
+test('reached and confirmed are different marks and both are tracked', () => {
+  const pres = prescribe({ exercise: 'Leg Press' });
+  const history = [{ date: '2026-09-01', sets: [set(60, 12), set(60, 12), set(60, 11)] }];
+  // 65 was moved for one working set at the floor but never consolidated.
+  const current = rows(pres, [set(65, 9), set(65, 6), set(65, 5)]);
+  const peak = engine.strengthPeak(pres, history, undefined, current);
+  assert.equal(peak.reached.loadKg, 65, 'the heaviest load actually moved at the rep floor');
+  assert.equal(peak.confirmed.loadKg, 60, 'the heaviest load every required set held');
+});
+
+test('a consolidation step is flagged as below the peak, never as a step back', () => {
+  const pres = prescribe({ exercise: 'Leg Press' });
+  const history = [{ sets: [set(60, 12), set(60, 12), set(60, 11)] }];
+  const decision = decide(pres, [set(65, 9), set(65, 6), set(65, 5)], history);
+  assert.equal(decision.belowPeak, true);
+  assert.equal(decision.workingToward.loadKg, 65);
+  assert.equal(decision.reached.loadKg, 65);
+
+  // A session that simply holds its confirmed load is not below any peak.
+  const steady = decide(pres, [set(60, 10), set(60, 10), set(60, 9)], history);
+  assert.equal(steady.belowPeak, false);
+});
+
+test('a plateau back-off still shows the load the athlete has reached', () => {
+  const pres = prescribe({ exercise: 'Seated Cable Row' });
+  const hard = { effort: 'too_hard' };
+  const stuck = [
+    { sets: [set(50, 9, hard), set(50, 9), set(50, 9)] },
+    { sets: [set(50, 9, hard), set(50, 9), set(50, 9)] },
+    { sets: [set(50, 9, hard), set(50, 9), set(50, 9)] },
+  ];
+  const decision = decide(pres, [set(50, 9), set(50, 9), set(50, 9)], stuck);
+  assert.equal(decision.decision, 'reduce_load');
+  assert.equal(decision.belowPeak, true);
+  assert.equal(decision.reached.loadKg, 50, 'the back-off is shown against what they built');
+  assert.ok(decision.history.length >= 3);
+});
+
+test('on an assisted machine the peak is the least assistance, not the biggest number', () => {
+  const pres = prescribe({ exercise: 'Assisted Pull-Up' });
+  const history = [
+    { date: '2026-09-01', sets: [set(15, 10), set(15, 10), set(15, 9)] },
+    { date: '2026-08-25', sets: [set(25, 10), set(25, 10), set(25, 10)] },
+  ];
+  const peak = engine.strengthPeak(pres, history);
+  assert.equal(peak.reached.loadKg, 15, 'less help is the harder setting');
+  assert.equal(peak.confirmed.loadKg, 15);
+});
+
+test('every decision carries its history and peak', () => {
+  const pres = prescribe();
+  const history = [{ sets: [set(30, 10), set(30, 10), set(30, 9)] }];
+  for (const list of [[], [set(30, 10)], [set(30, 12), set(30, 12), set(30, 12)]]) {
+    const decision = decide(pres, list, history);
+    assert.ok(Array.isArray(decision.history), 'history is always present');
+    assert.ok(decision.peak, 'peak is always present');
   }
 });

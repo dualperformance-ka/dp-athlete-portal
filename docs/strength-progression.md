@@ -65,6 +65,28 @@ Evaluated in this order; the first match wins.
 Every decision carries `tone`, `reason`, `confidence` (`coach_set`, `confirmed`,
 `learned`, `estimated`, `low`) and `policyVersion`.
 
+## Progression history and high-water marks
+
+Every decision carries the record behind it, because a recommendation that
+steps back reads as lost progress without one.
+
+- `history` — completed sessions on this exercise, oldest to newest, capped at
+  `STRENGTH_POLICY.historyPoints`. Warm-ups and bonus sets are excluded (it
+  runs through the same working-set slice), and a session from another load
+  context never appears.
+- `peak.reached` — the heaviest load moved for a working set at the rep floor.
+  A real achievement, even if the session was not consolidated.
+- `peak.confirmed` — the heaviest load where every required set held the floor.
+  The baseline the engine builds from.
+- `belowPeak` / `workingToward` — set when the recommended load sits under a
+  load already reached. That is a consolidation step, and the card says so
+  rather than showing a bare lower number.
+
+So an athlete who reaches 65kg and fatigues on the back sets sees
+"Consolidating 65kg" and "Repeat 60kg to lock in 65kg", not "Start at 60kg".
+On an assisted machine the peak is the *least* assistance, not the largest
+number.
+
 ## Effort
 
 Coach `rir` wins, then coach `rpe` (as `10 - rpe`), then the conservative
@@ -90,3 +112,17 @@ History is isolated by `contextKey` (`exercise|unit|convention`). Sessions
 logged before `__strengthRx` existed carry no context and stay comparable;
 anything logged since declares its unit and convention, so a change to either
 starts a fresh ladder.
+
+## Card fitting
+
+The milestone ladder was four `flex-shrink:0` nodes with `white-space:nowrap`
+labels, so "Increase next" ran off the right edge of the card on a normal
+phone. Nodes now share the width and labels wrap. Below 410px four labels
+cannot be both legible and inside the card, so they become visually hidden
+(still in the DOM, still read aloud) and the current step gets one full-width
+line instead.
+
+These overrides must stay *after* the original ladder rules in `styles.css` or
+they lose the cascade; `check-portal.mjs` asserts that order.
+`tests/e2e/strength-card-fit.spec.js` measures real overflow at 320/360/390/
+414/430px, and separately checks that no label is forced to break mid-word.

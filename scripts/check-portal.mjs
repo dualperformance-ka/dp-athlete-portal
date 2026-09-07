@@ -132,7 +132,7 @@ const strengthEngine = readFileSync(join(publicDir, 'js', '08-strength-engine.js
 // The recommendation card is one block with four labelled parts. "Today's
 // progression target" was the single heading it replaced: keeping that marker
 // here would re-assert the merged copy this split was made to remove.
-for (const marker of ['_rowIndex', 'working-set-note', 'ns-warmup-map', 'Today’s target', 'Live result', 'Next session', 'ns-conf', 'Final working set: stay at ']) {
+for (const marker of ['_rowIndex', 'working-set-note', 'ns-warmup-map', 'Today’s target', 'Live result', 'Next session', 'ns-conf', 'Your progress here', 'ns-peak', 'Final working set: stay at ']) {
   if (!training.includes(marker) && !styles.includes(marker)) {
     failures.push(`Live strength progression guidance is missing: ${marker}`);
   }
@@ -147,6 +147,17 @@ for (const source of [training, strengthEngine, readFileSync(join(publicDir, 'js
   if (/technical failure|target 0 RIR/i.test(source)) {
     failures.push('Athlete-facing strength copy must not default to technical failure or 0 RIR');
   }
+}
+// The milestone ladder overflowed the card because its nodes could not shrink
+// and its labels could not wrap. Both guards must stay, and they only work
+// after the original ladder rules, so assert the order too.
+const ladderIndex = styles.indexOf('.ns-mbar.on{');
+const fittingIndex = styles.indexOf('.ns-mnode{flex:1 1 0');
+if (fittingIndex < 0 || ladderIndex < 0 || fittingIndex < ladderIndex) {
+  failures.push('Recommendation-card fitting rules must come after the milestone ladder rules or they lose the cascade');
+}
+if (!styles.includes('.ns-mnode .ns-ml{white-space:normal')) {
+  failures.push('Milestone labels must be able to wrap inside the card');
 }
 
 const globalHeaders = (vercel.headers || []).find((entry) => entry.source === '/(.*)');

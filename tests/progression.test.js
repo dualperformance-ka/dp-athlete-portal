@@ -314,6 +314,9 @@ test('a too-light first set carries the calibrated load into the next workout', 
   assert.equal(recommendation.calibrated, true);
 });
 
+// A load that did not confirm is a consolidation step, not a demotion: the
+// action now names the heavier load the athlete is working toward, because the
+// old "Start at 30kg" read as being sent backwards after a good session.
 test('an adjusted load that misses the rep floor is not carried forward', () => {
   const press = {
     exercise: 'Incline Dumbbell Press',
@@ -330,9 +333,10 @@ test('an adjusted load that misses the rep floor is not carried forward', () => 
 
   const recommendation = context.computeOverload(press, current, press.exercise, []);
 
-  assert.equal(recommendation.status, 'Adjustment Not Confirmed');
-  assert.equal(recommendation.action, 'Start at 30kg');
-  assert.equal(recommendation.weightKg, 30);
+  assert.equal(recommendation.status, 'Consolidating 32.5kg');
+  assert.equal(recommendation.action, 'Repeat 30kg to lock in 32.5kg');
+  assert.equal(recommendation.weightKg, 30, 'the confirmed baseline is still what they load');
+  assert.equal(recommendation.workingToward.loadKg, 32.5);
   assert.match(recommendation.reason, /did not confirm/);
 });
 

@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 151,
-    "sha": "09aca6d98a31"
+    "version": 152,
+    "sha": "5fc6775debdb"
   },
   "desktop.css": {
     "version": 7,
@@ -60,12 +60,12 @@
     "sha": "24321002123e"
   },
   "js/08-strength-engine.js": {
-    "version": 1,
-    "sha": "d1f498ca093b"
+    "version": 2,
+    "sha": "f32e577f9d6e"
   },
   "js/08-training.js": {
-    "version": 138,
-    "sha": "83312ff7f4ae"
+    "version": 139,
+    "sha": "33a05927fc2e"
   },
   "js/09-logging.js": {
     "version": 122,

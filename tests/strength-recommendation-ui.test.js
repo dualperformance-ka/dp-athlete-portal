@@ -11,6 +11,7 @@ const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const engineSource = readFileSync(join(root, 'public', 'js', '08-strength-engine.js'), 'utf8');
 const trainingSource = readFileSync(join(root, 'public', 'js', '08-training.js'), 'utf8');
 const loggingSource = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
+const styles = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
 
 function makeContext() {
   const context = {
@@ -275,4 +276,92 @@ test('beating a target is reported live without unlocking a load change', () => 
   );
   assert.equal(live.beaten.label, 'Target beaten by 3 reps');
   assert.equal(live.unlocked, false);
+});
+
+// ── The progress record on the card ─────────────────────────────────────────
+
+test('the card shows the progress strip oldest to newest with the best session marked', () => {
+  const context = makeContext();
+  const rec = context._nsRecommendation(press, [
+    { weight: '30', reps: '10' }, { weight: '30', reps: '10' }, { weight: '30', reps: '9' },
+  ], 'Incline Dumbbell Press', [
+    { date: '2026-09-01', sets: [{ weight: '30', reps: '10' }, { weight: '30', reps: '10' }, { weight: '30', reps: '9' }] },
+    { date: '2026-08-25', sets: [{ weight: '27.5', reps: '10' }, { weight: '27.5', reps: '10' }, { weight: '27.5', reps: '9' }] },
+    { date: '2026-08-18', sets: [{ weight: '25', reps: '10' }, { weight: '25', reps: '9' }, { weight: '25', reps: '9' }] },
+  ]);
+  const html = context._nsBody(rec);
+
+  assert.match(html, /Your progress here/);
+  // Oldest first, so the line reads upward.
+  const loads = Array.from(html.matchAll(/class="ns-hl">([^<]+)</g), (m) => m[1]);
+  assert.deepEqual(loads, ['25kg', '27.5kg', '30kg']);
+  assert.match(html, /18 Aug/);
+  assert.match(html, /ns-hpt is-best/);
+  // A list, labelled for a screen reader, and readable without colour.
+  assert.match(html, /<ol class="ns-hlist" aria-label="Completed sessions on this exercise, oldest first">/);
+  assert.match(html, /class="ns-hb">Best</);
+});
+
+test('a single session is not dressed up as a trend', () => {
+  const context = makeContext();
+  const rec = context._nsRecommendation(press, [
+    { weight: '30', reps: '10' }, { weight: '30', reps: '10' }, { weight: '30', reps: '9' },
+  ], 'Incline Dumbbell Press', [
+    { date: '2026-09-01', sets: [{ weight: '30', reps: '10' }, { weight: '30', reps: '10' }, { weight: '30', reps: '9' }] },
+  ]);
+  assert.doesNotMatch(context._nsBody(rec), /Your progress here/);
+});
+
+test('a consolidation step says so where the lower number appears', () => {
+  const context = makeContext();
+  const leg = { exercise: 'Leg Press', sets: '3', workingSets: '3', reps: '8', repRange: '8-12' };
+  const history = [{ date: '2026-09-01', sets: [{ weight: '60', reps: '12' }, { weight: '60', reps: '12' }, { weight: '60', reps: '11' }] }];
+  const rec = context._nsRecommendation(leg, [
+    { weight: '65', reps: '9' }, { weight: '65', reps: '6' }, { weight: '65', reps: '5' },
+  ], 'Leg Press', history);
+  const html = context._nsBody(rec);
+
+  assert.equal(rec.weightKg, 60);
+  assert.match(html, /Consolidating 65kg/);
+  assert.match(html, /Repeat 60kg to lock in 65kg/);
+  assert.match(html, /already reached 65kg/);
+  assert.match(html, /not a step backwards/);
+  // The peak note sits with the action, where the lower number is read.
+  assert.ok(html.indexOf('ns-peak') > html.indexOf('ns-action'));
+});
+
+test('the peak note only appears when the recommendation sits under a reached load', () => {
+  const context = makeContext();
+  const rec = context._nsRecommendation(press, [
+    { weight: '30', reps: '12' }, { weight: '30', reps: '12' }, { weight: '30', reps: '12' },
+  ], 'Incline Dumbbell Press', [
+    { sets: [{ weight: '30', reps: '12' }, { weight: '30', reps: '12' }, { weight: '30', reps: '12' }] },
+  ]);
+  assert.equal(rec.belowPeak, false);
+  assert.doesNotMatch(context._nsBody(rec), /ns-peak/);
+});
+
+test('the milestone ladder can shrink and wrap instead of running off the card', () => {
+  // The four nodes used to be flex-shrink:0 with nowrap labels, so "Increase
+  // next" overhung the card edge at a narrow width or a large type setting.
+  assert.match(styles, /\.ns-mnode\{flex:1 1 0;min-width:0;flex-shrink:1\}/);
+  assert.match(styles, /\.ns-mnode \.ns-ml\{white-space:normal/);
+  assert.match(styles, /\.ns-mnode\.cur\{transform:none\}/);
+  assert.match(styles, /\.ns-block\{min-width:0;overflow-wrap:break-word\}/);
+  assert.match(styles, /\.ns-tgrid\{flex-wrap:wrap\}/);
+  // The progress strip scrolls inside itself rather than widening the card.
+  assert.match(styles, /\.ns-hlist\{[^}]*overflow-x:auto/);
+});
+
+test('the live prompt does not repeat the headline action word for word', () => {
+  const context = makeContext();
+  const leg = { exercise: 'Leg Press', sets: '3', workingSets: '3', reps: '8', repRange: '8-12' };
+  const history = [{ date: '2026-09-01', sets: [{ weight: '60', reps: '12' }, { weight: '60', reps: '12' }, { weight: '60', reps: '11' }] }];
+  const today = [{ weight: '65', reps: '9' }, { weight: '65', reps: '6' }, { weight: '65', reps: '5' }];
+  const rec = context._nsRecommendation(leg, today, 'Leg Press', history);
+  rec.live = context._nsLiveProgress(leg, today, rec, 'Leg Press', history, history[0].sets);
+
+  assert.equal(rec.live.prompt, null, 'the next-session line is already the headline');
+  const html = context._nsBody(rec);
+  assert.equal(html.match(/Repeat 60kg to lock in 65kg/g).length, 1, 'said once, not twice');
 });

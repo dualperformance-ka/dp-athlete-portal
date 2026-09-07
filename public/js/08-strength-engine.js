@@ -36,6 +36,7 @@ var STRENGTH_POLICY = {
   outlierGapMultiple: 4,  // a lone load this far off the ladder is a likely typo
   plateauSessions: 3,     // comparable completed sessions before a plateau call
   plateauHighEffortSessions: 2,
+  historyPoints: 6,      // sessions shown in the progression strip
   impossibleReps: 100,    // above this the entry is bad data, not a set
   defaultRepFloor: 8,
   defaultWorkingSets: 3
@@ -614,7 +615,7 @@ function _seRoles(pres,rows){
   var backoff=rest.length?(pres.assisted?Math.min.apply(null,rest):Math.max.apply(null,rest)):null;
   return {ramped:true,top:top,backoff:backoff};
 }
-function strengthProgressionDecision(input){
+function _seDecide(input){
   input=input||{};
   var pres=input.prescription;
   var rows=input.sets||[];
@@ -698,10 +699,13 @@ function strengthProgressionDecision(input){
       });
       if(adjusted.length&&!confirmed.length){
         return _seDecision({
-          decision:'change_unconfirmed',status:'Adjustment Not Confirmed',tone:'yellow',
-          action:_seActionText(pres,'start',first.load),weightKg:first.load,arrow:'↻',
+          decision:'change_unconfirmed',tone:'yellow',
+          status:'Consolidating '+_seLoadValue(pres,calibration.targetLoad),
+          action:_seConsolidateAction(pres,first.load,calibration.targetLoad),
+          weightKg:first.load,arrow:'↻',
           target:_seFilled(required,pres.repFloor),
-          reason:'The adjusted setting did not reach '+pres.repFloor+' clean reps, so it did not confirm the change. Return to the previous setting and build from there.',
+          reason:'You moved '+_seLoadLabel(pres,calibration.targetLoad)+' today, and it did not confirm at '+pres.repFloor+' clean reps yet, so '+_seLoadLabel(pres,first.load)+' stays the baseline. Repeat that cleanly and the heavier setting is yours.',
+          workingToward:{loadKg:calibration.targetLoad},
           confidence:strengthConfidence('confirmed','last confirmed load'),
           calibrated:true,assisted:pres.assisted
         });
@@ -758,10 +762,13 @@ function strengthProgressionDecision(input){
     }
     if(atFloor.length<completed.length){
       return _seDecision({
-        decision:'change_unconfirmed',status:'Load Attempt Noted',tone:'yellow',
-        action:_seActionText(pres,'start',lastSession.load),weightKg:lastSession.load,arrow:'↻',
+        decision:'change_unconfirmed',tone:'yellow',
+        status:'Consolidating '+_seLoadValue(pres,load),
+        action:_seConsolidateAction(pres,lastSession.load,load),
+        weightKg:lastSession.load,arrow:'↻',
         target:_seFilled(required,pres.repFloor),
-        reason:'You went heavier and the later sets dropped under '+pres.repFloor+' reps, so '+_seLoadLabel(pres,load)+' is not the baseline yet. Repeat the confirmed load and build from there.',
+        reason:'You reached '+_seLoadLabel(pres,load)+' today. The later sets came in under '+pres.repFloor+' reps, so '+_seLoadLabel(pres,lastSession.load)+' is still the baseline — repeat that cleanly and the heavier load becomes yours.',
+        workingToward:{loadKg:load},
         confidence:strengthConfidence('confirmed','last confirmed load'),assisted:pres.assisted
       });
     }
@@ -870,6 +877,29 @@ function strengthProgressionDecision(input){
     assisted:pres.assisted
   });
 }
+// Public entry point. Every decision carries the athlete's progression history
+// and their high-water marks, so a card can show a step back in the context of
+// what they have actually built rather than as a bare lower number.
+function strengthProgressionDecision(input){
+  input=input||{};
+  var pres=input.prescription;
+  var decision=_seDecide(input);
+  var peak=strengthPeak(pres,input.history||[],input.sliceWorking,input.sets||[]);
+  decision.peak=peak;
+  decision.reached=peak.reached;
+  decision.history=strengthProgressionHistory(pres,input.history||[],input.sliceWorking,STRENGTH_POLICY.historyPoints);
+  // A recommendation below what they have already reached is a consolidation
+  // step, never a demotion. Flag it so the card can say so out loud.
+  decision.belowPeak=!!(peak.reached&&decision.weightKg!=null&&_seIsHarder(pres,peak.reached.loadKg,decision.weightKg));
+  if(decision.belowPeak&&!decision.workingToward)decision.workingToward={loadKg:peak.reached.loadKg};
+  return decision;
+}
+// "Repeat the load that is confirmed, to lock in the one you have reached."
+function _seConsolidateAction(pres,repeatLoad,targetLoad){
+  var repeat=_seLoadValue(pres,repeatLoad),target=_seLoadValue(pres,targetLoad);
+  if(pres.assisted)return 'Repeat '+repeat+' assistance to lock in '+target;
+  return 'Repeat '+repeat+' to lock in '+target;
+}
 function _seEffortLabel(pres){
   if(pres.targetRir<=0)return 'the effort your coach set';
   return 'about '+pres.targetRir+' clean rep'+(pres.targetRir===1?'':'s')+' in reserve';
@@ -966,6 +996,63 @@ function _sePlateau(pres,history,currentLoad,ladder,sliceWorking){
   });
 }
 
+// ── progression history ──────────────────────────────────────────────────────
+// The record an athlete needs to see when a recommendation steps back: what
+// they have actually completed on this exercise, oldest to newest, plus the
+// heaviest load they have genuinely reached. A consolidation step is one point
+// on a rising line, not a demotion, and the card should be able to show that.
+function _seSessionSummary(pres,rows){
+  var done=strengthCompletedRows(rows);
+  if(!done.length)return null;
+  var load=_seSessionLoad(pres,done);
+  return {
+    loadKg:load,
+    totalReps:done.reduce(function(a,row){return a+row.reps;},0),
+    bestReps:done.reduce(function(a,row){return Math.max(a,row.reps);},0),
+    sets:done.length,
+    complete:done.length>=pres.workingSets,
+    anyAtFloor:done.some(function(row){return row.reps>=pres.repFloor;}),
+    allAtFloor:done.every(function(row){return row.reps>=pres.repFloor;})
+  };
+}
+function strengthProgressionHistory(pres,history,sliceWorking,limit){
+  var out=[];
+  (history||[]).forEach(function(entry){
+    if(!entry)return;
+    if(entry.context&&entry.context!==pres.contextKey)return;
+    var raw=Array.isArray(entry)?entry:(entry.sets||[]);
+    var rowsIn=typeof sliceWorking==='function'?sliceWorking(raw):raw;
+    var summary=_seSessionSummary(pres,normaliseStrengthSets(rowsIn,pres,'working'));
+    if(!summary)return;
+    summary.date=entry.date||null;
+    out.push(summary);
+  });
+  // History arrives newest-first. A progress strip reads oldest to newest.
+  out.reverse();
+  if(limit&&out.length>limit)out=out.slice(out.length-limit);
+  return out;
+}
+// Two high-water marks, because they answer different questions.
+// `reached` is the heaviest load they have ever moved for a working set at the
+// rep floor — a real achievement, even if the session was not consolidated.
+// `confirmed` is the heaviest load where every required set held the floor —
+// the baseline the engine will actually build from.
+function strengthPeak(pres,history,sliceWorking,currentRows){
+  var reached=null,confirmed=null;
+  function consider(summary){
+    if(!summary||summary.loadKg==null)return;
+    if(summary.anyAtFloor&&(reached==null||_seIsHarder(pres,summary.loadKg,reached.loadKg))){
+      reached={loadKg:summary.loadKg,reps:summary.bestReps,date:summary.date||null};
+    }
+    if(summary.complete&&summary.allAtFloor&&(confirmed==null||_seIsHarder(pres,summary.loadKg,confirmed.loadKg))){
+      confirmed={loadKg:summary.loadKg,reps:summary.bestReps,date:summary.date||null};
+    }
+  }
+  strengthProgressionHistory(pres,history,sliceWorking).forEach(consider);
+  if(currentRows&&currentRows.length)consider(_seSessionSummary(pres,currentRows));
+  return {reached:reached,confirmed:confirmed};
+}
+
 // ── over-performance, read live ──────────────────────────────────────────────
 // A beaten per-set target is acknowledged the moment it happens, exactly, and
 // separately from whether it unlocks anything.
@@ -1000,6 +1087,8 @@ if(typeof module!=='undefined'&&module.exports){
     strengthCalibrationDecision:strengthCalibrationDecision,
     strengthProgressionDecision:strengthProgressionDecision,
     strengthTargetBeaten:strengthTargetBeaten,
+    strengthProgressionHistory:strengthProgressionHistory,
+    strengthPeak:strengthPeak,
     strengthQualityCode:strengthQualityCode
   };
 }
