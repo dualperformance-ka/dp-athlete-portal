@@ -418,6 +418,10 @@ function syncStrengthRepMode(i,ei,ex,resolvedEx,splitKey){
   });
 }
 function pickEx(exName,chosen){
+  // A queued mobile tap can arrive after logout has cleared the athlete while
+  // the old workout DOM is still being removed. Never save an unscoped swap or
+  // let that stale event become a global TypeError.
+  if(!athlete||!athlete.code)return false;
   exPicks[exName]=chosen;
   localStorage.setItem('dp_ex_picks_'+athlete.code,JSON.stringify(exPicks));
   portalStateWrite('ex_picks',exPicks).catch(function(){});
@@ -458,6 +462,7 @@ function pickEx(exName,chosen){
       try{draftGym(i,splitKey);}catch(e){}
     }
   }
+  return true;
 }
 
 async function saveGoals(){
