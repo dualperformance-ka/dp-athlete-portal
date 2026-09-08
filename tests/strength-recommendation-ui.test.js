@@ -139,14 +139,21 @@ test('the stored snapshot records the prescription, the recommendation and the p
   const snapshot = context.strengthRecommendationSnapshot('today', [press]);
   const entry = snapshot['Incline Dumbbell Press'];
 
-  assert.equal(entry.policyVersion, context.STRENGTH_POLICY.version);
-  assert.equal(entry.rx.repFloor, 8);
-  assert.equal(entry.rx.repCeiling, 12);
-  assert.equal(entry.rx.targetRir, 2);
-  assert.equal(entry.rx.unit, 'kg');
-  assert.equal(entry.rx.convention, 'total');
-  assert.equal(entry.recommendation.decision, 'increase_load');
-  assert.ok(entry.recommendation.reason.length > 10);
+  // Deliberately compact: this record is stored per exercise per session inside
+  // the logs blob the server caps at 750KB, so the prose is not stored. The
+  // decision code plus the numbers plus the policy version reproduce it.
+  assert.equal(entry.v, context.STRENGTH_POLICY.version);
+  assert.equal(entry.rx.reps, '8-12');
+  assert.equal(entry.rx.mode, 'range');
+  assert.equal(entry.rx.sets, 3);
+  assert.equal(entry.rx.rir, 2);
+  assert.equal(entry.rec.d, 'increase_load');
+  assert.equal(entry.rec.c, 'estimated', 'one prior session is not enough to learn the equipment ladder');
+  assert.equal(entry.rec.est, 1);
+  assert.equal('reason' in entry.rec, false, 'the sentence is re-derivable, so it is not stored');
+  assert.equal('unit' in entry.rx, false, 'kg is the default and is not written');
+  assert.equal('conv' in entry.rx, false, 'total is the default and is not written');
+  assert.ok(JSON.stringify(entry).length < 260, 'a record must stay small: ' + JSON.stringify(entry).length);
 
   // Reopening the draft must not change the stored explanation.
   assert.deepEqual(

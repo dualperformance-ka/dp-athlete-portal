@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v195'; // v195: strength progression engine + progress history
+const CACHE_NAME = 'dp-athlete-v196'; // v196: strength progression engine, progress history, snapshot pruning
 const APP_SHELL = [
   '/index.html', '/styles.css?v=152', '/desktop.css?v=7', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=123',
-  '/js/02-login-goals.js?v=113',
+  '/js/01-core.js?v=124',
+  '/js/02-login-goals.js?v=114',
   '/js/03-nav-nudges.js?v=114',
   '/js/04-checkin.js?v=96',
   '/js/05-handbook.js?v=85',
@@ -14,7 +14,7 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=1',
   '/js/08-strength-engine.js?v=2',
-  '/js/08-training.js?v=139',
+  '/js/08-training.js?v=140',
   '/js/09-logging.js?v=122',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=110',
@@ -97,6 +97,40 @@ function queuedWriteBelongsToAthlete(item, athleteCode) {
 // tests/strava-log-size.test.js asserts this list stays identical to
 // STRAVA_MATCH_ACTIVITY_FIELDS in 01-core.js.
 const STRAVA_MATCH_ACTIVITY_FIELDS = ['id', 'name', 'type', 'sport_type', 'distance', 'moving_time', 'elapsed_time', 'start_date', 'start_date_local', 'suffer_score', 'relative_effort'];
+// Mirrors pruneStrengthSnapshots in 01-core.js. The worker cannot import from
+// it, and a fix applied only to the page leaves the worker posting the fat blob
+// behind it. tests/strava-log-size.test.js asserts both copies keep the same
+// session budget.
+const STRENGTH_SNAPSHOT_SESSIONS = 16;
+function pruneStrengthSnapshots(logsObject, keep = STRENGTH_SNAPSHOT_SESSIONS) {
+  if (!logsObject || typeof logsObject !== 'object') return false;
+  const dated = [];
+  for (const sessionId of Object.keys(logsObject)) {
+    if (sessionId.indexOf('__') === 0) continue;
+    const entry = logsObject[sessionId];
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    if (!entry.__strengthRx || typeof entry.__strengthRx !== 'object') continue;
+    dated.push({ id: sessionId, when: String(entry.__sessionDate || entry.__submittedAt || entry.__updatedAt || '') });
+  }
+  if (dated.length <= keep) return false;
+  dated.sort((a, b) => (a.when !== b.when ? (a.when < b.when ? 1 : -1) : (a.id < b.id ? 1 : -1)));
+  let changed = false;
+  for (const item of dated.slice(keep)) {
+    const entry = logsObject[item.id];
+    let version = entry.__policyVersion;
+    if (version == null) {
+      for (const key of Object.keys(entry.__strengthRx)) {
+        const record = entry.__strengthRx[key];
+        if (record && record.v != null) { version = record.v; break; }
+        if (record && record.policyVersion != null) { version = record.policyVersion; break; }
+      }
+    }
+    delete entry.__strengthRx;
+    if (version != null) entry.__policyVersion = version;
+    changed = true;
+  }
+  return changed;
+}
 function pruneStravaMatchPayloads(logsObject) {
   if (!logsObject || typeof logsObject !== 'object') return false;
   let changed = false;
@@ -172,7 +206,7 @@ async function flushOfflineQueue(trigger) {
     }
   }
   for (const item of currentStateWrites.filter(row => row.key !== 'pending_writes')) {
-    if (item.key === 'logs') pruneStravaMatchPayloads(item.value);
+    if (item.key === 'logs') { pruneStravaMatchPayloads(item.value); pruneStrengthSnapshots(item.value); }
     if (!await writePortalState(item.key, item.value)) continue;
     const tx = db.transaction(DP_STATE_QUEUE_STORE, 'readwrite');
     tx.objectStore(DP_STATE_QUEUE_STORE).delete(item.id);

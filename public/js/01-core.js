@@ -330,10 +330,55 @@ function pruneStravaMatchPayloads(logsObject){
   });
   return changed;
 }
+// The strength recommendation snapshot explains why a recommendation was made.
+// It is worth keeping for the sessions an athlete or coach might actually
+// query, and not worth carrying forever: at roughly half a kilobyte per
+// exercise it grows the logs blob toward the server's 750KB ceiling within
+// about a year of normal training, which is the same ceiling the Strava
+// trimming above exists to protect. Recent sessions keep the full record.
+// Older ones keep __policyVersion alone, which still says which rules they
+// were logged under.
+var STRENGTH_SNAPSHOT_SESSIONS=16;
+function pruneStrengthSnapshots(logsObject,keep){
+  if(!logsObject||typeof logsObject!=='object')return false;
+  keep=keep==null?STRENGTH_SNAPSHOT_SESSIONS:keep;
+  var dated=[];
+  Object.keys(logsObject).forEach(function(sessionId){
+    if(sessionId.indexOf('__')===0)return;
+    var entry=logsObject[sessionId];
+    if(!entry||typeof entry!=='object'||Array.isArray(entry))return;
+    if(!entry.__strengthRx||typeof entry.__strengthRx!=='object')return;
+    dated.push({id:sessionId,when:String(entry.__sessionDate||entry.__submittedAt||entry.__updatedAt||'')});
+  });
+  if(dated.length<=keep)return false;
+  // Newest first, with the session id as a stable tiebreaker so two sessions
+  // on the same date always prune in the same order.
+  dated.sort(function(a,b){
+    if(a.when!==b.when)return a.when<b.when?1:-1;
+    return a.id<b.id?1:-1;
+  });
+  var changed=false;
+  dated.slice(keep).forEach(function(item){
+    var entry=logsObject[item.id];
+    var version=entry.__policyVersion;
+    if(version==null){
+      var keys=Object.keys(entry.__strengthRx);
+      for(var i=0;i<keys.length;i++){
+        var record=entry.__strengthRx[keys[i]];
+        if(record&&record.v!=null){version=record.v;break;}
+        if(record&&record.policyVersion!=null){version=record.policyVersion;break;}
+      }
+    }
+    delete entry.__strengthRx;
+    if(version!=null)entry.__policyVersion=version;
+    changed=true;
+  });
+  return changed;
+}
 function portalStateWrite(key,value,options){
   // Belt and braces: no oversized logs blob can leave the device, whatever
   // path built it or how long it has been sitting in the outbox.
-  if(key==='logs')pruneStravaMatchPayloads(value);
+  if(key==='logs'){pruneStravaMatchPayloads(value);pruneStrengthSnapshots(value);}
   return portalRequest('state-write',{key:key,value:value},options).then(async function(result){
     await removePendingPortalStateWrite(key,null,value);
     return result;
@@ -679,7 +724,7 @@ async function retryPendingPortalStateWrites(silent,trigger){
     var original=null,trimmed=false;
     if(item.key==='logs'){
       try{original=JSON.parse(JSON.stringify(item.value));}catch(e){original=null;}
-      trimmed=pruneStravaMatchPayloads(item.value)&&!!original;
+      trimmed=(pruneStravaMatchPayloads(item.value)|pruneStrengthSnapshots(item.value))&&!!original;
     }
     try{
       await portalRequest('state-write',{key:item.key,value:item.value},{keepalive:true});
@@ -938,8 +983,8 @@ async function loadCloudData(code,preloaded){
         // Trim both copies before the comparison. A cloud row written by an
         // older build still carries the full Strava payloads, and copying it
         // into localStorage unpruned would just re-inflate the device.
-        pruneStravaMatchPayloads(_cloudLogs);
-        var _localTrimmed=pruneStravaMatchPayloads(_localLogs);
+        pruneStravaMatchPayloads(_cloudLogs);pruneStrengthSnapshots(_cloudLogs);
+        var _localTrimmed=pruneStravaMatchPayloads(_localLogs)|pruneStrengthSnapshots(_localLogs);
         if(_localLogs&&_localT>_cloudT){
           // Local draft is newer — keep it, and push it up so other devices catch up.
           if(_localTrimmed){try{localStorage.setItem('dp_logs_'+code,JSON.stringify(_localLogs));}catch(e){}}
