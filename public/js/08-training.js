@@ -1441,11 +1441,16 @@ function applyStrengthEffortLoadToRemaining(i,ei,startRow,endRow,weight,repTarge
 }
 function setStrengthEffort(i,ei,si,effort,button){
   var row=document.getElementById('sr_'+i+'_'+ei+'_'+si),panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(!row||!panel)return;
+  // Week refreshes replace the sessions array before the old workout DOM is
+  // necessarily gone. Bind the interaction to the session ID rendered on the
+  // card so a delayed tap cannot crash or write into a different workout.
+  var card=row.closest('.exc'),session=sessions[i],renderedSessionId=card&&card.getAttribute('data-session-id');
+  if(!session||session.id==null||(renderedSessionId&&String(session.id)!==String(renderedSessionId)))return false;
   row.setAttribute('data-effort',effort);panel.classList.add('is-rated');panel.classList.remove('is-prompting','is-editing','needs-attention');
   panel.querySelectorAll('.set-effort-options button').forEach(function(opt){var active=opt===button;opt.classList.toggle('active',active);opt.setAttribute('aria-pressed',active?'true':'false');});
   var summary=panel.querySelector('.set-effort-summary span');if(summary)summary.textContent=strengthEffortLabel(effort)+' ✓';
-  var card=row.closest('.exc'),splitKey=card&&card.getAttribute('data-split-key')||'Upper A',exercises=getSplit(splitKey),ex=exercises[ei];if(!ex)return;
-  var resolvedEx=exPicks[ex.exercise]||ex.exercise,history=getExerciseHistory(sessions[i].id,resolvedEx),sets=collectExerciseSets(i,ei,true),current=sets.find(function(set){return Number(set._rowIndex)===si;})||{};
+  var splitKey=card&&card.getAttribute('data-split-key')||'Upper A',exercises=getSplit(splitKey),ex=exercises[ei];if(!ex)return;
+  var resolvedEx=exPicks[ex.exercise]||ex.exercise,history=getExerciseHistory(session.id,resolvedEx),sets=collectExerciseSets(i,ei,true),current=sets.find(function(set){return Number(set._rowIndex)===si;})||{};
   var warmups=parseInt(ex.warmupSets,10)||0,working=parseInt(ex.workingSets||ex.sets,10)||1,finalSet=si>=warmups+working-1,nextRowIndex=finalSet?null:si+1;
   var guidance=strengthEffortGuidance(ex,effort,current,resolvedEx,history,finalSet),advice=document.getElementById('effort_advice_'+i+'_'+ei+'_'+si);
   if(advice){advice.className='set-effort-advice tone-'+(guidance&&guidance.tone||'blue');advice.innerHTML=strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex);}
@@ -1455,6 +1460,7 @@ function setStrengthEffort(i,ei,si,effort,button){
   if(guidance&&guidance.targetWeight!=null&&guidance.direction!=='same'&&!finalSet)applyStrengthEffortLoadToRemaining(i,ei,si+1,warmups+working-1,guidance.targetWeight,repTarget);
   if(guidance&&guidance.flagCoach&&typeof showToast==='function')showToast('Logged — stop or reduce the load, and let your coach know');
   draftGym(i,splitKey);autoCompleteStrengthSet(i,ei,si);
+  return true;
 }
 function applyStrengthEffortLoad(i,ei,si,weight){
   var input=document.getElementById('w_'+i+'_'+ei+'_'+si);if(!input)return;
@@ -2243,7 +2249,7 @@ function buildBody(s,i,type){
         var _nsSummary=(_nsTopW!=null?_nsBare(_nsTopW)+(isAssisted?'kg assist × ':'kg × '):'')+_nsParts.join(' · ');
         var _nsStateCls=exerciseIsComplete?' ns-logged':(hasExerciseData?' ns-inprogress':' ns-t-'+_ov.tone);
         var _nsLiveUnlocked=!!(_ov.live&&_ov.live.unlocked);
-        h+='<div class="exc'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-rest-seconds="'+(parseInt(ex.rest,10)||0)+'" data-rpe-required="'+(sessionRpeRequired?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'" data-ns-live-unlocked="'+(_nsLiveUnlocked?'true':'false')+'" data-ns-unlock-celebrated="'+(_nsLiveUnlocked?'true':'false')+'">';
+        h+='<div class="exc'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-session-id="'+esc(s.id)+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-rest-seconds="'+(parseInt(ex.rest,10)||0)+'" data-rpe-required="'+(sessionRpeRequired?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'" data-ns-live-unlocked="'+(_nsLiveUnlocked?'true':'false')+'" data-ns-unlock-celebrated="'+(_nsLiveUnlocked?'true':'false')+'">';
         h+='<div class="exc-summary" onclick="toggleExc(this)">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn-row"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>'+(isTimeCrunchPriority?'<span class="female-priority-badge">Priority</span>':'')+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div></div>'+_nsChip(_ov)+'<div class="exc-chev">▾</div></div>';
         h+='<div class="exc-body">'+_nsBody(_ov);
         h+='<div class="exh">';

@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v196'; // v196: strength progression engine, progress history, snapshot pruning
+const CACHE_NAME = 'dp-athlete-v197'; // v197: ignore stale exercise-swap and strength-effort taps safely
 const APP_SHELL = [
   '/index.html', '/styles.css?v=152', '/desktop.css?v=7', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=124',
-  '/js/02-login-goals.js?v=114',
+  '/js/02-login-goals.js?v=115',
   '/js/03-nav-nudges.js?v=114',
   '/js/04-checkin.js?v=96',
   '/js/05-handbook.js?v=85',
@@ -14,7 +14,7 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=1',
   '/js/08-strength-engine.js?v=2',
-  '/js/08-training.js?v=140',
+  '/js/08-training.js?v=141',
   '/js/09-logging.js?v=122',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=110',
