@@ -142,12 +142,17 @@ test('a new match is stored trimmed rather than in full', () => {
     'no code path may persist the raw Strava activity into a log entry');
 });
 
+// The strength recommendation snapshot eats the same 750KB budget as the Strava
+// payloads, so it is pruned at every one of these choke points too.
 test('every route out of the device trims a logs value first', () => {
-  assert.match(core, /function portalStateWrite\(key,value,options\)\{\s*(?:\/\/[^\n]*\n\s*)*if\(key==='logs'\)pruneStravaMatchPayloads\(value\);/,
+  assert.match(core, /function portalStateWrite\(key,value,options\)\{\s*(?:\/\/[^\n]*\n\s*)*if\(key==='logs'\)\{pruneStravaMatchPayloads\(value\);pruneStrengthSnapshots\(value\);\}/,
     'portalStateWrite must trim a logs value before sending it');
   const retry = core.slice(core.indexOf('async function retryPendingPortalStateWrites'));
-  assert.match(retry.slice(0, retry.indexOf('\n}')), /pruneStravaMatchPayloads\(item\.value\)/,
+  const retryBody = retry.slice(0, retry.indexOf('\n}'));
+  assert.match(retryBody, /pruneStravaMatchPayloads\(item\.value\)/,
     'the outbox must trim a queued logs value, or a payload queued by an older build retries forever');
+  assert.match(retryBody, /pruneStrengthSnapshots\(item\.value\)/,
+    'the outbox must drop stale strength snapshots for the same reason');
 });
 
 test('an existing device repairs its stored logs on the next sign-in', () => {
@@ -158,6 +163,10 @@ test('an existing device repairs its stored logs on the next sign-in', () => {
   const cloud = core.slice(core.indexOf("if(row.key==='logs'){"));
   assert.match(cloud.slice(0, 900), /pruneStravaMatchPayloads\(_cloudLogs\)/,
     'a cloud row written by an older build must be pruned before it re-inflates the device');
+  assert.match(cloud.slice(0, 900), /pruneStrengthSnapshots\(_cloudLogs\)/,
+    'and the same for a cloud row full of strength snapshots');
+  assert.match(loginGoals, /pruneStrengthSnapshots\(logs\)/,
+    'sign-in must repair a local copy carrying snapshots for every session ever logged');
 });
 
 // The service worker drains the same outbox as the page, on activate and on
@@ -167,8 +176,47 @@ test('an existing device repairs its stored logs on the next sign-in', () => {
 test('the service worker trims a queued logs value before posting it', () => {
   const worker = readFileSync(join(root, 'public', 'sw.js'), 'utf8');
   const flush = worker.slice(worker.indexOf('async function flushOfflineQueue'));
-  assert.match(flush, /if \(item\.key === 'logs'\) pruneStravaMatchPayloads\(item\.value\);\s*\n\s*if \(!await writePortalState/,
+  assert.match(flush, /if \(item\.key === 'logs'\) \{ pruneStravaMatchPayloads\(item\.value\); pruneStrengthSnapshots\(item\.value\); \}\s*\n\s*if \(!await writePortalState/,
     'the worker must prune a logs value immediately before writing it');
+});
+
+// The page and the worker keep separate copies of the pruning rules because the
+// worker cannot import from 01-core.js. A budget that drifts between them means
+// whichever drains the queue decides how big the blob is.
+test('the worker and the page agree on the strength snapshot budget', () => {
+  const worker = readFileSync(join(root, 'public', 'sw.js'), 'utf8');
+  const pageBudget = (core.match(/var STRENGTH_SNAPSHOT_SESSIONS=(\d+)/) || [])[1];
+  const workerBudget = (worker.match(/const STRENGTH_SNAPSHOT_SESSIONS = (\d+)/) || [])[1];
+  assert.ok(pageBudget, 'the page must declare a snapshot budget');
+  assert.equal(workerBudget, pageBudget, 'the worker must keep the same budget as the page');
+});
+
+test('pruning keeps the newest sessions and leaves the policy version behind', () => {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(
+    core.slice(core.indexOf('var STRENGTH_SNAPSHOT_SESSIONS'), core.indexOf('function portalStateWrite(')),
+    context,
+  );
+  const logs = {};
+  for (let i = 0; i < 20; i++) {
+    logs['s' + String(i).padStart(2, '0')] = {
+      __sessionDate: '2026-08-' + String(i + 1).padStart(2, '0'),
+      __policyVersion: 3,
+      __strengthRx: { Squat: { v: 3, rx: {}, rec: { d: 'add_reps' } } },
+      Squat: [{ weight: '80', reps: '5' }],
+    };
+  }
+  assert.equal(context.pruneStrengthSnapshots(logs, 16), true);
+  const kept = Object.keys(logs).filter((id) => logs[id].__strengthRx);
+  assert.equal(kept.length, 16, 'only the newest sessions keep the full record');
+  assert.equal(kept.includes('s19'), true, 'the newest session is kept');
+  assert.equal(kept.includes('s00'), false, 'the oldest session is pruned');
+  // The audit trail survives: an old session still says which rules it used.
+  assert.equal(logs.s00.__policyVersion, 3);
+  // The sets themselves are never touched.
+  assert.deepEqual(logs.s00.Squat, [{ weight: '80', reps: '5' }]);
+  assert.equal(context.pruneStrengthSnapshots(logs, 16), false, 'pruning twice is a no-op');
 });
 
 test('the worker and the page agree on which activity fields survive', () => {

@@ -1561,19 +1561,35 @@ function strengthRecommendationSnapshot(sessionId,exercises){
       var history=getExerciseHistory(sessionId,resolved);
       var pres=strengthPrescriptionFor(ex,resolved);
       var rec=_nsRecommendation(ex,getExercisePreviousEffort(sessionId,resolved),resolved,history);
-      out[resolved]={
-        policyVersion:STRENGTH_POLICY.version,
-        programmed:ex.exercise,
-        rx:{repMode:pres.repMode,repFloor:pres.repFloor,repCeiling:pres.repCeiling,
-          workingSets:pres.workingSets,warmupSets:pres.warmupSets,
-          targetLoad:pres.targetLoad,percent1rm:pres.percent1rm,
-          targetRir:pres.targetRir,targetRpe:pres.targetRpe,effortSource:pres.targetEffortSource,
-          loadMode:pres.loadMode,unit:pres.unit,convention:pres.convention,
-          progression:pres.progression.type,progressionRule:pres.progression.raw},
-        recommendation:{decision:rec.decision,status:rec.status,action:rec.action,
-          weightKg:rec.weightKg,target:rec.target,estimated:!!rec.estimated,
-          confidence:rec.confidence?rec.confidence.level:null,reason:rec.reason}
-      };
+      // Deliberately compact. The status, action and reason sentences are not
+      // stored: `decision` plus the numbers plus `policyVersion` reproduce them
+      // exactly, which is the reason the policy version is recorded at all.
+      // Fields that are null or at their default are omitted rather than
+      // written, because this record is kept per exercise per session inside
+      // the logs blob that the server caps at 750KB.
+      var record={v:STRENGTH_POLICY.version,rx:{},rec:{}};
+      if(ex.exercise!==resolved)record.programmed=ex.exercise;
+      var rx=record.rx;
+      rx.reps=pres.repMode==='exact'?String(pres.exactReps):(pres.repFloor+'-'+pres.repCeiling);
+      rx.mode=pres.repMode;
+      rx.sets=pres.workingSets;
+      if(pres.warmupSets)rx.warmup=pres.warmupSets;
+      if(pres.targetLoad!=null)rx.load=pres.targetLoad;
+      if(pres.percent1rm!=null)rx.pct=pres.percent1rm;
+      rx.rir=pres.targetRir;
+      if(pres.targetEffortSource==='coach')rx.rirBy='coach';
+      if(pres.loadMode!=='external')rx.loadMode=pres.loadMode;
+      if(pres.unit!=='kg')rx.unit=pres.unit;
+      if(pres.convention!=='total')rx.conv=pres.convention;
+      if(pres.progression.type!=='double')rx.prog=pres.progression.type;
+      if(pres.progression.raw)rx.progRule=pres.progression.raw;
+      var out_rec=record.rec;
+      out_rec.d=rec.decision;
+      if(rec.weightKg!=null)out_rec.kg=rec.weightKg;
+      if(rec.target&&rec.target.length)out_rec.t=rec.target;
+      if(rec.estimated)out_rec.est=1;
+      if(rec.confidence&&rec.confidence.level)out_rec.c=rec.confidence.level;
+      out[resolved]=record;
     }catch(e){}
   });
   return out;

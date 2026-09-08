@@ -136,7 +136,9 @@ function hydrateLocalPortalState(code){
   // One-time repair for devices carrying full Strava activity payloads from an
   // older build. Rewrite the local copy immediately so the next save is small
   // enough for the server to accept, without waiting for a sync round trip.
-  if(typeof pruneStravaMatchPayloads==='function'&&pruneStravaMatchPayloads(logs)){
+  var _prunedOnLoad=typeof pruneStravaMatchPayloads==='function'&&pruneStravaMatchPayloads(logs);
+  if(typeof pruneStrengthSnapshots==='function'&&pruneStrengthSnapshots(logs))_prunedOnLoad=true;
+  if(_prunedOnLoad){
     try{localStorage.setItem('dp_logs_'+code,JSON.stringify(logs));}catch(e){}
   }
   stravaMatchRejections=JSON.parse(localStorage.getItem('dp_strava_match_rejections_'+code)||'{}');
