@@ -20,8 +20,8 @@
     "sha": "5518e1527ee2"
   },
   "js/02-login-goals.js": {
-    "version": 114,
-    "sha": "bb5589bdfecb"
+    "version": 115,
+    "sha": "0b22c0071412"
   },
   "js/03-nav-nudges.js": {
     "version": 114,
@@ -64,8 +64,8 @@
     "sha": "f32e577f9d6e"
   },
   "js/08-training.js": {
-    "version": 140,
-    "sha": "6e08b1ca8571"
+    "version": 141,
+    "sha": "74eeb7435fe4"
   },
   "js/09-logging.js": {
     "version": 122,
