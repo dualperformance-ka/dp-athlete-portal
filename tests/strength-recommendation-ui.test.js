@@ -253,6 +253,129 @@ test('the calibration answer only fills sets that are still empty', () => {
   context.showToast = previousToast;
 });
 
+test('a live 63-to-68kg change replaces stale rep chasing and targets 15 immediately', () => {
+  const context = makeContext();
+  const hip = { exercise: 'Hip Abduction', sets: '4', workingSets: '4', reps: '15', repRange: '15-20', targetRir: 2 };
+  const previous = [
+    { weight: '63', reps: '19', done: true }, { weight: '63', reps: '15', done: true },
+    { weight: '63', reps: '15', done: true }, { weight: '63', reps: '15', done: true },
+  ];
+  const current = [
+    { _rowIndex: 0, weight: '63', reps: '19', done: true },
+    { _rowIndex: 1, weight: '68', reps: '', done: false },
+  ];
+  const baseline = context._nsRecommendation(hip, previous, hip.exercise, []);
+  const live = context._nsLiveProgress(hip, current, baseline, hip.exercise, [], previous);
+  const displayed = context._nsApplyLiveLoadRecommendation(baseline, live);
+  displayed.live = live;
+
+  assert.equal(live.loadChanged, true);
+  assert.equal(displayed.decision, 'live_load_increase');
+  assert.equal(displayed.weightKg, 68);
+  assert.deepEqual(Array.from(displayed.target), [20, 15, 15, 15], 'the completed set target is preserved and only remaining targets reset');
+  const html = context._nsBody(displayed);
+  assert.match(html, /Load Increased/);
+  assert.match(html, /Aim for 15 clean reps/);
+  assert.match(html, /Maintain approximately 2 reps in reserve/);
+  assert.match(html, /Current recommendation/);
+  assert.doesNotMatch(html, /One extra clean rep|Beat Last Week/i);
+});
+
+test('a live 68-to-63kg reduction updates guidance without restoring the old load', () => {
+  const context = makeContext();
+  const hip = { exercise: 'Hip Abduction', sets: '4', workingSets: '4', reps: '15', repRange: '15-20', targetRir: 2 };
+  const previous = [
+    { weight: '68', reps: '18', done: true }, { weight: '68', reps: '16', done: true },
+    { weight: '68', reps: '15', done: true }, { weight: '68', reps: '15', done: true },
+  ];
+  const current = [
+    { _rowIndex: 0, weight: '68', reps: '18', done: true },
+    { _rowIndex: 1, weight: '63', reps: '', done: false },
+  ];
+  const baseline = context._nsRecommendation(hip, previous, hip.exercise, []);
+  const live = context._nsLiveProgress(hip, current, baseline, hip.exercise, [], previous);
+  const displayed = context._nsApplyLiveLoadRecommendation(baseline, live);
+  displayed.live = live;
+
+  assert.equal(displayed.decision, 'live_load_decrease');
+  assert.equal(displayed.weightKg, 63);
+  assert.equal(displayed.target[0], baseline.target[0], 'the completed set keeps its earlier target');
+  assert.deepEqual(Array.from(displayed.target.slice(1)), [15, 15, 15]);
+  assert.equal(live.ahead, false, 'a safety reduction is not styled as an ahead-of-target event');
+  const html = context._nsBody(displayed);
+  assert.match(html, /Load Reduced/);
+  assert.match(html, /Aim for at least 15 clean reps/);
+  assert.match(html, /Keep the manual change/);
+  assert.doesNotMatch(html, /Beat Last Week|one more rep/i);
+});
+
+test('live target hints never rewrite completed sets or entered values', () => {
+  const context = makeContext();
+  const hip = { exercise: 'Hip Abduction', sets: '4', workingSets: '4', reps: '15', repRange: '15-20' };
+  const makeInput = (value, placeholder = '') => ({ value, placeholder });
+  const makeRow = (weight, reps, done) => {
+    const w = makeInput(weight);
+    const r = makeInput(reps);
+    return {
+      w, r,
+      querySelector: (selector) => selector.startsWith('button')
+        ? { classList: { contains: () => done } }
+        : (selector.startsWith('input[id^="w_"') ? w : null),
+      querySelectorAll: () => [r],
+    };
+  };
+  const rows = [makeRow('63', '19', true), makeRow('68', '', false), makeRow('', '', false), makeRow('', '', false)];
+  const card = { querySelectorAll: () => rows };
+  const live = { loadDecision: { currentLoad: 68, repTarget: 15, startWorkingIndex: 1 } };
+
+  assert.equal(context.applyStrengthLiveTargets(card, hip, live), 3);
+  assert.equal(rows[0].w.value, '63');
+  assert.equal(rows[0].r.value, '19');
+  assert.equal(rows[1].w.value, '68');
+  assert.equal(rows[1].r.placeholder, '15');
+  assert.equal(rows[2].w.value, '', 'remaining loads stay user-controlled values');
+  assert.equal(rows[2].w.placeholder, '68');
+  assert.equal(rows[2].r.placeholder, '15');
+});
+
+test('warm-up load changes do not enter the live progression decision', () => {
+  const context = makeContext();
+  const warmed = { exercise: 'Machine Press', sets: '4', warmupSets: '1', workingSets: '3', reps: '8', repRange: '8-12' };
+  const previous = [
+    { _rowIndex: 1, weight: '50', reps: '10' },
+    { _rowIndex: 2, weight: '50', reps: '10' },
+    { _rowIndex: 3, weight: '50', reps: '9' },
+  ];
+  const baseline = context._nsRecommendation(warmed, previous, warmed.exercise, []);
+  const live = context._nsLiveProgress(
+    warmed,
+    [{ _rowIndex: 0, weight: '70', reps: '' }],
+    baseline,
+    warmed.exercise,
+    [],
+    previous,
+  );
+  assert.equal(live, null);
+});
+
+test('a saved heavier workout reloads as the next 68kg baseline', () => {
+  const context = makeContext();
+  const hip = { exercise: 'Hip Abduction', sets: '4', workingSets: '4', reps: '15', repRange: '15-20' };
+  context.allSessions = [
+    { id: 'old', date: '2026-09-01' },
+    { id: 'saved', date: '2026-09-08' },
+  ];
+  context.logs = {
+    old: { 'Hip Abduction': [{ weight: '63', reps: '19' }, { weight: '63', reps: '15' }, { weight: '63', reps: '15' }, { weight: '63', reps: '15' }], __sessionDate: '2026-09-01' },
+    saved: { 'Hip Abduction': [{ weight: '68', reps: '15' }, { weight: '68', reps: '15' }, { weight: '68', reps: '15' }, { weight: '68', reps: '15' }], __sessionDate: '2026-09-08', __policyVersion: 4 },
+  };
+  const restored = context.getExercisePreviousEffort('future', 'Hip Abduction');
+  const rec = context._nsRecommendation(hip, restored, hip.exercise, context.getExerciseHistory('future', hip.exercise));
+  assert.equal(restored[0].weight, '68');
+  assert.equal(rec.weightKg, 68);
+  assert.match(rec.action, /68kg/);
+});
+
 test('a load increase is only celebrated once it is genuinely unlocked', () => {
   const context = makeContext();
   const provisional = context._nsRecommendation(press, [

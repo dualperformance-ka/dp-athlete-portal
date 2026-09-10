@@ -13,10 +13,13 @@ through as typed fields instead of flattening them into the display line.
 1. `normaliseStrengthPrescription(ex, resolvedName)` — what the coach asked for.
 2. `normaliseStrengthSets(rows, pres, roleOverride)` — what the athlete did.
 3. `strengthCalibrationDecision(...)` / `strengthProgressionDecision(...)`.
+4. `strengthLiveLoadDecision(...)` — a weight-only, side-effect-free decision
+   used while the athlete is still entering the current set.
 
-`getWorkingSlice()` in `08-training.js` still decides which rows are programmed
-working sets, because it carries the legacy row-index and warm-up rules that
-older logs depend on. The engine is handed that slice.
+`getWorkingRows()` in `08-training.js` decides which rows are programmed working
+sets because it carries the legacy row-index and warm-up rules that older logs
+depend on. Saved-history decisions use its reps-required view; live load changes
+use its weight-only-capable view. Warm-ups and bonus rows are excluded in both.
 
 ## Policy
 
@@ -31,11 +34,13 @@ a plateau can be called, and at least 2 of them at a high effort.
 
 ## Recommendation precedence
 
-1. Explicit, valid coach configuration (`target_load`, `rpe`/`rir`, rep bounds,
-   a supported `progression_rule`).
-2. The last confirmed recommendation for the same variation and load convention.
-3. The most recent valid completed session for that exact context.
-4. Conservative first-session calibration, with no fabricated kg value.
+1. Pain, technique, failed-rep or too-hard feedback.
+2. Explicit coach configuration (`target_load`, `rpe`/`rir`, rep bounds and
+   supported progression instructions).
+3. Athlete difficulty, RPE and RIR feedback.
+4. A deliberate working-load change.
+5. Per-set rep performance.
+6. Total-rep history as supporting context, never the sole gate.
 
 A `progression_rule` is never executed as code. Supported shapes are `double`,
 `exact reps`, `hold`, `top set`/`ramped` and `linear +Nkg`. Anything else is
@@ -49,18 +54,19 @@ Evaluated in this order; the first match wins.
 |---|---|---|---|
 | 0 | Rep mode is seconds, distance or unsupported | `mode_deferred` | Hold the written target; rep logic never runs |
 | 1 | No completed set and no load | `coach_target` / `calibrate` | Coach load if set, otherwise ask for a controllable load — no invented kg |
-| 2 | First working set rated too hard / technique / pain | `reduce_load` | One rung easier next session; pain also sets `painFlag` + `coachReview` |
-| 3 | First working set rated too easy | `load_confirmed` / `change_provisional` / `change_unconfirmed` | One rung today for blank sets; carried forward only once a later set reaches the floor |
-| 4 | Technique or pain on any other working set | `technique_check` | Never an increase; reduce or skip, and flag the coach |
-| 5 | Load heavier than last confirmed, all required sets at the floor | `load_confirmed` | New baseline, even with fewer total reps |
-| 5b | Load heavier but a later set missed the floor | `change_unconfirmed` | Attempt acknowledged, previous baseline kept |
-| 6 | All required working sets at/above the ceiling, effort acceptable | `increase_load` / `increase_reps` | One rung; targets reset to the floor. Bodyweight adds reps; assisted at zero becomes a bodyweight attempt; no known increment becomes `coach_review` |
-| 7 | 3+ comparable completed sessions, same load, no rep gain, high effort | `reduce_load` | One rung back plus a coach conversation |
-| 7b | Same, but effort was never rated | `hold_load` (`Hold And Log`) | Hold and ask for better data |
-| 8 | A completed session with a set under the floor | `hold_load` (`Build The Reps`) | Own the load first |
-| 9 | Fewer completed working sets than programmed | `incomplete` | Hold; missing logs are never read as zero reps |
-| 10 | Exact-rep rule | `hold_load` | Reps stay exactly as written; only load can move |
-| 11 | Otherwise | `add_reps` | Double progression: one extra total rep, never past the ceiling |
+| 2 | Technique/pain anywhere | `reduce_load` / `technique_check` | Never increase; reduce or stop and flag the coach |
+| 3 | Too hard/at limit anywhere | `reduce_load` / `hold_load` | Below the floor reduces; otherwise hold; both suppress increases |
+| 4 | Too easy but any set is below the floor | `hold_load` | The programmed minimum outranks the easy signal |
+| 5 | First working set rated too easy | `load_confirmed` / `increase_load` / `change_provisional` / `change_unconfirmed` | One same-day change at most; later sets confirm it; unknown equipment never gets a fabricated kg value |
+| 6 | Too easy / excess RIR on any completed working set | `increase_load` | Override rep chasing, move one known rung or say “next available weight”, reset to the programmed floor |
+| 7 | Load heavier than last confirmed, all required sets at the floor | `load_confirmed` | New baseline, even with fewer total reps |
+| 7b | Load heavier but a later set missed the floor | `change_unconfirmed` | Attempt acknowledged, previous baseline kept |
+| 8 | All required working sets at/above the ceiling, effort acceptable | `increase_load` / `increase_reps` | One rung; targets reset to that exercise's floor |
+| 9 | 3+ comparable completed sessions, same load, no rep gain, high effort | `reduce_load` | One rung back plus a coach conversation |
+| 10 | A completed session with a set under the floor | `hold_load` | Own the load first |
+| 11 | Fewer completed working sets than programmed | `incomplete` | Hold; missing logs are never read as zero reps |
+| 12 | Exact-rep rule | `hold_load` | Reps stay exactly as written; only load can move |
+| 13 | Otherwise | `add_reps` | Same-load double progression adds one clean rep inside the range |
 
 Every decision carries `tone`, `reason`, `confidence` (`coach_set`, `confirmed`,
 `learned`, `estimated`, `low`) and `policyVersion`.
@@ -98,6 +104,18 @@ holds the load and lowers confidence rather than picking a winner.
 Quality codes are `on_target`, `too_easy`, `too_hard`, `form_pain`. The three
 legacy codes still parse: `reserve` → too easy, `failure` → at limit (RIR 0),
 `form_break` → technique/pain.
+
+## Live load changes
+
+A working-load input is evaluated on every keystroke, even before reps exist.
+An increase switches the card to “Load Increased”; a decrease switches it to
+“Load Reduced” and is never automatically undone. Both directions target the
+bottom of that exercise's programmed range, repeat the prescribed RIR and use
+the immediately preceding working load before falling back to saved history.
+Only placeholders on the current and remaining unfinished working rows change;
+entered values and completed rows are never rewritten. Once all sets are logged,
+the normal shared progression decision takes over and the saved workout becomes
+the next history baseline.
 
 ## Equipment
 
