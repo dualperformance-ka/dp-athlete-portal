@@ -361,7 +361,7 @@ test('broken form makes the next workout start lighter', () => {
   assert.match(recommendation.reason, /lost clean technique/);
 });
 
-test('technical failure inside the range keeps normal double progression', () => {
+test('technical failure inside the range holds without adding another rep target', () => {
   const press = {
     exercise: 'Incline Dumbbell Press',
     sets: '3',
@@ -377,6 +377,8 @@ test('technical failure inside the range keeps normal double progression', () =>
 
   const recommendation = context.computeOverload(press, current, press.exercise, []);
 
-  assert.equal(recommendation.status, 'Beat Last Week');
+  assert.equal(recommendation.status, 'Hold The Load');
   assert.equal(recommendation.action, 'Stay at 30kg');
+  assert.deepEqual(Array.from(recommendation.target), [8, 8, 8]);
+  assert.match(recommendation.reason, /harder than prescribed/i);
 });
