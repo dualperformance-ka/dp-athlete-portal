@@ -17,7 +17,7 @@
 var STRENGTH_POLICY = {
   // Bump when a rule change would reinterpret an already-submitted session.
   // Stored with the session so old logs stay explainable under their own rules.
-  version: 3,
+  version: 4,
   // Training to failure is never required. Absent a coach target, calibrate at
   // roughly two clean reps in reserve.
   defaultTargetRir: 2,
@@ -310,7 +310,7 @@ function strengthEffortAcceptable(evidence){
   // Acceptable means "not a technique/pain stop and not obviously past the
   // prescribed effort". Missing effort data is acceptable but low confidence.
   if(!evidence)return true;
-  return evidence.band!=='stop';
+  return evidence.band!=='stop'&&evidence.band!=='hard';
 }
 
 // ── equipment ladder ─────────────────────────────────────────────────────────
@@ -628,6 +628,10 @@ function _seDecide(input){
   var load=_seSessionLoad(pres,completed.length?completed:working);
   var roles=_seRoles(pres,completed);
   var painRow=working.filter(function(r){return r.quality==='form_pain';})[0]||null;
+  var hardRow=working.filter(function(r){
+    var evidence=strengthEffortEvidence(pres,r);
+    return r.quality==='too_hard'||r.quality==='at_limit'||evidence.band==='hard';
+  })[0]||null;
 
   // 0. Rep modes the rep engine has no business running on.
   if(pres.repMode==='seconds'||pres.repMode==='distance'||pres.repMode==='other'){
@@ -668,7 +672,65 @@ function _seDecide(input){
     });
   }
 
-  // 3. First-working-set calibration can correct an obviously wrong starting
+  // 3. Safety feedback outranks every progression signal, including an earlier
+  //    "too easy" answer or enough reps to otherwise earn an increase.
+  if(painRow){
+    var painLoad=painRow.load!=null?painRow.load:load;
+    var painEasier=strengthEasierRung(pres,painLoad,ladder);
+    var firstPain=painRow===working[0];
+    return _seDecision({
+      decision:firstPain?'reduce_load':'technique_check',status:firstPain?'Reduce Load':'Technique Check',tone:'red',
+      action:painEasier.load!=null&&painEasier.load!==painLoad
+        ?_seActionText(pres,firstPain?'start':'easier',painEasier.load)
+        :('Hold '+_seLoadLabel(pres,painLoad)),
+      weightKg:painEasier.load!=null?painEasier.load:painLoad,arrow:'↻',
+      target:_seFilled(required,pres.repFloor),
+      reason:firstPain
+        ?'Your first working set lost clean technique. The next workout starts easier so every rep stays controlled.'
+        :'A working set was stopped for technique or a niggle, so the load does not go up. Reduce it or leave the movement out next session, and tell your coach.',
+      confidence:strengthConfidence('low','technique or niggle'),
+      painFlag:true,coachReview:true,assisted:pres.assisted
+    });
+  }
+  if(hardRow){
+    var hardLoad=hardRow.load!=null?hardRow.load:load;
+    var missedFloor=hardRow.reps!=null&&hardRow.reps<pres.repFloor;
+    var hardEasier=missedFloor?strengthEasierRung(pres,hardLoad,ladder):null;
+    return _seDecision({
+      decision:missedFloor?'reduce_load':'hold_load',
+      status:missedFloor?'Reduce Load':'Hold The Load',tone:'red',
+      action:missedFloor&&hardEasier&&hardEasier.load!=null&&hardEasier.load!==hardLoad
+        ?_seActionText(pres,'easier',hardEasier.load)
+        :_seActionText(pres,'hold',hardLoad),
+      weightKg:missedFloor&&hardEasier&&hardEasier.load!=null?hardEasier.load:hardLoad,arrow:missedFloor?'↻':'→',
+      target:_seFilled(required,pres.repFloor),
+      reason:missedFloor
+        ?'A working set came in under '+pres.repFloor+' reps at a hard effort. Reduce the load and regain the bottom of the programmed range with clean technique.'
+        :'The effort was harder than prescribed, so the load does not go up. Hold it and finish with clean reps at '+_seEffortLabel(pres)+'.',
+      confidence:missedFloor&&hardEasier&&hardEasier.exact?strengthLadderConfidence(ladder):strengthConfidence('low','hard effort recorded'),
+      assisted:pres.assisted
+    });
+  }
+
+  var hasEasySignal=completed.some(function(row){
+    var evidence=strengthEffortEvidence(pres,row);
+    return row.quality==='too_easy'||evidence.band==='easy';
+  });
+  var firstWorking=working[0]||null;
+  var hasSameDayHarder=!!(firstWorking&&working.slice(1).some(function(row){
+    return row.hasLoad&&firstWorking.hasLoad&&_seIsHarder(pres,row.load,firstWorking.load);
+  }));
+  if(hasEasySignal&&!hasSameDayHarder&&completed.some(function(row){return row.reps<pres.repFloor;})){
+    return _seDecision({
+      decision:'hold_load',status:'Build The Reps',tone:'red',
+      action:_seActionText(pres,'hold',load),weightKg:load,arrow:'→',
+      target:_seFilled(required,pres.repFloor),
+      reason:'A working set came in under '+pres.repFloor+' reps. The coach-programmed range outranks an easy rating, so own the bottom of the range before the load moves.',
+      confidence:strengthConfidence('confirmed','programmed rep floor'),assisted:pres.assisted
+    });
+  }
+
+  // 4. First-working-set calibration can correct an obviously wrong starting
   //    point today, and carries forward only once a later set confirms it.
   var first=working[0]||null;
   if(first&&first.quality&&first.quality!=='on_target'){
@@ -687,25 +749,29 @@ function _seDecide(input){
         assisted:pres.assisted
       });
     }
-    if(calibration&&calibration.outcome==='increase'&&calibration.targetLoad!=null){
+    if(calibration&&calibration.outcome==='increase'){
       // A same-day change only becomes next session's baseline once a later
-      // programmed working set reaches the floor at that setting.
+      // programmed working set reaches the floor at a genuinely harder setting.
+      // When the equipment ladder is unknown, the athlete's entered load is the
+      // rung — the engine never fabricates one.
       var adjusted=working.slice(1).filter(function(row){
         if(!row.hasLoad)return false;
-        return pres.assisted?row.load<=calibration.targetLoad+0.01:row.load>=calibration.targetLoad-0.01;
+        return _seIsHarder(pres,row.load,first.load);
       });
       var confirmed=adjusted.filter(function(row){
         return row.counts&&row.reps>=pres.repFloor&&row.quality!=='form_pain';
       });
+      var attemptedLoads=adjusted.map(function(row){return row.load;});
+      var attemptedLoad=attemptedLoads.length?(pres.assisted?Math.min.apply(null,attemptedLoads):Math.max.apply(null,attemptedLoads)):calibration.targetLoad;
       if(adjusted.length&&!confirmed.length){
         return _seDecision({
           decision:'change_unconfirmed',tone:'yellow',
-          status:'Consolidating '+_seLoadValue(pres,calibration.targetLoad),
-          action:_seConsolidateAction(pres,first.load,calibration.targetLoad),
+          status:'Consolidating '+_seLoadValue(pres,attemptedLoad),
+          action:_seConsolidateAction(pres,first.load,attemptedLoad),
           weightKg:first.load,arrow:'↻',
           target:_seFilled(required,pres.repFloor),
-          reason:'You moved '+_seLoadLabel(pres,calibration.targetLoad)+' today, and it did not confirm at '+pres.repFloor+' clean reps yet, so '+_seLoadLabel(pres,first.load)+' stays the baseline. Repeat that cleanly and the heavier setting is yours.',
-          workingToward:{loadKg:calibration.targetLoad},
+          reason:'You moved '+_seLoadLabel(pres,attemptedLoad)+' today, and it did not confirm at '+pres.repFloor+' clean reps yet, so '+_seLoadLabel(pres,first.load)+' stays the baseline. Repeat that cleanly and the heavier setting is yours.',
+          workingToward:{loadKg:attemptedLoad},
           confidence:strengthConfidence('confirmed','last confirmed load'),
           calibrated:true,assisted:pres.assisted
         });
@@ -713,6 +779,31 @@ function _seDecide(input){
       var confirmedLoads=confirmed.map(function(row){return row.load;});
       var applied=confirmedLoads.length>0;
       var nextStart=applied?(pres.assisted?Math.min.apply(null,confirmedLoads):Math.max.apply(null,confirmedLoads)):calibration.targetLoad;
+      if(!applied&&completed.length>=required){
+        var exactNext=nextStart!=null&&calibration.confidence&&calibration.confidence.level!=='estimated';
+        return _seDecision({
+          decision:'increase_load',status:'Ready to Increase',tone:'green',
+          action:exactNext
+            ?_seActionText(pres,'harder',nextStart)
+            :(pres.assisted?'Use the next lower assistance setting':'Increase to the next available weight'),
+          weightKg:exactNext?nextStart:null,arrow:pres.assisted?'↘':'↗',
+          target:_seFilled(required,pres.repMode==='exact'?pres.exactReps:pres.repFloor),
+          reason:'The recorded effort was easier than prescribed. Increase by the smallest available step and restart at the bottom of the programmed rep range.',
+          confidence:exactNext?calibration.confidence:strengthConfidence('low','equipment increment unknown'),
+          estimated:false,calibrated:true,assisted:pres.assisted
+        });
+      }
+      if(nextStart==null){
+        return _seDecision({
+          decision:'change_provisional',status:'Ready to Increase',tone:'green',
+          action:pres.assisted?'Use the next lower assistance setting':'Increase to the next available weight',
+          weightKg:null,arrow:pres.assisted?'↘':'↗',
+          target:_seFilled(required,pres.repMode==='exact'?pres.exactReps:pres.repFloor),
+          reason:'The load was easier than the prescribed effort. Increase it by the smallest available step and restart at the bottom of the programmed rep range.',
+          confidence:strengthConfidence('low','equipment increment unknown'),
+          estimated:false,calibrated:true,assisted:pres.assisted
+        });
+      }
       return _seDecision({
         decision:applied?'load_confirmed':'change_provisional',
         status:'Load Calibrated',tone:'green',
@@ -727,25 +818,31 @@ function _seDecide(input){
     }
   }
 
-  // 3b. Technique or a niggle on any other working set suppresses an increase.
-  //     No diagnosis, no medical advice: stop or reduce, and flag the coach.
-  if(painRow){
-    var painLoad=painRow.load!=null?painRow.load:load;
-    var painEasier=strengthEasierRung(pres,painLoad,ladder);
+  // 5. A too-easy signal from any completed working set overrides ordinary rep
+  //    progression. The range still gates safety: an under-floor set cannot use
+  //    an easy button as a licence to add load.
+  var easyRow=completed.filter(function(row){
+    var evidence=strengthEffortEvidence(pres,row);
+    return row.quality==='too_easy'||evidence.band==='easy';
+  })[0]||null;
+  if(easyRow&&completed.every(function(row){return row.reps>=pres.repFloor;})){
+    var easyLoad=easyRow.load!=null?easyRow.load:load;
+    var easyHarder=strengthHarderRung(pres,easyLoad,ladder);
+    var knownEasyLoad=easyHarder.load!=null&&easyHarder.exact;
     return _seDecision({
-      decision:'technique_check',status:'Technique Check',tone:'red',
-      action:painEasier.load!=null&&painEasier.load!==painLoad
-        ?_seActionText(pres,'easier',painEasier.load)
-        :('Hold '+_seLoadLabel(pres,painLoad)),
-      weightKg:painEasier.load!=null?painEasier.load:painLoad,arrow:'↻',
-      target:_seFilled(required,pres.repFloor),
-      reason:'A working set was stopped for technique or a niggle, so the load does not go up. Reduce it or leave the movement out next session, and tell your coach.',
-      confidence:strengthConfidence('low','technique or niggle'),
-      painFlag:true,coachReview:true,assisted:pres.assisted
+      decision:'increase_load',status:'Ready to Increase',tone:'green',
+      action:knownEasyLoad
+        ?_seActionText(pres,'harder',easyHarder.load)
+        :(pres.assisted?'Use the next lower assistance setting':'Increase to the next available weight'),
+      weightKg:knownEasyLoad?easyHarder.load:null,arrow:pres.assisted?'↘':'↗',
+      target:_seFilled(required,pres.repMode==='exact'?pres.exactReps:pres.repFloor),
+      reason:'The recorded effort was easier than prescribed. Increase by the smallest available step and restart at the bottom of the programmed rep range.',
+      confidence:knownEasyLoad?strengthLadderConfidence(ladder):strengthConfidence('low','equipment increment unknown'),
+      estimated:false,assisted:pres.assisted
     });
   }
 
-  // 4. Deliberate heavier load: recognise it when every required set holds the
+  // 6. Deliberate heavier load: recognise it when every required set holds the
   //    floor, and only note the attempt when it does not.
   var lastSession=_seLastComparable(pres,history,input.sliceWorking);
   if(load!=null&&lastSession&&lastSession.load!=null&&_seIsHarder(pres,load,lastSession.load)&&completed.length){
@@ -774,7 +871,7 @@ function _seDecide(input){
     }
   }
 
-  // 5. Every required working set at or above the ceiling -> one rung harder.
+  // 7. Every required working set at or above the ceiling -> one rung harder.
   var allAtCeiling=completed.length>=required&&completed.every(function(row){return row.reps>=pres.repCeiling;});
   var effortOk=completed.every(function(row){return strengthEffortAcceptable(strengthEffortEvidence(pres,row));});
   if(allAtCeiling&&effortOk&&load!=null){
@@ -820,11 +917,11 @@ function _seDecide(input){
     });
   }
 
-  // 6. Plateau, only with enough comparable evidence behind it.
+  // 8. Plateau, only with enough comparable evidence behind it.
   var plateau=_sePlateau(pres,history,load,ladder,input.sliceWorking);
   if(plateau)return plateau;
 
-  // 7. Missed the floor on a completed session -> hold and rebuild.
+  // 9. Missed the floor on a completed session -> hold and rebuild.
   if(completed.length>=required&&completed.some(function(row){return row.reps<pres.repFloor;})){
     return _seDecision({
       decision:'hold_load',status:'Build The Reps',tone:'red',
@@ -835,7 +932,7 @@ function _seDecide(input){
     });
   }
 
-  // 8. Session was not finished. Missing logs are never read as zero reps.
+  // 10. Session was not finished. Missing logs are never read as zero reps.
   if(completed.length<required){
     return _seDecision({
       decision:'incomplete',status:'Finish The Sets',tone:'blue',
@@ -847,7 +944,7 @@ function _seDecide(input){
     });
   }
 
-  // 9. Exact-rep prescriptions never invent an extra rep.
+  // 11. Exact-rep prescriptions never invent an extra rep.
   if(pres.repMode==='exact'||pres.progression.type==='exact_reps'){
     return _seDecision({
       decision:'hold_load',status:'Hold The Load',tone:'yellow',
@@ -858,7 +955,7 @@ function _seDecide(input){
     });
   }
 
-  // 10. Double progression: one more total rep, never past the ceiling.
+  // 12. Double progression: one more total rep, never past the ceiling.
   var target=[];
   for(var k=0;k<required;k++){
     var basis=reps[k]!=null?reps[k]:(reps.length?reps[reps.length-1]:pres.repFloor);
@@ -918,6 +1015,90 @@ function _sePerSet(pres,roles,ladder,newTop){
 }
 function _seIsHarder(pres,candidate,reference){
   return pres.assisted?candidate<reference-0.01:candidate>reference+0.01;
+}
+// A live weight entry is a progression input even before the athlete has typed
+// reps. This small decision layer deliberately accepts weight-only rows, while
+// saved-history decisions continue to require reps. It never mutates a set.
+function strengthLiveLoadDecision(input){
+  input=input||{};
+  var pres=input.prescription;
+  if(!pres||pres.repMode==='seconds'||pres.repMode==='distance'||pres.repMode==='other'||pres.loadMode==='bodyweight')return null;
+  var current=strengthWorkingRows(input.sets||[]);
+  var loaded=current.filter(function(row){return row.hasLoad;});
+  if(!loaded.length)return null;
+  // The last working row with a load is the setting the athlete is using now.
+  // Using the session maximum would misread a deliberate same-session reduction
+  // as though the earlier, heavier load were still active.
+  var active=loaded[loaded.length-1];
+  var candidate=active.load;
+  var referenceRows=strengthCompletedRows(input.referenceSets||[]);
+  var reference=_seSessionLoad(pres,referenceRows);
+  if(reference==null){
+    var earlier=loaded.filter(function(row){return row.index<active.index&&row.load!==candidate;});
+    if(earlier.length)reference=earlier[earlier.length-1].load;
+  }
+  if(reference==null||candidate==null||!_seIsHarder(pres,candidate,reference))return null;
+
+  var startWorkingIndex=0;
+  for(var i=0;i<current.length;i++){
+    if(current[i]===active){startWorkingIndex=i;break;}
+  }
+  for(var j=0;j<current.length;j++){
+    if(current[j].hasLoad&&_seIsHarder(pres,current[j].load,reference)){
+      startWorkingIndex=j;break;
+    }
+  }
+  var relevant=current.slice(startWorkingIndex);
+  var pain=relevant.filter(function(row){return row.quality==='form_pain';})[0]||null;
+  var hard=relevant.filter(function(row){
+    var evidence=strengthEffortEvidence(pres,row);
+    return row.quality==='too_hard'||row.quality==='at_limit'||evidence.band==='hard';
+  })[0]||null;
+  var target=pres.repMode==='exact'?pres.exactReps:pres.repFloor;
+  var effort='Maintain approximately '+pres.targetRir+' rep'+(pres.targetRir===1?'':'s')+' in reserve.';
+  if(pain){
+    return {
+      decision:'live_technique_check',status:'Technique Check',tone:'red',loadChanged:true,
+      previousLoad:reference,currentLoad:candidate,targetLoad:reference,repTarget:target,
+      startWorkingIndex:startWorkingIndex,
+      action:'Do not increase the load',
+      message:'Technique or pain feedback overrides the load increase.',
+      prompt:'Reduce the load or stop this exercise, and tell your coach.',
+      reason:'A technique or pain warning was recorded after the load change, so progression is paused.',
+      painFlag:true,coachReview:true
+    };
+  }
+  if(hard&&hard.reps!=null&&hard.reps<pres.repFloor){
+    return {
+      decision:'live_reduce_load',status:'Reduce Load',tone:'red',loadChanged:true,
+      previousLoad:reference,currentLoad:candidate,targetLoad:reference,repTarget:target,
+      startWorkingIndex:startWorkingIndex,
+      action:'Reduce the load',
+      message:'The higher load fell below '+pres.repFloor+' reps at a hard effort.',
+      prompt:'Reduce the load and regain '+pres.repFloor+' clean reps. '+effort,
+      reason:'The new load is above the previous baseline, but it missed the bottom of the coach-programmed range at excessive effort.'
+    };
+  }
+  if(hard){
+    return {
+      decision:'live_hold_load',status:'Hold The Load',tone:'red',loadChanged:true,
+      previousLoad:reference,currentLoad:candidate,targetLoad:candidate,repTarget:target,
+      startWorkingIndex:startWorkingIndex,
+      action:'Do not increase again',
+      message:'The higher load is harder than prescribed.',
+      prompt:'Keep the load here or reduce it; do not add another increment.',
+      reason:'Too-hard or failed-rep feedback prevents another load-increase recommendation.'
+    };
+  }
+  return {
+    decision:'live_load_increase',status:'Load Increased',tone:'green',loadChanged:true,
+    previousLoad:reference,currentLoad:candidate,targetLoad:candidate,repTarget:target,
+    startWorkingIndex:startWorkingIndex,
+    action:'Aim for '+target+' clean reps',
+    message:'Load increased',
+    prompt:'Aim for '+target+' clean reps. '+effort,
+    reason:'The entered load is higher than the previous confirmed working load. That is progression even when reps reset to the bottom of the programmed range.'
+  };
 }
 // The most recent history entry that is genuinely comparable: same context, at
 // least one working set with reps.
@@ -1086,6 +1267,7 @@ if(typeof module!=='undefined'&&module.exports){
     strengthEasierRung:strengthEasierRung,
     strengthCalibrationDecision:strengthCalibrationDecision,
     strengthProgressionDecision:strengthProgressionDecision,
+    strengthLiveLoadDecision:strengthLiveLoadDecision,
     strengthTargetBeaten:strengthTargetBeaten,
     strengthProgressionHistory:strengthProgressionHistory,
     strengthPeak:strengthPeak,

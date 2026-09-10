@@ -1142,8 +1142,12 @@ function getExerciseHistory(sessionId,exerciseName){
 // programmed set in the rep target or next-session recommendation.
 // A set counts as completed once it has reps: a weight typed into an empty row
 // is a set still in progress.
-function getWorkingSlice(ex,arr){
-  arr=(arr||[]).filter(function(x){return x&&((x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});
+function getWorkingRows(ex,arr,requireReps){
+  arr=(arr||[]).filter(function(x){
+    if(!x)return false;
+    if(!requireReps)return true;
+    return (x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!=='');
+  });
   var workingSets=parseInt(ex.workingSets||ex.sets||arr.length||0)||0;
   var warmupSets=parseInt(ex.warmupSets,10)||0;
   if(!workingSets) return arr;
@@ -1164,6 +1168,7 @@ function getWorkingSlice(ex,arr){
   }
   return arr.slice(0,workingSets);
 }
+function getWorkingSlice(ex,arr){return getWorkingRows(ex,arr,true);}
 function _isAssistedExercise(name){return /\bassist(?:ed|ance)?\b/i.test(String(name||''));}
 function formatSetSummary(arr,exerciseName){arr=(arr||[]).filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});if(!arr.length) return '';var unit=_isAssistedExercise(exerciseName)?'kg assist':'kg';return arr.map(function(ps){var reps=ps.reps?(' × '+ps.reps):(ps.repsLeft||ps.repsRight?(' × L '+(ps.repsLeft||'—')+' / R '+(ps.repsRight||'—')):'');return(ps.weight?ps.weight+unit:'—')+reps;}).join(' | ');}
 function setVal(v){return String(v==null?'':v).trim();}
@@ -1496,18 +1501,19 @@ function refreshStrengthFeedback(i,splitKey){
     if(!currentEffort.length&&logs[s.id]&&logs[s.id][resolvedEx]) currentEffort=displaySavedStrengthSets(s.id,logs[s.id][resolvedEx],prevEffort);
     // Single source of truth: evaluate today's entry when present (forward-looking),
     // otherwise last session. One recommendation, no competing messages.
-    // The Next Session verdict is always read from the LAST completed session, so
-    // it holds still while the athlete logs. Recomputing it from half-entered sets
-    // made the card contradict itself mid-workout (and read warm-ups as working
-    // sets). Today's entries drive the live progress line underneath instead.
+    // The saved-session verdict is read from the LAST completed session. A pure
+    // live-load decision may replace it when the athlete deliberately enters a
+    // higher working load; partial rep totals never do, and warm-ups stay out.
     var history=getExerciseHistory(s.id,resolvedEx);
     var rec=_nsRecommendation(ex,prevEffort,resolvedEx,history);
-    rec.live=_nsLiveProgress(ex,currentEffort,rec,resolvedEx,history,prevEffort);
+    var live=_nsLiveProgress(ex,currentEffort,rec,resolvedEx,history,prevEffort);
+    rec=_nsApplyLiveLoadRecommendation(rec,live);rec.live=live;
     var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
     if(card){
       card.setAttribute('data-ns-action',rec.action);card.setAttribute('data-ns-tone',rec.tone);
       var chip=card.querySelector('.ns-chip');if(chip) chip.outerHTML=_nsChip(rec);
       var blk=card.querySelector('.ns-block');if(blk) blk.outerHTML=_nsBody(rec);
+      applyStrengthLiveTargets(card,ex,live);
       maybeCelebrateStrengthProgression(card,rec.live);
       refreshStrengthExerciseState(card);
     }
@@ -1620,7 +1626,8 @@ function repaintOverload(i,ei){
   var history=getExerciseHistory(s.id,resolvedEx);
   var rec=_nsRecommendation(ex,prevEffort,resolvedEx,history);
   var currentEffort=collectExerciseSets(i,ei,true);
-  rec.live=_nsLiveProgress(ex,currentEffort,rec,resolvedEx,history,prevEffort);
+  var live=_nsLiveProgress(ex,currentEffort,rec,resolvedEx,history,prevEffort);
+  rec=_nsApplyLiveLoadRecommendation(rec,live);rec.live=live;
   var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
   if(!card) return;
   card.setAttribute('data-assisted',_isAssistedExercise(resolvedEx)?'true':'false');
@@ -1629,6 +1636,7 @@ function repaintOverload(i,ei){
   if(liveUnlocked)card.setAttribute('data-ns-unlock-celebrated','true');
   var chip=card.querySelector('.ns-chip');if(chip) chip.outerHTML=_nsChip(rec);
   var blk=card.querySelector('.ns-block');if(blk) blk.outerHTML=_nsBody(rec);
+  applyStrengthLiveTargets(card,ex,live);
   refreshStrengthExerciseState(card);
   var nSets=parseInt(ex.sets)||2;
   for(var si=0;si<nSets;si++){
@@ -1675,15 +1683,25 @@ function _nsMileHTML(m,assisted){
   return '<div class="ns-mile-wrap">'+h+'</div>';
 }
 // Live progress for the session in front of them, computed from what's entered
-// right now. Separate from the (frozen) Next Session verdict so one never
-// rewrites the other. Returns null until they've logged a set with reps.
+// right now. A weight-only higher-load row is enough to reset the current and
+// remaining targets; otherwise it returns null until a set has reps.
 function _nsLiveProgress(ex,currentEffort,rec,resolvedName,history,previousEffort){
   var assisted=_isAssistedExercise(resolvedName||ex.exercise);
   var top=getTopRep(ex)||0;
   var wantSets=parseInt(ex.workingSets||ex.sets,10)||3;
+  var allWorking=getWorkingRows(ex,currentEffort||[],false);
   var working=getWorkingSlice(ex,currentEffort||[]);
   var reps=working.map(_effReps).filter(function(v){return v!=null&&v!==Infinity;});
-  if(!reps.length) return null;
+  var liveLoad=null;
+  try{
+    var livePres=strengthPrescriptionFor(ex,resolvedName);
+    liveLoad=strengthLiveLoadDecision({
+      prescription:livePres,
+      sets:normaliseStrengthSets(allWorking,livePres),
+      referenceSets:normaliseStrengthSets(getWorkingSlice(ex,previousEffort||[]),livePres,'working')
+    });
+  }catch(e){liveLoad=null;}
+  if(!reps.length&&!liveLoad) return null;
   var total=reps.reduce(function(a,b){return a+b;},0);
   var topped=reps.filter(function(v){return v>=top;}).length;
   var currentLoads=working.map(function(s){return parseFloat(s.weight);}).filter(function(v){return !isNaN(v)&&v>0;});
@@ -1694,8 +1712,14 @@ function _nsLiveProgress(ex,currentEffort,rec,resolvedName,history,previousEffor
   var previousLoads=previousWorking.map(function(s){return parseFloat(s.weight);}).filter(function(v){return !isNaN(v)&&v>0;});
   var previousLoad=previousLoads.length?(assisted?Math.min.apply(null,previousLoads):Math.max.apply(null,previousLoads)):null;
   var complete=reps.length>=wantSets;
+  // Once every working set has reps, the normal shared progression decision is
+  // authoritative (confirmed increase, consolidation, safety warning, etc.).
+  if(complete)liveLoad=null;
   var msg,prompt=null,nextRec=null;
-  if(reps.length<wantSets){
+  if(liveLoad){
+    msg=liveLoad.message;
+    prompt=liveLoad.prompt;
+  }else if(reps.length<wantSets){
     msg=reps.length+' of '+wantSets+' working sets in · '+total+' reps so far';
     if(reps.length===wantSets-1&&topped===reps.length&&currentLoad!=null){
       var info=assisted?_ovAssistanceStepInfo(resolvedName||ex.exercise,currentLoad,history,ex):_ovStepInfo(resolvedName||ex.exercise,currentLoad,history,ex);
@@ -1715,7 +1739,7 @@ function _nsLiveProgress(ex,currentEffort,rec,resolvedName,history,previousEffor
   }else{
     msg=total+' reps logged across '+reps.length+' sets';
   }
-  if(complete){
+  if(complete&&!liveLoad){
     nextRec=_nsRecommendation(ex,currentEffort,resolvedName,history);
     // Only worth saying when it differs from the action already on the card.
     // Repeating it verbatim under the headline is noise, not reinforcement.
@@ -1729,7 +1753,49 @@ function _nsLiveProgress(ex,currentEffort,rec,resolvedName,history,previousEffor
     beaten=strengthTargetBeaten(beatPres,normaliseStrengthSets(working,beatPres,'working'),rec&&rec.target);
   }catch(e){beaten=null;}
   var unlocked=!!(nextRec&&nextRec.decision==='increase_load'&&nextRec.status!=='Ask Your Coach');
-  return {msg:msg,beaten:beaten,prompt:prompt,ahead:(beat!=null&&total>beat)||topped>=wantSets||(assisted&&previousLoad!=null&&currentLoad!=null&&currentLoad<previousLoad),nextTone:nextRec?nextRec.tone:null,unlocked:unlocked,unlockAction:unlocked?nextRec.action:''};
+  return {
+    msg:msg,beaten:liveLoad?null:beaten,prompt:prompt,
+    ahead:!!liveLoad||(beat!=null&&total>beat)||topped>=wantSets||(assisted&&previousLoad!=null&&currentLoad!=null&&currentLoad<previousLoad),
+    nextTone:liveLoad?liveLoad.tone:(nextRec?nextRec.tone:null),unlocked:unlocked,unlockAction:unlocked?nextRec.action:'',
+    loadChanged:!!liveLoad,loadDecision:liveLoad
+  };
+}
+// Replace a stale rep-chasing card while a higher working load is entered. The
+// saved sets remain the source of truth; this only changes the live explanation
+// and targets from the changed row onward.
+function _nsApplyLiveLoadRecommendation(rec,live){
+  if(!live||!live.loadDecision)return rec;
+  var change=live.loadDecision,out={};
+  Object.keys(rec||{}).forEach(function(key){out[key]=rec[key];});
+  var want=out.wantSets||(out.prescription&&out.prescription.workingSets)||0;
+  var target=(out.target&&out.target.slice)?out.target.slice():_nsFilled(want,change.repTarget);
+  while(target.length<want)target.push(change.repTarget);
+  for(var i=change.startWorkingIndex;i<target.length;i++)target[i]=change.repTarget;
+  out.decision=change.decision;out.status=change.status;out.tone=change.tone;
+  out.action=change.action;out.weightKg=change.targetLoad;out.target=target;
+  out.reason=change.reason;out.arrow=change.tone==='red'?'↻':(out.assisted?'↘':'↗');
+  out.confidence=strengthConfidence('confirmed','live working-load entry');
+  out.approx=false;out.estimated=false;out.milestone=null;out.beaten=null;
+  out.liveLoadChange=true;out.painFlag=!!change.painFlag;out.coachReview=!!change.coachReview;
+  return out;
+}
+// Update only hints on the changed and remaining unfinished working rows. Input
+// values — especially completed sets — are never rewritten by a manual change.
+function applyStrengthLiveTargets(card,ex,live){
+  var change=live&&live.loadDecision;if(!card||!change)return 0;
+  var warmups=parseInt(ex.warmupSets,10)||0,working=parseInt(ex.workingSets||ex.sets,10)||0;
+  var firstRow=warmups+change.startWorkingIndex,changed=0;
+  var rows=card.querySelectorAll('.setrow,.setrow-single');
+  for(var i=0;i<rows.length;i++){
+    var row=rows[i];if(i<firstRow||i>=warmups+working)continue;
+    var tick=row.querySelector('button[id^="st_"]');if(tick&&tick.classList.contains('on'))continue;
+    var load=row.querySelector('input[id^="w_"]');
+    if(load&&String(load.value||'').trim()===''&&change.currentLoad!=null)load.placeholder=_nsBare(change.currentLoad);
+    var reps=row.querySelectorAll('input[id^="r_"],input[id^="rL_"],input[id^="rR_"]');
+    reps.forEach(function(input){if(String(input.value||'').trim()==='')input.placeholder=String(change.repTarget);});
+    changed++;
+  }
+  return changed;
 }
 // One non-contradictory recommendation per exercise, in four labelled parts:
 // today's target, the live result, the confirmed next-session action, and why.
@@ -1837,7 +1903,7 @@ function _nsBody(rec){
   return '<div class="ns-block ns-t-'+rec.tone+'"'+(rec.decision?' data-ns-decision="'+esc(rec.decision)+'"':'')+' data-ns-policy="'+(rec.policyVersion||'')+'">'+
     '<div class="ns-status"><span class="ns-dot"></span>'+esc(rec.status)+'</div>'+
     todayLine+t+perSet+
-    '<div class="ns-hd">'+'<svg class="icon"><use href="#i-target"/></svg>'+'Next session</div>'+
+    '<div class="ns-hd">'+'<svg class="icon"><use href="#i-target"/></svg>'+(rec.liveLoadChange?'Current recommendation':'Next session')+'</div>'+
     '<div class="ns-action">'+esc(rec.action)+'</div>'+_nsPeakHtml(rec)+approx+flag+mile+reason+live+_nsHistoryHtml(rec)+'</div>';
 }
 function _nsSubtitle(rec,state,summary,doneCount,total){
@@ -2230,8 +2296,9 @@ function buildBody(s,i,type){
         var isBarbell=/\bsquat\b|deadlift|\brdl\b|romanian|bench press|barbell|overhead press|\bohp\b|hip thrust/i.test(resolvedEx)&&!/machine|cable|smith|dumbbell|\bdb\b|goblet|kettlebell|band|bodyweight|leg press/i.test(resolvedEx);
         var _ovHistory=getExerciseHistory(s.id,resolvedEx);
         var _ov=_nsRecommendation(ex,prevEffort,resolvedEx,_ovHistory);
+        var _ovLive=_nsLiveProgress(ex,savedEx,_ov,resolvedEx,_ovHistory,prevEffort);
+        _ov=_nsApplyLiveLoadRecommendation(_ov,_ovLive);_ov.live=_ovLive;
         var _ovPres=_ov.prescription||strengthPrescriptionFor(ex,resolvedEx);
-        _ov.live=_nsLiveProgress(ex,savedEx,_ov,resolvedEx,_ovHistory,prevEffort);
         var hasExerciseData=!!savedEx.length;
 	        var renderedRows=[];for(var renderedIndex=0;renderedIndex<renderSets;renderedIndex++) renderedRows.push(savedByRow[renderedIndex]||{});
         var workingSetsForEffort=parseInt(ex.workingSets||ex.sets,10)||sets;
