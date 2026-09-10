@@ -61,6 +61,52 @@ test('the default effort target is two reps in reserve, never failure', () => {
   assert.equal(context.strengthEffortTargetLabel(pres), '2 reps in reserve (RPE 8)');
 });
 
+test('the athlete review classifies followed, adapted, building and safety outcomes live', () => {
+  const context = makeContext();
+  const pres = context.strengthPrescriptionFor(press, 'Incline Dumbbell Press');
+  const recommendation = { weightKg: 30, target: [10, 10, 10], coachReview: false };
+
+  const followed = context.strengthRecommendationOutcome(press, pres, recommendation, [
+    { weight: '30', reps: '10', done: true },
+    { weight: '30', reps: '11', done: true },
+    { weight: '30', reps: '10', done: true },
+  ]);
+  assert.equal(followed.status, 'followed');
+  assert.equal(followed.targetMet, true);
+
+  const adapted = context.strengthRecommendationOutcome(press, pres, recommendation, [
+    { weight: '27.5', reps: '10', done: true },
+    { weight: '27.5', reps: '10', done: true },
+    { weight: '27.5', reps: '10', done: true },
+  ]);
+  assert.equal(adapted.status, 'adapted');
+  assert.equal(adapted.actualLoad, 27.5);
+  assert.equal(adapted.expectedLoad, 30);
+
+  const building = context.strengthRecommendationOutcome(press, pres, recommendation, [
+    { weight: '30', reps: '10', done: true },
+  ]);
+  assert.equal(building.status, 'building');
+
+  const safety = context.strengthRecommendationOutcome(press, pres, recommendation, [
+    { weight: '30', reps: '10', effort: 'form_pain', done: true },
+  ]);
+  assert.equal(safety.status, 'safety_review');
+});
+
+test('the adaptive coaching recap is readable without colour and stays athlete-side', () => {
+  const context = makeContext();
+  const html = context.strengthReviewOutcomesHtml({
+    total: 5, followed: 2, adapted: 1, building: 1, safety: 1, review: 0,
+  });
+  assert.match(html, /Adaptive coaching/);
+  assert.match(html, /2 followed/);
+  assert.match(html, /1 adapted live/);
+  assert.match(html, /1 still building/);
+  assert.match(html, /1 safety response recorded/);
+  assert.doesNotMatch(loggingSource, /recommendationOutcome|coachInsight/);
+});
+
 test('legacy effort answers still label and still complete a saved set', () => {
   const context = makeContext();
   assert.equal(context.strengthEffortLabel('reserve'), 'Too easy');

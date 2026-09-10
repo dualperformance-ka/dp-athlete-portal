@@ -117,6 +117,11 @@ entered values and completed rows are never rewritten. Once all sets are logged,
 the normal shared progression decision takes over and the saved workout becomes
 the next history baseline.
 
+The pre-submit review and saved-session recap also summarise how today's work
+related to the recommendation: followed, adapted live, still building, or a
+safety/coach-review response. This summary is calculated in the athlete's
+current session and does not add new coach-webhook fields.
+
 ## Equipment
 
 Rungs come from a coach increment, then from loads actually logged on the same

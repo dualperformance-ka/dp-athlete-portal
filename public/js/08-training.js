@@ -1606,6 +1606,49 @@ function strengthRecommendationSnapshot(sessionId,exercises){
   });
   return out;
 }
+// Classify how today's completed work relates to the recommendation that was
+// shown at the start of the exercise. This is intentionally ephemeral: it
+// powers the athlete's review/recap without adding any new coach-bound fields.
+function strengthRecommendationOutcome(ex,pres,rec,currentSets){
+  var working=normaliseStrengthSets(getWorkingSlice(ex,currentSets||[]),pres,'working');
+  var completed=strengthCompletedRows(working);
+  if(!completed.length)return null;
+  var loads=completed.filter(function(row){return row.hasLoad;}).map(function(row){return row.load;});
+  var actualLoad=loads.length?(pres.assisted?Math.min.apply(null,loads):Math.max.apply(null,loads)):null;
+  var expectedLoad=rec&&rec.weightKg!=null?Number(rec.weightKg):null;
+  var pain=completed.some(function(row){return row.quality==='form_pain';});
+  var complete=completed.length>=pres.workingSets;
+  var targets=rec&&rec.target||[];
+  var targetMet=complete&&completed.slice(0,pres.workingSets).every(function(row,index){
+    var target=targets[index]!=null?Number(targets[index]):pres.repFloor;
+    return row.reps>=target;
+  });
+  var status='building';
+  if(pain)status='safety_review';
+  else if(rec&&rec.coachReview)status='coach_review';
+  else if(actualLoad!=null&&expectedLoad!=null&&Math.abs(actualLoad-expectedLoad)>0.01)status='adapted';
+  else if(complete&&targetMet)status='followed';
+  return {status:status,actualLoad:actualLoad,expectedLoad:expectedLoad,complete:complete,targetMet:targetMet};
+}
+function strengthRecommendationSummaryForSession(i,splitKey){
+  var summary={total:0,followed:0,adapted:0,building:0,safety:0,review:0};
+  var session=sessions[i];if(!session)return summary;
+  (getSplit(splitKey)||[]).forEach(function(ex,ei){
+    var current=collectExerciseSets(i,ei,true);if(!current.length)return;
+    var resolved=exPicks[ex.exercise]||ex.exercise;
+    var history=getExerciseHistory(session.id,resolved);
+    var rec=_nsRecommendation(ex,getExercisePreviousEffort(session.id,resolved),resolved,history);
+    var outcome=strengthRecommendationOutcome(ex,rec.prescription||strengthPrescriptionFor(ex,resolved),rec,current);
+    if(!outcome)return;
+    summary.total++;
+    if(outcome.status==='followed')summary.followed++;
+    else if(outcome.status==='adapted')summary.adapted++;
+    else if(outcome.status==='safety_review')summary.safety++;
+    else if(outcome.status==='coach_review')summary.review++;
+    else summary.building++;
+  });
+  return summary;
+}
 function _nsRecommendation(ex,effort,resolvedName,history){
   var rec=computeOverload(ex,effort,resolvedName,history);
   rec.warmupSets=parseInt(ex.warmupSets,10)||0;
@@ -2468,22 +2511,32 @@ function ensureStrengthReviewModal(){
   modal.innerHTML='<div class="ql-modal-inner strength-review-inner" role="dialog" aria-modal="true" aria-labelledby="strengthReviewTitle"><div class="ql-modal-header"><div><div class="ql-modal-title" id="strengthReviewTitle">Review session</div><div class="modal-subtitle" id="strengthReviewSubtitle">One last check before this reaches your coaches.</div></div><button class="ql-modal-close" onclick="closeStrengthReview()" aria-label="Close review">×</button></div><div class="ql-modal-body" id="strengthReviewBody"></div></div>';
   document.body.appendChild(modal);return modal;
 }
-function strengthSessionReviewData(i){
+function strengthSessionReviewData(i,splitKey){
   var progress=strengthSessionProgress(i),cards=Array.prototype.slice.call(document.querySelectorAll('.exc[data-session-index="'+i+'"]')),unlocks=[];
   cards.forEach(function(card){if(card.getAttribute('data-ns-live-unlocked')==='true'){var name=card.querySelector('.exn');if(name)unlocks.push(name.textContent.trim());}});
   var pbCount=document.querySelectorAll('.exc[data-session-index="'+i+'"] .pb-badge').length;
-  return {progress:progress,unlocks:unlocks,pbCount:pbCount};
+  return {progress:progress,unlocks:unlocks,pbCount:pbCount,recommendations:strengthRecommendationSummaryForSession(i,splitKey)};
 }
 function strengthReviewMetricsHtml(data){
   var p=data.progress;
   return '<div class="strength-review-grid"><div><small>Exercises</small><strong>'+p.doneExercises+' / '+p.totalExercises+'</strong></div><div><small>Sets logged</small><strong>'+p.doneSets+' / '+p.totalSets+'</strong></div><div><small>PBs today</small><strong>'+data.pbCount+'</strong></div><div><small>Next-session unlocks</small><strong>'+data.unlocks.length+'</strong></div></div>';
 }
+function strengthReviewOutcomesHtml(summary){
+  if(!summary||!summary.total)return '';
+  var parts=[];
+  if(summary.followed)parts.push(summary.followed+' followed');
+  if(summary.adapted)parts.push(summary.adapted+' adapted live');
+  if(summary.building)parts.push(summary.building+' still building');
+  if(summary.safety)parts.push(summary.safety+' safety response recorded');
+  if(summary.review)parts.push(summary.review+' coach decision needed');
+  return '<div class="strength-review-unlocks '+(summary.safety||summary.review?'':'is-quiet')+'"><small>Adaptive coaching</small><strong>'+parts.join(' · ')+'</strong></div>';
+}
 function openStrengthSubmitReview(i,splitKey){
   try{if(typeof persistGymDraft==='function')persistGymDraft(i,splitKey);}catch(e){}
-  var modal=ensureStrengthReviewModal(),data=strengthSessionReviewData(i),body=document.getElementById('strengthReviewBody'),title=document.getElementById('strengthReviewTitle'),subtitle=document.getElementById('strengthReviewSubtitle');
+  var modal=ensureStrengthReviewModal(),data=strengthSessionReviewData(i,splitKey),body=document.getElementById('strengthReviewBody'),title=document.getElementById('strengthReviewTitle'),subtitle=document.getElementById('strengthReviewSubtitle');
   strengthReviewContext={i:i,splitKey:splitKey};title.textContent='Review session';subtitle.textContent='One last check before this reaches your coaches.';
   var incomplete=data.progress.totalSets-data.progress.doneSets;
-  body.innerHTML='<div class="strength-review-hero"><span>✓</span><div><strong>'+data.progress.doneSets+' set'+(data.progress.doneSets===1?'':'s')+' ready</strong><small>'+(incomplete?incomplete+' set'+(incomplete===1?' is':'s are')+' still open. You can submit now or keep training.':'Everything programmed is complete.')+'</small></div></div>'+strengthReviewMetricsHtml(data)+(data.unlocks.length?'<div class="strength-review-unlocks"><small>Earned for next session</small><strong>'+data.unlocks.map(esc).join(' · ')+'</strong></div>':'')+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Keep training</button><button type="button" class="strength-review-primary" '+(data.progress.doneSets?'':'disabled')+' onclick="submitStrengthFromReview()">Submit to coaches</button></div>'+(data.progress.doneSets?'':'<p class="strength-review-hint">Log at least one completed set before submitting.</p>');
+  body.innerHTML='<div class="strength-review-hero"><span>✓</span><div><strong>'+data.progress.doneSets+' set'+(data.progress.doneSets===1?'':'s')+' ready</strong><small>'+(incomplete?incomplete+' set'+(incomplete===1?' is':'s are')+' still open. You can submit now or keep training.':'Everything programmed is complete.')+'</small></div></div>'+strengthReviewMetricsHtml(data)+strengthReviewOutcomesHtml(data.recommendations)+(data.unlocks.length?'<div class="strength-review-unlocks"><small>Earned for next session</small><strong>'+data.unlocks.map(esc).join(' · ')+'</strong></div>':'')+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Keep training</button><button type="button" class="strength-review-primary" '+(data.progress.doneSets?'':'disabled')+' onclick="submitStrengthFromReview()">Submit to coaches</button></div>'+(data.progress.doneSets?'':'<p class="strength-review-hint">Log at least one completed set before submitting.</p>');
   modal.classList.add('open');
 }
 function submitStrengthFromReview(){
@@ -2491,10 +2544,10 @@ function submitStrengthFromReview(){
   closeStrengthReview();saveGym(context.i,context.splitKey);
 }
 function showStrengthSessionRecap(i,splitKey,options){
-  options=options||{};var modal=ensureStrengthReviewModal(),data=strengthSessionReviewData(i),body=document.getElementById('strengthReviewBody'),title=document.getElementById('strengthReviewTitle'),subtitle=document.getElementById('strengthReviewSubtitle');
+  options=options||{};var modal=ensureStrengthReviewModal(),data=strengthSessionReviewData(i,splitKey),body=document.getElementById('strengthReviewBody'),title=document.getElementById('strengthReviewTitle'),subtitle=document.getElementById('strengthReviewSubtitle');
   strengthReviewContext={i:i,splitKey:splitKey};title.textContent=options.queued?'Session saved':'Session sent ✓';subtitle.textContent=options.queued?'It will reach your coaches when the connection recovers.':'Your coaches can now review the full session.';
   if(options.pbCount!=null)data.pbCount=options.pbCount;
-  body.innerHTML='<div class="strength-review-hero is-complete"><span>✓</span><div><strong>'+data.progress.doneSets+' sets logged</strong><small>'+data.progress.doneExercises+' of '+data.progress.totalExercises+' exercises fully completed.</small></div></div>'+strengthReviewMetricsHtml(data)+(data.unlocks.length?'<div class="strength-review-unlocks"><small>Ready for next session</small><strong>Increase '+data.unlocks.map(esc).join(' · ')+'</strong></div>':'<div class="strength-review-unlocks is-quiet"><small>Next session</small><strong>Keep building through the rep range.</strong></div>')+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Review workout</button><button type="button" class="strength-review-primary" onclick="closeStrengthReview();closeFocusedSession()">Back to plan</button></div>';
+  body.innerHTML='<div class="strength-review-hero is-complete"><span>✓</span><div><strong>'+data.progress.doneSets+' sets logged</strong><small>'+data.progress.doneExercises+' of '+data.progress.totalExercises+' exercises fully completed.</small></div></div>'+strengthReviewMetricsHtml(data)+strengthReviewOutcomesHtml(data.recommendations)+(data.unlocks.length?'<div class="strength-review-unlocks"><small>Ready for next session</small><strong>Increase '+data.unlocks.map(esc).join(' · ')+'</strong></div>':'<div class="strength-review-unlocks is-quiet"><small>Next session</small><strong>Keep building through the rep range.</strong></div>')+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Review workout</button><button type="button" class="strength-review-primary" onclick="closeStrengthReview();closeFocusedSession()">Back to plan</button></div>';
   modal.classList.add('open');
 }
 function closeStrengthReview(){var modal=document.getElementById('strengthReviewModal');if(modal)modal.classList.remove('open');}

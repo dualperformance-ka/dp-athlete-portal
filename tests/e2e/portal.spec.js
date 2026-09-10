@@ -139,8 +139,11 @@ test('3. three strength sets submit and persist across reload', async ({ page })
   await page.getByRole('button', { name: /On target/ }).click();
   await page.locator('#focusFooterAction').click();
   await expect(page.locator('#strengthReviewTitle')).toHaveText('Review session');
+  await expect(page.getByText('Adaptive coaching')).toBeVisible();
+  await expect(page.getByText('1 followed')).toBeVisible();
   await page.getByRole('button', { name: 'Submit to coaches' }).click();
   await expect(page.getByText('Your coaches can now review the full session.')).toBeVisible();
+  await expect(page.getByText('1 followed')).toBeVisible();
   await expect(page.locator('#gym_saved_0')).toContainText('Session submitted');
 
   await page.reload();
