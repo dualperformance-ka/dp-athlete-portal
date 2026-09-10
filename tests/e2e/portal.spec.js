@@ -249,6 +249,43 @@ test('first-set calibration reads as effort and quality, never as a failure test
   await card.screenshot({ path: 'test-results/strength-card-rated-mobile.png' });
 });
 
+test('a manual live load increase resets only remaining targets on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+  const hip = { exercise: 'Hip Abduction', sets: '4', reps: '15', repRange: '15-20', warmupSets: '0', workingSets: '4', targetRir: 2, rest: '0s', notes: '' };
+  await codeLogin(page, { exercises: [hip] });
+  await page.evaluate(() => {
+    allSessions.push({ id: 'past-hip', date: '2026-09-01' });
+    logs['past-hip'] = {
+      'Hip Abduction': [
+        { weight: '63', reps: '19', done: true }, { weight: '63', reps: '15', done: true },
+        { weight: '63', reps: '15', done: true }, { weight: '63', reps: '15', done: true },
+      ],
+      __sessionDate: '2026-09-01',
+    };
+  });
+  await page.getByRole('button', { name: 'Open Lower A' }).click();
+
+  await page.locator('#w_0_0_0').fill('63');
+  await page.locator('#r_0_0_0').fill('19');
+  await page.getByRole('button', { name: /On target/ }).click();
+  await page.locator('#w_0_0_1').fill('68');
+
+  const card = page.locator('.exc').first();
+  await expect(card.getByText('Load Increased', { exact: true })).toBeVisible();
+  await expect(card.getByText('Aim for 15 clean reps', { exact: true })).toBeVisible();
+  await expect(card.getByText(/Maintain approximately 2 reps in reserve/)).toBeVisible();
+  await expect(card).not.toContainText('Beat Last Week');
+  await expect(page.locator('#r_0_0_0')).toHaveValue('19');
+  await expect(page.locator('#w_0_0_0')).toHaveValue('63');
+  await expect(page.locator('#r_0_0_1')).toHaveAttribute('placeholder', '15');
+  await expect(page.locator('#w_0_0_2')).toHaveAttribute('placeholder', '68');
+
+  const overflow = await card.evaluate((node) => ({ scroll: node.scrollWidth, client: node.clientWidth }));
+  expect(overflow.scroll).toBeLessThanOrEqual(overflow.client + 1);
+  await card.screenshot({ path: 'test-results/strength-live-load-mobile.png' });
+});
+
 test('a technique or niggle answer never earns more load', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
@@ -482,4 +519,3 @@ test('10. the check-in sheet drafts, confirms delivery, and hands the form back'
   await expect(page.locator('#checkinModal')).not.toHaveClass(/open/, { timeout: 8000 });
   await expect(page.locator('#callsSurface')).toContainText('Submitted');
 });
-

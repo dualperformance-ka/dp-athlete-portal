@@ -60,12 +60,12 @@
     "sha": "24321002123e"
   },
   "js/08-strength-engine.js": {
-    "version": 2,
-    "sha": "f32e577f9d6e"
+    "version": 3,
+    "sha": "31ca10dbed14"
   },
   "js/08-training.js": {
-    "version": 141,
-    "sha": "74eeb7435fe4"
+    "version": 142,
+    "sha": "c5e81caa580c"
   },
   "js/09-logging.js": {
     "version": 122,

@@ -25,6 +25,7 @@ const {
   strengthEasierRung,
   strengthCalibrationDecision,
   strengthProgressionDecision,
+  strengthLiveLoadDecision,
   strengthTargetBeaten,
   strengthQualityCode,
 } = engine;
@@ -128,6 +129,75 @@ test('a rep range asks for exactly one more total rep without passing the ceilin
   assert.deepEqual(Array.from(decision.target), [11, 10, 9]);
   assert.equal(decision.weightKg, 30);
   assert.equal(decision.confidence.level, 'confirmed');
+});
+
+test('15-20 work marked too easy increases load and resets to 15', () => {
+  const pres = prescribe({ exercise: 'Hip Abduction', sets: '4', workingSets: '4', repRange: '15-20' });
+  const history = [
+    { sets: [set(58, 18), set(58, 16), set(58, 15), set(58, 15)] },
+    { sets: [set(63, 18), set(63, 16), set(63, 15), set(63, 15)] },
+    { sets: [set(68, 15), set(68, 15), set(68, 15), set(68, 15)] },
+  ];
+  const decision = decide(pres, [
+    set(63, 19, { effort: 'too_easy' }), set(63, 15), set(63, 15), set(63, 15),
+  ], history);
+  assert.equal(decision.decision, 'increase_load');
+  assert.equal(decision.weightKg, 68);
+  assert.deepEqual(Array.from(decision.target), [15, 15, 15, 15]);
+  assert.doesNotMatch(decision.action + decision.reason, /one extra|beat last week/i);
+});
+
+test('too-easy feedback does not invent a machine increment when no rung is known', () => {
+  const pres = prescribe({ exercise: 'Hip Abduction', sets: '4', workingSets: '4', repRange: '15-20' });
+  const decision = decide(pres, [
+    set(63, 19, { effort: 'too_easy' }), set(63, 15), set(63, 15), set(63, 15),
+  ]);
+  assert.equal(decision.decision, 'increase_load');
+  assert.equal(decision.weightKg, null);
+  assert.equal(decision.action, 'Increase to the next available weight');
+  assert.deepEqual(Array.from(decision.target), [15, 15, 15, 15]);
+});
+
+test('live manual load changes use each exercise rep floor', () => {
+  const cases = [
+    { range: '15-20', from: 63, to: 68, floor: 15 },
+    { range: '8-12', from: 50, to: 55, floor: 8 },
+    { range: '10-12', from: 50, to: 55, floor: 10 },
+  ];
+  for (const item of cases) {
+    const pres = prescribe({ exercise: 'Machine Press', repRange: item.range });
+    const live = strengthLiveLoadDecision({
+      prescription: pres,
+      sets: normaliseStrengthSets([{ _rowIndex: 0, weight: String(item.to), reps: '' }], pres),
+      referenceSets: rows(pres, [set(item.from, item.floor), set(item.from, item.floor), set(item.from, item.floor)]),
+    });
+    assert.equal(live.decision, 'live_load_increase');
+    assert.equal(live.currentLoad, item.to);
+    assert.equal(live.repTarget, item.floor);
+    assert.match(live.prompt, new RegExp(`Aim for ${item.floor} clean reps`));
+  }
+});
+
+test('a higher live load below the floor at excessive effort says reduce load', () => {
+  const pres = prescribe({ exercise: 'Machine Press', repRange: '10-12' });
+  const live = strengthLiveLoadDecision({
+    prescription: pres,
+    sets: normaliseStrengthSets([{ _rowIndex: 0, weight: '55', reps: '7', effort: 'too_hard' }], pres),
+    referenceSets: rows(pres, [set(50, 10), set(50, 10), set(50, 10)]),
+  });
+  assert.equal(live.decision, 'live_reduce_load');
+  assert.equal(live.targetLoad, 50);
+  assert.match(live.prompt, /regain 10 clean reps/i);
+});
+
+test('pain and too-hard feedback outrank an easy signal and block an increase', () => {
+  const pres = prescribe();
+  const pain = decide(pres, [set(30, 12, { effort: 'too_easy' }), set(30, 12, { effort: 'form_pain' }), set(30, 12)]);
+  const hard = decide(pres, [set(30, 12, { effort: 'too_easy' }), set(30, 12, { effort: 'too_hard' }), set(30, 12)]);
+  assert.notEqual(pain.decision, 'increase_load');
+  assert.notEqual(hard.decision, 'increase_load');
+  assert.equal(pain.painFlag, true);
+  assert.match(hard.reason, /harder than prescribed/i);
 });
 
 // 5 ── Beating a per-set target is acknowledged exactly.
