@@ -1,13 +1,13 @@
-const CACHE_NAME = 'dp-athlete-v197'; // v197: ignore stale exercise-swap and strength-effort taps safely
+const CACHE_NAME = 'dp-athlete-v200'; // v200: weekly volume reports what is left, and only prescribed sports get a dial
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=152', '/desktop.css?v=7', '/config.js',
+  '/index.html', '/styles.css?v=159', '/desktop.css?v=7', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=124',
   '/js/02-login-goals.js?v=115',
   '/js/03-nav-nudges.js?v=114',
   '/js/04-checkin.js?v=96',
   '/js/05-handbook.js?v=85',
-  '/js/06-nutrition.js?v=91',
+  '/js/06-nutrition.js?v=98',
   '/js/07-progress.js?v=89',
   '/js/strava-match.js?v=6',
   '/js/08-training-interval-rest.js?v=1',

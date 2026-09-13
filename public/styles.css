@@ -70,6 +70,9 @@
   --strength:rgba(236,233,226,0.82);--strength-bg:rgba(236,233,226,0.06);--strength-border:rgba(236,233,226,0.15);
   --rest:rgba(236,233,226,0.36);
   --ok:var(--done);--ok-bg:rgba(34,197,94,.12);--ok-border:rgba(34,197,94,.28);
+  /* Swim was a raw #43b7cf sitting outside the palette. Held one step off
+     the readout so run stays the brighter of the two. */
+  --swim:#6fb6c9;
   --pb:#a78bfa;--pb-bg:rgba(167,139,250,0.14);--pb-border:rgba(167,139,250,0.34);
   --vpb:var(--pb-major);--vpb-bg:rgba(45,212,191,0.16);--vpb-border:rgba(45,212,191,0.40);
   --nudge-due:var(--watch);--nudge-due-soft:rgba(240,173,78,.16);--nudge-due-line:rgba(240,173,78,.52);
@@ -1519,6 +1522,7 @@ body{font-size:var(--font-md);line-height:1.55}
   --run:var(--run-deep);--run-strong:var(--run-deep-strong);--run-bg:rgba(15,127,174,.08);--run-bg-strong:rgba(15,127,174,.14);--run-border:rgba(15,127,174,.25);
   --rest:rgba(27,26,24,.5);
   --strength:#43413c;--strength-bg:rgba(27,26,24,.05);--strength-border:rgba(27,26,24,.18);
+  --swim:#2b7f93;
 }
 .outdoor-mode body,.outdoor-mode #portalScreen{background:var(--bg);color:var(--text)}
 .outdoor-mode .top-shell{background:var(--g-0);border-bottom-color:var(--border)}
@@ -4525,72 +4529,120 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 /* Week-by-week running volume. Strip sits under the km card on Weekly Plan and
    Nutrition; the Progress tab draws the same data as a full-width SVG. */
 .vstrip-card{padding-bottom:14px}
-.vstrip-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-.vstrip-title{font-family:var(--body);font-size:var(--font-sm);font-weight:650;letter-spacing:-.01em;color:var(--text);white-space:nowrap}
-.vstrip-legend{display:flex;align-items:center;gap:10px;font-family:var(--body);font-size:var(--font-xs);color:var(--dim)}
-.vstrip-legend span{display:inline-flex;align-items:center;gap:4px}
-.vstrip-legend i{width:8px;height:8px;border-radius:var(--radius-xs);display:inline-block}
-.vstrip-legend .key-planned{border:1px solid var(--run-border);background:var(--run-bg)}
+.vstrip-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+/* Engraved heading, not a bold body label: the panel is a readout, so its name
+   sits back and the numbers carry the weight. */
+.vstrip-title{
+  font-family:var(--body);font-size:var(--fs-label);font-weight:650;
+  letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--t-2);white-space:nowrap
+}
+.vstrip-legend{
+  display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:var(--fs-label);
+  letter-spacing:.06em;text-transform:uppercase;color:var(--t-3)
+}
+.vstrip-legend span{display:inline-flex;align-items:center;gap:5px}
+.vstrip-legend i{width:7px;height:7px;border-radius:2px;display:inline-block}
+.vstrip-legend .key-planned{border:1px solid var(--border-mid);background:transparent}
 .vstrip-legend .key-actual{background:var(--run)}
 .vstrip-scroll{
-  display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;scroll-behavior:smooth;
+  display:flex;gap:5px;overflow-x:auto;padding:2px 0 4px;scroll-behavior:smooth;
   -webkit-overflow-scrolling:touch;scrollbar-width:none;
 }
 .vstrip-scroll::-webkit-scrollbar{display:none}
+/* 46px, not 40px: a two-digit delta ("+10.6") is five mono glyphs and clipped to
+   "+10…" in the old column, which ellipsised a numeral. */
 .vstrip-week{
-  flex:0 0 auto;width:40px;display:flex;flex-direction:column;align-items:center;gap:5px;
-  padding:4px 2px 5px;border:1px solid transparent;border-radius:var(--radius-md);background:transparent;
-  cursor:pointer;font:inherit;color:inherit;transition:background .15s,border-color .15s
+  flex:0 0 auto;width:46px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:4px 2px 5px;border:0;border-radius:var(--r-1);background:transparent;
+  cursor:pointer;font:inherit;color:inherit;transition:background .15s
 }
-.vstrip-week:hover{background:var(--run-bg);border-color:var(--run-border)}
+.vstrip-week:hover{background:var(--run-bg)}
+/* The column is a machined well the bar sits inside, so the chart reads as a
+   gauge rather than as floating sticks. */
 .vstrip-bar{
-  position:relative;width:16px;height:56px;border-radius:var(--radius-xs);
-  background:rgba(236,233,226,.06);overflow:hidden;display:block
+  position:relative;width:16px;height:60px;border-radius:3px;
+  background:var(--g-well);box-shadow:var(--edge-well);overflow:hidden;display:block
 }
-.vstrip-bar i,.vstrip-bar b{position:absolute;left:0;right:0;bottom:0;display:block;border-radius:var(--radius-xs)}
-.vstrip-bar i{background:var(--run-bg-strong,var(--run-bg));border:1px solid var(--run-border)}
-.vstrip-bar b{background:var(--run);opacity:.95}
-.vstrip-week.is-hit .vstrip-bar b{background:var(--ok)}
-.vstrip-week.is-future .vstrip-bar i{opacity:.6}
-.vstrip-km{font-family:var(--body);font-size:var(--font-xs);font-weight:600;line-height:1;color:var(--muted)}
-.vstrip-wk{font-family:var(--body);font-size:var(--font-xs);line-height:1;color:var(--dim)}
+.vstrip-bar i,.vstrip-bar b{position:absolute;left:0;right:0;bottom:0;display:block;border-radius:2px}
+/* Planned is a graphite ghost, not a blue tint: tinting every column blue left
+   nothing for the live week to be brighter than. */
+.vstrip-bar i{background:rgba(236,233,226,.09);box-shadow:inset 0 1px 0 rgba(236,233,226,.10)}
+.outdoor-mode .vstrip-bar i{background:rgba(19,19,18,.10);box-shadow:inset 0 1px 0 rgba(19,19,18,.10)}
+/* Actual km is the run colour at every week, graded top to bottom so the
+   columns are lit from the same single source as every other surface here
+   rather than reading as flat slabs. Completed weeks are held back so the one
+   week still moving is the brightest thing in the panel. */
+.vstrip-bar b{background:linear-gradient(180deg,rgba(146,210,237,.60),rgba(146,210,237,.30))}
+.vstrip-week.is-hit .vstrip-bar b{background:linear-gradient(180deg,rgba(146,210,237,.78),rgba(146,210,237,.42))}
+.vstrip-week.is-current .vstrip-bar b{
+  background:linear-gradient(180deg,var(--run),rgba(146,210,237,.62));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.30)
+}
+.outdoor-mode .vstrip-bar b{background:linear-gradient(180deg,rgba(15,127,174,.62),rgba(15,127,174,.34))}
+.outdoor-mode .vstrip-week.is-hit .vstrip-bar b{background:linear-gradient(180deg,rgba(15,127,174,.82),rgba(15,127,174,.46))}
+.outdoor-mode .vstrip-week.is-current .vstrip-bar b{background:linear-gradient(180deg,var(--run),rgba(15,127,174,.66))}
+/* Hitting the week is a 2px cap on the column, not a green flood. Four fully
+   saturated green bars were the loudest thing on the screen, in a palette that
+   keeps saturation for live numbers only. The signed delta already says it. */
+.vstrip-week.is-hit .vstrip-bar b::after{
+  content:'';position:absolute;left:0;right:0;top:0;height:2px;background:var(--done)
+}
+.vstrip-week.is-future .vstrip-bar i{opacity:.55}
+.vstrip-km{
+  font-family:var(--mono);font-size:var(--fs-data);font-weight:500;line-height:1;
+  color:var(--t-1);font-variant-numeric:tabular-nums
+}
+.vstrip-wk{
+  font-family:var(--mono);font-size:var(--fs-label);line-height:1;letter-spacing:.06em;
+  color:var(--t-3)
+}
 /* Completed weeks label what the athlete actually ran; this line says how that
    compared to the plan. Rendered on every week (empty when there is nothing to
    say) so all the bars keep a shared baseline. Tabular figures stop the number
    jittering as the strip re-renders. */
 .vstrip-delta{
-  font-family:var(--body);font-size:var(--font-xs);font-weight:700;line-height:1;
-  color:var(--dim);min-height:9px;font-variant-numeric:tabular-nums;
-  white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis
+  font-family:var(--mono);font-size:var(--fs-label);font-weight:600;line-height:1;
+  color:var(--t-3);min-height:9px;font-variant-numeric:tabular-nums;
+  white-space:nowrap;max-width:100%
 }
 /* Over or on target. Under target stays recessive on purpose: a 1km miss is not
    worth a warning colour, and the signed number already says which way it went. */
 .vstrip-delta.over{color:var(--ok)}
 .vstrip-week.is-current .vstrip-delta{color:var(--run-strong);font-weight:600}
 /* The unit, stated once, so nine bar labels can stay bare numbers. */
-.vstrip-titlewrap{display:flex;align-items:baseline;gap:5px;min-width:0}
+.vstrip-titlewrap{display:flex;align-items:baseline;gap:6px;min-width:0}
 .vstrip-unit{
-  font-family:var(--body);font-size:var(--font-xs);font-weight:600;line-height:1;color:var(--dim);
-  border:1px solid var(--border);border-radius:var(--radius-xs);padding:2px 5px;flex:0 0 auto
+  font-family:var(--mono);font-size:var(--fs-label);font-weight:500;line-height:1;color:var(--t-3);
+  letter-spacing:.06em;text-transform:uppercase;flex:0 0 auto
 }
-.vstrip-toggle .vstrip-titlewrap{flex:1;min-width:0}
+.vstrip-toggle .vstrip-titlewrap{min-width:0}
 .vstrip-toggle .vstrip-titlewrap>.vstrip-title{flex:0 1 auto}
-.vstrip-week.is-current{background:var(--run-bg);border-color:var(--run-border)}
+/* The live week: illuminated from the baseline, not outlined. The old 1px box
+   read as a selection artefact. It is also the only column wide enough to spell
+   out its own progress, because that is the number still moving. */
+.vstrip-week.is-current{
+  width:auto;min-width:66px;padding-inline:7px;background:var(--run-bg);
+  box-shadow:inset 0 -2px 0 var(--run)
+}
 .vstrip-week.is-current .vstrip-km{color:var(--run-strong)}
-.vstrip-week.is-current .vstrip-wk{color:var(--run-strong);font-weight:700}
+.vstrip-week.is-current .vstrip-wk{color:var(--run-strong);font-weight:600}
+.vstrip-week.is-current .vstrip-bar{background:var(--run-bg-strong)}
 .vstrip-foot{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;
-  padding-top:9px;border-top:1px solid var(--border);
-  font-family:var(--body);font-size:var(--font-xs);color:var(--dim)
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:10px;
+  padding-top:10px;border-top:1px solid var(--border);
+  font-family:var(--mono);font-size:var(--fs-label);letter-spacing:.04em;color:var(--t-3)
+}
+.vstrip-foot b{
+  font-family:var(--mono);font-size:var(--fs-data);font-weight:500;color:var(--t-1);
+  font-variant-numeric:tabular-nums;letter-spacing:0
 }
 .pgvol-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .pgvol-scroll::-webkit-scrollbar{display:none}
 .pgvol-scroll svg{display:block;max-width:none}
-.outdoor-mode .vstrip-bar{background:rgba(19,19,18,.07)}
 @media(max-width:400px){
-  .vstrip-week{width:36px}
-  .vstrip-bar{width:14px;height:48px}
-  .vstrip-foot{flex-direction:column;align-items:flex-start;gap:3px}
+  .vstrip-week{width:44px}
+  .vstrip-bar{width:15px;height:54px}
+  .vstrip-foot{flex-direction:column;align-items:flex-start;gap:4px}
 }
 
 /* ── LIVE SESSION LINE + APPROXIMATE LOAD NOTE ─────────────────────────────── */
@@ -4725,67 +4777,248 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 /* The week list is the point of that page, so the block history folds away to a
    single summary row and remembers whichever way the athlete leaves it. */
 .vstrip-card.is-collapsible{padding:0}
+/* A hairline under the head so opening reads as a drawer coming out of the
+   card, not as content appearing from nowhere. */
 .vstrip-card.is-collapsible .vstrip-body{display:none;padding:0 16px 14px}
-.vstrip-card.is-collapsible.is-open .vstrip-body{display:block}
+.vstrip-card.is-collapsible.is-open .vstrip-body{display:block;border-top:1px solid var(--border);padding-top:13px}
 .vstrip-toggle{
-  display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;
+  display:flex;align-items:center;gap:12px;width:100%;padding:13px 16px;
   border:0;border-radius:inherit;background:transparent;cursor:pointer;
   font:inherit;color:inherit;text-align:left;
 }
-.vstrip-toggle .vstrip-title{flex:1;min-width:0}
-.vstrip-sum{
-  font-family:var(--body);font-size:var(--font-xs);color:var(--dim);white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis
+/* Two rows, not one: the head used to put the title and a whole sentence of
+   figures on the same line, so BOTH were ellipsised — the panel clipped its own
+   name. Stacking them gives each the full width and nothing has to be cut. */
+.vstrip-headmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.vstrip-toggle .vstrip-title{min-width:0}
+.vstrip-headline{display:flex;align-items:baseline;gap:8px;min-width:0;flex-wrap:wrap}
+/* The figure the athlete opens this panel to see, as a readout. */
+.vstrip-readout{display:inline-flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums}
+.vstrip-readout b{
+  font-family:var(--mono);font-size:var(--fs-2-sm);font-weight:500;line-height:1;
+  letter-spacing:-.02em;color:var(--run)
 }
+.vstrip-readout i{font-family:var(--mono);font-size:var(--fs-label);font-style:normal;line-height:1;color:var(--t-2)}
+/* --run on paper is 4.0:1 against the card, under the floor for a 17px figure.
+   --run-strong is 6.4:1 and reads as the same number. */
+.outdoor-mode .vstrip-readout b{color:var(--run-strong)}
+/* The other sports get named, never numbered, in the collapsed head: a second
+   and third figure here is what forced the old max-width that cut "Ride 51...."
+   in half. Their numbers are two taps away, inside the panel. */
+.vstrip-also{
+  font-family:var(--mono);font-size:var(--fs-label);letter-spacing:.06em;text-transform:uppercase;
+  color:var(--t-2);white-space:nowrap
+}
+.vstrip-also::before{content:'\00b7';margin-right:7px;color:var(--t-3)}
+.vstrip-sum{font-family:var(--mono);font-size:var(--fs-label);letter-spacing:.04em;color:var(--t-2)}
 .vstrip-chev{
-  width:15px;height:15px;flex-shrink:0;color:var(--dim);
+  width:15px;height:15px;flex-shrink:0;color:var(--t-3);
   transform:rotate(-90deg);transition:transform .2s ease
 }
 .is-open .vstrip-chev{transform:rotate(90deg)}
-.vstrip-legend-row{justify-content:flex-end;margin-bottom:8px}
-.vstrip-card.is-collapsible .vstrip-foot{margin-top:6px}
-/* Weeks with no target yet: keep the column for alignment, drop the empty track. */
-.vstrip-week.is-empty .vstrip-bar{background:transparent;border:1px dashed var(--border)}
+/* The legend belongs on the subtitle's line, not on a line of its own: one
+   row of chart furniture, not two. margin-left:auto rather than
+   justify-content, so it still sits right when there is no subtitle beside it
+   (no coach target published for the week). */
+.vstrip-running-block{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 10px}
+.vstrip-running-block>.vstrip-subtitle{flex:1 1 auto}
+.vstrip-legend-row{flex:0 0 auto;margin:0 0 6px auto}
+.vstrip-running-block>.vstrip-scroll,.vstrip-running-block>.vstrip-foot{flex:1 1 100%}
+.vstrip-card.is-collapsible .vstrip-foot{margin-top:8px}
+/* Weeks with no target yet: the empty well is the whole statement. A dashed
+   outline read as an unfinished wireframe. */
+.vstrip-week.is-empty .vstrip-bar{background:var(--g-well);box-shadow:var(--edge-well);opacity:.45}
 .vstrip-week.is-empty .vstrip-km{min-height:11px}
-.sport-targets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:12px}
+/* ── THE WEEK, AS A DIAL AND A LINE ───────────────────────────────────────────
+   What is prescribed gets a dial. What was merely logged gets a line. The old
+   block gave all three sports an identical bordered plate, so a week with one
+   target rendered one working gauge and two empty ones captioned "no weekly
+   target" — the panel spending two thirds of itself on what the athlete had not
+   been set, in the same weight as what they had.
+
+   No plates. Border, fill and radius each say "separate object", and this is
+   one reading of one week. Separation comes from air and one hairline. */
+.sport-targets{
+  --ring:clamp(76px,25vw,104px);
+  --ring-hole:var(--surface);
+  --ring-track:rgba(236,233,226,.09);
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:16px 10px;margin:2px 0 14px;justify-items:center
+}
+.outdoor-mode .sport-targets{--ring-track:rgba(19,19,18,.10)}
+/* The usual case is one prescribed sport, and one dial centred over a stack of
+   centred captions is the hardest version of this to read. Alone, the dial goes
+   left and its facts run down the right on one line each — the eye takes a
+   single path instead of re-centring on every row. */
+/* ONE column here, not two: the two-column split belongs to the section, which
+   lays the ring against its own facts. Giving the container the same template
+   sized the section into an `auto` track and crushed the fact column to a word
+   per line at 320px. */
+.sport-targets-solo{grid-template-columns:minmax(0,1fr);gap:0;justify-items:stretch;--ring:112px}
 .sport-target{
-  min-width:0;padding:11px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface2)
+  min-width:0;width:100%;padding:0;border:0;background:transparent;box-shadow:none;
+  display:grid;grid-template-areas:'ring' 'head' 'record' 'meta' 'clock' 'note';
+  justify-items:center;text-align:center;align-content:start
 }
-.sport-target-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
-.sport-target-name{font-family:var(--body);font-size:var(--font-xs);font-weight:750;color:var(--text)}
-.sport-target-lock{
-  font-family:var(--mono);font-size:var(--font-xs);font-weight:650;line-height:1.2;letter-spacing:.035em;
-  color:var(--dim);text-transform:uppercase;white-space:nowrap
+/* The app's own ring idiom, the one .insight-ring uses: a conic sweep with the
+   hole punched by a radial gradient in the surface colour, so the dials read as
+   part of the same instrument rather than a borrowed component. */
+.sport-target-track{
+  grid-area:ring;--value:0;width:var(--ring);height:var(--ring);margin:0;
+  border-radius:var(--r-pill);overflow:visible;background:
+    radial-gradient(circle closest-side,var(--ring-hole) 77%,transparent 79%),
+    conic-gradient(var(--ring-c,var(--run)) calc(var(--value)*1%),var(--ring-track) 0);
+  box-shadow:none
 }
-.sport-target-status{
-  font-family:var(--mono);font-size:var(--font-xs);font-weight:650;line-height:1.2;letter-spacing:.035em;
-  color:var(--muted);text-transform:uppercase;white-space:nowrap
+.sport-target-cycling{--ring-c:var(--strength)}
+.sport-target-swimming{--ring-c:var(--swim)}
+/* The track paints last in DOM order, so anything sharing its grid area needs
+   lifting out of the hole it would otherwise be buried in. */
+.sport-target-distance{
+  grid-area:ring;place-self:center;position:relative;z-index:1;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  max-width:calc(var(--ring) * .74);font-family:var(--mono);font-variant-numeric:tabular-nums
 }
-.sport-target-unprescribed{border-style:dashed;background:transparent}
-.sport-target-distance{display:flex;align-items:baseline;gap:4px;font-family:var(--body);font-variant-numeric:tabular-nums}
-.sport-target-distance strong{font-size:var(--font-lg);letter-spacing:-.035em;color:var(--text)}
-.sport-target-distance span{font-size:var(--font-xs);color:var(--dim)}
-.sport-target-track{height:5px;margin-top:8px;border-radius:var(--radius-2xl);background:var(--border);overflow:hidden}
-.sport-target-track i{display:block;height:100%;border-radius:inherit;background:var(--run)}
-.sport-target-cycling .sport-target-track i{background:var(--strength)}
-.sport-target-swimming .sport-target-track i{background:#43b7cf}
-.sport-target-meta{display:flex;flex-wrap:wrap;gap:5px 9px;margin-top:8px;font-size:var(--font-xs);color:var(--muted)}
-.sport-target-note{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:var(--font-xs);line-height:1.4;color:var(--muted)}
+.sport-target-distance strong{
+  font-size:clamp(15px,4.4vw,var(--fs-2));font-weight:500;line-height:1.05;
+  letter-spacing:-.025em;color:var(--t-1)
+}
+/* What is left is the live number, so it glows. What is banked does not. */
+.sport-target-distance.is-togo strong{color:var(--run)}
+.sport-target-distance.is-over strong,.sport-target-distance.is-met strong{color:var(--done)}
+.sport-target-distance span{
+  font-family:var(--mono);font-size:var(--fs-label);font-weight:500;line-height:1;
+  letter-spacing:.04em;color:var(--t-3);text-align:center
+}
+.sport-target-head{
+  grid-area:head;display:flex;flex-direction:column;align-items:center;gap:3px;margin:11px 0 0
+}
+.sport-target-name{
+  font-family:var(--body);font-size:var(--fs-label);font-weight:650;letter-spacing:var(--tracking-label);
+  text-transform:uppercase;color:var(--t-1)
+}
+/* Engraved is the mono face, the uppercase and the tracking — not a colour
+   under the contrast floor. These wrap now: at a third of a phone's width
+   "COACH TARGET · LOCKED" cannot sit on one line, and nowrap clipped it. */
+.sport-target-lock,.sport-target-status{
+  font-family:var(--mono);font-size:var(--fs-label);font-weight:500;line-height:1.25;
+  letter-spacing:.05em;color:var(--t-2);text-transform:uppercase;text-wrap:balance
+}
+/* Both absolute numbers, always, in the same shape — so "2.8 km to go" never
+   leaves an athlete working out what it is 2.8 of. */
+.sport-target-record{
+  grid-area:record;margin-top:5px;font-family:var(--mono);font-size:var(--fs-label);
+  font-variant-numeric:tabular-nums;letter-spacing:0;color:var(--t-2);text-wrap:balance
+}
+.sport-targets-solo .sport-target-record{font-size:var(--fs-data);letter-spacing:-.01em}
+.sport-target-meta{
+  grid-area:meta;display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:5px;
+  font-family:var(--mono);font-size:var(--fs-label);line-height:1.3;letter-spacing:.03em;color:var(--t-3)
+}
+/* The deadline the target sits against. Amber on the last day, because that is
+   the one day the number still moving cannot be caught up later. */
+.sport-target-clock{
+  grid-area:clock;margin-top:7px;font-family:var(--mono);font-size:var(--fs-label);
+  letter-spacing:.08em;text-transform:uppercase;color:var(--t-3)
+}
+.sport-target-distance.is-togo~.sport-target-clock{color:var(--watch)}
+.sport-week-clock{
+  margin:-4px 0 14px;font-family:var(--mono);font-size:var(--fs-label);letter-spacing:.08em;
+  text-transform:uppercase;color:var(--watch);text-align:right
+}
+.sport-target-note{
+  grid-area:note;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
+  font-size:var(--fs-label);line-height:1.5;color:var(--t-2);text-align:left
+}
+/* One dial, facts to its right, every fact on its own line. */
+.sport-targets-solo .sport-target{
+  grid-template-areas:'ring head' 'ring record' 'ring meta' 'ring clock' 'note note';
+  grid-template-columns:auto minmax(0,1fr);column-gap:18px;
+  justify-items:start;text-align:left;align-content:center
+}
+.sport-targets-solo .sport-target-track{align-self:center;grid-row:1/5}
+.sport-targets-solo .sport-target-distance{grid-row:1/5}
+.sport-targets-solo .sport-target-head{align-items:flex-start;margin:0}
+.sport-targets-solo .sport-target-meta{align-items:flex-start;flex-direction:row;flex-wrap:wrap;gap:2px 7px}
+.sport-targets-solo .sport-target-meta span+span::before{content:'\00b7';margin-right:7px}
+.sport-targets-solo .sport-target-distance strong{font-size:var(--fs-1-sm)}
+.sport-targets-solo .sport-target-note{margin-top:12px}
+/* A coach note is prose, and prose in a third of a phone's width is a column of
+   single words. That sport takes the whole row with its dial beside the text,
+   and the other two share the row underneath, half each. */
+/* Guarded against the solo case: :has() outranks the single class, so without
+   this it put the lone dial back into a two-column grid and crushed its fact
+   column to one word per line at 320px. */
+.sport-targets:not(.sport-targets-solo):has(.sport-target-noted){grid-template-columns:repeat(2,minmax(0,1fr))}
+.sport-targets:not(.sport-targets-solo) .sport-target-noted{
+  grid-column:1/-1;justify-items:start;text-align:left;
+  grid-template-areas:'ring head' 'ring record' 'ring meta' 'ring clock' 'note note';
+  grid-template-columns:auto minmax(0,1fr);column-gap:16px
+}
+.sport-targets:not(.sport-targets-solo) .sport-target-noted .sport-target-head{align-items:flex-start;margin-top:2px}
+.sport-targets:not(.sport-targets-solo) .sport-target-noted .sport-target-meta{align-items:flex-start}
+
+/* ── LOGGED, NOT PRESCRIBED ─────────────────────────────────────────────────
+   Cross-training an athlete did without being asked to. It is real and it
+   stays, but it is a fact under a label, not a headline over an empty gauge. */
+.sport-logged{
+  margin:0 0 14px;padding-top:12px;border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:7px
+}
+.sport-logged-label{
+  font-family:var(--mono);font-size:var(--fs-label);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--t-3)
+}
+.sport-logged-row{display:flex;align-items:baseline;gap:9px;min-width:0;flex-wrap:wrap}
+.sport-logged-sport{
+  flex:0 0 auto;display:inline-flex;align-items:baseline;gap:7px;
+  font-family:var(--body);font-size:var(--fs-label);font-weight:650;letter-spacing:var(--tracking-label);
+  text-transform:uppercase;color:var(--t-2)
+}
+/* A 5px mark in the sport's own colour, so the row is identifiable at a glance
+   without spending a whole ring on it. */
+.sport-logged-sport::before{
+  content:'';width:5px;height:5px;border-radius:50%;background:var(--ring-c,var(--t-3));
+  transform:translateY(-2px)
+}
+.sport-logged-cycling{--ring-c:var(--strength)}
+.sport-logged-swimming{--ring-c:var(--swim)}
+.sport-logged-running{--ring-c:var(--run)}
+.sport-logged-row b{
+  font-family:var(--mono);font-size:var(--fs-data);font-weight:500;color:var(--t-1);
+  font-variant-numeric:tabular-nums
+}
+.sport-logged-meta{
+  display:inline-flex;flex-wrap:wrap;gap:0 7px;font-family:var(--mono);font-size:var(--fs-label);
+  letter-spacing:.03em;color:var(--t-3)
+}
+.sport-logged-meta span+span::before{content:'\00b7';margin-right:7px}
+.sport-target-unprescribed{background:transparent}
 .sport-target-error{
   display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;
-  border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface2);font-size:var(--font-xs);color:var(--muted)
+  border:1px solid var(--border);border-radius:var(--r-2);background:var(--surface2);box-shadow:var(--edge-plate);
+  font-size:var(--fs-label);color:var(--t-2)
 }
 .sport-target-error button{
-  flex:0 0 auto;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 9px;background:var(--surface);
-  color:var(--text);font:600 var(--font-xs) var(--body);cursor:pointer
+  flex:0 0 auto;border:1px solid var(--border-mid);border-radius:var(--r-1);padding:6px 10px;background:var(--surface);
+  color:var(--t-1);font:500 var(--fs-label)/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;cursor:pointer
 }
-.vstrip-subtitle{margin:12px 0 5px;font:650 var(--font-xs) var(--body);color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+.vstrip-subtitle{margin:14px 0 6px;font:650 var(--fs-label) var(--body);color:var(--t-3);text-transform:uppercase;letter-spacing:var(--tracking-label)}
 .vstrip-running-block:first-child .vstrip-subtitle{margin-top:0}
-.vstrip-card.is-collapsible .sport-targets{margin-top:1px}
-@media(max-width:640px){
-  .sport-targets{grid-template-columns:1fr}
-  .vstrip-sum{max-width:52vw}
-  .sport-target{padding:10px 11px}
+.vstrip-card.is-collapsible .sport-targets{margin-top:2px}
+@media(max-width:400px){
+  .sport-targets{gap:14px 8px}
+  .sport-targets-solo{gap:0 14px;--ring:104px}
+  .sport-target-head{margin-top:9px}
+}
+/* At 320px a third of the row is 81px, and "SWIMMING" at full label tracking
+   needs 88 — it bled into the next column. Measured against the fallback face,
+   which is wider than IBM Plex and is what an athlete sees before the webfont
+   lands, so the tracking comes off rather than the word. */
+@media(max-width:360px){
+  .sport-targets{gap:12px 6px}
+  .sport-targets-solo{--ring:96px}
+  .sport-target-name{letter-spacing:.04em}
 }
 
 .skip-link{position:fixed;left:12px;top:10px;z-index:9999;transform:translateY(-160%);padding:10px 14px;border-radius:var(--radius-sm);background:var(--brand-blue);color:var(--ink-action);font-weight:800;text-decoration:none;transition:transform .15s}

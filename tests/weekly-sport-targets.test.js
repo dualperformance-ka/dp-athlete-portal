@@ -9,6 +9,7 @@ const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const handbookSource = readFileSync(join(root, 'public', 'js', '05-handbook.js'), 'utf8');
 const nutritionSource = readFileSync(join(root, 'public', 'js', '06-nutrition.js'), 'utf8');
 const coreSource = readFileSync(join(root, 'public', 'js', '01-core.js'), 'utf8');
+const css = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
 
 const target = (over = {}) => ({
   sport: 'running',
@@ -132,12 +133,14 @@ test('running, cycling and swimming render independently with the correct units'
     },
   };
   const html = coachTargetsHtml(week);
-  assert.match(html, />32\.1 km</);
-  assert.match(html, />\/ 45 km</);
-  assert.match(html, />78 km</);
-  assert.match(html, />\/ 120 km</);
-  assert.match(html, />3200 m</);
-  assert.match(html, />\/ 5000 m</);
+  // The dial states what is left to do; the record line underneath carries both
+  // absolute numbers, in the sport's own unit, for every dialled sport.
+  assert.match(html, /<strong>12\.9<\/strong><span>km to go<\/span>/);
+  assert.match(html, />32\.1 of 45 km</);
+  assert.match(html, /<strong>42<\/strong><span>km to go<\/span>/);
+  assert.match(html, />78 of 120 km</);
+  assert.match(html, /<strong>1800<\/strong><span>m to go<\/span>/, 'swimming stays in metres');
+  assert.match(html, />3200 of 5000 m</);
   assert.match(html, /2 \/ 3 sessions/);
   assert.match(html, /52 \/ 90 min/);
   assert.equal((html.match(/Coach target · Locked/g) || []).length, 3);
@@ -149,8 +152,8 @@ test('null optional fields are omitted and activity never changes the prescripti
     coachTargets: [target({ distanceTargetMetres: 45000, coachNote: '<b>Keep it easy</b>' })],
     actualBySport: { running: { distanceMetres: 80000, sessions: 5, durationMinutes: 300 } },
   });
-  assert.match(html, />80 km</, 'actual activity is shown separately');
-  assert.match(html, />\/ 45 km</, 'the prescribed distance is unchanged');
+  assert.match(html, /<strong>\+35<\/strong><span>km over<\/span>/, 'a week past its target reports the overshoot, not a negative "to go"');
+  assert.match(html, />80 of 45 km</, 'actual and prescribed both stay on the record line');
   assert.doesNotMatch(html, /sessions| min/);
   assert.match(html, /&lt;b>Keep it easy&lt;\/b>/, 'coach notes are escaped');
 });
@@ -166,13 +169,15 @@ test('recorded sports remain visible when no weekly target was prescribed', () =
     },
   };
   const html = coachTargetsHtml(week);
+  assert.match(html, /Also logged/, 'the group says what it is, so each row does not have to');
   assert.match(html, /Swimming/);
   assert.match(html, />1800 m</);
-  assert.match(html, /completed/);
-  assert.match(html, /No weekly target/);
   assert.match(html, /1 session/);
   assert.match(html, /42 min/);
-  assert.doesNotMatch(html, /Coach target · Locked|role="progressbar"/);
+  // No dial and no gauge: there is no target to progress against, and an empty
+  // ring captioned "no weekly target" spent a third of the panel saying so.
+  assert.doesNotMatch(html, /Coach target · Locked|role="progressbar"|sport-target-track/);
+  assert.doesNotMatch(html, /No weekly target/);
   assert.match(coachTargetSummary(week), /Swim 1800\u00a0m · no target/);
 });
 
@@ -190,8 +195,8 @@ test('the planned running total is the weekly target fallback when no coach over
   const html = coachTargetsHtml(week);
   assert.match(html, /Running/);
   assert.match(html, /Planned target/);
-  assert.match(html, />11\.4 km</);
-  assert.match(html, />\/ 86 km</);
+  assert.match(html, /<strong>74\.6<\/strong><span>km to go<\/span>/);
+  assert.match(html, />11\.4 of 86 km</);
   assert.match(html, /1 session/);
   assert.match(html, /62 min/);
   assert.match(html, /role="progressbar"/);
@@ -211,10 +216,91 @@ test('targeted and activity-only sports share the weekly dropdown without changi
     },
   });
   assert.match(html, /Running[\s\S]*Coach target · Locked/);
-  assert.match(html, /Running[\s\S]*\/ 45 km/);
+  assert.match(html, /Running[\s\S]*10 of 45 km/);
   assert.doesNotMatch(html, /Planned target/);
-  assert.match(html, /Cycling[\s\S]*No weekly target[\s\S]*30 km/);
+  // The prescribed sport keeps the dial; the one that was merely logged drops
+  // below it as a line, and the label carries what the caption used to say.
+  assert.match(html, /Running[\s\S]*Also logged[\s\S]*Cycling[\s\S]*30 km/);
+  assert.match(html, /sport-targets-solo/, 'one dial goes wide, with its facts beside it rather than centred under it');
   assert.equal((html.match(/Coach target · Locked/g) || []).length, 1);
+});
+
+// ── What the dial says, and to whom ─────────────────────────────────────────
+//
+// Two decisions are under test here, and both are about what the panel SAYS
+// rather than how it is drawn:
+//
+//   1. a dial is for a prescription. A sport the athlete did without being
+//      asked to gets a line under "Also logged", not a full gauge with nothing
+//      to sweep and a "no weekly target" caption at the same weight as the
+//      sport's own name;
+//   2. the headline figure is what is LEFT. Mid-week an athlete is deciding
+//      what to run today, and the record of what they have already run is the
+//      second line.
+
+test('only a prescribed sport gets a dial', () => {
+  const { coachTargetsHtml } = targetDisplayHelpers();
+  const html = coachTargetsHtml({
+    planned: 64,
+    coachTargets: [],
+    actualBySport: {
+      running: { distanceMetres: 61200, sessions: 7, durationMinutes: 326 },
+      cycling: { distanceMetres: 51400, sessions: 1, durationMinutes: 151 },
+      swimming: { distanceMetres: 3025, sessions: 2, durationMinutes: 67 },
+    },
+  });
+  assert.equal((html.match(/sport-target-track/g) || []).length, 1, 'one prescription, one dial');
+  assert.equal((html.match(/role="progressbar"/g) || []).length, 1);
+  // Both cross-training sports survive, with their distance and their make-up.
+  assert.match(html, /Also logged[\s\S]*Cycling[\s\S]*51\.4 km[\s\S]*151 min/);
+  assert.match(html, /Also logged[\s\S]*Swimming[\s\S]*3025 m[\s\S]*67 min/);
+  assert.doesNotMatch(html, /sport-target-cycling|sport-target-swimming/, 'neither gets a dial');
+});
+
+test('the dial states what is left, and the record line states both numbers', () => {
+  const { volumeDialFigure } = targetDisplayHelpers();
+  assert.deepEqual({ ...volumeDialFigure(61200, 64000, 'running') }, { value: '2.8', qualifier: 'km to go', state: ' is-togo' });
+  assert.deepEqual({ ...volumeDialFigure(85600, 75000, 'running') }, { value: '+10.6', qualifier: 'km over', state: ' is-over' });
+  assert.deepEqual({ ...volumeDialFigure(3025, 5000, 'swimming') }, { value: '1975', qualifier: 'm to go', state: ' is-togo' });
+  // Landing on the target deserves better than "0 km to go".
+  assert.deepEqual({ ...volumeDialFigure(64000, 64000, 'running') }, { value: '✓', qualifier: 'on target', state: ' is-met' });
+  // Rounding noise under 50 metres is on target, matching the bar chart's rule.
+  assert.equal(volumeDialFigure(63960, 64000, 'running').qualifier, 'on target');
+  // Nothing prescribed: the figure is simply what was done.
+  assert.deepEqual({ ...volumeDialFigure(51400, 0, 'cycling') }, { value: '51.4', qualifier: 'km', state: '' });
+});
+
+test('the deadline is only reported while the week can still be affected', () => {
+  const { weekDaysLeft, weekClockText } = targetDisplayHelpers();
+  const iso = (offsetDays) => {
+    const date = new Date();
+    date.setDate(date.getDate() + offsetDays);
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  };
+  assert.equal(weekDaysLeft({ isCurrent: true, endISO: iso(0) }), 0, 'the last day of the week');
+  assert.equal(weekDaysLeft({ isCurrent: true, endISO: iso(3) }), 3);
+  assert.equal(weekDaysLeft({ isCurrent: true, endISO: iso(-1) }), null, 'a finished week has no time left to report');
+  assert.equal(weekDaysLeft({ isCurrent: false, endISO: iso(30) }), null, 'a future week would otherwise read "30 days left"');
+  assert.equal(weekDaysLeft({ isCurrent: true }), null, 'no dates, no claim');
+  assert.equal(weekClockText(0), 'Last day');
+  assert.equal(weekClockText(1), '1 day left');
+  assert.equal(weekClockText(4), '4 days left');
+  assert.equal(weekClockText(null), '');
+});
+
+test('only what is still moving takes the readout colour', () => {
+  // The remaining figure is the live number, so it glows; a banked total does
+  // not. Baby blue on live values only is the whole rule of this palette.
+  assert.match(css, /\.sport-target-distance\.is-togo strong\{color:var\(--run\)\}/);
+  assert.match(css, /\.sport-target-distance\.is-over strong,\.sport-target-distance\.is-met strong\{color:var\(--done\)\}/);
+});
+
+test('one dial reads across, not down', () => {
+  // A single dial centred over a stack of centred captions is the hardest
+  // version of this to read. Alone, it goes left with its facts beside it.
+  assert.match(nutritionSource, /dialled\.length===1\?' sport-targets-solo':''/);
+  assert.match(css, /\.sport-targets-solo \.sport-target\{[\s\S]*?grid-template-areas:'ring head' 'ring record' 'ring meta' 'ring clock' 'note note'/);
+  assert.match(css, /\.sport-targets-solo \.sport-target\{[\s\S]*?text-align:left/);
 });
 
 test('an empty response and a failed target request produce different UI states', () => {
@@ -240,7 +326,7 @@ test('an empty response and a failed target request produce different UI states'
 
 test('the athlete UI contains read-only lock text, escaped notes and no target form controls', () => {
   assert.match(nutritionSource, /Coach target · Locked/);
-  assert.match(nutritionSource, /target\.coachNote\?'<div class="sport-target-note">'\+esc\(target\.coachNote\)/);
+  assert.match(nutritionSource, /note\?'<div class="sport-target-note">'\+esc\(note\)/);
   assert.doesNotMatch(nutritionSource, /sport-target[^\n]*(?:<input|<select|<textarea)/i);
   assert.match(nutritionSource, /Existing targets stay locked/);
 });
