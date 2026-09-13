@@ -127,15 +127,42 @@ function collapseTrainingVolumeStrips(){
     if(toggle)toggle.setAttribute('aria-expanded','false');
   });
 }
+// Put the live week under the athlete's eye when the strip opens.
+//
+// The old arithmetic was `live.offsetLeft - clientWidth/2 + width/2`, and
+// offsetLeft is measured from the nearest POSITIONED ancestor — which for a
+// week button is the page, not the scroller. So it over-scrolled by the card's
+// own offset and the strip opened with the leftmost column cut through the
+// middle of a digit.
+//
+// Measured against the scroller instead, and landed on a column edge, so the
+// left of the frame is never half a figure. Of the column edges available, take
+// the one nearest the centred position that still leaves the live week whole:
+// snapping to the closest edge outright can push the week being read off the
+// right side, which is worse than being off-centre.
+function centreCurrentVolumeWeek(root){
+  var scroller=root&&root.querySelector('.vstrip-scroll');
+  var live=root&&root.querySelector('.vstrip-week.is-current');
+  if(!scroller||!live) return;
+  var origin=scroller.getBoundingClientRect().left-scroller.scrollLeft;
+  var liveLeft=live.getBoundingClientRect().left-origin,liveWidth=live.offsetWidth;
+  var view=scroller.clientWidth,limit=Math.max(0,scroller.scrollWidth-view);
+  var ideal=Math.min(limit,Math.max(0,liveLeft-(view-liveWidth)/2));
+  var best=null;
+  Array.prototype.forEach.call(root.querySelectorAll('.vstrip-week'),function(week){
+    var edge=Math.min(limit,week.getBoundingClientRect().left-origin);
+    // Edges that would cut the live week out of view are not candidates.
+    if(edge>liveLeft||edge+view<liveLeft+liveWidth) return;
+    if(best===null||Math.abs(edge-ideal)<Math.abs(best-ideal)) best=edge;
+  });
+  scroller.scrollLeft=best===null?ideal:best;
+}
 function toggleVolumeStrip(btn){
   var card=btn&&btn.closest?btn.closest('.vstrip-card'):null;
   if(!card) return;
   var open=card.classList.toggle('is-open');
   btn.setAttribute('aria-expanded',open?'true':'false');
-  if(open){
-    var cur=card.querySelector('.vstrip-week.is-current'),sc=card.querySelector('.vstrip-scroll');
-    if(cur&&sc) sc.scrollLeft=Math.max(0,cur.offsetLeft-sc.clientWidth/2+cur.offsetWidth/2);
-  }
+  if(open) centreCurrentVolumeWeek(card);
 }
 // A completed week's headline number is what the athlete ACTUALLY RAN, not what
 // was planned for them. The strip used to print `planned` under every bar while
@@ -191,6 +218,45 @@ function coachDistanceText(metres,sport){
   if(sport==='swimming') return Math.round(value)+' m';
   return fmtKmVal(value/1000)+' km';
 }
+// The same distance split in two, because a dial puts the figure inside the
+// ring and the unit under it, where one joined string cannot go.
+function coachDistanceParts(metres,sport){
+  var value=Number(metres);if(isNaN(value)||value<0)value=0;
+  if(sport==='swimming') return {value:String(Math.round(value)),unit:'m'};
+  return {value:fmtKmVal(value/1000),unit:'km'};
+}
+// Days left in the selected week, or null when the week has finished or has no
+// dates. Self-contained on purpose: localISO lives in another bundle file.
+function weekDaysLeft(week){
+  var end=week&&week.endISO;
+  if(!end||!week.isCurrent) return null;
+  var now=new Date();
+  var today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  if(end<today) return null;
+  var days=Math.round((Date.parse(end+'T00:00:00')-Date.parse(today+'T00:00:00'))/86400000);
+  return days<0?null:days;
+}
+function weekClockText(days){
+  if(days==null) return '';
+  if(days===0) return 'Last day';
+  return days===1?'1 day left':days+' days left';
+}
+// What the dial says in its hole. An athlete opening this mid-week is deciding
+// what to run today, not auditing what they have already run — so the headline
+// is what is LEFT, and the record moves to the line underneath. A finished or
+// exceeded target has no "to go" to report, so it states the overshoot or the
+// tick instead. Every state is the same shape: one figure, one qualifier.
+function volumeDialFigure(actual,targetDistance,sport){
+  var unit=sport==='swimming'?'m':'km';
+  // Metres, because that is what the distances are in. 50m is the same
+  // "close enough" the bar chart's delta uses (0.05 km), not 5cm.
+  var tolerance=sport==='swimming'?0.5:50;
+  if(!(targetDistance>0)) return {value:coachDistanceParts(actual,sport).value,qualifier:unit,state:''};
+  var remaining=targetDistance-actual;
+  if(remaining>tolerance) return {value:coachDistanceParts(remaining,sport).value,qualifier:unit+' to go',state:' is-togo'};
+  if(remaining<-tolerance) return {value:'+'+coachDistanceParts(-remaining,sport).value,qualifier:unit+' over',state:' is-over'};
+  return {value:'\u2713',qualifier:'on target',state:' is-met'};
+}
 function selectedVolumeWeek(data,mode){
   var offset=mode==='nutrition'?nutWeekOffset:weekOffset;
   var selected=baseProgrammeWeek()+offset;
@@ -225,55 +291,88 @@ function coachTargetSummary(week){
       +'/'+coachDistanceText(target.distanceTargetMetres,row.sport).replace(' ','\u00a0');
   }).join(' · ');
 }
+// One dial per PRESCRIBED sport; everything else logged on a line.
+//
+// Every sport with any activity used to get a full dial, so a normal week
+// showed one ring sweeping its target and two open rings captioned "no weekly
+// target" — two thirds of the panel advertising what the athlete had not been
+// set, at the same size as what they had. Cross-training still belongs here,
+// but as a fact rather than as a headline with an empty gauge over it.
 function coachTargetsHtml(week){
   var rows=volumeSportRows(week);
   if(!rows.length) return '';
-  return '<div class="sport-targets" aria-label="Weekly sport activity and coach targets">'
-    +rows.map(function(row){
-      var target=row.target,metrics=row.metrics,sport=row.sport;
-      var actualDistance=metrics?metrics.distanceMetres:0;
-      if(!target&&row.plannedTargetMetres!=null){
-        var plannedDistance=Number(row.plannedTargetMetres)||0;
-        var plannedPct=plannedDistance>0?Math.min(100,Math.round(actualDistance/plannedDistance*100)):(actualDistance===0?100:0);
-        var plannedDetails=[];
-        if(metrics&&metrics.sessions>0) plannedDetails.push(metrics.sessions+' '+(metrics.sessions===1?'session':'sessions'));
-        if(metrics&&metrics.durationMinutes>0) plannedDetails.push(metrics.durationMinutes+' min');
-        return '<section class="sport-target sport-target-'+sport+' sport-target-planned">'
-          +'<div class="sport-target-head"><span class="sport-target-name">'+COACH_SPORT_LABELS[sport]+'</span>'
-            +'<span class="sport-target-status">Planned target</span></div>'
-          +'<div class="sport-target-distance"><strong>'+coachDistanceText(actualDistance,sport)+'</strong>'
-            +'<span>/ '+coachDistanceText(plannedDistance,sport)+'</span></div>'
-          +'<div class="sport-target-track" role="progressbar" aria-label="'+COACH_SPORT_LABELS[sport]+' weekly planned distance" aria-valuemin="0" aria-valuenow="'+Math.round(actualDistance)+'" aria-valuemax="'+plannedDistance+'"><i style="width:'+plannedPct+'%"></i></div>'
-          +(plannedDetails.length?'<div class="sport-target-meta">'+plannedDetails.map(function(detail){return '<span>'+esc(detail)+'</span>';}).join('')+'</div>':'')
-        +'</section>';
-      }
-      if(!target){
-        var actualDetails=[];
-        if(metrics&&metrics.sessions>0) actualDetails.push(metrics.sessions+' '+(metrics.sessions===1?'session':'sessions'));
-        if(metrics&&metrics.durationMinutes>0) actualDetails.push(metrics.durationMinutes+' min');
-        return '<section class="sport-target sport-target-'+sport+' sport-target-unprescribed">'
-          +'<div class="sport-target-head"><span class="sport-target-name">'+COACH_SPORT_LABELS[sport]+'</span>'
-            +'<span class="sport-target-status">No weekly target</span></div>'
-          +'<div class="sport-target-distance"><strong>'+coachDistanceText(actualDistance,sport)+'</strong><span>completed</span></div>'
-          +(actualDetails.length?'<div class="sport-target-meta">'+actualDetails.map(function(detail){return '<span>'+esc(detail)+'</span>';}).join('')+'</div>':'')
-        +'</section>';
-      }
-      var targetDistance=Number(target.distanceTargetMetres)||0;
-      var pct=targetDistance>0?Math.min(100,Math.round(actualDistance/targetDistance*100)):(actualDistance===0?100:0);
-      var details=[];
-      if(target.sessionTarget!=null) details.push((metrics?metrics.sessions:0)+' / '+target.sessionTarget+' sessions');
-      if(target.durationTargetMinutes!=null) details.push((metrics?metrics.durationMinutes:0)+' / '+target.durationTargetMinutes+' min');
-      return '<section class="sport-target sport-target-'+sport+'">'
-        +'<div class="sport-target-head"><span class="sport-target-name">'+COACH_SPORT_LABELS[sport]+'</span>'
-          +'<span class="sport-target-lock" aria-label="Coach target, locked">Coach target · Locked</span></div>'
-        +'<div class="sport-target-distance"><strong>'+coachDistanceText(actualDistance,sport)+'</strong>'
-          +'<span>/ '+coachDistanceText(targetDistance,sport)+'</span></div>'
-        +'<div class="sport-target-track" role="progressbar" aria-label="'+COACH_SPORT_LABELS[sport]+' weekly distance" aria-valuemin="0" aria-valuenow="'+Math.round(actualDistance)+'" aria-valuemax="'+targetDistance+'"><i style="width:'+pct+'%"></i></div>'
-        +(details.length?'<div class="sport-target-meta">'+details.map(function(detail){return '<span>'+esc(detail)+'</span>';}).join('')+'</div>':'')
-        +(target.coachNote?'<div class="sport-target-note">'+esc(target.coachNote)+'</div>':'')
-      +'</section>';
-    }).join('')
-  +'</div>';
+  var dialled=rows.filter(function(row){return !!row.target||row.plannedTargetMetres!=null;});
+  var logged=rows.filter(function(row){return !row.target&&row.plannedTargetMetres==null;});
+  var clock=weekClockText(weekDaysLeft(week));
+
+  var dials=dialled.map(function(row){
+    var target=row.target,metrics=row.metrics||{},sport=row.sport;
+    var actual=Number(metrics.distanceMetres)||0;
+    var targetDistance=target?Number(target.distanceTargetMetres)||0:Number(row.plannedTargetMetres)||0;
+    var pct=targetDistance>0?Math.min(100,Math.round(actual/targetDistance*100)):(actual===0?100:0);
+    var figure=volumeDialFigure(actual,targetDistance,sport);
+    var details=[];
+    if(target){
+      if(target.sessionTarget!=null) details.push((metrics.sessions||0)+' / '+target.sessionTarget+' sessions');
+      if(target.durationTargetMinutes!=null) details.push((metrics.durationMinutes||0)+' / '+target.durationTargetMinutes+' min');
+    }else{
+      if(metrics.sessions>0) details.push(metrics.sessions+' '+(metrics.sessions===1?'session':'sessions'));
+      if(metrics.durationMinutes>0) details.push(metrics.durationMinutes+' min');
+    }
+    var note=target&&target.coachNote?target.coachNote:'';
+    return '<section class="sport-target sport-target-'+sport
+        +(target?'':' sport-target-planned')+(note?' sport-target-noted':'')+'">'
+      +'<div class="sport-target-head"><span class="sport-target-name">'+COACH_SPORT_LABELS[sport]+'</span>'
+        +(target
+          ?'<span class="sport-target-lock" aria-label="Coach target, locked">Coach target · Locked</span>'
+          :'<span class="sport-target-status">Planned target</span>')
+      +'</div>'
+      // The figure in the hole, and the record of both absolute numbers right
+      // under it — so "2.8 km to go" never leaves an athlete guessing what it
+      // is 2.8km of.
+      +'<div class="sport-target-distance'+figure.state+'"><strong>'+figure.value+'</strong>'
+        +'<span>'+figure.qualifier+'</span></div>'
+      +'<div class="sport-target-track" style="--value:'+pct+'" role="progressbar"'
+        +' aria-label="'+COACH_SPORT_LABELS[sport]+(target?' weekly distance':' weekly planned distance')+'"'
+        +' aria-valuemin="0" aria-valuenow="'+Math.round(actual)+'" aria-valuemax="'+targetDistance+'"></div>'
+      +(targetDistance>0
+        ?'<div class="sport-target-record">'+coachDistanceParts(actual,sport).value
+          +' of '+coachDistanceText(targetDistance,sport)+'</div>'
+        :'')
+      +(details.length?'<div class="sport-target-meta">'+details.map(function(detail){return '<span>'+esc(detail)+'</span>';}).join('')+'</div>':'')
+      // The deadline is a property of the week, not of each sport. Inside the
+      // dial when it is the only one; once under the group when there are
+      // several, where three copies of "LAST DAY" was just noise.
+      +(clock&&dialled.length===1?'<div class="sport-target-clock">'+esc(clock)+'</div>':'')
+      +(note?'<div class="sport-target-note">'+esc(note)+'</div>':'')
+    +'</section>';
+  }).join('');
+
+  // Logged without a target: the sport, the distance, and how it was made up.
+  // One line each, under a label that says what the group is — which is the
+  // whole job the two "no weekly target" captions used to do badly.
+  var alsoLogged=logged.length
+    ? '<div class="sport-logged"><div class="sport-logged-label">Also logged</div>'
+      +logged.map(function(row){
+        var metrics=row.metrics||{},parts=[];
+        if(metrics.sessions>0) parts.push(metrics.sessions+' '+(metrics.sessions===1?'session':'sessions'));
+        if(metrics.durationMinutes>0) parts.push(metrics.durationMinutes+' min');
+        return '<div class="sport-logged-row sport-logged-'+row.sport+'">'
+          +'<span class="sport-logged-sport">'+COACH_SPORT_LABELS[row.sport]+'</span>'
+          +'<b>'+coachDistanceText(metrics.distanceMetres||0,row.sport)+'</b>'
+          +(parts.length?'<span class="sport-logged-meta">'
+            +parts.map(function(part){return '<span>'+esc(part)+'</span>';}).join('')+'</span>':'')
+        +'</div>';
+      }).join('')
+    +'</div>'
+    : '';
+
+  return (dials
+      ? '<div class="sport-targets'+(dialled.length===1?' sport-targets-solo':'')
+        +'" aria-label="Weekly sport activity and coach targets">'+dials+'</div>'
+        +(clock&&dialled.length>1?'<div class="sport-week-clock">'+esc(clock)+'</div>':'')
+      : '')
+    +alsoLogged;
 }
 function retryProgrammeVolume(){
   invalidateProgrammeVolume();
@@ -326,10 +425,33 @@ function volumeStripHtml(data,mode,collapsible){
   // so the pair stays together when the head lays out with space-between.
   var title='<span class="vstrip-titlewrap"><span class="vstrip-title">'+(selectedSports.length||targetError?'Weekly volume':'Volume by week')+'</span>'
     +(!selectedSports.length&&!targetError?'<span class="vstrip-unit">km</span>':'')+'</span>';
+  // The collapsed head used to sit the title and the whole summary sentence on
+  // one line, both clipped by ellipsis — at 390px it rendered "Weekly volum…"
+  // next to "… Ride 51…." So the head is two rows now, and the summary is a
+  // readout rather than a sentence: the running figure, then the OTHER SPORTS
+  // NAMED AND NOT NUMBERED. A second and third number is what made the line too
+  // long to fit in the first place, and those numbers are one tap away inside
+  // the panel. The full sentence stays on the button's accessible name.
+  var runRow=null,otherSports=[];
+  selectedSports.forEach(function(row){
+    if(row.sport==='running'){runRow=row;return;}
+    var m=row.metrics||{};
+    if(Number(m.distanceMetres)>0||Number(m.sessions)>0||Number(m.durationMinutes)>0) otherSports.push(row.sport);
+  });
+  var headline='<span class="vstrip-sum">'+summary+'</span>';
+  if(runRow){
+    var runActual=Number((runRow.metrics||{}).distanceMetres)||0;
+    var runTarget=runRow.target?Number(runRow.target.distanceTargetMetres)||0:Number(runRow.plannedTargetMetres)||0;
+    headline='<span class="vstrip-readout"><b>'+fmtKmVal(runActual/1000)+'</b>'
+      +(runTarget>0?'<i>/ '+fmtKmVal(runTarget/1000)+' km</i>':'<i>km run</i>')+'</span>'
+      +(otherSports.length?'<span class="vstrip-also">'+otherSports.map(function(sport){
+        return sport==='cycling'?'ride':'swim';
+      }).join(' · ')+'</span>':'');
+  }
   var head=collapsible
-    ? '<button type="button" class="vstrip-head vstrip-toggle" onclick="toggleVolumeStrip(this)" aria-expanded="false">'
-        +title
-        +'<span class="vstrip-sum">'+summary+'</span>'
+    ? '<button type="button" class="vstrip-head vstrip-toggle" onclick="toggleVolumeStrip(this)" aria-expanded="false"'
+        +' aria-label="'+esc('Weekly volume'+(summary?'. '+summary:''))+'">'
+        +'<span class="vstrip-headmain">'+title+'<span class="vstrip-headline">'+headline+'</span></span>'
         +'<svg class="icon vstrip-chev"><use href="#i-chevron-left"/></svg>'
       +'</button>'
     : '<div class="vstrip-head">'
@@ -375,10 +497,7 @@ async function renderVolumeStrip(id,mode){
   var hiddenOnMobileHome=id==='trainingVolumeStrip'&&document.body.classList.contains('mobile-portal-home');
   el.style.display=hiddenOnMobileHome?'none':'block';
   // Keep the current week in view without yanking the page around.
-  if(open){
-    var cur=el.querySelector('.vstrip-week.is-current'),scroller=el.querySelector('.vstrip-scroll');
-    if(cur&&scroller) scroller.scrollLeft=Math.max(0,cur.offsetLeft-scroller.clientWidth/2+cur.offsetWidth/2);
-  }
+  if(open) centreCurrentVolumeWeek(el);
 }
 var _volumeVisibleTimer=null;
 document.addEventListener('visibilitychange',function(){

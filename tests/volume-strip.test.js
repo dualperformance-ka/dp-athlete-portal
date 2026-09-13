@@ -160,3 +160,63 @@ test('only the over-target state takes a status colour', () => {
   assert.ok(!/\.vstrip-delta[^{]*\{[^}]*var\(--danger\)/.test(css),
     'a missed week is reported, not scolded');
 });
+
+// ── Palette discipline ───────────────────────────────────────────────────────
+//
+// Every week that hit its target used to flood its whole column with --ok, so a
+// normal block of good weeks rendered as four fully saturated green bars — the
+// loudest thing on a screen whose palette keeps saturation for live numbers.
+// Hitting the week is now a 2px cap on the column; the signed delta and the cap
+// carry it, and the column stays in the run colour it is measuring.
+
+test('a week that hit its target is capped, not flooded with green', () => {
+  const hit = css.match(/\.vstrip-week\.is-hit[^\n]*/g) || [];
+  assert.ok(hit.length, 'the hit state must still be styled');
+  assert.ok(
+    !hit.some(rule => /\.vstrip-bar b\{background:var\(--(?:ok|done)\)/.test(rule)),
+    'a hit week must not repaint the whole bar in the status colour',
+  );
+  assert.match(css, /\.vstrip-week\.is-hit \.vstrip-bar b::after\{[^}]*height:2px[^}]*var\(--done\)/,
+    'the hit marker is a 2px cap on top of the column');
+});
+
+test('the live week is the brightest column and the only one that glows', () => {
+  assert.match(css, /\.vstrip-week\.is-current \.vstrip-bar b\{[\s\S]*?background:linear-gradient\(180deg,var\(--run\)/,
+    'the current week takes the full readout colour');
+  assert.match(css, /\.vstrip-week\.is-current\{[^}]*box-shadow:inset 0 -2px 0 var\(--run\)/,
+    'the current week is lit from its baseline rather than outlined — a 1px box read as a selection artefact');
+});
+
+// ── The collapsed head ───────────────────────────────────────────────────────
+//
+// The head put the panel title and the whole coachTargetSummary() sentence on
+// one line, both ellipsised: at 390px it read "Weekly volum…" beside
+// "… Ride 51…." — an app clipping its own heading and cutting a numeral in
+// half. Fit is proved at six phone widths in tests/e2e/volume-strip-fit.spec.js;
+// this holds the shape that makes it fit.
+
+test('the collapsed head states one figure and names the other sports', () => {
+  assert.match(nutritionSource, /class="vstrip-readout"><b>'\+fmtKmVal/,
+    'the running week is a readout, not a sentence');
+  assert.match(nutritionSource, /sport==='cycling'\?'ride':'swim'/,
+    'the other sports are named, not numbered — a second and third figure is what made the line too long');
+  assert.ok(!/\.vstrip-sum\{[^}]*max-width/.test(css),
+    'nothing in the head may be clamped to a width that cuts a figure in half');
+  assert.ok(!/\.vstrip-(?:sum|title|also)\{[^}]*text-overflow:ellipsis/.test(css),
+    'the head has room for its own text now, so nothing there needs an ellipsis');
+});
+
+test('the full sport-by-sport summary survives as the accessible name', () => {
+  assert.match(nutritionSource, /aria-label="'\+esc\('Weekly volume'\+\(summary\?'\. '\+summary:''\)\)\+'"/,
+    'shortening the visible head must not take the other sports away from a screen reader');
+});
+
+// Numerals belong to the mono face in this design system; the panel set them in
+// the UI sans, which is what made a data panel read as a web page.
+test('every figure in the panel is set in the mono face', () => {
+  for (const selector of ['.vstrip-km', '.vstrip-delta', '.sport-target-distance', '.vstrip-foot']) {
+    const rule = css.match(new RegExp(selector.replace('.', '\\.') + '\\{[^}]*\\}'));
+    assert.ok(rule, `${selector} should still be styled`);
+    assert.match(rule[0], /font-family:var\(--mono\)/, `${selector} carries figures, so it takes the mono face`);
+  }
+});
