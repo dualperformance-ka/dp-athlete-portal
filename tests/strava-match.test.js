@@ -5,7 +5,9 @@ import { join } from 'node:path';
 import vm from 'node:vm';
 import {
   DEFAULT_RELATIVE_EFFORT_PER_KM_THRESHOLD,
+  MULTI_RUN_MAX_GAP_MINUTES,
   activityEffort,
+  combineStravaActivities,
   classifyPrescribedIntensity,
   matchActivityToSession,
   stravaActivityKey,
@@ -79,6 +81,67 @@ test('two runs on one day map to two sessions, not one twice', () => {
   });
   assert.equal(first.activity.id, 7);
   assert.equal(second.activity.id, 8);
+});
+
+test('warm-up, quality work and cool-down combine into one planned run', () => {
+  const activities = [
+    run(701, 2, { start_date_local: '2026-08-04T07:00:00', moving_time: 720, elapsed_time: 780 }),
+    run(702, 7, { start_date_local: '2026-08-04T07:20:00', moving_time: 2400, elapsed_time: 2520 }),
+    run(703, 3, { start_date_local: '2026-08-04T08:10:00', moving_time: 1080, elapsed_time: 1140 }),
+  ];
+  const result = matchActivityToSession(session, activities);
+  assert.equal(MULTI_RUN_MAX_GAP_MINUTES, 45);
+  assert.equal(result.matched, true);
+  assert.equal(result.confidence, 'high');
+  assert.deepEqual(result.activityKeys, ['701', '702', '703']);
+  assert.equal(result.activity.source_activity_count, 3);
+  assert.equal(result.activity.distance, 12000);
+  assert.equal(result.activity.moving_time, 4200);
+});
+
+test('runs more than 45 minutes apart are not combined', () => {
+  const activities = [
+    run(711, 5, { start_date_local: '2026-08-04T06:00:00', elapsed_time: 1800 }),
+    run(712, 7, { start_date_local: '2026-08-04T07:16:00', elapsed_time: 2400 }),
+  ];
+  const result = matchActivityToSession(session, activities);
+  assert.equal(result.matched, false);
+});
+
+test('a claimed warm-up prevents its multi-run group being reused', () => {
+  const activities = [
+    run(721, 2, { start_date_local: '2026-08-04T07:00:00', elapsed_time: 720 }),
+    run(722, 10, { start_date_local: '2026-08-04T07:15:00', elapsed_time: 3600 }),
+  ];
+  const result = matchActivityToSession(session, activities, { claimedActivityIds: ['721'] });
+  assert.equal(result.matched, false);
+  assert.ok(result.reasons.includes('already_claimed'));
+});
+
+test('rejecting a grouped match does not immediately suggest the same group again', () => {
+  const activities = [
+    run(731, 5, { start_date_local: '2026-08-04T07:00:00', elapsed_time: 1800 }),
+    run(732, 7, { start_date_local: '2026-08-04T07:35:00', elapsed_time: 2400 }),
+  ];
+  const grouped = combineStravaActivities(activities);
+  const result = matchActivityToSession(session, activities, {
+    rejections: { 'long-run': [stravaActivityKey(grouped)] },
+  });
+  assert.equal(result.matched, false);
+  assert.ok(result.reasons.includes('rejected'));
+});
+
+test('quality work inside a grouped run is not diluted by easy warm-up and cool-down', () => {
+  const tempo = { ...session, name: 'Threshold intervals' };
+  const activities = [
+    run(741, 3, { start_date_local: '2026-08-04T07:00:00', elapsed_time: 1200, suffer_score: 6 }),
+    run(742, 6, { start_date_local: '2026-08-04T07:25:00', elapsed_time: 2100, suffer_score: 36 }),
+    run(743, 3, { start_date_local: '2026-08-04T08:05:00', elapsed_time: 1200, suffer_score: 6 }),
+  ];
+  const result = matchActivityToSession(tempo, activities);
+  assert.equal(result.matched, true);
+  assert.equal(result.confidence, 'high');
+  assert.deepEqual(result.reasons, []);
 });
 
 test('a session with no planned distance returns low confidence', () => {

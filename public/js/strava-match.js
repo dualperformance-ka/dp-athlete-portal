@@ -43,6 +43,74 @@ function rejectedKeys(session, opts) {
 export const DEFAULT_RELATIVE_EFFORT_PER_KM_THRESHOLD = 3.0;
 export const UNDERRUN_TOLERANCE_PERCENT = 0.15;
 export const MIN_DISTANCE_TOLERANCE_KM = 1.5;
+export const MULTI_RUN_MAX_GAP_MINUTES = 45;
+
+function activityStartMs(activity) {
+  var raw = activity && (activity.start_date_local || activity.start_date);
+  var parsed = raw ? Date.parse(raw) : NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function activityEndMs(activity) {
+  var start = activityStartMs(activity);
+  if (start === null) return null;
+  var seconds = Number(activity && (activity.elapsed_time || activity.moving_time));
+  return start + (Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0);
+}
+
+/**
+ * Build the single activity-shaped value consumed by the existing log/UI code.
+ * The source ids stay attached so every constituent run can be claimed and the
+ * group can be reconstructed from fresh Strava data on the next portal load.
+ */
+export function combineStravaActivities(activities) {
+  var source = (Array.isArray(activities) ? activities : []).filter(Boolean).slice();
+  if (!source.length) return null;
+  if (source.length === 1) return source[0];
+  source.sort(function (a, b) {
+    var aStart = activityStartMs(a), bStart = activityStartMs(b);
+    if (aStart !== null && bStart !== null && aStart !== bStart) return aStart - bStart;
+    return activityKey(a).localeCompare(activityKey(b));
+  });
+  var keys = source.map(activityKey);
+  var distance = 0, moving = 0, elapsed = 0, effort = 0, allEffortKnown = true;
+  source.forEach(function (activity) {
+    var distanceM = Number(activity && activity.distance);
+    var movingSeconds = Number(activity && activity.moving_time);
+    var elapsedSeconds = Number(activity && activity.elapsed_time);
+    if (Number.isFinite(distanceM) && distanceM > 0) distance += distanceM;
+    if (Number.isFinite(movingSeconds) && movingSeconds > 0) moving += movingSeconds;
+    if (Number.isFinite(elapsedSeconds) && elapsedSeconds > 0) elapsed += elapsedSeconds;
+    var value = activityEffort(activity);
+    if (value === null) allEffortKnown = false;
+    else effort += value;
+  });
+  return {
+    id: 'group:' + keys.join('+'),
+    name: source.length + ' linked Strava runs',
+    type: 'Run',
+    sport_type: 'Run',
+    start_date: source[0].start_date,
+    start_date_local: source[0].start_date_local || source[0].start_date,
+    distance: distance,
+    moving_time: moving,
+    elapsed_time: elapsed || moving,
+    suffer_score: allEffortKnown ? effort : null,
+    source_activity_ids: keys,
+    source_activity_count: source.length,
+    // Used only during this in-memory match. slimStravaActivity deliberately
+    // drops it so detailed payloads are never copied into the saved log blob.
+    _sourceActivities: source,
+  };
+}
+
+export function stravaMatchActivityKeys(match) {
+  var explicit = match && match.activityKeys;
+  if (Array.isArray(explicit) && explicit.length) return explicit.map(String);
+  var source = match && match.activity && match.activity.source_activity_ids;
+  if (Array.isArray(source) && source.length) return source.map(String);
+  return match && match.activity ? [activityKey(match.activity)] : [];
+}
 
 function addPrescriptionValue(parts, value) {
   if (typeof value === 'string' && value.trim()) parts.push(value.trim());
@@ -111,6 +179,20 @@ export function activityEffort(activity) {
  * the match confidence untouched.
  */
 function classifyExecutedIntensity(activity, threshold) {
+  // Bracket access is intentional: this is transient matcher state, not a
+  // field that slimStravaActivity should preserve in the saved log payload.
+  var source = activity && activity['_sourceActivities'];
+  if (Array.isArray(source) && source.length > 1) {
+    var classifications = source.map(function (item) {
+      return classifyExecutedIntensity(item, threshold);
+    });
+    // A warm-up and cool-down should not dilute the quality block until the
+    // portal calls the whole prescribed session "easy". If any constituent
+    // run clearly contains quality work, the grouped execution contains it.
+    if (classifications.indexOf('quality') >= 0) return 'quality';
+    if (classifications.indexOf('easy') >= 0) return 'easy';
+    return null;
+  }
   var effort = activityEffort(activity);
   var distanceKm = Number(activity && activity.distance) / 1000;
   if (effort === null || !Number.isFinite(distanceKm) || distanceKm <= 0) return null;
@@ -118,7 +200,10 @@ function classifyExecutedIntensity(activity, threshold) {
 }
 
 /**
- * Match one planned run to the closest eligible Strava activity.
+ * Match one planned run to the closest eligible Strava activity or linked
+ * group of activities. Consecutive same-day runs may be combined when the next
+ * one starts no more than 45 minutes after the previous one ends. This covers
+ * the common warm-up / quality block / cool-down recording pattern.
  *
  * Pure in/pure out: callers supply the planned distance plus already-claimed
  * and rejected activity ids through opts. No inputs are mutated.
@@ -133,7 +218,7 @@ export function matchActivityToSession(session, activities, opts = {}) {
   var underToleranceKm = plannedKm ? Math.max(plannedKm * UNDERRUN_TOLERANCE_PERCENT, MIN_DISTANCE_TOLERANCE_KM) : null;
   var claimed = toKeySet(opts.claimedActivityIds || opts.claimedActivities);
   var rejected = rejectedKeys(session, opts);
-  var candidates = [];
+  var eligible = [];
 
   (Array.isArray(activities) ? activities : []).forEach(function (activity) {
     var type = String(activity && (activity.sport_type || activity.type) || '');
@@ -145,8 +230,21 @@ export function matchActivityToSession(session, activities, opts = {}) {
     var key = activityKey(activity);
     if (claimed.has(key)) { reasons.push('already_claimed'); return; }
     if (rejected.has(key)) { reasons.push('rejected'); return; }
+    eligible.push({ activity: activity, key: key, startMs: activityStartMs(activity), endMs: activityEndMs(activity) });
+  });
 
-    var distanceKm = Number(activity && activity.distance) / 1000;
+  eligible.sort(function (a, b) {
+    if (a.startMs !== null && b.startMs !== null && a.startMs !== b.startMs) return a.startMs - b.startMs;
+    return a.key.localeCompare(b.key);
+  });
+
+  var candidates = [];
+  function addCandidate(source) {
+    var activity = combineStravaActivities(source.map(function (item) { return item.activity; }));
+    if (!activity) return;
+    var key = activityKey(activity);
+    if (rejected.has(key)) { reasons.push('rejected'); return; }
+    var distanceKm = Number(activity.distance) / 1000;
     var distanceDeltaKm = distanceKm - plannedKm;
     // A run may exceed the prescription by any amount and still complete it.
     // Keep the lower bound so short runs and commutes do not claim the session.
@@ -154,8 +252,37 @@ export function matchActivityToSession(session, activities, opts = {}) {
       reasons.push('distance_outside_tolerance');
       return;
     }
-    candidates.push({ activity: activity, key: key, distanceKm: distanceKm });
-  });
+    candidates.push({
+      activity: activity,
+      activities: source.map(function (item) { return item.activity; }),
+      activityKeys: source.map(function (item) { return item.key; }),
+      key: key,
+      distanceKm: distanceKm,
+    });
+  }
+
+  eligible.forEach(function (item) { addCandidate([item]); });
+
+  // Only a distance-bearing prescription needs aggregation. Open runs keep the
+  // old, conservative one-activity behaviour instead of swallowing every run
+  // an athlete happened to record that day.
+  if (plannedKm) {
+    var configuredGap = Number(opts.multiRunMaxGapMinutes);
+    var gapMinutes = Number.isFinite(configuredGap) && configuredGap >= 0
+      ? configuredGap
+      : MULTI_RUN_MAX_GAP_MINUTES;
+    var gapMs = gapMinutes * 60 * 1000;
+    for (var start = 0; start < eligible.length; start += 1) {
+      var group = [eligible[start]];
+      for (var next = start + 1; next < eligible.length; next += 1) {
+        var previous = eligible[next - 1];
+        var current = eligible[next];
+        if (previous.endMs === null || current.startMs === null || current.startMs - previous.endMs > gapMs) break;
+        group.push(current);
+        addCandidate(group);
+      }
+    }
+  }
 
   if (!candidates.length) return { matched: false, reasons: Array.from(new Set(reasons)) };
   candidates.sort(function (a, b) {
@@ -163,9 +290,13 @@ export function matchActivityToSession(session, activities, opts = {}) {
       var delta = Math.abs(a.distanceKm - plannedKm) - Math.abs(b.distanceKm - plannedKm);
       if (delta) return delta;
     }
+    // On an exact tie, the smaller claim is safer: this preserves two genuine
+    // same-day sessions instead of needlessly consuming both activities.
+    if (a.activityKeys.length !== b.activityKeys.length) return a.activityKeys.length - b.activityKeys.length;
     return a.key.localeCompare(b.key);
   });
-  var selected = candidates[0].activity;
+  var selectedCandidate = candidates[0];
+  var selected = selectedCandidate.activity;
   var threshold = Number(opts.relativeEffortPerKmThreshold);
   if (!Number.isFinite(threshold) || threshold <= 0) threshold = DEFAULT_RELATIVE_EFFORT_PER_KM_THRESHOLD;
   var prescribed = opts.prescribedIntensity || classifyPrescribedIntensity(session);
@@ -177,7 +308,14 @@ export function matchActivityToSession(session, activities, opts = {}) {
   } else if (prescribed === 'easy' && executed === 'quality') {
     matchReasons.push('ran_above_prescription');
   }
-  return { matched: true, activity: selected, confidence: confidence, reasons: matchReasons };
+  return {
+    matched: true,
+    activity: selected,
+    activities: selectedCandidate.activities,
+    activityKeys: selectedCandidate.activityKeys,
+    confidence: confidence,
+    reasons: matchReasons,
+  };
 }
 
 export { activityKey as stravaActivityKey };
@@ -185,5 +323,7 @@ export { activityKey as stravaActivityKey };
 if (typeof window !== 'undefined') {
   window.matchActivityToSession = matchActivityToSession;
   window.stravaActivityKey = activityKey;
+  window.stravaMatchActivityKeys = stravaMatchActivityKeys;
+  window.combineStravaActivities = combineStravaActivities;
   window.classifyPrescribedIntensity = classifyPrescribedIntensity;
 }

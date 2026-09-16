@@ -1,21 +1,21 @@
-const CACHE_NAME = 'dp-athlete-v200'; // v200: weekly volume reports what is left, and only prescribed sports get a dial
+const CACHE_NAME = 'dp-athlete-v202'; // v202: linked run segments use a conservative 45-minute gap
 const APP_SHELL = [
   '/index.html', '/styles.css?v=159', '/desktop.css?v=7', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=124',
+  '/js/01-core.js?v=125',
   '/js/02-login-goals.js?v=115',
   '/js/03-nav-nudges.js?v=114',
   '/js/04-checkin.js?v=96',
   '/js/05-handbook.js?v=85',
   '/js/06-nutrition.js?v=98',
   '/js/07-progress.js?v=89',
-  '/js/strava-match.js?v=6',
+  '/js/strava-match.js?v=8',
   '/js/08-training-interval-rest.js?v=1',
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=1',
   '/js/08-strength-engine.js?v=4',
   '/js/08-training.js?v=144',
-  '/js/09-logging.js?v=122',
+  '/js/09-logging.js?v=123',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=110',
   '/login.js?v=49', '/icons.css?v=4',
@@ -96,7 +96,7 @@ function queuedWriteBelongsToAthlete(item, athleteCode) {
 //
 // tests/strava-log-size.test.js asserts this list stays identical to
 // STRAVA_MATCH_ACTIVITY_FIELDS in 01-core.js.
-const STRAVA_MATCH_ACTIVITY_FIELDS = ['id', 'name', 'type', 'sport_type', 'distance', 'moving_time', 'elapsed_time', 'start_date', 'start_date_local', 'suffer_score', 'relative_effort'];
+const STRAVA_MATCH_ACTIVITY_FIELDS = ['id', 'name', 'type', 'sport_type', 'distance', 'moving_time', 'elapsed_time', 'start_date', 'start_date_local', 'suffer_score', 'relative_effort', 'source_activity_ids', 'source_activity_count'];
 // Mirrors pruneStrengthSnapshots in 01-core.js. The worker cannot import from
 // it, and a fix applied only to the page leaves the worker posting the fat blob
 // behind it. tests/strava-log-size.test.js asserts both copies keep the same
