@@ -409,6 +409,14 @@ function stravaMatchActivityKey(activity){
   if(activity&&activity.id!=null)return String(activity.id);
   return [String(activity&&(activity.start_date_local||activity.start_date)||'').slice(0,19),String(activity&&activity.distance||''),String(activity&&(activity.moving_time||activity.elapsed_time)||''),String(activity&&activity.name||'')].join('|');
 }
+function stravaMatchActivityKeys(match){
+  if(window.stravaMatchActivityKeys)return window.stravaMatchActivityKeys(match);
+  if(match&&Array.isArray(match.activityKeys)&&match.activityKeys.length)return match.activityKeys.map(String);
+  var source=match&&match.activity&&match.activity.source_activity_ids;
+  if(Array.isArray(source)&&source.length)return source.map(String);
+  return match&&match.activity?[stravaMatchActivityKey(match.activity)]:[];
+}
+function claimStravaMatch(match,claimed){stravaMatchActivityKeys(match).forEach(function(key){claimed.add(String(key));});}
 function stravaClientWriteId(activity){return ('strava_'+stravaMatchActivityKey(activity)).replace(/[^a-zA-Z0-9_.:-]/g,'_').slice(0,120);}
 function stravaDistanceKm(activity){var n=Number(activity&&activity.distance);return isNaN(n)||n<0?0:Math.round(n/100)/10;}
 function stravaMovingMinutes(activity){var n=Number(activity&&(activity.moving_time||activity.elapsed_time));return isNaN(n)||n<0?0:Math.round(n/6)/10;}
@@ -423,6 +431,7 @@ function stravaSessionNeedsManualLog(sessionId){
 function stravaActivitySummary(activity){
   return {distance:stravaDistanceKm(activity),duration:stravaMovingMinutes(activity),pace:stravaPace(activity)};
 }
+function stravaMatchRunCount(match){return Math.max(1,stravaMatchActivityKeys(match).length);}
 function stravaMatchHasReason(match,reason){return !!(match&&Array.isArray(match.reasons)&&match.reasons.indexOf(reason)>=0);}
 function stravaMatchableSession(session){
   var resolved=typeof resolveRunDisplay==='function'?resolveRunDisplay(session):null;
@@ -442,7 +451,7 @@ function stravaMatchHtml(session,i,context){
     }
     return '';
   }
-  var sum=stravaActivitySummary(match.activity),distance=sum.distance.toFixed(1).replace(/\.0$/,''),minutes=Math.round(sum.duration);
+  var sum=stravaActivitySummary(match.activity),distance=sum.distance.toFixed(1).replace(/\.0$/,''),minutes=Math.round(sum.duration),runCount=stravaMatchRunCount(match),runLabel=runCount===1?'run':(runCount+' runs');
   if(match.confidence==='low'&&!isSessionLogged(session.id)){
     // "did you do the intervals?" was wrong whenever the prescription was a
     // tempo, hill or threshold run rather than reps — and wrong every time for
@@ -452,22 +461,22 @@ function stravaMatchHtml(session,i,context){
     return '<div class="strava-match-suggestion '+(context||'')+'">'+stravaLogoSvg()+'<span>'+prompt+'</span><button type="button" onclick="event.stopPropagation();confirmStravaMatch('+i+')">Confirm</button></div>';
   }
   if(!isSessionLogged(session.id))return '';
-  return '<div class="strava-match-attribution '+(context||'')+'">'+stravaLogoSvg()+'<span class="strava-match-copy"><strong><span>'+distance+' km</span><span aria-hidden="true">·</span><span>'+minutes+' min</span></strong><small>Synced from Strava</small></span><button type="button" aria-label="Remove this Strava match" onclick="event.stopPropagation();rejectStravaMatch('+i+')">Not this run</button></div>';
+  return '<div class="strava-match-attribution '+(context||'')+'">'+stravaLogoSvg()+'<span class="strava-match-copy"><strong><span>'+distance+' km</span><span aria-hidden="true">·</span><span>'+minutes+' min</span></strong><small>'+runLabel+' synced from Strava</small></span><button type="button" aria-label="Remove this Strava match" onclick="event.stopPropagation();rejectStravaMatch('+i+')">Not '+(runCount===1?'this run':'these runs')+'</button></div>';
 }
 function stravaFeedbackFormHtml(session,i){
   var entry=logs[session.id]||{},saved=!!entry.__stravaFeedbackAt,queued=!!entry.__stravaFeedbackQueued;
   return '<div class="strava-feedback"><div class="run-log-title">Finish your session check-in</div><div class="strava-feedback-intro">Strava has the run. Add your RPE and confirm whether you had any pain or niggles to complete it.</div><div class="strava-feedback-grid"><div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="srpe_'+i+'" placeholder="1–10" value="'+esc(entry.rpe||'')+'" /></div><div class="run-field"><label>Pain or niggle?</label><select id="spain_'+i+'" class="li"><option value="" disabled'+(!entry.pain?' selected':'')+'>Select...</option><option value="no"'+(entry.pain==='no'?' selected':'')+'>No pain or niggles</option><option value="yes"'+(entry.pain==='yes'?' selected':'')+'>Yes — flag it</option></select></div></div><div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="snotes_'+i+'" class="li" placeholder="Anything your coaches should know...">'+esc(entry.notes||'')+'</textarea></div><button class="savebtn'+(saved?' saved':(queued?' is-sending':''))+'" id="sfb_'+i+'" onclick="saveStravaFeedback('+i+')">'+(saved?'Feedback saved ✓':(queued?'Retry feedback sync':'Complete session'))+'</button></div>';
 }
 function stravaLogPayload(session,activity,entry){
-  var sum=stravaActivitySummary(activity),pain=entry&&entry.pain||'no',matchReasons=entry&&entry.__stravaMatch&&entry.__stravaMatch.reasons||[];
-  return {clientWriteId:stravaClientWriteId(activity),name:athlete.name+' — '+session.name+' — '+session.date,session:session.name,type:'Run',sessionCategory:'Run',distanceKm:sum.distance,durationMin:sum.duration,pace:sum.pace,rpe:entry&&entry.rpe||'',painFlag:pain==='yes',exerciseLog:'Matched from Strava | Distance: '+sum.distance+'km | Moving time: '+sum.duration+'min | Pace: '+sum.pace+(entry&&entry.rpe?' | RPE: '+entry.rpe+'/10':'')+(pain==='yes'?' | PAIN FLAGGED':''),notes:entry&&entry.notes||'',stravaActivityId:stravaMatchActivityKey(activity),stravaMatchReasons:matchReasons,ranAbovePrescription:matchReasons.indexOf('ran_above_prescription')>=0,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:session.date,submittedAt:entry&&entry.__submittedAt||new Date().toISOString()};
+  var sum=stravaActivitySummary(activity),pain=entry&&entry.pain||'no',matchMeta=entry&&entry.__stravaMatch||{},matchReasons=matchMeta.reasons||[],activityIds=(matchMeta.activityKeys||activity.source_activity_ids||[stravaMatchActivityKey(activity)]).map(String);
+  return {clientWriteId:stravaClientWriteId(activity),name:athlete.name+' — '+session.name+' — '+session.date,session:session.name,type:'Run',sessionCategory:'Run',distanceKm:sum.distance,durationMin:sum.duration,pace:sum.pace,rpe:entry&&entry.rpe||'',painFlag:pain==='yes',exerciseLog:'Matched from '+activityIds.length+' Strava run'+(activityIds.length===1?'':'s')+' | Distance: '+sum.distance+'km | Moving time: '+sum.duration+'min | Pace: '+sum.pace+(entry&&entry.rpe?' | RPE: '+entry.rpe+'/10':'')+(pain==='yes'?' | PAIN FLAGGED':''),notes:entry&&entry.notes||'',stravaActivityId:stravaMatchActivityKey(activity),stravaActivityIds:activityIds,stravaMatchReasons:matchReasons,ranAbovePrescription:matchReasons.indexOf('ran_above_prescription')>=0,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:session.date,submittedAt:entry&&entry.__submittedAt||new Date().toISOString()};
 }
 async function completeStravaMatch(session,i,match){
   if(!session||!match||!match.activity||isSessionLogged(session.id)||_stravaAutoCompleting[session.id])return;
   _stravaAutoCompleting[session.id]=true;
   try{
     var activity=match.activity,sum=stravaActivitySummary(activity),previous=logs[session.id]||{};
-    logs[session.id]=Object.assign({},previous,{distance:String(sum.distance),duration:String(sum.duration),pace:sum.pace,pain:previous.pain||'',__stravaMatch:{activityKey:stravaMatchActivityKey(activity),clientWriteId:stravaClientWriteId(activity),activity:slimStravaActivity(activity),confidence:match.confidence,reasons:match.reasons||[],matchedAt:new Date().toISOString()}});
+    logs[session.id]=Object.assign({},previous,{distance:String(sum.distance),duration:String(sum.duration),pace:sum.pace,pain:previous.pain||'',__stravaMatch:{activityKey:stravaMatchActivityKey(activity),activityKeys:stravaMatchActivityKeys(match),clientWriteId:stravaClientWriteId(activity),activity:slimStravaActivity(activity),confidence:match.confidence,reasons:match.reasons||[],matchedAt:new Date().toISOString()}});
     logs.__savedAt=Date.now();localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
     try{await portalStateWrite('logs',logs);}catch(e){}
     await coachWrite(WEBHOOK,stravaLogPayload(session,activity,logs[session.id]));
@@ -516,9 +525,12 @@ async function refreshStravaSessionMatches(){
   var activities=strava.activities||[],runs=(allSessions||[]).filter(function(s){return getType(s)==='run'&&s.date;}),claimed=new Set(),nextMatches={};
   runs.forEach(function(s){
     var entry=logs[s.id],meta=entry&&entry.__stravaMatch;if(!meta)return;
-    var activity=activities.find(function(a){return stravaMatchActivityKey(a)===String(meta.activityKey);});
-    if(!activity||stravaPairRejected(s.id,meta.activityKey))return;
-    claimed.add(String(meta.activityKey));nextMatches[String(s.id)]={matched:true,activity:activity,confidence:meta.confidence||'high',reasons:meta.reasons||[]};
+    var activityKeys=(meta.activityKeys||(meta.activity&&meta.activity.source_activity_ids)||[meta.activityKey]).map(String);
+    var matchedActivities=activityKeys.map(function(key){return activities.find(function(a){return stravaMatchActivityKey(a)===key;});});
+    if(matchedActivities.some(function(a){return !a;})||stravaPairRejected(s.id,meta.activityKey))return;
+    var activity=matchedActivities.length>1&&window.combineStravaActivities?window.combineStravaActivities(matchedActivities):matchedActivities[0];
+    var restored={matched:true,activity:activity,activities:matchedActivities,activityKeys:activityKeys,confidence:meta.confidence||'high',reasons:meta.reasons||[]};
+    claimStravaMatch(restored,claimed);nextMatches[String(s.id)]=restored;
   });
   var remaining=runs.filter(function(s){return !nextMatches[String(s.id)]&&!isSessionLogged(s.id)&&s.status!=='Completed';});
   while(remaining.length){
@@ -530,12 +542,12 @@ async function refreshStravaSessionMatches(){
       if(!best||delta<best.delta)best={session:s,match:match,delta:delta};
     });
     if(!best)break;
-    nextMatches[String(best.session.id)]=best.match;claimed.add(stravaMatchActivityKey(best.match.activity));
+    nextMatches[String(best.session.id)]=best.match;claimStravaMatch(best.match,claimed);
     remaining=remaining.filter(function(s){return s.id!==best.session.id;});
   }
   remaining.forEach(function(s){
     var match=window.matchActivityToSession(stravaMatchableSession(s),activities,{plannedKm:plannedRunKm(s),claimedActivityIds:claimed,rejections:stravaMatchRejections});
-    if(match.matched){nextMatches[String(s.id)]=match;claimed.add(stravaMatchActivityKey(match.activity));}
+    if(match.matched){nextMatches[String(s.id)]=match;claimStravaMatch(match,claimed);}
   });
   stravaSessionMatches=nextMatches;
   for(var x=0;x<runs.length;x++){

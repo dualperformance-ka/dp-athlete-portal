@@ -16,8 +16,8 @@
     "sha": "842c8ed8f92e"
   },
   "js/01-core.js": {
-    "version": 124,
-    "sha": "5518e1527ee2"
+    "version": 125,
+    "sha": "0c285b9b2c2e"
   },
   "js/02-login-goals.js": {
     "version": 115,
@@ -44,8 +44,8 @@
     "sha": "89c7c9f9c2af"
   },
   "js/strava-match.js": {
-    "version": 6,
-    "sha": "ef4ae7d30ee9"
+    "version": 8,
+    "sha": "e952cfa00871"
   },
   "js/08-training-interval-rest.js": {
     "version": 1,
@@ -68,8 +68,8 @@
     "sha": "fef48543bab1"
   },
   "js/09-logging.js": {
-    "version": 122,
-    "sha": "199293a7861e"
+    "version": 123,
+    "sha": "a0059068eb88"
   },
   "accessibility.js": {
     "version": 1,
