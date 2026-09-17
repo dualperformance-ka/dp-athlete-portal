@@ -1,10 +1,10 @@
-const CACHE_NAME = 'dp-athlete-v202'; // v202: linked run segments use a conservative 45-minute gap
+const CACHE_NAME = 'dp-athlete-v203'; // v203: contrast/typography foundation - label token, bespoke opacities, 12px floor, warm graphite desktop
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=159', '/desktop.css?v=7', '/config.js',
+  '/index.html', '/styles.css?v=160', '/desktop.css?v=8', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=125',
   '/js/02-login-goals.js?v=115',
-  '/js/03-nav-nudges.js?v=114',
+  '/js/03-nav-nudges.js?v=115',
   '/js/04-checkin.js?v=96',
   '/js/05-handbook.js?v=85',
   '/js/06-nutrition.js?v=98',

@@ -71,7 +71,7 @@
     transform:none;border-radius:0;border:0;border-top:1px solid var(--border);
     border-right:1px solid var(--border);
     grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px;
-    background:linear-gradient(180deg,rgba(8,19,26,.9),rgba(4,10,14,.95));
+    background:linear-gradient(180deg,rgba(31,30,28,.92),rgba(22,21,20,.96));
     backdrop-filter:blur(18px);box-shadow:none;z-index:141;
   }
 
@@ -80,7 +80,7 @@
   /* ===================================================================== */
   header{
     height:60px;padding:0 var(--shellpad);justify-content:space-between;
-    background:rgba(6,16,22,.78);border-bottom:1px solid var(--border);
+    background:rgba(26,25,24,.80);border-bottom:1px solid var(--border);
     backdrop-filter:blur(24px) saturate(135%);
   }
   header .logo{display:none}
@@ -209,7 +209,7 @@
 
   .focus-overlay{
     inset:0;flex-direction:column;align-items:center;justify-content:center;
-    padding:32px;background:rgba(3,9,13,.64);backdrop-filter:blur(8px) saturate(120%);
+    padding:32px;background:rgba(16,15,14,.66);backdrop-filter:blur(8px) saturate(120%);
   }
   .focus-overlay-bar,
   .focus-overlay-scroll,
@@ -339,7 +339,7 @@
   }
   /* The dock is a centred bar on desktop; its state classes come from
      syncQuickLogDock() and need the same one-accent discipline. */
-  .quicklog-btn.is-next{background:var(--run);border-color:var(--run);color:#071015}
+  .quicklog-btn.is-next{background:var(--run);border-color:var(--run);color:var(--ink-action)}
   .quicklog-btn.is-done{background:transparent;border-color:transparent;color:var(--ok)}
 }
 
