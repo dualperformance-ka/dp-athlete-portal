@@ -1109,7 +1109,7 @@ function restoreMobileNavContext(){
   if(tab==='checkin'||['goals','handbook','comms'].indexOf(tab)>=0){setMobileNav('more');return;}
   setMobileNav(tab);
 }
-function applyOutdoorMode(enabled){
+function applyOutdoorMode(enabled,persist){
   document.documentElement.classList.toggle('outdoor-mode',!!enabled);
   var button=document.getElementById('themeToggle');
   if(button){
@@ -1120,10 +1120,17 @@ function applyOutdoorMode(enabled){
   }
   var moreLabel=document.querySelector('.more-outdoor strong');if(moreLabel)moreLabel.textContent=enabled?'Indoor mode':'Outdoor mode';
   var moreSub=document.querySelector('.more-outdoor small');if(moreSub)moreSub.textContent=enabled?'Return to the dark indoor theme':'Use the light theme in bright conditions';
-  try{localStorage.setItem('dp_outdoor_mode',enabled?'1':'0');}catch(e){}
+  if(persist===undefined||persist)try{localStorage.setItem('dp_outdoor_mode',enabled?'1':'0');}catch(e){}
 }
 function toggleOutdoorMode(){applyOutdoorMode(!document.documentElement.classList.contains('outdoor-mode'));}
-try{applyOutdoorMode(localStorage.getItem('dp_outdoor_mode')==='1');}catch(e){applyOutdoorMode(false);}
+try{
+  var _savedOutdoor=localStorage.getItem('dp_outdoor_mode');
+  if(_savedOutdoor===null){
+    applyOutdoorMode(!!(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches),false);
+  }else{
+    applyOutdoorMode(_savedOutdoor==='1');
+  }
+}catch(e){applyOutdoorMode(false,false);}
 
 // ══════════════════════════════════════════════════════════════════════════
 // CALLS SURFACE

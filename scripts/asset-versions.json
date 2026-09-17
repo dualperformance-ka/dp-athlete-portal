@@ -1,11 +1,11 @@
 {
   "styles.css": {
-    "version": 159,
-    "sha": "a02a14f217ee"
+    "version": 160,
+    "sha": "18702dd6d22d"
   },
   "desktop.css": {
-    "version": 7,
-    "sha": "218fad691380"
+    "version": 8,
+    "sha": "a2f476209cb4"
   },
   "icons.css": {
     "version": 4,
@@ -24,8 +24,8 @@
     "sha": "0b22c0071412"
   },
   "js/03-nav-nudges.js": {
-    "version": 114,
-    "sha": "182f2d05229c"
+    "version": 115,
+    "sha": "0ccdee7b0604"
   },
   "js/04-checkin.js": {
     "version": 96,
