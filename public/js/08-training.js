@@ -310,7 +310,7 @@ function renderCal(ws){
         var si=interactiveSessionIndex(s),done=sessionDone(s),needsFeedback=trainingSessionNeedsFeedback(s),sessionName=s.name||monthSessionLabel(s),detail=monthSessionDetail(s);
         var baseOpenLabel='Open '+sessionName+(detail?', '+detail:'');
         var openLabel=baseOpenLabel+(done?', completed':needsFeedback?', Strava synced, finish RPE and niggle check-in':'');
-        labels+='<button type="button" class="mobile-week-session '+getType(s)+(done?' done':'')+(needsFeedback?' pending-feedback':'')+(s.rescheduled?' rescheduled':'')+'" data-session-index="'+si+'" data-open-label="'+esc(baseOpenLabel)+'" onclick="openMobileWeekSession('+si+',this)" aria-label="'+esc(openLabel)+'"><span><strong>'+esc(sessionName)+'</strong><small>'+esc(detail)+'</small></span><span class="mobile-week-session-marks">'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session"><svg class="icon"><use href="#i-star-filled"/></svg></i>':'')+'<span class="mobile-week-pending" aria-label="Finish RPE and niggle check-in"><svg class="icon"><use href="#i-alert"/></svg><b>Finish</b></span><i class="mobile-week-complete" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></i><i class="mobile-week-chevron" aria-hidden="true">›</i></span></button>';
+        labels+='<button type="button" class="mobile-week-session '+getType(s)+(done?' done':'')+(needsFeedback?' pending-feedback':'')+(s.rescheduled?' rescheduled':'')+'" data-session-index="'+si+'" data-open-label="'+esc(baseOpenLabel)+'" onclick="openMobileWeekSession('+si+',this)" aria-label="'+esc(openLabel)+'"><i class="session-mark session-mark--'+getType(s)+'" aria-hidden="true"></i><span><strong>'+esc(sessionName)+'</strong><small>'+esc(detail)+'</small></span><span class="mobile-week-session-marks">'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session"><svg class="icon"><use href="#i-star-filled"/></svg></i>':'')+'<span class="mobile-week-pending" aria-label="Finish RPE and niggle check-in"><svg class="icon"><use href="#i-alert"/></svg><b>Finish</b></span><i class="mobile-week-complete" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></i><i class="mobile-week-chevron" aria-hidden="true">›</i></span></button>';
       });
       var dayOpenLabel='Open '+cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+' day overview';
       if(!daySessions.length)labels='<button type="button" class="mobile-week-rest" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'">'+(hasRecoveryOnly?'Recovery day':'No session planned')+'</button>';
@@ -878,6 +878,11 @@ function syncHeroShell(insights,todaySessions){
   }
   var complianceBar=document.getElementById('heroStatComplianceBar');
   if(complianceBar)complianceBar.style.width=((insights&&insights.compliance)||0)+'%';
+  var complianceProgress=document.getElementById('heroComplianceProgress');
+  if(complianceProgress){
+    complianceProgress.setAttribute('aria-valuenow',String((insights&&insights.compliance)||0));
+    complianceProgress.classList.toggle('is-done',!!(insights&&insights.planned&&insights.completed>=insights.planned));
+  }
   var complianceNote=document.getElementById('heroStatComplianceNote');
   if(complianceNote){
     complianceNote.textContent=insights&&insights.planned?(insights.completed>=insights.planned?'Week done':'Underway'):'None planned';
@@ -2082,7 +2087,8 @@ function strengthHistorySparklineHtml(history,assisted){
     return x.toFixed(1)+','+y.toFixed(1);
   }).join(' ');
   var first=points[0].value,last=points[points.length-1].value;
-  return '<div class="exercise-history-mini"><div><small>'+(assisted?'Assistance trend':'Top-load trend')+'</small><strong>'+esc(_nsBare(first))+' → '+esc(_nsBare(last))+'kg</strong></div><svg viewBox="0 0 100 32" role="img" aria-label="Recent '+(assisted?'assistance':'top load')+' trend"><polyline points="'+coords+'"></polyline></svg></div>';
+  var lastPair=coords.split(' ').pop().split(',');
+  return '<div class="chart-frame chart-frame--sparkline exercise-history-mini"><div><small>'+(assisted?'Assistance trend':'Top-load trend')+'</small><strong class="readout readout--small">'+esc(_nsBare(first))+' → '+esc(_nsBare(last))+'kg</strong></div><svg viewBox="0 0 100 32" role="img" aria-label="Recent '+(assisted?'assistance':'top load')+' trend"><polyline class="chart-series--actual" points="'+coords+'"></polyline><circle class="chart-endpoint" cx="'+lastPair[0]+'" cy="'+lastPair[1]+'" r="3"></circle></svg></div>';
 }
 function toggleExerciseStats(button){
   var wrap=button&&button.closest?button.closest('.exercise-stats'):null,details=wrap&&wrap.querySelector('.exercise-stats-details');
@@ -2438,7 +2444,7 @@ function buildBody(s,i,type){
 	        }
         h+='</div>';
         var _restSec=parseInt(ex.rest,10);
-        if(!isNaN(_restSec)&&_restSec>0) h+='<div class="rest-timer" id="rest_'+i+'_'+ei+'" data-rest="'+_restSec+'" style="display:none"><div><div class="rt-label">Rest</div><div class="rt-count" id="rtc_'+i+'_'+ei+'">0:00</div></div><div class="rt-wrap"><div class="rt-fill" id="rtf_'+i+'_'+ei+'"></div></div><button class="rt-skip" onclick="skipRest('+i+','+ei+')">Skip</button></div>';
+        if(!isNaN(_restSec)&&_restSec>0) h+='<div class="rest-timer" id="rest_'+i+'_'+ei+'" data-rest="'+_restSec+'" style="display:none"><div><div class="rt-label">Rest</div><div class="rt-count readout readout--compact" id="rtc_'+i+'_'+ei+'">0:00</div></div><div class="rt-wrap metric-bar"><div class="rt-fill metric-bar-fill" id="rtf_'+i+'_'+ei+'"></div></div><button class="rt-skip" onclick="skipRest('+i+','+ei+')">Skip</button></div>';
 	        h+='<button class="addset" onclick="addSet('+i+','+ei+',\'—\',\''+esc(splitKey)+'\')">+ Add bonus set</button>';
         if(isBarbell){var topW=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight);if(!isNaN(w)&&w>topW)topW=w;});if(!topW&&prevEffort){prevEffort.forEach(function(p){var w=parseFloat(p.weight);if(!isNaN(w)&&w>topW)topW=w;});}h+='<div class="plate-calc" id="plate_'+i+'_'+ei+'">'+platesHtml(topW)+'</div>';}
         h+='</div>';

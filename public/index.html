@@ -14,10 +14,10 @@
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=166" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=166'></noscript>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
+<link rel="preload" as="style" href="/styles.css?v=169" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=169'></noscript>
 <link rel="stylesheet" href="/desktop.css?v=10">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
@@ -218,7 +218,7 @@
           <div class="hpills">
             <a id="dp-strava-btn" href="#" class="hp" style="display:none;color:var(--t-1)"></a>
             <button class="readiness-chip" id="heroReadinessCard" type="button" onclick="openQuickLog('body')" aria-label="Open readiness check-in">
-              <span class="hero-readiness-ring" id="heroReadinessRing" style="--value:0"><span class="hero-stat-value" id="heroStatReadiness">—</span></span>
+              <span class="hero-readiness-ring ring ring--32" id="heroReadinessRing" style="--value:0"><span class="hero-stat-value readout readout--compact" id="heroStatReadiness">—</span></span>
               <span class="readiness-chip-text">
                 <span class="readiness-chip-label">Readiness</span>
                 <span class="hero-stat-note" id="heroStatReadinessNote">Log body check</span>
@@ -233,17 +233,17 @@
             <button class="metric-cell metric-cell-action" id="heroComplianceCard" type="button" onclick="openWeeklySummary()" aria-label="Open weekly completion summary">
               <span class="metric-head">
                 <span class="metric-label">Sessions</span>
-                <span class="metric-val" id="heroStatCompliance">—</span>
+                <span class="metric-val readout readout--compact" id="heroStatCompliance">—</span>
               </span>
-              <span class="metric-track" aria-hidden="true"><span id="heroStatComplianceBar"></span></span>
+              <span class="metric-track metric-bar" id="heroComplianceProgress" role="progressbar" aria-label="Weekly session completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="metric-bar-fill" id="heroStatComplianceBar"></span></span>
               <span class="metric-note" id="heroStatComplianceNote">Week in progress</span>
             </button>
             <div id="kmBar" class="metric-cell" style="display:none">
               <span class="metric-head">
                 <span class="metric-label">Distance</span>
-                <span class="metric-val"><span id="kmDoneVal">0</span><small>/<span id="kmTargetVal">—</span> km</small></span>
+                <span class="metric-val readout readout--compact"><span id="kmDoneVal">0</span><small class="readout-unit">/<span id="kmTargetVal">—</span> km</small></span>
               </span>
-              <span class="metric-track" id="kmProgress" role="progressbar" aria-label="Weekly running volume" aria-valuemin="0" aria-valuenow="0"><span id="kmProgressFill"></span></span>
+              <span class="metric-track metric-bar" id="kmProgress" role="progressbar" aria-label="Weekly running volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="metric-bar-fill" id="kmProgressFill"></span></span>
               <span class="metric-note" id="kmSrcStrava" style="display:none"><svg width="9" height="9" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg> Strava</span>
             </div>
           </div>
@@ -383,12 +383,12 @@
       <div class="page-title">Today's Plan</div>
       <div class="page-copy">A focused daily command center for execution, logging, and coach context.</div>
     </div>
-    <div class="loading" id="loadingEl">
-      <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
+    <div class="loading skeleton skeleton--session" id="loadingEl" role="status" aria-label="Loading your plan">
+      <div class="skeleton-block" aria-hidden="true"><span class="skeleton-line skeleton-line--short"></span><span class="skeleton-line"></span><span class="skeleton-line skeleton-line--medium"></span></div>
       <div class="ltxt">Loading your plan...</div>
     </div>
     <!-- LOAD ERROR — network/Supabase failure. Distinct from "no plan" so a bad connection never reads as "coach didn't program me". -->
-    <div class="load-error" id="loadErrEl" style="display:none">
+    <div class="load-error error-state" id="loadErrEl" style="display:none">
       <div class="load-error-title">Couldn&rsquo;t load your plan</div>
       <div class="load-error-sub">Looks like a connection problem — your plan is still there.</div>
       <button class="load-error-btn" onclick="loadWeek()"><svg class="icon" style="width:13px;height:13px"><use href="#i-refresh"/></svg> Retry</button>
@@ -397,7 +397,7 @@
     <div id="todayEl" class="todaywrap" style="display:none"></div>
     <div class="card vstrip-card" id="trainingVolumeStrip" style="display:none"></div>
     <div id="calEl" class="weeklyplan-wrap" style="display:none"></div>
-    <div class="noplan" id="noplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
+    <div class="noplan empty-state" id="noplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
   </div>
 
   <!-- CALLS — the coaching-call surface. The next-call half reads the live
@@ -418,18 +418,18 @@
       <div class="page-title">Weekly Plan</div>
       <div class="page-copy">The full training week at a glance, with every session, reschedule, and log point in one place.</div>
     </div>
-    <div class="loading" id="weeklyLoadingEl" style="display:none">
-      <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
+    <div class="loading skeleton skeleton--session" id="weeklyLoadingEl" style="display:none" role="status" aria-label="Loading your weekly plan">
+      <div class="skeleton-block" aria-hidden="true"><span class="skeleton-line skeleton-line--short"></span><span class="skeleton-line"></span><span class="skeleton-line skeleton-line--medium"></span></div>
       <div class="ltxt">Loading your weekly plan...</div>
     </div>
-    <div class="load-error" id="weeklyLoadErrEl" style="display:none">
+    <div class="load-error error-state" id="weeklyLoadErrEl" style="display:none">
       <div class="load-error-title">Couldn&rsquo;t load your week</div>
       <div class="load-error-sub">Looks like a connection problem — your plan is still there.</div>
       <button class="load-error-btn" onclick="loadWeek()"><svg class="icon" style="width:13px;height:13px"><use href="#i-refresh"/></svg> Retry</button>
     </div>
     <div class="card vstrip-card" id="weeklyVolumeStrip" style="display:none"></div>
     <div id="weeklyCalEl" class="weeklyplan-wrap" style="display:none"></div>
-    <div class="noplan" id="weeklyNoplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
+    <div class="noplan empty-state" id="weeklyNoplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
   </div>
 
   <!-- GOALS -->
@@ -609,19 +609,19 @@
       </div>
       <div class="nut-wlabel" id="nutWLabel">—</div>
     </div>
-    <div class="loading" id="nutLoadingEl">
-      <div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div>
+    <div class="loading skeleton skeleton--metrics" id="nutLoadingEl" role="status" aria-label="Loading nutrition targets">
+      <div class="skeleton-metric-grid" aria-hidden="true"><span class="skeleton-block"></span><span class="skeleton-block"></span><span class="skeleton-block"></span></div>
       <div class="ltxt">Loading targets...</div>
     </div>
-    <div class="noplan" id="nutNoplan" style="display:none">No targets set for this week.<br>Your coach will update these soon.</div>
+    <div class="noplan empty-state" id="nutNoplan" style="display:none">No targets set for this week.<br>Your coach will update these soon.</div>
     <div id="nutContent" style="display:none">
       <div class="cnote" id="nutCoachNote" style="display:none;margin-bottom:14px"></div>
       <div class="macro-grid">
-        <div class="mc cal"><div class="mv" id="nutCal">—</div><div class="ml">Calories kcal</div></div>
-        <div class="mc pro"><div class="mv" id="nutPro">—</div><div class="ml">Protein g</div></div>
-        <div class="mc carb"><div class="mv" id="nutCarb">—</div><div class="ml">Carbs g</div></div>
-        <div class="mc fat"><div class="mv" id="nutFat">—</div><div class="ml">Fat g</div></div>
-        <div class="mc fibre u-grid-full"><div class="mv" id="nutFibre" style="font-size:var(--font-2xl,32px)">—</div><div class="ml">Fibre g (target)</div></div>
+        <div class="mc cal"><div class="mv readout" id="nutCal">—</div><div class="ml">Calories kcal</div></div>
+        <div class="mc pro"><div class="mv readout" id="nutPro">—</div><div class="ml">Protein g</div></div>
+        <div class="mc carb"><div class="mv readout" id="nutCarb">—</div><div class="ml">Carbs g</div></div>
+        <div class="mc fat"><div class="mv readout" id="nutFat">—</div><div class="ml">Fat g</div></div>
+        <div class="mc fibre u-grid-full"><div class="mv readout" id="nutFibre">—</div><div class="ml">Fibre g (target)</div></div>
       </div>
       <div class="card wkm-card" id="nutKmCard" style="display:none"></div>
       <div class="card vstrip-card" id="nutVolumeStrip" style="display:none"></div>
@@ -878,9 +878,9 @@
             <strong id="photoCurrentTitle">Week — photos</strong>
             <span id="photoCurrentStatus">Preparing your photo check-in…</span>
           </span>
-          <span class="photo-current-count" id="photoCurrentCount">0/5</span>
+        <span class="photo-current-count readout readout--compact" id="photoCurrentCount">0/5</span>
         </span>
-        <span class="photo-current-progress" aria-hidden="true"><span id="photoCurrentProgressFill"></span></span>
+        <span class="photo-current-progress metric-bar" id="photoCurrentProgress" role="progressbar" aria-label="Progress photo angles complete" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span class="metric-bar-fill" id="photoCurrentProgressFill"></span></span>
         <span class="photo-angle-statuses" id="photoAngleStatuses" aria-hidden="true"></span>
         <span class="photo-current-cta" id="photoCurrentCta">Add progress photos <span aria-hidden="true">›</span></span>
       </button>
@@ -917,12 +917,12 @@
         <span class="progress-section-icon progress-trend-section-icon" aria-hidden="true"><span class="progress-trend-glyph"><i></i><i></i><i></i><b></b></span></span>
       </div>
       <div id="pgChartWrap">
-        <div id="pgChartEmpty" class="progress-empty" style="display:none">Add two weigh-ins to reveal your trend</div>
-        <div id="pgChart"></div>
+        <div id="pgChartEmpty" class="progress-empty empty-state" style="display:none">Add two weigh-ins to reveal your trend</div>
+        <div id="pgChart" class="chart-frame chart-frame--weight"></div>
         <div class="progress-stats progress-trend-stats" id="pgChartStats">
-          <div class="pstat"><div class="pstat-val" id="pg7d">—</div><div class="pstat-lbl">7d change</div></div>
-          <div class="pstat"><div class="pstat-val" id="pgWeeklyRate">—</div><div class="pstat-lbl">Avg / week</div></div>
-          <div class="pstat"><div class="pstat-val" id="pgToTarget">—</div><div class="pstat-lbl">To target</div></div>
+          <div class="pstat"><div class="pstat-val readout readout--compact" id="pg7d">—</div><div class="pstat-lbl">7d change</div></div>
+          <div class="pstat"><div class="pstat-val readout readout--compact" id="pgWeeklyRate">—</div><div class="pstat-lbl">Avg / week</div></div>
+          <div class="pstat"><div class="pstat-val readout readout--compact" id="pgToTarget">—</div><div class="pstat-lbl">To target</div></div>
         </div>
       </div>
     </section>
@@ -938,11 +938,11 @@
         </span>
       </button>
       <div class="progress-collapsible-body">
-        <div id="pgVolumeChart"></div>
+        <div id="pgVolumeChart" class="chart-frame chart-frame--volume"></div>
         <div class="progress-stats" id="pgVolumeStats">
-          <div class="pstat"><div class="pstat-val" id="pgVolPeak">—</div><div class="pstat-lbl">Peak week</div></div>
-          <div class="pstat"><div class="pstat-val" id="pgVolAvg">—</div><div class="pstat-lbl">Avg / week</div></div>
-          <div class="pstat"><div class="pstat-val" id="pgVolDone">—</div><div class="pstat-lbl">Run so far</div></div>
+          <div class="pstat"><div class="pstat-val readout readout--compact" id="pgVolPeak">—</div><div class="pstat-lbl">Peak week</div></div>
+          <div class="pstat"><div class="pstat-val readout readout--compact" id="pgVolAvg">—</div><div class="pstat-lbl">Avg / week</div></div>
+          <div class="pstat"><div class="pstat-val readout readout--compact" id="pgVolDone">—</div><div class="pstat-lbl">Run so far</div></div>
         </div>
       </div>
     </section>
@@ -958,9 +958,9 @@
         </span>
       </button>
       <div class="progress-collapsible-body">
-        <div class="loading" id="pgLoadingEl" style="padding:24px"><div class="ldots"><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div></div><div class="ltxt">Loading...</div></div>
+        <div class="loading skeleton skeleton--log" id="pgLoadingEl" style="padding:24px" role="status" aria-label="Loading weight history"><div class="skeleton-block" aria-hidden="true"><span class="skeleton-line"></span><span class="skeleton-line skeleton-line--medium"></span><span class="skeleton-line"></span></div><div class="ltxt">Loading...</div></div>
         <div id="pgWeightLog" style="display:none"></div>
-        <div id="pgNoData" class="progress-empty" style="display:none">Your weigh-ins will appear here</div>
+        <div id="pgNoData" class="progress-empty empty-state" style="display:none">Your weigh-ins will appear here</div>
       </div>
     </section>
     <!-- PERSONAL BESTS — the modal's only entry point since the hero metric grid
@@ -1443,17 +1443,17 @@
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=125"></script>
 <script src="js/02-login-goals.js?v=116"></script>
-<script src="js/03-nav-nudges.js?v=116"></script>
-<script src="js/04-checkin.js?v=99"></script>
+<script src="js/03-nav-nudges.js?v=117"></script>
+<script src="js/04-checkin.js?v=100"></script>
 <script src="js/05-handbook.js?v=85"></script>
-<script src="js/06-nutrition.js?v=99"></script>
-<span id="progressModuleAsset" data-src="/js/07-progress.js?v=89" hidden></span>
+<script src="js/06-nutrition.js?v=101"></script>
+<span id="progressModuleAsset" data-src="/js/07-progress.js?v=90" hidden></span>
 <script type="module" src="js/strava-match.js?v=8"></script>
 <script src="js/08-training-interval-rest.js?v=1"></script>
 <script src="js/08-training-muscle-coverage.js?v=1"></script>
 <script src="js/08-training-focus.js?v=1"></script>
 <script src="js/08-strength-engine.js?v=4"></script>
-<script src="js/08-training.js?v=147"></script>
+<script src="js/08-training.js?v=148"></script>
 <script src="js/09-logging.js?v=125"></script>
 <script src="accessibility.js?v=1"></script>
 <script src="js/10-boot.js?v=110"></script>
