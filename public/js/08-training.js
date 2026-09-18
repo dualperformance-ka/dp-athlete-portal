@@ -238,6 +238,8 @@ async function loadWeek(){
   // marker doesn't move when the athlete pages through weeks.
   if(weekOffset===0) _baseProgrammeWeek=getCurrentProgrammeWeek();
   if(weekOffset===0) initPhotoNudge();
+  if(weekOffset===0&&typeof initPainNudge==='function') initPainNudge();
+  if(weekOffset===0&&typeof initLogNudge==='function') initLogNudge();
   renderTodaySection();
   var wkS=sessions.find(function(s){return s.week;});
   if(wkS){

@@ -389,7 +389,7 @@ test('6. coach cue avatars appear only for a real override note', async ({ page 
   await expect(page.locator('.coach-avatars')).toHaveCount(0);
 });
 
-test('7. booking leads the collapsed stack and a cancellation clears the stale confirmation', async ({ page }) => {
+test('7. a booking sits under the slot and a cancellation clears the stale confirmation', async ({ page }) => {
   const suffix = isoWeekSuffix();
   const localKey = `dp_call_booked_KARL_${suffix}`;
   const state = await codeLogin(page, {
@@ -400,15 +400,21 @@ test('7. booking leads the collapsed stack and a cancellation clears the stale c
   });
 
   await expect(page.locator('#callConfirmedNudge')).toBeVisible();
-  await expect.poll(() => page.locator('.top-shell-priority > .nudge-strip:visible').first().getAttribute('id')).toBe('callConfirmedNudge');
+  // A confirmation is status, not a demand: it sits at the foot of the card now.
+  await expect.poll(() => page.locator('.top-shell-priority > .nudge-strip:visible').last().getAttribute('id')).toBe('callConfirmedNudge');
   await expect.poll(() => page.evaluate(key => !!localStorage.getItem(key), localKey)).toBe(true);
 
   state.bookingRows = [];
   await page.evaluate(() => refreshCallBookingsFromCloud(0, true));
 
   await expect(page.locator('#callConfirmedNudge')).toBeHidden();
-  await expect(page.locator('#callNudge')).toBeVisible();
-  await expect.poll(() => page.locator('.top-shell-priority > .nudge-strip:visible').first().getAttribute('id')).toBe('callNudge');
+  // Cancelling makes the call due again. It no longer leads the card — the
+  // check-in outranks it — so assert it is back in the demand stack, not first.
+  await expect(page.locator('#callNudge')).toHaveClass(/is-due/);
+  await expect.poll(() => page.evaluate(() => {
+    const el = document.getElementById('callNudge');
+    return el.style.display !== 'none' && el.classList.contains('is-due');
+  })).toBe(true);
   await expect.poll(() => page.evaluate(key => localStorage.getItem(key), localKey)).toBe(null);
 });
 
