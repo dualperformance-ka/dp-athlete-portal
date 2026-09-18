@@ -2248,6 +2248,15 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .toast .toast-dismiss{background:transparent;border:1px solid rgba(236,233,226,.3);color:var(--color-white);border-radius:var(--radius-sm);padding:5px 11px;font-family:var(--mono);font-size:var(--font-xs);text-transform:uppercase;letter-spacing:.05em;cursor:pointer;flex-shrink:0}
 input[type=range]{transition:opacity .25s}
 input[type=range].sl-untouched{opacity:.45}
+/* accent-color paints the filled part of the track, so dimming it is what
+   stops an unanswered slider reading as a submitted value. */
+input[type=range][data-unset],
+/* the check-in tab forces accent-color on every range at mobile widths, so the
+   unset rule has to outrank it or 8 of the 12 sliders keep a live-looking fill */
+body.mobile-checkin-tab input[type="range"][data-unset]{accent-color:var(--t-4)}
+input[type=range].sl-needs{outline:2px solid var(--warn,#f0b65c);outline-offset:4px;border-radius:var(--radius-sm)}
+.ci-step-hint{margin:0 0 8px;font-family:var(--mono);font-size:var(--fs-label);letter-spacing:var(--tracking-label);color:var(--warn,#f0b65c)}
+.ci-step-hint[hidden]{display:none}
 .load-error{text-align:center;padding:34px 20px;border:1px solid rgba(239,68,68,.28);border-radius:var(--radius-md);margin:8px 0;background:rgba(239,68,68,.05)}
 .load-error-title{font-family:var(--display);font-size:var(--font-lg);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px}
 .load-error-sub{font-size:var(--font-sm);color:var(--muted);margin-bottom:16px}

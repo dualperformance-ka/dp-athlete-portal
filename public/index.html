@@ -16,8 +16,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=162" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=162'></noscript>
+<link rel="preload" as="style" href="/styles.css?v=163" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=163'></noscript>
 <link rel="stylesheet" href="/desktop.css?v=10">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
@@ -711,8 +711,8 @@
               </div>
               <div class="lf u-mb-12"><label>Total km this week</label><input type="number" class="li" id="ciRunKm" min="0" placeholder="42" /></div>
               <div class="lf" style="margin-bottom:6px">
-                <label>How did running feel? <span id="ciRunFeelVal" style="font-family:var(--mono);color:var(--run)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" class="u-range-full" />
+                <label>How did running feel? <span id="ciRunFeelVal" style="font-family:var(--mono);color:var(--run)">&mdash;</span>/10</label>
+                <input type="range" min="1" max="10" value="5" data-unset="1" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Awful</span><span>Best ever</span></div>
               </div>
               <div class="lf" style="margin-top:10px"><label>Wins or PBs this week? <svg class="icon icon-sm icon-pb"><use href="#i-trophy"/></svg></label><textarea class="li" id="ciRunWins" placeholder="A PB, a strong session, anything you're proud of. Or “nothing this week”." style="min-height:70px;resize:vertical;"></textarea></div>
@@ -728,8 +728,8 @@
                 <div class="lf"><label>Sessions planned</label><input type="number" class="li" id="ciLiftPlan" min="0" max="20" placeholder="3" /></div>
               </div>
               <div class="lf u-mb-xs">
-                <label>How did lifting feel? <span id="ciLiftFeelVal" style="font-family:var(--mono);color:var(--strength)">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" class="u-range-full" />
+                <label>How did lifting feel? <span id="ciLiftFeelVal" style="font-family:var(--mono);color:var(--strength)">&mdash;</span>/10</label>
+                <input type="range" min="1" max="10" value="5" data-unset="1" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Awful</span><span>PR session</span></div>
               </div>
               <div class="lf" style="margin-top:10px"><label> Lifting wins or notable sessions? <svg class="icon icon-sm icon-run"><use href="#i-barbell"/></svg></label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;"></textarea></div>
@@ -741,18 +741,18 @@
             <div class="ci-step-title"><svg class="icon"><use href="#i-moon"/></svg> Recovery</div>
             <div class="card u-mb-xs">
               <div class="lf" style="margin-bottom:var(--font-sm,14px)">
-                <label>Average sleep per night <span id="ciSleepVal" class="u-mono">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciSleep" oninput="document.getElementById('ciSleepVal').textContent=this.value" class="u-range-full" />
+                <label>Average sleep per night <span id="ciSleepVal" class="u-mono">&mdash;</span>/10</label>
+                <input type="range" min="1" max="10" value="5" data-unset="1" id="ciSleep" oninput="document.getElementById('ciSleepVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Under 5hrs</span><span>8+ hrs quality</span></div>
               </div>
               <div class="lf u-mb-14">
-                <label>Energy levels <span id="ciEnergyVal" class="u-mono">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciEnergy" oninput="document.getElementById('ciEnergyVal').textContent=this.value" class="u-range-full" />
+                <label>Energy levels <span id="ciEnergyVal" class="u-mono">&mdash;</span>/10</label>
+                <input type="range" min="1" max="10" value="5" data-unset="1" id="ciEnergy" oninput="document.getElementById('ciEnergyVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Running on empty</span><span>Felt great</span></div>
               </div>
               <div class="lf">
-                <label>Muscle soreness / fatigue <span id="ciSorenessVal" class="u-mono">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciSoreness" oninput="document.getElementById('ciSorenessVal').textContent=this.value" class="u-range-full" />
+                <label>Muscle soreness / fatigue <span id="ciSorenessVal" class="u-mono">&mdash;</span>/10</label>
+                <input type="range" min="1" max="10" value="5" data-unset="1" id="ciSoreness" oninput="document.getElementById('ciSorenessVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Destroyed</span><span>Fresh legs</span></div>
               </div>
             </div>
@@ -762,8 +762,8 @@
             <div class="ci-step-title"><svg class="icon"><use href="#i-leaf"/></svg> Fuelling &amp; Life</div>
             <div class="card u-mb-12">
               <div class="lf u-mb-14">
-                <label>Adherence to nutrition plan <span id="ciNutVal" class="u-mono">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciNut" oninput="document.getElementById('ciNutVal').textContent=this.value" class="u-range-full" />
+                <label>Adherence to nutrition plan <span id="ciNutVal" class="u-mono">&mdash;</span>/10</label>
+                <input type="range" min="1" max="10" value="5" data-unset="1" id="ciNut" oninput="document.getElementById('ciNutVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Off the rails</span><span>Nailed it</span></div>
               </div>
               <div class="lf u-mb-14">
@@ -777,13 +777,13 @@
                 </select>
               </div>
               <div class="lf u-mb-14">
-                <label>Work / life stress <span id="ciStressVal" class="u-mono">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciStress" oninput="document.getElementById('ciStressVal').textContent=this.value" class="u-range-full" />
+                <label>Work / life stress <span id="ciStressVal" class="u-mono">&mdash;</span>/10</label>
+                <input type="range" min="1" max="10" value="5" data-unset="1" id="ciStress" oninput="document.getElementById('ciStressVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Calm</span><span>Extremely stressed</span></div>
               </div>
               <div class="lf u-mb-14">
-                <label>Motivation to train <span id="ciMotVal" class="u-mono">5</span>/10</label>
-                <input type="range" min="1" max="10" value="5" id="ciMot" oninput="document.getElementById('ciMotVal').textContent=this.value" class="u-range-full" />
+                <label>Motivation to train <span id="ciMotVal" class="u-mono">&mdash;</span>/10</label>
+                <input type="range" min="1" max="10" value="5" data-unset="1" id="ciMot" oninput="document.getElementById('ciMotVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Dragging myself</span><span>Couldn't wait</span></div>
               </div>
               <div class="lf u-mb-10"><label>Social events affecting nutrition in the next 2 weeks?</label><textarea class="li" id="ciSocial" placeholder="e.g. birthday dinner, work event, holiday — anything that might affect your nutrition." style="min-height:60px;resize:vertical;margin-top:6px"></textarea></div>
@@ -819,6 +819,7 @@
             <div style="font-size:var(--font-xs,12px);color:var(--dim);line-height:1.5;text-align:center;margin-bottom:10px">By submitting, you agree Dual Performance may use your testimonial on social media.</div>
           </div>
           <!-- Nav buttons -->
+          <div class="ci-step-hint" id="ciStepHint" role="status" hidden></div>
           <div class="ci-nav-row solo" id="ciNavRow">
             <button class="ci-btn-back" id="ciBtnBack" onclick="ciStep(-1)" style="display:none"><svg class="icon"><use href="#i-arrow-left"/></svg> Back</button>
             <button class="ci-btn-next" id="ciBtnNext" onclick="ciStep(1)">Next <svg class="icon"><use href="#i-arrow-right"/></svg></button>
@@ -1064,23 +1065,23 @@
           <div class="lf"><label>Weight (kg)</label><input type="number" class="li" id="qlbWeight" step="0.1" placeholder="72.0" /></div>
         </div>
         <div class="lf u-mb-14">
-          <label>Sleep Quality <span id="qlbSleepVal" class="u-mono">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" class="u-range-full" />
+          <label>Sleep Quality <span id="qlbSleepVal" class="u-mono">&mdash;</span>/10</label>
+          <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" class="u-range-full" />
           <div class="u-range-labels"><span>Terrible</span><span>Amazing</span></div>
         </div>
         <div class="lf u-mb-14">
-          <label>Energy <span id="qlbEnergyVal" class="u-mono">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" class="u-range-full" />
+          <label>Energy <span id="qlbEnergyVal" class="u-mono">&mdash;</span>/10</label>
+          <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" class="u-range-full" />
           <div class="u-range-labels"><span>Drained</span><span>Energised</span></div>
         </div>
         <div class="lf u-mb-14">
-          <label>Stress <span id="qlbStressVal" class="u-mono">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbStress" oninput="document.getElementById('qlbStressVal').textContent=this.value" class="u-range-full" />
+          <label>Stress <span id="qlbStressVal" class="u-mono">&mdash;</span>/10</label>
+          <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbStress" oninput="document.getElementById('qlbStressVal').textContent=this.value" class="u-range-full" />
           <div class="u-range-labels"><span>Calm</span><span>Maxed out</span></div>
         </div>
         <div class="lf u-mb-16">
-          <label>Muscle Soreness <span id="qlbSoreVal" class="u-mono">5</span>/10</label>
-          <input type="range" min="1" max="10" value="5" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" class="u-range-full" />
+          <label>Muscle Soreness <span id="qlbSoreVal" class="u-mono">&mdash;</span>/10</label>
+          <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" class="u-range-full" />
           <div class="u-range-labels"><span>Fresh</span><span>Destroyed</span></div>
         </div>
         <div class="pain-log-block">
@@ -1429,7 +1430,7 @@
 <script src="js/01-core.js?v=125"></script>
 <script src="js/02-login-goals.js?v=115"></script>
 <script src="js/03-nav-nudges.js?v=116"></script>
-<script src="js/04-checkin.js?v=97"></script>
+<script src="js/04-checkin.js?v=98"></script>
 <script src="js/05-handbook.js?v=85"></script>
 <script src="js/06-nutrition.js?v=99"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=89" hidden></span>
@@ -1438,8 +1439,8 @@
 <script src="js/08-training-muscle-coverage.js?v=1"></script>
 <script src="js/08-training-focus.js?v=1"></script>
 <script src="js/08-strength-engine.js?v=4"></script>
-<script src="js/08-training.js?v=146"></script>
-<script src="js/09-logging.js?v=123"></script>
+<script src="js/08-training.js?v=147"></script>
+<script src="js/09-logging.js?v=124"></script>
 <script src="accessibility.js?v=1"></script>
 <script src="js/10-boot.js?v=110"></script>
 </body>

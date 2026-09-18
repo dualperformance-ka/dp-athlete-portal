@@ -1014,11 +1014,19 @@ function hideToast(){var t=document.getElementById('toast');t.style.display='non
 
 // Sliders start visually "untouched" (dimmed) and light up on first input —
 // nudges athletes to actually set them instead of submitting a wall of 5s.
+// Only sliders that ship with data-unset opt in: #qlbPain starts at 0 because
+// zero pain is a real answer, so marking it untouched would drop a true value.
+// data-unset and sl-untouched are cleared together so the markup's declared
+// state and the live state can never disagree.
 document.addEventListener('DOMContentLoaded',function(){
-  document.querySelectorAll('input[type=range]').forEach(function(r){r.classList.add('sl-untouched');});
+  document.querySelectorAll('input[type=range][data-unset]').forEach(function(r){r.classList.add('sl-untouched');});
 });
 document.addEventListener('input',function(e){
-  if(e.target&&e.target.type==='range')e.target.classList.remove('sl-untouched');
+  if(e.target&&e.target.type==='range'){
+    e.target.classList.remove('sl-untouched');
+    e.target.removeAttribute('data-unset');
+    if(typeof clearCiStepHint==='function')clearCiStepHint(e.target);
+  }
 },true);
 
 // ── QUICK LOG DOCK STATE ──────────────────────────────────────────────────────
