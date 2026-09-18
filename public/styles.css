@@ -172,9 +172,6 @@ header{background: rgba(236,233,226,0.06);height:54px;padding:0 16px;display:fle
 .hpills{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:0}
 .hp{font-family:var(--mono);font-size:var(--font-xs);color:rgba(236,233,226,.35);border:1px solid rgba(236,233,226,.1);padding:5px 13px;border-radius:var(--radius-xl);flex-shrink:0;white-space:nowrap}
 .hp span{color:var(--brand-blue)}
-.wa-fab{position:fixed;bottom:20px;right:16px;z-index:150;width:52px;height:52px;border-radius:var(--radius-pill);background:var(--brand-blue);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(146,210,237,.4);cursor:pointer;text-decoration:none;transition:transform .15s,box-shadow .15s}
-.wa-fab:active{transform:scale(.93);box-shadow:0 2px 8px rgba(146,210,237,.25)}
-.wa-fab svg{fill:var(--surface-void)}
 .wbar{background:var(--surface-deep);border-top:1px solid rgba(236,233,226,.05);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:54px;z-index:90}
 .wbar-meta{display:flex;flex-direction:column;gap:2px}
 .wbar-kicker{font-family:var(--mono);font-size:var(--font-xs);letter-spacing:.14em;text-transform:uppercase;color:rgba(146,210,237,.72)}
@@ -703,7 +700,6 @@ html.strength-rpe-off .setrow.extra{grid-template-columns:22px 1fr 1fr 36px 26px
   /* Quick-log strip + floating button align with the shell */
   .quicklog-strip{padding-left:var(--shellpad);padding-right:var(--shellpad);justify-content:center}
   .quicklog-btn{flex:0 1 280px}
-  .wa-fab{right:var(--shellpad)}
 
   /* Login centered vertically-ish on big screens */
   /* Login centered via flex on all sizes */
@@ -781,8 +777,6 @@ header{background:rgba(6,8,10,.92);backdrop-filter:blur(12px)}
 .quicklog-btn{padding:10px;border-radius:var(--radius-sm);font-size:var(--font-sm)}
 .quicklog-btn.ql-body,.quicklog-btn.ql-nut{background:rgba(236,233,226,.055);border:1px solid rgba(236,233,226,.11);color:rgba(236,233,226,.72);box-shadow:none}
 .quicklog-btn.ql-nut{border-color:rgba(146,210,237,.24);color:rgba(183,230,247,.88)}
-.wa-fab{width:46px;height:46px;background:rgba(146,210,237,.82);box-shadow:0 8px 24px rgba(0,0,0,.34);opacity:.82}
-.wa-fab:hover{opacity:1}
 @media(max-width:640px){
   .todaytitle{font-size:var(--font-2xl)}
 }
@@ -1629,7 +1623,6 @@ body{font-size:var(--font-md);line-height:1.55}
 .outdoor-mode .mobile-nav-item.active{color:var(--run)}
 .outdoor-mode .more-menu-sheet{background:var(--surface);color:var(--text)}
 .outdoor-mode .more-menu-grid button,.outdoor-mode .more-outdoor{background:var(--surface2);border-color:var(--border);color:var(--text)}
-.outdoor-mode .wa-fab{background:var(--run);opacity:1}.outdoor-mode .wa-fab svg{fill:var(--color-white)}
 .outdoor-mode .toast{background:var(--g-0);color:var(--color-white)}
 
 @media(max-width:760px){
@@ -1655,7 +1648,6 @@ body{font-size:var(--font-md);line-height:1.55}
   .outdoor-mode .quicklog-btn.ql-body{background:var(--color-white);color:var(--text)}
   .outdoor-mode .quicklog-btn.ql-nut{background:var(--run);color:var(--color-white)}
   .outdoor-mode .quicklog-btn.ql-nut .icon{color:var(--color-white)}
-  .wa-fab{bottom:148px}
   .mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:170;min-height:66px;padding:6px 2px;background:var(--surface-glass);border:1px solid transparent;border-radius:var(--radius-lg);box-shadow:var(--edge-plate);backdrop-filter:blur(18px)}
   .mobile-nav-item{position:relative;border:0;background:transparent;color:var(--dim);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:var(--body);font-size:var(--font-xs);font-weight:600;cursor:pointer;border-radius:var(--radius-md)}
   .mobile-nav-item .icon{width:20px;height:20px}.mobile-nav-item.active{color:var(--run)}
@@ -1771,7 +1763,7 @@ body.focus-session-open{overflow:hidden}
 .queue-pending-banner b{font-size:var(--font-sm);line-height:1.2}.queue-pending-banner>span:last-child{margin-left:auto;color:rgba(236,233,226,.72);font-size:var(--font-xs)}.queue-pending-dot{width:9px;height:9px;border-radius:var(--radius-pill);background:var(--amber);box-shadow:0 0 0 4px rgba(240,173,78,.14);flex:0 0 auto}.queue-pending-banner.is-retrying{opacity:.7;pointer-events:none}
   .save-state-pill.saving,.save-state-pill.offline{opacity:1;pointer-events:auto}
   .outdoor-mode .save-state-pill{background:rgba(255,255,255,.94)}
-  .focus-session-open>.quicklog-strip,.focus-session-open .mobile-nav,.focus-session-open .wa-fab{display:none}
+  .focus-session-open>.quicklog-strip,.focus-session-open .mobile-nav{display:none}
 }
 /* Premium desktop presentation. Mobile deliberately keeps its direct,
    low-friction layout. */
@@ -1838,7 +1830,6 @@ body.focus-session-open{overflow:hidden}
   .coach-moment{margin-top:2px}
   .quicklog-strip{bottom:14px;padding:7px;background:rgba(10,14,17,.82);border:1px solid rgba(236,233,226,.13);border-radius:var(--radius-lg);backdrop-filter:blur(22px) saturate(135%);box-shadow:0 18px 50px rgba(0,0,0,.42)}
   .quicklog-btn{min-height:44px;border-radius:var(--radius-md);text-transform:none;letter-spacing:0;font-family:var(--body);font-size:var(--font-sm)}
-  .wa-fab{right:max(28px,calc((100vw - 1360px)/2));bottom:28px}
 
   /* ── Premium pass: remaining tabs (Goals, Progress, Nutrition, Check-in,
      Comms, Handbook). Same language as the Training command centre. ── */
@@ -1929,7 +1920,6 @@ body.focus-session-open{overflow:hidden}
 
   /* Floating chrome re-centres within the content area */
   .quicklog-strip{left:calc(var(--railw) + (100vw - var(--railw))/2);width:min(720px,calc(100vw - var(--railw) - 48px))}
-  .wa-fab{right:max(28px,calc((100vw - var(--railw) - 1200px)/2))}
 
   /* Daylight rail */
   .outdoor-mode .tabs{background:rgba(255,255,255,.93);backdrop-filter:blur(22px);border-right:1px solid var(--border)}
@@ -2791,7 +2781,6 @@ html:not(.outdoor-mode) #portalScreen{
   .mobile-nav-item{min-height:50px}
   .mobile-nav-item.active{background:rgba(146,210,237,.08)}
   .mobile-nav-item.active::before{display:none}
-  .wa-fab{bottom:145px!important;right:12px}
   .more-menu-sheet{max-height:88vh;overflow-y:auto}
 }
 
@@ -2964,7 +2953,7 @@ body.day-plan-open{overflow:hidden}
      over the bottom of the height-locked week agenda and hid Saturday and
      Sunday behind it. The inline style is the root cause and is worth removing
      in favour of a body class, but that touches the dock on every surface. */
-  body.mobile-training-calendar .quicklog-strip,body.mobile-training-calendar .wa-fab{display:none!important}
+  body.mobile-training-calendar .quicklog-strip{display:none!important}
   .week-plan-title-desktop,.week-plan-subtitle-desktop{display:none}
   .week-plan-title-mobile,.week-plan-subtitle-mobile{display:inline}
   .week-plan-shell{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:8px 2px 14px;margin-bottom:0;border-bottom:0}
@@ -3301,7 +3290,6 @@ body.day-plan-open{overflow:hidden}
   body.mobile-checkin-tab .top-shell,
   body.mobile-checkin-tab #wbar,
   body.mobile-checkin-tab .quicklog-strip,
-  body.mobile-checkin-tab .wa-fab{display:none!important}
 
   body.mobile-checkin-tab #tab-checkin.active{
     display:block;max-width:620px;margin:0 auto;
@@ -3609,12 +3597,10 @@ html.outdoor-mode .weight-log-toggle{background:rgba(19,19,18,.035)}
   body.mobile-progress-tab .top-shell,
   body.mobile-progress-tab #wbar,
   body.mobile-progress-tab .quicklog-strip,
-  body.mobile-progress-tab .wa-fab{display:none!important}
 
   body.mobile-calls-tab .top-shell,
   body.mobile-calls-tab #wbar,
   body.mobile-calls-tab .quicklog-strip,
-  body.mobile-calls-tab .wa-fab{display:none!important}
   body.mobile-calls-tab #tab-calls .page-intro{padding:18px 16px 4px;background:none;border:0;box-shadow:none}
   body.mobile-calls-tab #tab-calls .page-title{font-size:var(--fs-1);line-height:1.05;letter-spacing:-.03em}
 
@@ -3778,7 +3764,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   body.mobile-secondary-tab .top-shell,
   body.mobile-secondary-tab #wbar,
   body.mobile-secondary-tab .quicklog-strip,
-  body.mobile-secondary-tab .wa-fab{display:none!important}
 
   body.mobile-secondary-tab #tab-nutrition.active,
   body.mobile-secondary-tab #tab-goals.active,
@@ -4379,14 +4364,10 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 /*    behind the fixed log bar + nav. Add clearance so everything fits.  */
 /* ===================================================================== */
 @media(max-width:760px){
-  /* Keep the Discord FAB on Home, but lift it above the floating Daily-Log bar
-     and raise its z-index so it always sits cleanly on top, never behind. */
-  body.mobile-portal-home .wa-fab{
-    bottom:calc(152px + env(safe-area-inset-bottom))!important;
-    right:14px;z-index:171;
-  }
-  /* Clear the floating log bar, nav and the FAB so the last nudge stays visible. */
-  body.mobile-portal-home .top-shell{padding-bottom:calc(200px + env(safe-area-inset-bottom))}
+  /* Clear the two remaining fixed layers so the last row stays visible. At 390px
+     the quick-log strip tops out 136px above the viewport floor and the nav sits
+     below it, so 136 + 12px of breathing room. Measured, not guessed. */
+  body.mobile-portal-home .top-shell{padding-bottom:calc(148px + env(safe-area-inset-bottom))}
 }
 
 /* ===================================================================== */

@@ -200,7 +200,6 @@
   /* ===================================================================== */
   /* 6 · DESKTOP SESSION OVERLAY + no floating controls                    */
   /* ===================================================================== */
-  .wa-fab{display:none!important}   /* Contact lives in the rail on desktop */
 
   .focus-overlay{
     inset:0;flex-direction:column;align-items:center;justify-content:center;

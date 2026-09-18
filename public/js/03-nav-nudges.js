@@ -22,7 +22,7 @@ function nudgeVisible(el){
 // Collapsing uses a class, never an inline style. Each nudge's own init writes
 // el.style.display and must stay the single authority on whether it is due at
 // all; this pass only decides whether a due row is shown now or folded away.
-var NUDGE_PRIORITY=['callNudge','goalsBanner','checkinNudge','photoNudge'];
+var NUDGE_PRIORITY=['painNudge','checkinNudge','callNudge','photoNudge','logNudge','goalsBanner'];
 var _nudgeSummaryOpen=false,_nudgeSummaryHidden=0,_nudgePriorityPass=false;
 function nudgeSummaryRow(card){
   var row=document.getElementById('nudgeSummaryRow');
@@ -46,12 +46,12 @@ function toggleNudgeSummary(){
 function applyNudgePriority(card){
   var row=nudgeSummaryRow(card);
   var nodes=NUDGE_PRIORITY.map(function(id){return document.getElementById(id);});
-  // A confirmed call is useful status rather than another demand, but it still
-  // answers the most important weekly question. Pin it above the collapsed
-  // demand stack; when no call is booked, callNudge leads NUDGE_PRIORITY.
+  // A confirmed booking is status, not a demand, so it never occupies the due
+  // slot. It drops to the foot of the card as a quiet one-line confirmation,
+  // and renderBookingPrompts stops showing it 24h after the booking is seen.
   var confirmed=document.getElementById('callConfirmedNudge');
-  if(confirmed&&!confirmed.classList.contains('is-clearing')&&nudgeVisible(confirmed)&&card.firstElementChild!==confirmed){
-    card.insertBefore(confirmed,card.firstElementChild);
+  if(confirmed&&!confirmed.classList.contains('is-clearing')&&nudgeVisible(confirmed)&&card.lastElementChild!==confirmed){
+    card.appendChild(confirmed);
   }
   // Start from each row's own state. Reading dueness through our own collapse
   // would fold the same rows away permanently after the first pass.
@@ -80,7 +80,7 @@ function applyNudgePriority(card){
     if(!_nudgeSummaryOpen) el.classList.add('nudge-collapsed');
   });
   var label=document.getElementById('nudgeSummaryLabel');
-  if(label) label.textContent=_nudgeSummaryOpen?'Show less':(hidden.length+(hidden.length===1?' more thing':' more things')+' this week');
+  if(label) label.textContent=_nudgeSummaryOpen?'Show less':('+'+hidden.length+' more');
   row.setAttribute('aria-expanded',_nudgeSummaryOpen?'true':'false');
   row.classList.toggle('is-open',_nudgeSummaryOpen);
 }
@@ -220,7 +220,7 @@ function renderBookingPrompts(){
     if(sub) sub.textContent=hasNext?('Next call '+st.upcoming.displayTime+' · book this week too'):'30 min · Karl & Alex';
     nudge.classList.toggle('show-sub',hasNext);
   }
-  if(confirmed) confirmed.style.display=st.booked?'':'none';
+  if(confirmed) confirmed.style.display=callConfirmationFresh(st)?'':'none';
   var titleEl=document.getElementById('callConfirmedTitle');
   var subEl=document.getElementById('callConfirmedSub');
   if(titleEl) titleEl.textContent='Call booked';
@@ -299,6 +299,17 @@ async function refreshCallBookingsFromCloud(attempt,forceSync){
     _callBookingRefreshTimer=setTimeout(function(){refreshCallBookingsFromCloud(attempt+1,false);},attempt===0?2500:6000);
   }
 }
+// A booking confirmation is worth a day of reassurance, not a permanent row.
+// There is no booked-at timestamp in the stored value, so the clock starts the
+// first time this device sees the booking.
+var CALL_CONFIRM_WINDOW_MS=86400000;
+function callConfirmationFresh(st){
+  if(!st||!st.booked||!st.storageKey)return false;
+  var key='dp_call_seen_'+st.storageKey,seen=0;
+  try{seen=parseInt(localStorage.getItem(key)||'0',10)||0;}catch(e){}
+  if(!seen){seen=Date.now();try{localStorage.setItem(key,String(seen));}catch(e){}}
+  return (Date.now()-seen)<CALL_CONFIRM_WINDOW_MS;
+}
 function initCallNudge(){
   renderBookingPrompts();
   // Always reconcile in the background on entry. This is deliberately after
@@ -338,7 +349,11 @@ function initCheckinNudge(){
   // Once this week's form is submitted the row has nothing left to say, so it
   // unmounts rather than lingering as a completed state.
   var done=!!localStorage.getItem(checkinWeekKey());
-  nudge.style.display=done?'none':'';
+  // The week resets Monday, but asking on Monday is asking about a week that has
+  // barely happened. The row is due from Thursday through Sunday, until sent.
+  var _d=new Date().getDay();
+  var dueWindow=(_d===0||_d>=4);
+  nudge.style.display=(done||!dueWindow)?'none':'';
   var mobileDot=document.getElementById('mobileCheckinDot');if(mobileDot)mobileDot.classList.toggle('visible',!done);
   var moreDue=document.getElementById('moreCheckinDue');if(moreDue)moreDue.classList.toggle('visible',!done);
   syncWeekCardState();
@@ -348,6 +363,52 @@ function hideCheckinNudge(){
   dismissNudge(document.getElementById('checkinNudge'));
   var mobileDot=document.getElementById('mobileCheckinDot');if(mobileDot)mobileDot.classList.remove('visible');
   var moreDue=document.getElementById('moreCheckinDue');if(moreDue)moreDue.classList.remove('visible');
+}
+// ── PAIN FLAG ─────────────────────────────────────────────────────────────────
+// Same read as getHomeInsights().warning, same threshold. Pain outranks every
+// other row: nothing else on this card matters while it is showing.
+function painNudgeState(){
+  var body=null;
+  try{body=JSON.parse(localStorage.getItem('dp_daily_body_'+athlete.code+'_'+localISO(new Date()))||'null');}catch(e){}
+  if(!body)return null;
+  var pain=parseFloat(body.pain);
+  if(isNaN(pain)||pain<5)return null;
+  return {pain:pain,location:body.painLocation||''};
+}
+function initPainNudge(){
+  var nudge=document.getElementById('painNudge');
+  if(!nudge)return;
+  var st=painNudgeState();
+  nudge.style.display=st?'':'none';
+  // The week card hides row subs by default; the pain level and site are the
+  // whole point of this row, so it opts in the same way callNudge does.
+  nudge.classList.toggle('show-sub',!!st);
+  var sub=document.getElementById('painNudgeSub');
+  if(st&&sub) sub.textContent='Pain '+st.pain+'/10'+(st.location?' at '+st.location:'')+' \u00b7 your coaches have been flagged';
+  syncWeekCardState();
+}
+// ── UNLOGGED SESSION ──────────────────────────────────────────────────────────
+// Yesterday only. Older gaps are history and nagging about them helps nobody.
+function logNudgeState(){
+  if(typeof allSessions==='undefined'||!allSessions)return null;
+  if(typeof getType!=='function'||typeof trainingSessionIsComplete!=='function')return null;
+  var y=new Date();y.setDate(y.getDate()-1);
+  var ymd=localISO(y);
+  var pending=allSessions.filter(function(s){
+    return s&&s.date===ymd&&getType(s)!=='rest'&&!trainingSessionIsComplete(s);
+  });
+  if(!pending.length)return null;
+  return {name:pending[0].name||'Session',count:pending.length};
+}
+function initLogNudge(){
+  var nudge=document.getElementById('logNudge');
+  if(!nudge)return;
+  var st=null;
+  try{st=logNudgeState();}catch(e){st=null;}
+  nudge.style.display=st?'':'none';
+  var sub=document.getElementById('logNudgeSub');
+  if(st&&sub) sub.textContent=st.count>1?(st.count+' sessions still unlogged'):(st.name+' \u00b7 still unlogged');
+  syncWeekCardState();
 }
 function initPhotoNudge(){
   var nudge=document.getElementById('photoNudge');

@@ -16,9 +16,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=161" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=161'></noscript>
-<link rel="stylesheet" href="/desktop.css?v=9">
+<link rel="preload" as="style" href="/styles.css?v=162" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=162'></noscript>
+<link rel="stylesheet" href="/desktop.css?v=10">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
      if this request is blocked or fails, window.Sentry is simply absent and
@@ -265,6 +265,18 @@
         <button id="strava-ack-btn" onclick="acknowledgeStrava()" style="background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:var(--radius-sm,8px);padding:6px 12px;font-size:var(--font-xs,12px);font-weight:600;cursor:pointer;">Got it</button>
       </div>
 
+      <!-- PAIN FLAG — outranks every other demand. Coach-worded, not clinical. -->
+      <div id="painNudge" class="nudge-strip is-due" style="display:none" onclick="openQuickLog('body')">
+        <div class="nudge-strip-inner">
+          <span class="nudge-strip-icon"><svg class="icon"><use href="#i-pulse"/></svg></span>
+          <div class="nudge-strip-text">
+            <div class="nudge-strip-title">Pain flagged today</div>
+            <div class="nudge-strip-sub" id="painNudgeSub">Your coaches have been flagged</div>
+          </div>
+          <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
+        </div>
+      </div>
+
       <!-- FIRST-LOGIN GOALS — a compact home row, hidden once goals are saved. -->
       <button type="button" class="nudge-strip goals-prompt is-due" id="goalsBanner" onclick="switchTab('goals')" aria-label="Set your goals">
         <span class="nudge-strip-inner">
@@ -319,6 +331,18 @@
           <div class="nudge-strip-text">
             <div class="nudge-strip-title">Upload your progress photos</div>
             <div class="nudge-strip-sub">Same time, same lighting, same angles</div>
+          </div>
+          <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
+        </div>
+      </div>
+
+      <!-- UNLOGGED SESSION — yesterday's work, still not written down. -->
+      <div id="logNudge" class="nudge-strip is-due" style="display:none" onclick="switchTab('training')">
+        <div class="nudge-strip-inner">
+          <span class="nudge-strip-icon"><svg class="icon"><use href="#i-check"/></svg></span>
+          <div class="nudge-strip-text">
+            <div class="nudge-strip-title">Log yesterday&rsquo;s session</div>
+            <div class="nudge-strip-sub" id="logNudgeSub">Still unlogged</div>
           </div>
           <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
         </div>
@@ -1195,11 +1219,6 @@
     </div>
   </div>
 
-  <!-- FLOATING PRIVATE NOTE — Discord stays the community channel; this is the
-       one-to-one line for the message an athlete will not post in a group. -->
-  <button class="wa-fab" type="button" onclick="openCoachNote()" title="Send your coaches a private note" aria-label="Send your coaches a private note" style="bottom:76px;color:var(--surface-void);border:0;padding:0;cursor:pointer">
-    <svg class="icon" style="width:24px;height:24px"><use href="#i-chat"/></svg>
-  </button>
 
   <!-- CONTACT -->
   <div class="tab-content" id="tab-comms">
@@ -1409,17 +1428,17 @@
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=125"></script>
 <script src="js/02-login-goals.js?v=115"></script>
-<script src="js/03-nav-nudges.js?v=115"></script>
-<script src="js/04-checkin.js?v=96"></script>
+<script src="js/03-nav-nudges.js?v=116"></script>
+<script src="js/04-checkin.js?v=97"></script>
 <script src="js/05-handbook.js?v=85"></script>
-<script src="js/06-nutrition.js?v=99"></script>
+<script src="js/06-nutrition.js?v=98"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=89" hidden></span>
 <script type="module" src="js/strava-match.js?v=8"></script>
 <script src="js/08-training-interval-rest.js?v=1"></script>
 <script src="js/08-training-muscle-coverage.js?v=1"></script>
 <script src="js/08-training-focus.js?v=1"></script>
 <script src="js/08-strength-engine.js?v=4"></script>
-<script src="js/08-training.js?v=145"></script>
+<script src="js/08-training.js?v=146"></script>
 <script src="js/09-logging.js?v=123"></script>
 <script src="accessibility.js?v=1"></script>
 <script src="js/10-boot.js?v=110"></script>

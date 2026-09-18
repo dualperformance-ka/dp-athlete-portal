@@ -559,6 +559,7 @@ async function submitQuickBody(){
   // The local copy is this device's record of the attempt, nothing more. The
   // dock only turns green once the server confirms — see quickLogState.
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
+  try{if(typeof initPainNudge==='function')initPainNudge();}catch(e){}
   try{syncQuickLogDock();}catch(e){}
   var bodyResult=await coachWrite(DAILY_BODY_WEBHOOK,payload);
   if(!bodyResult||!bodyResult.queued) markLogConfirmed('body',payload.date);
