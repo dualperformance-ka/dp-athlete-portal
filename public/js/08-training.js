@@ -795,7 +795,23 @@ function getHomeInsights(){
   var exerciseNames={};
   Object.keys(logs||{}).forEach(function(id){var entry=logs[id];if(!entry||typeof entry!=='object'||Array.isArray(entry))return;Object.keys(entry).forEach(function(name){if(name.indexOf('__')!==0&&Array.isArray(entry[name]))exerciseNames[pbNormName(name)]=1;});});
   var weights=[];
-  try{for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(key&&key.indexOf('dp_daily_body_'+athlete.code+'_')===0){var v=JSON.parse(localStorage.getItem(key)||'null');var w=v&&parseFloat(v.weight);if(!isNaN(w))weights.push({date:key.slice(-10),weight:w});}}}catch(e){}
+  // Ask for the last seven weigh-ins instead of scanning the whole keyspace.
+  // This runs on every session save, tab change and reschedule, so it walks
+  // back day by day from today and stops as soon as it has seven, reading at
+  // most 90 days. A daily logger costs seven getItem calls, not one parse per
+  // dp_daily_body_ key the athlete has ever written.
+  try{
+    var _wPrefix='dp_daily_body_'+athlete.code+'_',_wCursor=new Date();
+    for(var _wDay=0;_wDay<90&&weights.length<7;_wDay++){
+      var _wISO=localISO(_wCursor);
+      var _wRaw=localStorage.getItem(_wPrefix+_wISO);
+      if(_wRaw){
+        var v=JSON.parse(_wRaw||'null');var w=v&&parseFloat(v.weight);
+        if(!isNaN(w))weights.push({date:_wISO,weight:w});
+      }
+      _wCursor.setDate(_wCursor.getDate()-1);
+    }
+  }catch(e){}
   weights.sort(function(a,b){return a.date.localeCompare(b.date);});
   var now=localISO(new Date());
   var next=sortSessionsForDisplay(allSessions.filter(function(s){return s.date&&s.date>now&&getType(s)!=='rest';})).sort(function(a,b){return a.date.localeCompare(b.date);})[0]||null;

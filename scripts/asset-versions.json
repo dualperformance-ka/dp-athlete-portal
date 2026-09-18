@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 162,
-    "sha": "fa78173c4f8e"
+    "version": 163,
+    "sha": "ba97e83bf8dc"
   },
   "desktop.css": {
     "version": 10,
@@ -28,8 +28,8 @@
     "sha": "1bd497edcf8c"
   },
   "js/04-checkin.js": {
-    "version": 97,
-    "sha": "c4afb60cae40"
+    "version": 98,
+    "sha": "2618ce3eb358"
   },
   "js/05-handbook.js": {
     "version": 85,
@@ -64,12 +64,12 @@
     "sha": "cafd28bcda3f"
   },
   "js/08-training.js": {
-    "version": 146,
-    "sha": "ec7ff1571e61"
+    "version": 147,
+    "sha": "0eb5129a6106"
   },
   "js/09-logging.js": {
-    "version": 123,
-    "sha": "a0059068eb88"
+    "version": 124,
+    "sha": "1f830c48953e"
   },
   "accessibility.js": {
     "version": 1,

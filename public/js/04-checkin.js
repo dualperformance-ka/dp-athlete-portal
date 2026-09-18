@@ -1,7 +1,39 @@
 // ── CHECK-IN WIZARD ───────────────────────────────────────────────────────────
 var CI_STEP=1,CI_TOTAL=5;
+// A slider nobody moved is not an answer, so a step cannot be left behind with
+// one still sitting at its resting position. Gentle: the sliders in question
+// are highlighted and one line appears above Next. No alert, no toast, and
+// going back is never blocked.
+function ciStepUnsetSliders(step){
+  var panel=document.querySelector('.ci-step-panel[data-step="'+step+'"]');
+  if(!panel) return [];
+  return Array.prototype.filter.call(panel.querySelectorAll('input[type=range]'),function(el){
+    return el.classList.contains('sl-untouched');
+  });
+}
+function clearCiStepHint(el){
+  if(el&&el.classList) el.classList.remove('sl-needs');
+  var hint=document.getElementById('ciStepHint');
+  if(!hint||hint.hidden) return;
+  if(ciStepUnsetSliders(CI_STEP).length) return;
+  hint.hidden=true;hint.textContent='';
+}
+function showCiStepHint(pending){
+  pending.forEach(function(el){el.classList.add('sl-needs');});
+  var hint=document.getElementById('ciStepHint');
+  if(hint){
+    hint.textContent=pending.length===1
+      ?'Set the slider above before moving on.'
+      :'Set the '+pending.length+' sliders above before moving on.';
+    hint.hidden=false;
+  }
+  try{pending[0].focus({preventScroll:true});}catch(e){}
+}
 function ciGoStep(n){
   if(n<1||n>CI_TOTAL) return;
+  var hint=document.getElementById('ciStepHint');
+  if(hint){hint.hidden=true;hint.textContent='';}
+  document.querySelectorAll('.ci-step-panel input[type=range].sl-needs').forEach(function(el){el.classList.remove('sl-needs');});
   document.querySelectorAll('.ci-step-panel').forEach(function(p){p.classList.remove('active');});
   var panel=document.querySelector('.ci-step-panel[data-step="'+n+'"]');
   if(panel) panel.classList.add('active');
@@ -23,7 +55,16 @@ function ciGoStep(n){
   var y=tab?tab.getBoundingClientRect().top+window.scrollY-70:0;
   window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
 }
-function ciStep(dir){ciGoStep(CI_STEP+dir);}
+function ciStep(dir){
+  // Only the Next button is gated. Back is free, and so are the step dots and
+  // the Calls tab's deep link into step 5 — those are deliberate navigation,
+  // not skipping past a question. Submission omits unset sliders either way.
+  if(dir>0){
+    var pending=ciStepUnsetSliders(CI_STEP);
+    if(pending.length){showCiStepHint(pending);return;}
+  }
+  ciGoStep(CI_STEP+dir);
+}
 
 // ── CHECK-IN DRAFTS + CONSENT ─────────────────────────────────────────────────
 var CI_DRAFT_FIELDS=['ciName','ciWeekEnding','ciRunComp','ciRunPlan','ciRunKm','ciRunFeel','ciRunWins','ciRunNiggles','ciLiftComp','ciLiftPlan','ciLiftFeel','ciLiftWins','ciLiftNiggles','ciSleep','ciEnergy','ciSoreness','ciNut','ciFuelling','ciStress','ciMot','ciSocial','ciNotes','ciCallDecision','ciTestimonial'];
@@ -52,6 +93,7 @@ function restoreCiDraft(){
     el.value=d[id];
     if(el.type==='range'){
       el.classList.remove('sl-untouched');
+      el.removeAttribute('data-unset');
       var valEl=document.getElementById(id+'Val');if(valEl)valEl.textContent=d[id];
     }
   });
@@ -135,6 +177,14 @@ async function submitCheckin(){
     motivation:document.getElementById('ciMot').value,upcomingImpact:document.getElementById('ciNotes').value||'',
     callDecision:document.getElementById('ciCallDecision').value||'',
     testimonial:document.getElementById('ciTestimonial').value||''};
+  // An untouched slider is not a 5. Drop the field rather than inventing an
+  // answer the coaches will read as real before a call.
+  [['ciRunFeel','runFeel'],['ciLiftFeel','liftFeel'],['ciSleep','sleep'],['ciEnergy','energy'],
+   ['ciSoreness','soreness'],['ciNut','nutrition'],['ciStress','stress'],['ciMot','motivation']]
+    .forEach(function(pair){
+      var _sl=document.getElementById(pair[0]);
+      if(_sl&&_sl.classList.contains('sl-untouched'))delete payload[pair[1]];
+    });
   try{
     var checkinResult=await coachWrite(CHECKIN_WEBHOOK,Object.assign({type:'weekly_checkin'},payload));
     // Mark completion only after the form has been accepted or safely queued.
@@ -297,13 +347,24 @@ function setFieldValue(id,value){
 }
 function setSliderValue(id,valId,value,fallback){
   var el=document.getElementById(id);if(!el) return;
-  var v=(value===''||value==null)?fallback:String(value);
+  var answered=(value!==''&&value!=null);
+  var v=answered?String(value):fallback;
   el.value=v;
-  var out=document.getElementById(valId);if(out) out.textContent=v;
-  // Sliders dim until touched so an untouched wall of 5s is visible. A value
-  // the athlete already submitted is not untouched.
-  if(value!==''&&value!=null) el.classList.remove('sl-untouched');
-  else el.classList.add('sl-untouched');
+  var out=document.getElementById(valId);
+  // An unset slider keeps the fallback as the thumb's resting position but
+  // reads as an em dash, so a restored day shows only the answers actually
+  // given. A slider that never opted in (#qlbPain, where 0 is a real answer)
+  // always shows its number.
+  var optsIn=el.hasAttribute('data-unset')||el.classList.contains('sl-untouched');
+  if(answered){
+    el.classList.remove('sl-untouched');el.removeAttribute('data-unset');
+    if(out) out.textContent=v;
+  }else if(optsIn){
+    el.classList.add('sl-untouched');el.setAttribute('data-unset','1');
+    if(out) out.textContent='\u2014';
+  }else if(out){
+    out.textContent=v;
+  }
 }
 function describeSubmittedAt(entry){
   var stamp=entry&&(entry.submittedAt||entry.submitted_at);
@@ -556,6 +617,15 @@ async function submitQuickBody(){
     // summary — and a second save cannot fold the pain prefix in twice.
     noteText:document.getElementById('qlbNotes').value||'',
     submittedAt:new Date().toISOString()};
+  // Same rule as the weekly check-in: an untouched slider is omitted, not sent
+  // as 5. #qlbPain is deliberately absent from this list — it starts at 0 and
+  // zero pain is a real answer. calculateDailyReadiness already averages only
+  // the fields that are present, so a partial log still scores honestly.
+  [['qlbSleep','sleep'],['qlbEnergy','energy'],['qlbStress','stress'],['qlbSore','soreness']]
+    .forEach(function(pair){
+      var _sl=document.getElementById(pair[0]);
+      if(_sl&&_sl.classList.contains('sl-untouched'))delete payload[pair[1]];
+    });
   // The local copy is this device's record of the attempt, nothing more. The
   // dock only turns green once the server confirms — see quickLogState.
   localStorage.setItem('dp_daily_body_'+athlete.code+'_'+payload.date,JSON.stringify(payload));
