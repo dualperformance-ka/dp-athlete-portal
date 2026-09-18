@@ -14,19 +14,34 @@ const css = readFileSync(join(root, 'public', 'styles.css'), 'utf8');
 // login opened on five things we wanted FROM the athlete before one thing we
 // were giving them.
 
-test('the priority order is explicit and unchanged', () => {
-  assert.match(nav, /var NUDGE_PRIORITY=\['callNudge','goalsBanner','checkinNudge','photoNudge'\];/);
+test('the priority order is explicit, and pain outranks everything', () => {
+  assert.match(nav, /var NUDGE_PRIORITY=\['painNudge','checkinNudge','callNudge','photoNudge','logNudge','goalsBanner'\];/);
 });
 
-test('a confirmed booking is pinned first without becoming part of the demand stack', () => {
+test('a confirmed booking drops below the slot instead of competing for it', () => {
   const start = nav.indexOf('var NUDGE_PRIORITY=');
   const end = nav.indexOf('function syncWeekCardState(');
   const pass = nav.slice(start, end);
   assert.ok(start >= 0 && end > start, 'the priority pass should remain discoverable');
   assert.match(pass, /getElementById\('callConfirmedNudge'\)/);
-  assert.match(pass, /card\.insertBefore\(confirmed,card\.firstElementChild\)/);
+  assert.match(pass, /card\.appendChild\(confirmed\)/);
+  assert.doesNotMatch(pass, /card\.insertBefore\(confirmed,card\.firstElementChild\)/);
   assert.doesNotMatch(nav.match(/var NUDGE_PRIORITY=\[[^\n]+/)[0], /callConfirmedNudge/);
   assert.doesNotMatch(pass, /strava-ack-banner/);
+  // and it stops being shown a day after this device first sees the booking
+  assert.match(nav, /callConfirmationFresh\(st\)\?''/);
+  assert.match(nav, /CALL_CONFIRM_WINDOW_MS=86400000/);
+});
+
+test('the due slot has a source for every step of the stated precedence', () => {
+  assert.match(nav, /function painNudgeState\(/);
+  assert.match(nav, /function logNudgeState\(/);
+  // pain reads the same body log and threshold as getHomeInsights().warning
+  assert.match(nav, /pain<5\)return null/);
+  // the check-in row is due from Thursday through Sunday, not all week
+  assert.match(nav, /var dueWindow=\(_d===0\|\|_d>=4\)/);
+  // yesterday only
+  assert.match(nav, /y\.setDate\(y\.getDate\(\)-1\)/);
 });
 
 test('collapsed is the default on every load — nothing is persisted', () => {
