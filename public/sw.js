@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v207'; // v207: bounded bodyweight read, sliders no longer pre-answered
+const CACHE_NAME = 'dp-athlete-v208'; // v208: PB history reachable again, recovery flag visible on the phone home screen
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=163', '/desktop.css?v=10', '/config.js',
+  '/index.html', '/styles.css?v=164', '/desktop.css?v=10', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=125',
   '/js/02-login-goals.js?v=115',
