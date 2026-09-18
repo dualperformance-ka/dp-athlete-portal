@@ -155,7 +155,13 @@ function centreCurrentVolumeWeek(root){
     if(edge>liveLeft||edge+view<liveLeft+liveWidth) return;
     if(best===null||Math.abs(edge-ideal)<Math.abs(best-ideal)) best=edge;
   });
+  // This is the drawer's initial state, not a user-initiated navigation.
+  // Override the CSS smooth scroll for this assignment so the first painted
+  // frame cannot stop between columns while the animation is still settling.
+  var inlineScrollBehavior=scroller.style.scrollBehavior;
+  scroller.style.scrollBehavior='auto';
   scroller.scrollLeft=best===null?ideal:best;
+  scroller.style.scrollBehavior=inlineScrollBehavior;
 }
 function toggleVolumeStrip(btn){
   var card=btn&&btn.closest?btn.closest('.vstrip-card'):null;
