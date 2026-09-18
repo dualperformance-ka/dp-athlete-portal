@@ -184,7 +184,6 @@ test('a locally saved workout awaits submission and does not count as complete',
   await expect(page.locator('.todaymeta')).toContainText('Awaiting submission');
   await expect(page.getByRole('button', { name: 'Open awaiting submission Lower A' })).toHaveText(/Review & submit/);
   await expect(page.locator('#heroStatCompliance')).toHaveText('0/1');
-  await expect(page.locator('#gymDoneVal')).toHaveText('0');
 });
 
 test('focused strength flow shows coach context, live progress, calm stats and the next exercise', async ({ page }) => {

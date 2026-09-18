@@ -85,7 +85,7 @@ test('Home uses the Training tab completion state and marks completed sessions c
 
 test('weekly completion indicators use submitted sessions, not local drafts or ticks', () => {
   const insightsStart=source.indexOf('function getHomeInsights');
-  const insightsEnd=source.indexOf('function miniSparkline',insightsStart);
+  const insightsEnd=source.indexOf('function syncHeroStreak',insightsStart);
   const insightsSource=source.slice(insightsStart,insightsEnd);
   const trackerStart=checkin.indexOf('function renderGymTracker');
   const trackerEnd=checkin.indexOf('// ── QUICK LOG',trackerStart);

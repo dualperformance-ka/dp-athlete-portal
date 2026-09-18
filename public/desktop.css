@@ -162,14 +162,9 @@
   #tab-training .todayhead{margin:0}
   #tab-training .todaylist{gap:12px}
   #tab-training .coach-moment{padding:16px;margin:0;border-radius:var(--r-sm);background:rgba(146,210,237,.05);border:1px solid var(--border)}
-  #tab-training .insight-rail{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
-  #tab-training .command-status-grid{grid-template-columns:1fr;gap:10px;margin:0}
-  #tab-training .command-status.next-session{grid-column:auto}
-  #tab-training .command-status{min-height:0;padding:14px}
 
   .todaytitle{font-size:var(--font-2xl);line-height:1.02;max-width:20ch}
   .today-subtitle{font-size:var(--font-sm);max-width:52ch}
-  .insight-card{min-height:0;padding:13px}
 
   /* Session rows: balanced, scannable, obvious primary action. */
   #tab-training .todayitem{padding:16px 18px;border-radius:var(--r-sm)}
@@ -283,7 +278,7 @@
     outline:2px solid var(--run);outline-offset:2px;border-radius:var(--radius-sm);
   }
   .hicon:hover,.today-action:hover,.savebtn:hover{filter:brightness(1.06)}
-  .todayitem,.insight-card,.command-status,.nudge-strip,.dg{transition:border-color .15s ease,transform .15s ease}
+  .todayitem,.nudge-strip,.dg{transition:border-color .15s ease,transform .15s ease}
 }
 
 /* ---------- 5b · Seven-day week board at wide desktop ---------------- */
@@ -366,7 +361,7 @@
   .tab-content>*,
   .tab-content :where(
     .card,.todayitem,.todaytarget,.todaymain,.today-context,.today-sessions,
-    .insight-card,.command-status,.ci-card,.ci-main,.ci-rail,.mc,.pstat,
+    .ci-card,.ci-main,.ci-rail,.mc,.pstat,
     .hb-card,.accordion-card,.progress-card,.comms-card,.nutrition-card,
     .stat-field,.milestone-field,.programme-details-grid>div
   ){
@@ -377,8 +372,8 @@
   .tab-content :where(
     .card-title,.page-title,.page-copy,.todaytitle,.today-subtitle,.todayname,
     .todaymeta,.todaytarget .value,.todaytarget .desc,.session-why,
-    .coach-moment-label,.coach-moment p,.insight-card span,.insight-card small,
-    .command-status small,.command-status strong,.ci-lbl,.field-hint,
+    .coach-moment-label,.coach-moment p,
+    .ci-lbl,.field-hint,
     .pstat-val,.pstat-lbl,.hb-title,.hb-sub,.comms-title,.comms-body,
     .priority-text,.programme-details-grid span,.programme-details-grid strong
   ){
@@ -400,22 +395,6 @@
   #tab-training .todaypanel{
     grid-template-columns:minmax(0,1fr) minmax(340px,420px);
   }
-  #tab-training .today-context :where(.insight-card span,.command-status small,.command-status strong){
-    white-space:normal;
-    overflow:visible;
-    text-overflow:clip;
-  }
-  #tab-training .insight-card{
-    height:auto;
-    align-items:center;
-  }
-  #tab-training .insight-card>div:last-child,
-  #tab-training .command-status>span:last-child{min-width:0}
-  #tab-training .command-status{
-    height:auto;
-    align-items:flex-start;
-  }
-  #tab-training .command-status-icon{margin-top:1px}
 
   /* Forms and secondary cards should shrink inside their grid tracks instead
      of making the page wider than the viewport. */
@@ -510,9 +489,6 @@
 /* Compact desktop/laptop: one insight per row and a two-column weekly agenda.
    Seven dense day columns do not have enough room for real session names here. */
 @media (min-width:900px) and (max-width:1499px){
-  #tab-training .insight-rail{grid-template-columns:1fr}
-  #tab-training .insight-card{min-height:68px}
-  #tab-training .command-status-grid{grid-template-columns:1fr}
   #weeklyCalEl{grid-template-columns:repeat(2,minmax(0,1fr))}
   #tab-weekly .dg{padding:14px 16px}
   #tab-weekly .dgname{font-size:var(--font-md)}
