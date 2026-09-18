@@ -601,10 +601,10 @@ function showQuickLogSubmitFeedback(btn,kind,queued){
 }
 function resetQuickLogSubmitButton(btn,label){
   if(!btn)return;
-  btn.classList.remove('saved','is-sending');btn.textContent=label;btn.disabled=false;
+  btn.classList.remove('saved','is-sending','is-loading');btn.removeAttribute('aria-busy');btn.textContent=label;btn.disabled=false;
 }
 async function submitQuickBody(){
-  var btn=document.getElementById('qlbSubmitBtn');btn.textContent='Saving body check-in...';btn.disabled=true;
+  var btn=document.getElementById('qlbSubmitBtn');btn.disabled=true;btn.classList.add('is-loading');btn.setAttribute('aria-busy','true');
   var bodyDate=document.getElementById('qlbDate').value||todayISO2();
   var pain=document.getElementById('qlbPain').value||'0',painLocation=document.getElementById('qlbPainLocation').value||'',notes=document.getElementById('qlbNotes').value||'';
   if(Number(pain)>0)notes=('Pain '+pain+'/10'+(painLocation?' · '+painLocation:'')+(notes?' · '+notes:''));
@@ -647,7 +647,7 @@ async function submitQuickBody(){
   if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();
 }
 async function submitQuickNut(){
-  var btn=document.getElementById('qlnSubmitBtn');btn.textContent='Saving nutrition log...';btn.disabled=true;
+  var btn=document.getElementById('qlnSubmitBtn');btn.disabled=true;btn.classList.add('is-loading');btn.setAttribute('aria-busy','true');
   var nutDate=document.getElementById('qlnDate').value||todayISO2();
   var payload={type:'daily_nutrition',athleteName:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,
     date:nutDate,notes:document.getElementById('qlnNotes').value||'',submittedAt:new Date().toISOString()};

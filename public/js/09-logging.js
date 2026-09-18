@@ -367,7 +367,7 @@ function draftNote(i){
   localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
 }
 async function saveNote(i){
-  var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
+  var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;setButtonBusy(btn,true);}
   var s=sessions[i];
   var el=document.getElementById('nt_'+i);var noteText=el?el.value.trim():'';
   logs[s.id]={__notes:noteText};logs.__savedAt=Date.now();
@@ -493,7 +493,7 @@ async function saveStravaFeedback(i){
   var painInput=document.getElementById('spain_'+i),pain=(painInput||{}).value||'';
   if(pain!=='no'&&pain!=='yes'){if(painInput){painInput.focus();painInput.setAttribute('aria-invalid','true');}showToast('Confirm whether you had any pain or niggles');return;}
   if(painInput)painInput.removeAttribute('aria-invalid');
-  var btn=document.getElementById('sfb_'+i);if(btn){btn.disabled=true;btn.textContent='Saving...';}
+  var btn=document.getElementById('sfb_'+i);if(btn)setButtonBusy(btn,true);
   entry.rpe=String((rpeInput||{}).value||'');
   entry.pain=pain;
   entry.notes=(document.getElementById('snotes_'+i)||{}).value||'';
@@ -502,7 +502,7 @@ async function saveStravaFeedback(i){
   try{await portalStateWrite('logs',logs);}catch(e){}
   var result=await coachWrite(WEBHOOK,stravaLogPayload(session,activity,entry));
   if(result&&result.queued){
-    if(btn){btn.disabled=false;btn.classList.remove('saved');btn.classList.add('is-sending');btn.textContent='Retry feedback sync';}
+    if(btn){setButtonBusy(btn,false);btn.classList.remove('saved');btn.classList.add('is-sending');btn.textContent='Retry feedback sync';}
     paintStravaMatches();showToast('Feedback saved - coach dashboard sync pending');return;
   }
   delete entry.__stravaFeedbackQueued;entry.__stravaFeedbackAt=new Date().toISOString();logs[session.id]=entry;logs.__savedAt=Date.now();
@@ -510,7 +510,7 @@ async function saveStravaFeedback(i){
   try{await portalStateWrite('logs',logs);}catch(e){}
   await markSessionDone(i);
   paintStravaMatches();
-  if(btn){btn.disabled=false;btn.classList.remove('is-sending');btn.classList.add('saved');btn.textContent='Feedback saved ✓';}
+  if(btn){setButtonBusy(btn,false);btn.classList.remove('is-sending');btn.classList.add('saved');btn.textContent='Feedback saved ✓';}
   showToast('Feedback saved ✓');
   if(typeof focusedSessionIndex!=='undefined'&&focusedSessionIndex===i&&typeof closeFocusedSession==='function')closeFocusedSession();
 }
@@ -615,14 +615,24 @@ function stampSessionSubmitted(sessionId){
   logs.__savedAt=Date.now();
   localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
 }
+function setButtonBusy(btn,busy){
+  if(!btn) return;
+  if(busy){
+    btn.disabled=true;
+    btn.classList.add('is-loading');
+    btn.setAttribute('aria-busy','true');
+    return;
+  }
+  btn.classList.remove('is-loading');
+  btn.removeAttribute('aria-busy');
+  btn.disabled=false;
+}
 function lockSaveButton(i,label){
   var btn=document.getElementById('sb_'+i);
   if(!btn) return;
+  setButtonBusy(btn,false);
   btn.classList.add('saved');
-  btn.textContent='Session Submitted ✓';
   btn.disabled=true;
-  btn.style.opacity='0.7';
-  btn.style.cursor='default';
 }
 // A submitted session is not a closed session. Athletes routinely add an
 // exercise after pressing save — they finish the session, then remember the
@@ -632,11 +642,10 @@ function lockSaveButton(i,label){
 function unlockSaveButton(i,label){
   var btn=document.getElementById('sb_'+i);
   if(!btn) return;
+  setButtonBusy(btn,false);
   btn.classList.remove('saved');
   btn.textContent=label||'Update session';
   btn.disabled=false;
-  btn.style.opacity='';
-  btn.style.cursor='';
 }
 // What was actually sent to the coaches, as exercise → set count. Compared
 // against the live draft to tell "nothing has changed since submitting" apart
@@ -679,7 +688,7 @@ function refreshGymSubmitState(i,sessionId,log){
   lockSaveButton(i,'Save session');
 }
 async function saveRun(i){
-  var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
+  var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;setButtonBusy(btn,true);}
   var s=sessions[i],d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};
   logs[s.id]=d;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));
   try{await portalStateWrite('logs',logs);}catch(e){}
@@ -915,7 +924,7 @@ function markInlinePbs(i,splitKey){
 }
 
 async function saveGym(i,splitKey){
-  var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;btn.disabled=true;btn.textContent='Saving...';}
+  var btn=document.getElementById('sb_'+i);if(btn){if(btn.disabled) return;setButtonBusy(btn,true);}
   var s=sessions[i],exercises=getSplit(splitKey),previous=logs[s.id]||{},log={};
   exercises.forEach(function(ex,ei){var sets=collectExerciseSets(i,ei,true);var useName=exPicks[ex.exercise]||ex.exercise;if(sets.length) log[useName]=sets;});
   var gnEl=document.getElementById('gn_'+i);var gymNotes=gnEl?gnEl.value:'';
@@ -992,7 +1001,7 @@ async function saveGym(i,splitKey){
   if(typeof showStrengthSessionRecap==='function')showStrengthSessionRecap(i,splitKey,{queued:gymQueued,pbCount:pbHits.length});
   if(gymDate!==s.date)setSessionDateOverride(s.id,gymDate,{silent:true});
 }
-function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('saved');btn.textContent='Saved ✓';btn.disabled=true;setTimeout(function(){btn.classList.remove('saved');btn.textContent=label;btn.disabled=false;},2500);}}
+function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('is-success');btn.disabled=true;setTimeout(function(){btn.classList.remove('is-success');btn.disabled=false;},2000);}}
 function showToast(msg,type){
   // type==='error': persistent until dismissed — a failed submission must
   // never vanish after 2.5s while the athlete is looking at their phone.

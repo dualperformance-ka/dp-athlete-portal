@@ -216,8 +216,8 @@ async function verifyEmailCode(){
   if(token.length!==6||!_emailFlow.email)return;
   var btn=document.getElementById('otpVerifyBtn');
   if(btn&&btn.classList.contains('loading'))return; // guard double-submit (auto + Enter)
-  if(btn){btn.disabled=true;btn.classList.add('loading');btn.textContent='Verifying…';}
-  function resetBtn(label){if(btn){btn.disabled=false;btn.classList.remove('loading');btn.textContent=label||'Verify & Enter';}}
+  if(btn){btn.disabled=true;btn.classList.add('loading');btn.setAttribute('aria-busy','true');}
+  function resetBtn(label){if(btn){btn.disabled=false;btn.classList.remove('loading');btn.removeAttribute('aria-busy');}}
   clearEmailError();
   try{
     var client=await ensureSupabaseClient();

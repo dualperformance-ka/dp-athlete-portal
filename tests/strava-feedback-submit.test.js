@@ -8,7 +8,9 @@ const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const logging = readFileSync(join(root, 'public', 'js', '09-logging.js'), 'utf8');
 const start = logging.indexOf('async function saveStravaFeedback(');
 const end = logging.indexOf('function paintStravaMatches(', start);
-const saveSource = logging.slice(start, end);
+const busyStart = logging.indexOf('function setButtonBusy(');
+const busyEnd = logging.indexOf('function lockSaveButton(', busyStart);
+const saveSource = logging.slice(busyStart, busyEnd) + logging.slice(start, end);
 
 function makeContext(queued) {
   const classNames = new Set();
@@ -19,6 +21,9 @@ function makeContext(queued) {
     sfb_0: {
       disabled: false,
       textContent: 'Complete session',
+      attributes: {},
+      setAttribute(name, value) { this.attributes[name] = value; },
+      removeAttribute(name) { delete this.attributes[name]; },
       classList: {
         add: (...names) => names.forEach((name) => classNames.add(name)),
         remove: (...names) => names.forEach((name) => classNames.delete(name))
@@ -61,6 +66,7 @@ test('confirmed Strava feedback completes and closes the focused session', async
   assert.equal(context.logs['run-1'].__stravaFeedbackQueued, undefined);
   assert.equal(elements.sfb_0.textContent, 'Feedback saved ✓');
   assert.equal(classNames.has('saved'), true);
+  assert.equal(elements.sfb_0.attributes['aria-busy'], undefined);
 });
 
 test('queued Strava feedback stays open and does not look complete', async () => {
@@ -74,4 +80,5 @@ test('queued Strava feedback stays open and does not look complete', async () =>
   assert.equal(context.logs['run-1'].__stravaFeedbackQueued, true);
   assert.equal(elements.sfb_0.textContent, 'Retry feedback sync');
   assert.equal(classNames.has('is-sending'), true);
+  assert.equal(elements.sfb_0.attributes['aria-busy'], undefined);
 });

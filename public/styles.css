@@ -16,6 +16,8 @@
   --edge-top:inset 0 1px 0 rgba(236,233,226,.07);
   --edge-bottom:inset 0 -1px 0 rgba(0,0,0,.60);
   --edge-plate:var(--edge-top),var(--edge-bottom);
+  --edge-lift:var(--edge-top),var(--edge-bottom),0 8px 20px rgba(0,0,0,.18);
+  --edge-float:var(--edge-top),var(--edge-bottom),0 18px 44px rgba(0,0,0,.28);
   --edge-well:inset 0 1px 2px rgba(0,0,0,.60);
   --hairline:rgba(236,233,226,.08);   /* dividers only */
 
@@ -28,9 +30,15 @@
   /* ─── READOUT · SEMANTIC ─────────────────────────────────────────── */
   --readout:#92d2ed;                  /* live numbers only */
   --readout-ink:var(--g-0);              /* ink on readout    */
+  --action-ink:var(--ink-action);     /* ink on filled keys */
   --watch:#f0ad4e;
   --done:#22c55e;
   --pb-major:#2dd4bf;
+  --alert:#ef8275;
+
+  /* ─── CHART RAMP · planned first, actual second ─────────────────── */
+  --c1:#92D2ED;--c2:#6FB6C9;--c3:#A0AEB6;
+  --c4:#C9BFA8;--c5:#E0A96D;--c6:#F0AD4E;
 
   /* ─── TYPE — IBM Plex Mono (numerals) · IBM Plex Sans (UI) ────────
      Eight steps, floor 12px. Six are the direction's; --fs-1-sm and
@@ -48,10 +56,14 @@
   --tracking-label:.14em;
 
   /* ─── RADIUS ─────────────────────────────────────────────────────── */
-  --r-1:6px;--r-2:10px;--r-3:14px;--r-pill:999px;
+  --r-1:6px;--r-2:10px;--r-3:14px;--r-4:20px;--r-pill:999px;
 
   /* ─── SPACE ──────────────────────────────────────────────────────── */
-  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--sp-8:64px;
+
+  /* ─── MOTION ────────────────────────────────────────────────────── */
+  --dur-state:120ms;--dur-reveal:180ms;--dur-sheet:240ms;--dur-celebrate:320ms;
+  --ease-in:cubic-bezier(.2,.8,.2,1);--ease-out:cubic-bezier(.4,0,1,1);
 
   /* ═══ LEGACY ALIASES — same names, new values ═════════════════════ */
   --bg:var(--g-0);--surface:var(--g-1);--surface2:var(--g-2);--surface3:var(--g-3);
@@ -64,7 +76,7 @@
   --run-deep:rgb(15 127 174);--run-deep-strong:rgb(10 95 130);--strava:#fc4c02;
   --amber:var(--watch);--warm:var(--watch);--warn:var(--watch);--amber-ink:rgb(138 90 0);
   --success-deep:rgb(21 138 82);--green-medium:rgb(35 128 75);--green-bright:var(--done);
-  --slate:rgb(58 56 53);--danger:#ef8275;
+  --slate:rgb(58 56 53);--danger:var(--alert);
   --border:var(--hairline);--border-mid:rgba(236,233,226,.14);--border-strong:rgba(236,233,226,.28);
   --text:var(--t-1);--muted:var(--t-2);--dim:var(--t-3);--faint:var(--t-4);
   --run:var(--readout);--run-strong:#bfe4f5;--run-bg:rgba(146,210,237,0.10);--run-bg-strong:rgba(146,210,237,0.16);--run-border:rgba(146,210,237,0.28);
@@ -288,7 +300,6 @@ header{background: rgba(236,233,226,0.06);height:54px;padding:0 16px;display:fle
 .savebtn:active{box-shadow:inset 0 -1px 0 rgba(0,0,0,.22)}
 .savebtn.saved{background:var(--ok)}
 .strava-feedback .savebtn.is-sending{background:var(--amber);color:#211405}
-.outdoor-mode .strava-feedback .savebtn.is-sending{background:#b5710f;color:var(--color-white)}
 .exlist{display:grid;gap:8px;margin-bottom:10px}
 .exc{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
 .exh{padding:12px 14px 8px}
@@ -1479,6 +1490,8 @@ body{font-size:var(--font-md);line-height:1.55}
   --g-well:#dedbd3;--g-0:#e8e6e0;--g-1:#f4f2ed;--g-2:#eae7e0;--g-3:#dad6cd;
   --edge-top:inset 0 1px 0 rgba(255,255,255,.90);
   --edge-bottom:inset 0 -1px 0 rgba(19,19,18,.14);
+  --edge-lift:var(--edge-top),var(--edge-bottom),0 8px 20px rgba(30,55,67,.08);
+  --edge-float:var(--edge-top),var(--edge-bottom),0 18px 44px rgba(30,55,67,.12);
   --edge-well:inset 0 1px 2px rgba(19,19,18,.16);
   --hairline:rgba(19,19,18,.12);
   /* --t-2/--t-3 carry the light-mode legibility fix folded up from the old
@@ -1497,11 +1510,15 @@ body{font-size:var(--font-md);line-height:1.55}
   --rest:rgba(27,26,24,.5);
   --strength:#43413c;--strength-bg:rgba(27,26,24,.05);--strength-border:rgba(27,26,24,.18);
   --swim:#2b7f93;
+  --alert:#b42318;
+  --action-ink:var(--color-white);
+  --c1:#1F7FA6;--c2:#2B7F93;--c3:#68777F;
+  --c4:#8F8061;--c5:#A8632E;--c6:#9A6500;
 }
 .outdoor-mode body,.outdoor-mode #portalScreen{background:var(--bg);color:var(--text)}
 .outdoor-mode .top-shell{background:var(--g-0);border-bottom-color:var(--border)}
 .outdoor-mode header,.outdoor-mode .hero,.outdoor-mode .wbar,.outdoor-mode .tabs,.outdoor-mode .quicklog-strip,.outdoor-mode .mobile-nav{background:rgba(255,255,255,.94);color:var(--text);border-color:var(--border)}
-.outdoor-mode .todaypanel,.outdoor-mode .card,.outdoor-mode .sc,.outdoor-mode .todayitem,.outdoor-mode .mc,.outdoor-mode .ci-card,.outdoor-mode .hb-card{background:var(--surface);color:var(--text);border-color:var(--border);box-shadow:0 8px 24px rgba(19,19,18,.06)}
+.outdoor-mode .todaypanel,.outdoor-mode .sc,.outdoor-mode .todayitem,.outdoor-mode .mc{background:var(--surface);color:var(--text);border-color:var(--border);box-shadow:0 8px 24px rgba(19,19,18,.06)}
 .outdoor-mode .todaytarget{background:var(--surface2);border-color:var(--border)}
 .outdoor-mode .page-intro{background:var(--color-white);border-color:var(--border);box-shadow:0 16px 34px rgba(30,55,67,.08)}
 .outdoor-mode .page-intro::before{background:linear-gradient(90deg,transparent,var(--run),transparent)}
@@ -1540,14 +1557,14 @@ body{font-size:var(--font-md);line-height:1.55}
 .outdoor-mode .todaychip{background:rgba(19,19,18,.055);color:var(--text)}
 .outdoor-mode .today-action{background:var(--color-white);border-color:var(--border-mid);color:var(--text)}
 .outdoor-mode .today-action.secondary-blue{background:var(--color-white);border-color:var(--border-mid);color:var(--text)}
-.outdoor-mode .today-action.primary,.outdoor-mode .savebtn,.outdoor-mode .ci-btn-next,.outdoor-mode .comms-btn{background:var(--run);border-color:var(--run);color:var(--color-white)}
+.outdoor-mode .today-action.primary{background:var(--run);border-color:var(--run);color:var(--color-white)}
 .outdoor-mode .todaydot.run,.outdoor-mode .todaydot.note,.outdoor-mode .dot-run,.outdoor-mode .dot-note{background:var(--run)}
 .outdoor-mode .todaydot.strength,.outdoor-mode .dot-strength{background:#40515a}
 .outdoor-mode .dgh{border-bottom-color:var(--border)}
 .outdoor-mode .dgh.today{border-bottom-color:var(--run)}
 .outdoor-mode .todaybadge{background:var(--run);color:var(--color-white)}
 
-.outdoor-mode .goals-prompt,.outdoor-mode .goals-hero,.outdoor-mode .comms-card,.outdoor-mode .nut-wbar{background:var(--surface);border-color:var(--border);color:var(--text)}
+.outdoor-mode .goals-prompt,.outdoor-mode .goals-hero,.outdoor-mode .nut-wbar{background:var(--surface);border-color:var(--border);color:var(--text)}
 .outdoor-mode .goals-name,.outdoor-mode .comms-title{color:var(--text)}
 .outdoor-mode .goals-sub,.outdoor-mode .comms-body,.outdoor-mode .comms-note{color:var(--muted)}
 .outdoor-mode .stat-input,.outdoor-mode .why-textarea,.outdoor-mode .milestone-input,.outdoor-mode .li,.outdoor-mode .sin,.outdoor-mode .rpe-in,.outdoor-mode select{background:var(--color-white);border-color:var(--border-mid);color:var(--text)}
@@ -1585,14 +1602,13 @@ body{font-size:var(--font-md);line-height:1.55}
 .outdoor-mode .plate-pill{background:var(--color-white);border-color:rgba(19,19,18,.22);color:var(--slate)}
 .outdoor-mode .st{background:var(--color-white);border-color:rgba(19,19,18,.3)}
 .outdoor-mode .st.on{background:var(--green-medium);border-color:var(--green-medium)}
-.outdoor-mode .race-opt,.outdoor-mode .tick,.outdoor-mode .quicklog-btn.ql-body,.outdoor-mode .quicklog-btn.ql-nut{background:var(--color-white);border-color:var(--border-mid);color:var(--text)}
+.outdoor-mode .race-opt,.outdoor-mode .tick{background:var(--color-white);border-color:var(--border-mid);color:var(--text)}
 .outdoor-mode .race-opt.selected,.outdoor-mode .tick.on{background:var(--run);border-color:var(--run);color:var(--color-white)}
 
 /* Contrast audit: accents, values and labels that kept dark-theme colours */
 .outdoor-mode .tab.active{color:var(--run-strong);border-bottom-color:var(--run)}
 .outdoor-mode .sname.rest,.outdoor-mode .todayname.rest{color:var(--dim)}
 .outdoor-mode .dot-rest{background:rgba(19,19,18,.35)}
-.outdoor-mode .ci-card.lift .ci-val{color:var(--strength)}
 .outdoor-mode .sc-nudge{color:var(--run-strong);background:var(--run-bg);border-top-color:var(--run-border)}
 .outdoor-mode .nudge-strip-arr,.outdoor-mode #checkinNudge .nudge-strip-arr{color:var(--run-strong)}
 .outdoor-mode .hicon-dot,.outdoor-mode .tab-dot{background:var(--run)}
@@ -1645,9 +1661,6 @@ body{font-size:var(--font-md);line-height:1.55}
   .quicklog-btn.ql-nut{background:var(--run);border-color:var(--run);color:var(--ink-action)}
   .quicklog-btn.ql-nut .icon{color:var(--ink-action)}
   .outdoor-mode .quicklog-strip{background:rgba(255,255,255,.97);box-shadow:0 10px 30px rgba(19,19,18,.13)}
-  .outdoor-mode .quicklog-btn.ql-body{background:var(--color-white);color:var(--text)}
-  .outdoor-mode .quicklog-btn.ql-nut{background:var(--run);color:var(--color-white)}
-  .outdoor-mode .quicklog-btn.ql-nut .icon{color:var(--color-white)}
   .mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:170;min-height:66px;padding:6px 2px;background:var(--surface-glass);border:1px solid transparent;border-radius:var(--radius-lg);box-shadow:var(--edge-plate);backdrop-filter:blur(18px)}
   .mobile-nav-item{position:relative;border:0;background:transparent;color:var(--dim);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:var(--body);font-size:var(--font-xs);font-weight:600;cursor:pointer;border-radius:var(--radius-md)}
   .mobile-nav-item .icon{width:20px;height:20px}.mobile-nav-item.active{color:var(--run)}
@@ -1752,7 +1765,7 @@ body.focus-session-open{overflow:hidden}
 @media(min-width:900px){.email-upgrade-prompt{left:calc(var(--railw)/2);width:min(720px,calc(100% - var(--railw) - 48px))}}
 @media(max-width:560px){.email-upgrade-prompt{align-items:stretch;flex-direction:column;padding:15px 42px 15px 15px;gap:11px}.email-upgrade-action{width:100%}}
 
-.pb-history-modal-inner{max-width:660px}.pb-search{display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid var(--border-mid);border-radius:var(--radius-md);background:var(--surface2);color:var(--dim)}.pb-search .icon{width:17px;height:17px}.pb-search input{width:100%;min-height:46px;border:0;outline:0;background:transparent;color:var(--text);font:inherit}.pb-search input::placeholder{color:var(--dim)}.pb-history-list{display:grid;gap:9px;margin-top:13px}.pb-history-card{border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface2);overflow:hidden}.pb-history-card summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;cursor:pointer}.pb-history-card summary::-webkit-details-marker{display:none}.pb-history-heading{min-width:0}.pb-history-heading span,.pb-history-heading small,.pb-load strong,.pb-load small{display:block}.pb-history-heading span{font-weight:700;font-size:var(--font-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pb-history-heading small,.pb-load small{font-size:var(--font-xs);color:var(--dim);margin-top:2px}.pb-load{text-align:right;flex:0 0 auto}.pb-load strong{font-family:var(--display);font-size:var(--font-lg);color:var(--pb)}.pb-history-card[open] summary{border-bottom:1px solid var(--border)}.pb-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:12px}.pb-metrics>div{padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface)}.pb-metrics small,.pb-metrics strong{display:block}.pb-metrics small{font-size:var(--font-xs);color:var(--dim)}.pb-metrics strong{font-size:var(--font-sm);margin-top:3px}.pb-session-history{padding:0 12px 12px}.pb-session-title{font-size:var(--font-xs);color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:2px 0 7px}.pb-session-row{display:grid;grid-template-columns:90px 1fr;gap:9px;padding:8px 0;border-top:1px solid var(--border);font-size:var(--font-xs)}.pb-session-row span{color:var(--dim)}.pb-session-row strong{font-family:var(--mono);font-weight:500;text-align:right;line-height:1.45}.pb-history-empty{padding:28px 14px;text-align:center;color:var(--muted);border:1px dashed var(--border-mid);border-radius:var(--radius-md)}.outdoor-mode .pb-history-card,.outdoor-mode .pb-search{background:var(--surface2);border-color:var(--border-mid)}.outdoor-mode .pb-load strong{color:#5a35a5}.outdoor-mode .pb-metrics>div{background:var(--color-white)}
+.pb-history-modal-inner{max-width:660px}.pb-search{display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid var(--border-mid);border-radius:var(--radius-md);background:var(--surface2);color:var(--dim)}.pb-search .icon{width:17px;height:17px}.pb-search input{width:100%;min-height:46px;border:0;outline:0;background:transparent;color:var(--text);font:inherit}.pb-search input::placeholder{color:var(--dim)}.pb-history-list{display:grid;gap:9px;margin-top:13px}.pb-history-card{border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface2);overflow:hidden}.pb-history-card summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;cursor:pointer}.pb-history-card summary::-webkit-details-marker{display:none}.pb-history-heading{min-width:0}.pb-history-heading span,.pb-history-heading small,.pb-load strong,.pb-load small{display:block}.pb-history-heading span{font-weight:700;font-size:var(--font-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pb-history-heading small,.pb-load small{font-size:var(--font-xs);color:var(--dim);margin-top:2px}.pb-load{text-align:right;flex:0 0 auto}.pb-load strong{font-family:var(--display);font-size:var(--font-lg);color:var(--pb)}.pb-history-card[open] summary{border-bottom:1px solid var(--border)}.pb-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:12px}.pb-metrics>div{padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface)}.pb-metrics small,.pb-metrics strong{display:block}.pb-metrics small{font-size:var(--font-xs);color:var(--dim)}.pb-metrics strong{font-size:var(--font-sm);margin-top:3px}.pb-session-history{padding:0 12px 12px}.pb-session-title{font-size:var(--font-xs);color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:2px 0 7px}.pb-session-row{display:grid;grid-template-columns:90px 1fr;gap:9px;padding:8px 0;border-top:1px solid var(--border);font-size:var(--font-xs)}.pb-session-row span{color:var(--dim)}.pb-session-row strong{font-family:var(--mono);font-weight:500;text-align:right;line-height:1.45}.pb-history-empty{padding:28px 14px;text-align:center;color:var(--muted);border:1px dashed var(--border-mid);border-radius:var(--radius-md)}.outdoor-mode .pb-search{background:var(--surface2);border-color:var(--border-mid)}.outdoor-mode .pb-load strong{color:#5a35a5}.outdoor-mode .pb-metrics>div{background:var(--color-white)}
 
 @media(max-width:760px){
   .save-state-pill{position:fixed;top:62px;right:10px;z-index:135;background:rgba(10,13,16,.88);backdrop-filter:blur(12px)}
@@ -1873,11 +1886,9 @@ body.focus-session-open{overflow:hidden}
   .outdoor-mode #tab-weekly>#weeklyCalEl{background:rgba(255,255,255,.82);border-color:rgba(19,19,18,.12);box-shadow:0 22px 55px rgba(30,55,67,.09)}
   .outdoor-mode #tab-weekly>#weeklyCalEl .sc{background:var(--color-white);border-color:rgba(19,19,18,.13)}
   .outdoor-mode #tab-weekly>#weeklyCalEl .sc:hover{border-color:rgba(8,127,174,.35);box-shadow:0 12px 25px rgba(30,55,67,.1)}
-  .outdoor-mode .quicklog-strip{background:rgba(255,255,255,.9);border-color:rgba(19,19,18,.15);box-shadow:0 18px 45px rgba(30,55,67,.15)}
-  .outdoor-mode .card,.outdoor-mode .accordion-card,.outdoor-mode .ci-card,.outdoor-mode .mc,.outdoor-mode .pstat,.outdoor-mode .hb-card{background:var(--color-white);border-color:rgba(19,19,18,.13);box-shadow:0 14px 30px rgba(30,55,67,.08)}
-  .outdoor-mode .hb-card:hover{transform:translateY(-2px);border-color:rgba(8,127,174,.35);box-shadow:0 12px 25px rgba(30,55,67,.12)}
-  .outdoor-mode .goals-hero,.outdoor-mode .comms-card{background:var(--color-white);border-color:rgba(19,19,18,.13);box-shadow:0 24px 55px rgba(30,55,67,.12)}
-  .outdoor-mode .goals-hero::after,.outdoor-mode .comms-card::after{background:linear-gradient(90deg,transparent,var(--run),transparent)}
+  .outdoor-mode .quicklog-strip{background:rgba(255,255,255,.9);border-color:rgba(19,19,18,.15);box-shadow:0 18px 45px rgba(30,55,67,.15)}.outdoor-mode .mc,.outdoor-mode .pstat{background:var(--color-white);border-color:rgba(19,19,18,.13);box-shadow:0 14px 30px rgba(30,55,67,.08)}
+  .outdoor-mode .goals-hero{background:var(--color-white);border-color:rgba(19,19,18,.13);box-shadow:0 24px 55px rgba(30,55,67,.12)}
+  .outdoor-mode .goals-hero::after{background:linear-gradient(90deg,transparent,var(--run),transparent)}
   .outdoor-mode .goals-prompt{background:var(--color-white);border-color:rgba(19,19,18,.13);box-shadow:0 18px 40px rgba(30,55,67,.1)}
   .outdoor-mode .nut-wbar{box-shadow:0 10px 26px rgba(30,55,67,.08)}
 }
@@ -2003,9 +2014,6 @@ body.focus-session-open{overflow:hidden}
   #tab-progress>*{margin-bottom:20px}
   #tab-progress>.progress-stats{grid-template-columns:repeat(4,1fr)}
 }
-
-/* Chart/progress card wrappers missed the outdoor surface overrides */
-.outdoor-mode .progress-card{background:var(--color-white);border-color:rgba(19,19,18,.13);box-shadow:0 14px 30px rgba(30,55,67,.08);color:var(--text)}
 
 /* ── WEEKLY RINGS (running km + gym) ────────────────────────────────────── */
 
@@ -2511,16 +2519,8 @@ html:not(.outdoor-mode) #photoNudge{
 .outdoor-mode .ml,
 .outdoor-mode .ci-lbl{color:rgba(19,19,18,.66)!important}
 
-/* Some progress/chart cards render as plain .card but keep a dark
-   (#0a0a0a) background in light mode, so their dark title lands on a dark
-   surface (invisible). Force every card-like surface to the light surface
-   in outdoor mode with ID-level specificity so no stray dark bg survives. */
-html.outdoor-mode #portalScreen .card,
-html.outdoor-mode #portalScreen .progress-card{
-  background:var(--surface)!important;
-  border-color:var(--border)!important;
-  color:var(--text);
-}
+/* Progress and card surfaces now consume the shared card tokens, so the
+   former daylight-specific surface repair is no longer needed. */
 
 /* Several values/labels use INLINE colors the app's JS hard-codes for the
    dark theme (bright green, amber, translucent-white eyebrows). On white
@@ -3442,10 +3442,7 @@ body.day-plan-open{overflow:hidden}
   html.outdoor-mode body.mobile-checkin-tab .ci-main{
     background:var(--color-white);border-color:var(--border);box-shadow:0 12px 30px rgba(30,55,67,.08);
   }
-  html.outdoor-mode body.mobile-checkin-tab .ci-card,
   html.outdoor-mode body.mobile-checkin-tab #ciBookCard,
-  html.outdoor-mode body.mobile-checkin-tab .ci-step-panel>.card,
-  html.outdoor-mode body.mobile-checkin-tab .ci-testimonial-card,
   html.outdoor-mode body.mobile-checkin-tab .ci-reflection-intro{
     background:rgba(19,19,18,.025)!important;border-color:var(--border)!important;
   }
@@ -3595,10 +3592,6 @@ body.day-plan-open{overflow:hidden}
 
 html.outdoor-mode .progress-week-pill,
 html.outdoor-mode .progress-baseline{background:rgba(19,19,18,.025)}
-html.outdoor-mode #tab-progress .progress-card{
-  background:var(--color-white)!important;border-color:var(--border);
-  box-shadow:0 12px 30px rgba(30,55,67,.08)!important;
-}
 html.outdoor-mode .weight-log-toggle{background:rgba(19,19,18,.035)}
 
 @media(max-width:760px){
@@ -4048,8 +4041,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   #hbModal .hb-modal-body .nutrnote{padding:13px;font-size:var(--font-xs);line-height:1.5}
 
   html.outdoor-mode body.mobile-secondary-tab .tab-content.active>.page-intro,
-  html.outdoor-mode body.mobile-secondary-tab .tab-content.active>.card,
-  html.outdoor-mode body.mobile-secondary-tab .tab-content.active #nutContent>.card,
   html.outdoor-mode #preferencesModal .ql-modal-inner,
   html.outdoor-mode #weeklySummaryModal .ql-modal-inner{background:var(--color-white)}
   html.outdoor-mode .more-menu-sheet{background:var(--color-white)}
@@ -4106,17 +4097,8 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   html.outdoor-mode body.mobile-progress-tab #tab-progress .progress-intro,
   html.outdoor-mode body.mobile-checkin-tab #tab-checkin .page-intro,
   html.outdoor-mode body.mobile-checkin-tab .ci-main,
-  html.outdoor-mode body.mobile-secondary-tab .tab-content.active>.page-intro,
-  html.outdoor-mode body.mobile-secondary-tab .tab-content.active>.card,
-  html.outdoor-mode body.mobile-secondary-tab .tab-content.active #nutContent>.card{
+  html.outdoor-mode body.mobile-secondary-tab .tab-content.active>.page-intro{
     color:var(--text);border-color:rgba(19,19,18,.07)!important;
-  }
-  /* The daylight page-header slab is superseded by the Instrument screen
-     layer: headings sit on the ground. Rule removed rather than out-specified
-     — its !important existed only to hold this layer above the earlier one. */
-  html.outdoor-mode body.mobile-secondary-tab .tab-content.active>.card,
-  html.outdoor-mode body.mobile-secondary-tab .tab-content.active #nutContent>.card{
-    background:var(--color-white)!important;box-shadow:0 10px 26px rgba(30,55,67,.07);
   }
   html.outdoor-mode body.mobile-secondary-tab #tab-goals .goals-overview{
     background:
@@ -4438,9 +4420,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .wkm-card.wkm-done .wkm-ico .icon,.wkm-card.wkm-done .wkm-pct{color:var(--ok)}
 .wkm-card.wkm-done .wkm-pct{border-color:var(--ok-border);background:var(--ok-bg)}
 .wkm-card.wkm-done .wkm-track span{background:var(--ok)}
-.outdoor-mode .wkm-card{background:linear-gradient(150deg,var(--run-bg),var(--color-white));border-color:var(--run-border)}
-.outdoor-mode .wkm-card .wkm-track{background:rgba(19,19,18,.1)}
-.outdoor-mode .wkm-card.wkm-done{background:linear-gradient(150deg,var(--ok-bg),var(--color-white))}
 @media(max-width:400px){
   .wkm-card .wkm-head{grid-template-columns:34px minmax(0,1fr) auto;gap:9px}
   .wkm-card .wkm-ico{width:34px;height:34px;border-radius:var(--radius-md)}
@@ -5061,9 +5040,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
     content:"";width:6px;height:6px;border-radius:var(--radius-pill);background:var(--run);
     display:inline-block;margin-right:9px;vertical-align:middle
   }
-  .outdoor-mode .week-card{background:rgba(255,255,255,.6);border-color:rgba(19,19,18,.1)}
-  .outdoor-mode .week-card>.nudge-strip{border-top-color:rgba(19,19,18,.1)}
-  .outdoor-mode .week-card>.nudge-strip .nudge-strip-title{color:var(--ink-action)}
 }
 
 /* ── Daily log dock ────────────────────────────────────────────────────
@@ -5077,10 +5053,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .quicklog-btn.is-next{background:var(--run);border-color:var(--run);color:var(--ink-action);font-weight:800}
 .quicklog-btn.is-next .icon{color:var(--ink-action)}
 .quicklog-strip.all-logged{opacity:1}
-.outdoor-mode .quicklog-btn.is-next{background:#1f7fa6;border-color:#1f7fa6;color:var(--color-white)}
-.outdoor-mode .quicklog-btn.is-next .icon{color:var(--color-white)}
-.outdoor-mode .quicklog-btn.is-done{background:var(--success-deep);border-color:var(--success-deep);color:var(--color-white)}
-.outdoor-mode .quicklog-btn.is-done .icon{color:var(--color-white)}
 
 /* Keep the persistent dock actions authoritative over their earlier body and
    nutrition base colours. These higher-specificity rules also protect the
@@ -5090,11 +5062,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   box-shadow:0 8px 22px rgba(115,209,167,.22)
 }
 .quicklog-btn.ql-body.is-done .icon,.quicklog-btn.ql-nut.is-done .icon{color:var(--ink-success)}
-.outdoor-mode .quicklog-btn.ql-body.is-done,.outdoor-mode .quicklog-btn.ql-nut.is-done{
-  background:var(--success-deep);border-color:var(--success-deep);color:var(--color-white);
-  box-shadow:0 8px 20px rgba(21,138,82,.2)
-}
-.outdoor-mode .quicklog-btn.ql-body.is-done .icon,.outdoor-mode .quicklog-btn.ql-nut.is-done .icon{color:var(--color-white)}
 
 /* Saved here, not with the coaches yet. Deliberately louder than "to do" and
    never green: the athlete has done the work, so the message is "this has not
@@ -5105,8 +5072,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .quicklog-btn.is-sending{background:rgba(240,173,78,.14);border-color:rgba(240,173,78,.55);color:var(--amber);font-weight:800}
 .quicklog-btn.is-sending .icon{color:var(--amber)}
 .quicklog-hint{margin:6px 2px 0;font-size:var(--font-xs);line-height:1.45;color:var(--amber)}
-.outdoor-mode .quicklog-btn.is-sending{background:#fff4e2;border-color:#b5710f;color:#8a5406}
-.outdoor-mode .quicklog-btn.is-sending .icon{color:#8a5406}
 .outdoor-mode .quicklog-hint{color:#8a5406}
 
 /* One accent, enforced. The mobile tier fills .ql-nut unconditionally, so a
@@ -5118,10 +5083,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .quicklog-btn.ql-body:not(.is-next):not(.is-done):not(.is-sending){
   background:rgba(236,233,226,.055);border-color:rgba(236,233,226,.11);
   color:rgba(236,233,226,.72);box-shadow:none;font-weight:700
-}
-.outdoor-mode .quicklog-btn.ql-nut:not(.is-next):not(.is-done):not(.is-sending),
-.outdoor-mode .quicklog-btn.ql-body:not(.is-next):not(.is-done):not(.is-sending){
-  background:var(--color-white);border-color:var(--border-mid);color:var(--text);box-shadow:none
 }
 .quicklog-btn.ql-nut:not(.is-next):not(.is-done):not(.is-sending) .icon,
 .quicklog-btn.ql-body:not(.is-next):not(.is-done):not(.is-sending) .icon{color:var(--run)}
@@ -5140,8 +5101,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
    delivery result before it closes: green only when the server has it. */
 .ql-modal .savebtn.saved{background:var(--ok);color:var(--ink-success);box-shadow:0 10px 26px rgba(115,209,167,.24)}
 .ql-modal .savebtn.is-sending{background:var(--amber);color:#211405;box-shadow:0 10px 26px rgba(240,173,78,.22)}
-.outdoor-mode .ql-modal .savebtn.saved{background:var(--success-deep);color:var(--color-white)}
-.outdoor-mode .ql-modal .savebtn.is-sending{background:#b5710f;color:var(--color-white)}
 
 /* ── Outdoor (light) mode parity ───────────────────────────────────────── */
 .outdoor-mode .metric-track{background:rgba(19,19,18,.1)}
@@ -5292,7 +5251,6 @@ html.outdoor-mode .photo-current-action{
 }
 html.outdoor-mode .photo-current-progress{background:rgba(19,19,18,.09)}
 html.outdoor-mode .photo-modal-guide{background:rgba(19,19,18,.025)}
-html.outdoor-mode .photo-next-btn{background:var(--run-deep);color:var(--color-white)}
 
 @media(max-width:760px){
   body.mobile-progress-tab #tab-progress .progress-intro{padding:14px 15px}
@@ -5460,9 +5418,6 @@ html.outdoor-mode .photo-next-btn{background:var(--run-deep);color:var(--color-w
   .week-card.has-due{
     border-color:var(--nudge-due-line);
     animation:nudgeGlow 5.5s ease-in-out infinite
-  }
-  .outdoor-mode .week-card.has-due{
-    border-color:var(--nudge-due-line);animation:nudgeGlowLight 5.5s ease-in-out infinite
   }
   .week-card>.nudge-strip.is-due,.week-card>.nudge-strip.is-done{padding-left:14px}
   .week-card>#goalsBanner.is-due .nudge-strip-icon,.week-card>#callNudge.is-due .nudge-strip-icon,
@@ -5932,4 +5887,169 @@ html.outdoor-mode .page-kicker{color:var(--t-3)}
   /* The week heading is the other thing eating the frame on a short screen. */
   .week-plan-shell{padding:4px 2px 8px}
   .week-plan-shell .week-plan-title{font-size:var(--font-xl);margin-top:2px}
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 2 COMPONENT CONTRACT
+   Legacy selectors remain as aliases so markup can migrate incrementally.
+   Component colour comes only from tokens; daylight mode changes the tokens.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Button */
+.btn,
+.calls-btn,.ci-btn-back,.ci-btn-next,.comms-btn,.data-request-btn,
+.focus-done-btn,.goals-prompt-btn,.lbtn,.load-error-btn,.month-today-btn,
+.photo-next-btn,.quicklog-btn,.reschedule-btn,.save-run-btn,.savebtn,.todaybtn{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);
+  min-width:44px;min-height:44px;padding:var(--sp-3) var(--sp-4);
+  border:1px solid var(--readout);border-radius:var(--r-2);
+  background:var(--readout);color:var(--readout-ink);box-shadow:var(--edge-lift);
+  font-family:var(--body);font-size:var(--fs-3);font-weight:700;line-height:1.2;
+  text-align:center;text-decoration:none;cursor:pointer;
+  transition:background var(--dur-state) var(--ease-in),color var(--dur-state) var(--ease-in),
+    border-color var(--dur-state) var(--ease-in),box-shadow var(--dur-state) var(--ease-in),
+    transform var(--dur-state) var(--ease-in),opacity var(--dur-state) var(--ease-in)
+}
+.btn--primary,.calls-btn-primary,.ci-btn-next,.comms-btn:not(.comms-btn-quiet),
+.focus-done-btn,.goals-prompt-btn,.lbtn,.load-error-btn,.month-today-btn,
+.photo-next-btn,.save-run-btn,.savebtn,.todaybtn{
+  background:var(--readout);border-color:var(--readout);color:var(--readout-ink);box-shadow:var(--edge-lift)
+}
+.btn--secondary,.calls-btn:not(.calls-btn-primary),.ci-btn-back,.quicklog-btn{
+  background:var(--g-2);border-color:var(--border-mid);color:var(--t-1);box-shadow:var(--edge-plate)
+}
+.btn--quiet,.comms-btn-quiet,.data-request-btn,.reschedule-btn{
+  background:transparent;border-color:var(--border-mid);color:var(--t-2);box-shadow:none
+}
+.btn--danger,.data-request-danger{
+  background:var(--alert);border-color:var(--alert);color:var(--g-well);box-shadow:var(--edge-lift)
+}
+.btn:hover,
+.calls-btn:hover,.ci-btn-back:hover,.ci-btn-next:hover,.comms-btn:hover,.data-request-btn:hover,
+.focus-done-btn:hover,.goals-prompt-btn:hover,.lbtn:hover,.load-error-btn:hover,
+.month-today-btn:hover,.photo-next-btn:hover,.quicklog-btn:hover,.reschedule-btn:hover,
+.save-run-btn:hover,.savebtn:hover,.todaybtn:hover{filter:brightness(1.06)}
+.btn:active,
+.calls-btn:active,.ci-btn-back:active,.ci-btn-next:active,.comms-btn:active,.data-request-btn:active,
+.focus-done-btn:active,.goals-prompt-btn:active,.lbtn:active,.load-error-btn:active,
+.month-today-btn:active,.photo-next-btn:active,.quicklog-btn:active,.reschedule-btn:active,
+.save-run-btn:active,.savebtn:active,.todaybtn:active{
+  transform:translateY(1px);background:var(--g-3);color:var(--t-1);box-shadow:var(--edge-bottom)
+}
+.btn:focus-visible,
+.calls-btn:focus-visible,.ci-btn-back:focus-visible,.ci-btn-next:focus-visible,.comms-btn:focus-visible,
+.data-request-btn:focus-visible,.focus-done-btn:focus-visible,.goals-prompt-btn:focus-visible,
+.lbtn:focus-visible,.load-error-btn:focus-visible,.month-today-btn:focus-visible,
+.photo-next-btn:focus-visible,.quicklog-btn:focus-visible,.reschedule-btn:focus-visible,
+.save-run-btn:focus-visible,.savebtn:focus-visible,.todaybtn:focus-visible{
+  outline:3px solid var(--readout);outline-offset:3px;box-shadow:var(--edge-lift)
+}
+.btn[aria-busy="true"],
+.calls-btn[aria-busy="true"],.ci-btn-next[aria-busy="true"],.comms-btn[aria-busy="true"],
+.focus-done-btn[aria-busy="true"],.goals-prompt-btn[aria-busy="true"],.lbtn[aria-busy="true"],
+.load-error-btn[aria-busy="true"],.photo-next-btn[aria-busy="true"],
+.save-run-btn[aria-busy="true"],.savebtn[aria-busy="true"],.todaybtn[aria-busy="true"]{
+  cursor:progress;pointer-events:none
+}
+.btn[aria-busy="true"]::after,
+.calls-btn[aria-busy="true"]::after,.ci-btn-next[aria-busy="true"]::after,
+.comms-btn[aria-busy="true"]::after,.focus-done-btn[aria-busy="true"]::after,
+.goals-prompt-btn[aria-busy="true"]::after,.lbtn[aria-busy="true"]::after,
+.load-error-btn[aria-busy="true"]::after,.photo-next-btn[aria-busy="true"]::after,
+.save-run-btn[aria-busy="true"]::after,.savebtn[aria-busy="true"]::after,
+.todaybtn[aria-busy="true"]::after{
+  content:"";width:1em;height:1em;flex:0 0 1em;border:2px solid var(--t-4);
+  border-top-color:currentColor;border-radius:var(--r-pill);animation:btn-spin .8s linear infinite
+}
+@keyframes btn-spin{to{transform:rotate(1turn)}}
+.btn:disabled,.btn[aria-disabled="true"],
+.calls-btn:disabled,.ci-btn-back:disabled,.ci-btn-next:disabled,.comms-btn:disabled,
+.data-request-btn:disabled,.focus-done-btn:disabled,.goals-prompt-btn:disabled,.lbtn:disabled,
+.load-error-btn:disabled,.month-today-btn:disabled,.photo-next-btn:disabled,
+.quicklog-btn:disabled,.reschedule-btn:disabled,.save-run-btn:disabled,.savebtn:disabled,.todaybtn:disabled{
+  background:var(--g-2);border-color:var(--hairline);color:var(--t-4);box-shadow:none;
+  cursor:not-allowed;opacity:1
+}
+.btn.is-success,.btn.saved,.savebtn.saved,.save-run-btn.saved,.quicklog-btn.is-done{
+  background:var(--done);border-color:var(--done);color:var(--g-well);box-shadow:var(--edge-plate)
+}
+.quicklog-btn{padding:calc(var(--sp-2) + 2px)}
+.quicklog-btn:disabled{
+  background:var(--g-2);border-color:var(--border-mid);color:var(--t-2)
+}
+.quicklog-btn.is-next,
+.quicklog-btn.ql-body.is-next,.quicklog-btn.ql-nut.is-next{
+  background:var(--run);border-color:var(--run);color:var(--action-ink)
+}
+.quicklog-btn.is-next .icon{color:var(--action-ink)}
+.quicklog-btn.ql-nut:not(.is-next):not(.is-done):not(.is-sending),
+.quicklog-btn.ql-body:not(.is-next):not(.is-done):not(.is-sending){
+  background:var(--g-2);border-color:var(--border-mid);color:var(--t-2);box-shadow:none
+}
+.btn.is-loading{cursor:progress}
+@media(prefers-reduced-motion:reduce){
+  .btn,.calls-btn,.ci-btn-back,.ci-btn-next,.comms-btn,.data-request-btn,.focus-done-btn,
+  .goals-prompt-btn,.lbtn,.load-error-btn,.month-today-btn,.photo-next-btn,.quicklog-btn,
+  .reschedule-btn,.save-run-btn,.savebtn,.todaybtn{transition:none}
+  .btn[aria-busy="true"]::after,.calls-btn[aria-busy="true"]::after,
+  .ci-btn-next[aria-busy="true"]::after,.comms-btn[aria-busy="true"]::after,
+  .focus-done-btn[aria-busy="true"]::after,.goals-prompt-btn[aria-busy="true"]::after,
+  .lbtn[aria-busy="true"]::after,.load-error-btn[aria-busy="true"]::after,
+  .photo-next-btn[aria-busy="true"]::after,.save-run-btn[aria-busy="true"]::after,
+  .savebtn[aria-busy="true"]::after,.todaybtn[aria-busy="true"]::after{animation:none}
+}
+
+/* Field */
+.field,
+.stat-input,.why-textarea,.milestone-input,.li,.sin,.rpe-in,.calls-input,
+.coach-note-input,.email-input,.run-field input,.run-field select,.run-field textarea{
+  width:100%;min-height:44px;padding:var(--sp-2) var(--sp-3);box-sizing:border-box;
+  border:1px solid var(--hairline);border-radius:var(--r-2);background:var(--g-well);
+  color:var(--t-1);box-shadow:var(--edge-well);font-family:var(--body);font-size:var(--fs-3);
+  line-height:1.5;outline:none;transition:border-color var(--dur-state) var(--ease-in),
+    box-shadow var(--dur-state) var(--ease-in),background var(--dur-state) var(--ease-in)
+}
+textarea.field,.field--textarea,.why-textarea,.milestone-input,.calls-input,.coach-note-input,
+.run-field textarea,textarea.li{min-height:88px;resize:vertical}
+.field::placeholder,.stat-input::placeholder,.why-textarea::placeholder,.milestone-input::placeholder,
+.li::placeholder,.sin::placeholder,.rpe-in::placeholder,.calls-input::placeholder,
+.coach-note-input::placeholder,.email-input::placeholder,.run-field input::placeholder,
+.run-field textarea::placeholder{color:var(--t-3);opacity:1}
+.field:focus,.field:focus-visible,.stat-input:focus,.why-textarea:focus,.milestone-input:focus,
+.li:focus,.sin:focus,.rpe-in:focus,.calls-input:focus,.coach-note-input:focus,.email-input:focus,
+.run-field input:focus,.run-field select:focus,.run-field textarea:focus{
+  border-color:var(--readout);background:var(--g-well);box-shadow:var(--edge-well),0 0 0 3px var(--run-bg)
+}
+.field.is-error,.field[aria-invalid="true"],.stat-input[aria-invalid="true"],
+.why-textarea[aria-invalid="true"],.milestone-input[aria-invalid="true"],.li[aria-invalid="true"]{
+  border-color:var(--alert);box-shadow:var(--edge-well),0 0 0 3px var(--nudge-due-soft)
+}
+.field:disabled,.stat-input:disabled,.why-textarea:disabled,.milestone-input:disabled,.li:disabled,
+.sin:disabled,.rpe-in:disabled,.calls-input:disabled,.coach-note-input:disabled,.email-input:disabled{
+  background:var(--g-2);border-color:var(--hairline);color:var(--t-4);box-shadow:none;cursor:not-allowed
+}
+.field--range,input.field[type="range"],input.u-range-full,.pain-log-block input[type="range"]{
+  min-height:44px;padding:0;background:transparent;border:0;box-shadow:none;accent-color:var(--readout)
+}
+.field--range[data-unset],input.field[type="range"][data-unset],input.u-range-full[data-unset],
+input[type="range"].sl-untouched{accent-color:var(--t-4);opacity:.7}
+
+/* Card */
+.card,
+.accordion-card,.calls-card,.ci-card,.ci-testimonial-card,.comms-card,.goals-section-card,
+.hb-card,.insight-card,.pb-history-card,.programme-details-card,.progress-card,
+.progress-collapsible-card,.progress-photo-card,.run-prescription-card,.vstrip-card,.week-card,.wkm-card{
+  background:var(--g-1);border:1px solid var(--hairline);border-radius:var(--r-3);
+  color:var(--t-1);box-shadow:var(--edge-plate)
+}
+.card--flat,.run-prescription-card,.vstrip-card,.week-card{
+  background:var(--g-1);border-color:var(--hairline);box-shadow:none
+}
+.card--raised,.accordion-card,.calls-card,.ci-card,.ci-testimonial-card,.comms-card,
+.goals-section-card,.hb-card,.pb-history-card,.programme-details-card,.progress-card,
+.progress-collapsible-card,.progress-photo-card{
+  background:var(--g-1);border-color:var(--hairline);box-shadow:var(--edge-lift)
+}
+.card--accent,.insight-card,.wkm-card{
+  background:var(--g-1);border-color:var(--run-border);box-shadow:var(--edge-lift)
 }
