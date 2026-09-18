@@ -294,7 +294,6 @@ function renderGymTracker(){
   if(progressFill) progressFill.style.width=pct+'%';
   bar.classList.toggle('km-hit',done>=lifts.length);
   bar.style.display='';
-  buildGymGauge(done,lifts.length);
 }
 function updateSessionCounter(){
   try{renderGymTracker();}catch(e){}

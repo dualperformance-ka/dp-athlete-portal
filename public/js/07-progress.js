@@ -18,6 +18,7 @@ function renderPhotoGrid(){
   var title=document.getElementById('photoCurrentTitle');
   var status=document.getElementById('photoCurrentStatus');
   var countEl=document.getElementById('photoCurrentCount');
+  var progress=document.getElementById('photoCurrentProgress');
   var fill=document.getElementById('photoCurrentProgressFill');
   var statuses=document.getElementById('photoAngleStatuses');
   var cta=document.getElementById('photoCurrentCta');
@@ -29,6 +30,7 @@ function renderPhotoGrid(){
   if(title)title.textContent=photoWeekLabel(curWeek)+' photos';
   if(status)status.textContent=currentCount===ANGLES.length?'All five angles are ready to compare.':currentCount?'Keep going — '+(ANGLES.length-currentCount)+' angle'+(ANGLES.length-currentCount===1?'':'s')+' remaining.':'Build a clearer visual record in about two minutes.';
   if(countEl)countEl.textContent=currentCount+'/'+ANGLES.length;
+  if(progress){progress.setAttribute('aria-valuenow',String(currentCount));progress.classList.toggle('is-done',currentCount===ANGLES.length);}
   if(fill)fill.style.width=(currentCount/ANGLES.length*100)+'%';
   if(statuses)statuses.innerHTML=ANGLES.map(function(angle){
     var done=completed.indexOf(angle)!==-1;
@@ -172,12 +174,12 @@ function renderWeightChart(entries,targetWeight){
   var poly=coords.map(function(c){return c.x.toFixed(1)+','+c.y.toFixed(1);}).join(' ');
   var areaPoly=poly+' '+coords[coords.length-1].x.toFixed(1)+','+(height-padB)+' '+coords[0].x.toFixed(1)+','+(height-padB);
   var yTicks=[minW,(minW+maxW)/2,maxW];
-  var yLines=yTicks.map(function(v){var y=padT+((maxW-v)/(maxW-minW))*usableH;return '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+y.toFixed(1)+'" stroke="var(--border)" stroke-width="1"/><text x="'+(width-padR)+'" y="'+(y-6).toFixed(1)+'" text-anchor="end" fill="var(--dim)" style="font-family:var(--mono);font-size:var(--font-xs)">'+v.toFixed(1)+'kg</text>';}).join('');
-  var xLabels='<text x="'+coords[0].x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="start" fill="var(--dim)" style="font-family:var(--mono);font-size:var(--font-xs)">'+new Date(points[0].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text><text x="'+coords[coords.length-1].x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="end" fill="var(--dim)" style="font-family:var(--mono);font-size:var(--font-xs)">'+new Date(points[points.length-1].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text>';
-  var dots=coords.map(function(c,idx){var isLast=idx===coords.length-1;return '<circle cx="'+c.x.toFixed(1)+'" cy="'+c.y.toFixed(1)+'" r="'+(isLast?4.4:3.2)+'" fill="'+(isLast?'var(--text)':'var(--run)')+'"/>';}).join('');
+  var yLines=yTicks.map(function(v){var y=padT+((maxW-v)/(maxW-minW))*usableH;return '<line class="chart-grid" x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+y.toFixed(1)+'"/><text class="chart-axis" x="'+(width-padR)+'" y="'+(y-6).toFixed(1)+'" text-anchor="end">'+v.toFixed(1)+'kg</text>';}).join('');
+  var xLabels='<text class="chart-axis" x="'+coords[0].x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="start">'+new Date(points[0].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text><text class="chart-axis" x="'+coords[coords.length-1].x.toFixed(1)+'" y="'+(height-8)+'" text-anchor="end">'+new Date(points[points.length-1].date).toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</text>';
+  var dots=coords.map(function(c,idx){var isLast=idx===coords.length-1;return '<circle class="'+(isLast?'chart-endpoint':'chart-point')+'" cx="'+c.x.toFixed(1)+'" cy="'+c.y.toFixed(1)+'" r="'+(isLast?4.4:3.2)+'"/>';}).join('');
   var targetLine='';var targetNum=targetWeight!=null&&!isNaN(targetWeight)?Number(targetWeight):null;
-  if(targetNum!=null&&targetNum>=minW&&targetNum<=maxW){var ty=padT+((maxW-targetNum)/(maxW-minW))*usableH;targetLine='<line x1="'+padL+'" y1="'+ty.toFixed(1)+'" x2="'+(width-padR)+'" y2="'+ty.toFixed(1)+'" stroke="var(--run-border)" stroke-dasharray="4 4" stroke-width="1"/><text x="'+padL+'" y="'+(ty-6).toFixed(1)+'" fill="var(--run)" style="font-family:var(--mono);font-size:var(--font-xs)">Target '+targetNum.toFixed(1)+'kg</text>';}
-  chartEl.innerHTML='<svg viewBox="0 0 '+width+' '+height+'" width="100%" height="220" role="img" aria-label="Weight trend chart">'+yLines+targetLine+'<polygon points="'+areaPoly+'" fill="var(--run-bg)"></polygon><polyline points="'+poly+'" fill="none" stroke="var(--run)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></polyline>'+dots+xLabels+'</svg>';
+  if(targetNum!=null&&targetNum>=minW&&targetNum<=maxW){var ty=padT+((maxW-targetNum)/(maxW-minW))*usableH;targetLine='<rect class="chart-target-band" x="'+padL+'" y="'+(ty-5).toFixed(1)+'" width="'+usableW+'" height="10" rx="5"/><text class="chart-axis" x="'+padL+'" y="'+(ty-8).toFixed(1)+'">Target '+targetNum.toFixed(1)+'kg</text>';}
+  chartEl.innerHTML='<svg viewBox="0 0 '+width+' '+height+'" width="100%" height="220" role="img" aria-label="Weight in kilograms over time, from '+points[0].weight.toFixed(1)+' to '+points[points.length-1].weight.toFixed(1)+' kilograms">'+yLines+targetLine+'<polygon class="chart-series--actual chart-area" points="'+areaPoly+'"></polygon><polyline class="chart-series--actual chart-line" points="'+poly+'"></polyline>'+dots+xLabels+'</svg><div class="chart-legend"><span><i></i>Weight</span>'+(targetLine?'<span><i class="chart-key-target"></i>Target band</span>':'')+'</div>';
   var latestDate=new Date(points[points.length-1].date);var sevenAgo=new Date(latestDate);sevenAgo.setDate(sevenAgo.getDate()-7);
   var compare=points[0];for(var i=points.length-1;i>=0;i--){if(new Date(points[i].date)<=sevenAgo){compare=points[i];break;}}
   var sevenDelta=points[points.length-1].weight-compare.weight;
@@ -215,29 +217,29 @@ async function renderVolumeChart(){
   var grid='',bars='',labels='';
   [0,0.5,1].forEach(function(f){
     var y=padT+plot*(1-f);
-    grid+='<line x1="0" y1="'+y.toFixed(1)+'" x2="'+width+'" y2="'+y.toFixed(1)+'" stroke="var(--border)" stroke-width="1"/>';
-    grid+='<text x="2" y="'+(y-4).toFixed(1)+'" fill="var(--dim)" font-size="9" font-family="var(--body)">'+Math.round(max*f)+'</text>';
+    grid+='<line class="chart-grid" x1="0" y1="'+y.toFixed(1)+'" x2="'+width+'" y2="'+y.toFixed(1)+'"/>';
+    grid+='<text class="chart-axis" x="2" y="'+(y-4).toFixed(1)+'">'+Math.round(max*f)+' km</text>';
   });
   weeks.forEach(function(w,i){
     var cx=slot*i+slot/2,x=cx-barW/2;
     if(w.planned){
       var ph=Math.max(2,w.planned/max*plot),py=padT+plot-ph;
-      bars+='<rect x="'+x.toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+ph.toFixed(1)+'" rx="3" fill="var(--run-bg-strong,var(--run-bg))" stroke="var(--run-border)" stroke-width="1"/>';
+      bars+='<rect class="chart-series--planned" x="'+x.toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+ph.toFixed(1)+'" rx="3"/>';
     }
     if(w.actual!=null&&w.actual>0){
       var ah=Math.max(2,Math.min(w.actual,max)/max*plot),ay=padT+plot-ah;
       var hit=w.planned&&w.actual>=w.planned;
-      bars+='<rect x="'+(x+barW*0.18).toFixed(1)+'" y="'+ay.toFixed(1)+'" width="'+(barW*0.64).toFixed(1)+'" height="'+ah.toFixed(1)+'" rx="3" fill="'+(hit?'var(--ok)':'var(--run)')+'"/>';
+      bars+='<rect class="chart-series--actual'+(hit?' is-done':'')+'" x="'+(x+barW*0.18).toFixed(1)+'" y="'+ay.toFixed(1)+'" width="'+(barW*0.64).toFixed(1)+'" height="'+ah.toFixed(1)+'" rx="3"/>';
     }
     if(w.isCurrent){
-      bars+='<rect x="'+(x-3).toFixed(1)+'" y="'+padT+'" width="'+(barW+6).toFixed(1)+'" height="'+plot+'" rx="5" fill="none" stroke="var(--run)" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>';
+      bars+='<rect class="chart-current" x="'+(x-3).toFixed(1)+'" y="'+padT+'" width="'+(barW+6).toFixed(1)+'" height="'+plot+'" rx="5"/>';
     }
     var show=weeks.length<=14||w.week%2===1||w.isCurrent;
-    if(show) labels+='<text x="'+cx.toFixed(1)+'" y="'+(height-12)+'" text-anchor="middle" fill="'+(w.isCurrent?'var(--run-strong)':'var(--dim)')+'" font-size="10" font-weight="'+(w.isCurrent?'700':'500')+'" font-family="var(--body)">'+w.week+'</text>';
+    if(show) labels+='<text class="chart-axis'+(w.isCurrent?' is-current':'')+'" x="'+cx.toFixed(1)+'" y="'+(height-12)+'" text-anchor="middle">'+w.week+'</text>';
   });
   el.innerHTML='<div class="pgvol-scroll"><svg viewBox="0 0 '+width+' '+height+'" width="'+width+'" height="'+height+'" role="img" aria-label="Planned and completed running kilometres by programme week">'
     +grid+bars+labels
-    +'<text x="'+(width/2)+'" y="'+(height-1)+'" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--body)">Programme week</text></svg></div>';
+    +'<text class="chart-axis" x="'+(width/2)+'" y="'+(height-1)+'" text-anchor="middle">Programme week</text></svg></div><div class="chart-legend"><span><i class="chart-key-planned"></i>Planned</span><span><i></i>Actual</span><span><i class="chart-key-done"></i>Target met</span></div>';
   var peak=planned.reduce(function(a,b){return b.planned>a.planned?b:a;});
   var avg=planned.reduce(function(t,w){return t+w.planned;},0)/planned.length;
   var done=weeks.reduce(function(t,w){return t+(w.actual||0);},0);

@@ -1,43 +1,3 @@
-// ── DP INSTRUMENT GAUGES ─────────────────────────────────────────────────────
-// Open arc: 264° sweep, gap at the bottom. SVG y-down: 90° points down.
-var GAUGE_START=138, GAUGE_SWEEP=264, GAUGE_CX=36, GAUGE_CY=36;
-function gaugePt(deg,r){var a=deg*Math.PI/180;return[GAUGE_CX+r*Math.cos(a),GAUGE_CY+r*Math.sin(a)];}
-// KM: ticked tachometer arc. Ticks light up in a sweep; last tick = target notch.
-function buildKmGauge(pct){
-  var svg=document.getElementById('kmGauge');
-  if(!svg) return;
-  var N=36, lit=Math.round(Math.min(100,Math.max(0,pct))/100*N), html='';
-  for(var i=0;i<N;i++){
-    var a=GAUGE_START+(i/(N-1))*GAUGE_SWEEP;
-    var isTgt=(i===N-1);
-    var r1=isTgt?24.5:26, r2=isTgt?33:31.5;
-    var p1=gaugePt(a,r1), p2=gaugePt(a,r2);
-    html+='<line class="gauge-tick'+(isTgt?' tgt':'')+'" x1="'+p1[0].toFixed(2)+'" y1="'+p1[1].toFixed(2)+'" x2="'+p2[0].toFixed(2)+'" y2="'+p2[1].toFixed(2)+'" style="transition-delay:'+(i*16)+'ms"/>';
-  }
-  svg.innerHTML=html;
-  var ticks=svg.querySelectorAll('.gauge-tick');
-  requestAnimationFrame(function(){requestAnimationFrame(function(){
-    for(var i=0;i<lit;i++) ticks[i].classList.add('lit');
-  });});
-}
-// GYM: one arc segment per session; completed sessions fill in.
-function buildGymGauge(done,total){
-  var svg=document.getElementById('gymGauge');
-  if(!svg) return;
-  total=Math.max(1,total);
-  var gap=(total>1)?14:0, segSweep=(GAUGE_SWEEP-gap*(total-1))/total, R=28.5, html='';
-  for(var i=0;i<total;i++){
-    var a0=GAUGE_START+i*(segSweep+gap), a1=a0+segSweep;
-    var p0=gaugePt(a0,R), p1=gaugePt(a1,R);
-    var large=(segSweep>180)?1:0;
-    html+='<path class="gauge-seg" d="M '+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A '+R+' '+R+' 0 '+large+' 1 '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)+'" style="transition-delay:'+(i*90)+'ms"/>';
-  }
-  svg.innerHTML=html;
-  var segs=svg.querySelectorAll('.gauge-seg');
-  requestAnimationFrame(function(){requestAnimationFrame(function(){
-    for(var i=0;i<Math.min(done,total);i++) segs[i].classList.add('done');
-  });});
-}
 function renderKmTracker(kmData){
   var bar=document.getElementById('kmBar');
   if(!bar) return;
@@ -64,7 +24,6 @@ function renderKmTracker(kmData){
   if(srcEl) srcEl.style.display=(kmData.source==='strava')?'':'none';
   bar.classList.toggle('km-hit',done>=target);
   bar.style.display='';
-  buildKmGauge(pct);
 }
 // ── WEEKLY KM TARGET CARD ─────────────────────────────────────────────────────
 // Same numbers as the home-screen km tracker, rendered as a standalone card
@@ -88,11 +47,11 @@ function weeklyKmCardHtml(data){
     +'<span class="wkm-ico"><svg class="icon"><use href="#i-shoe"/></svg></span>'
     +'<span class="wkm-headtext">'
       +'<span class="wkm-kicker">Weekly km target'+(data.weekLabel?' · '+esc(data.weekLabel):'')+'</span>'
-      +'<span class="wkm-figure"><strong>'+fmtKmVal(done)+'</strong><small>/ '+fmtKmVal(target)+' km</small></span>'
+      +'<span class="wkm-figure readout readout--compact"><strong>'+fmtKmVal(done)+'</strong><small class="readout-unit">/ '+fmtKmVal(target)+' km</small></span>'
     +'</span>'
-    +'<span class="wkm-pct">'+pct+'%</span>'
+    +'<span class="wkm-pct readout readout--small">'+pct+'%</span>'
   +'</div>'
-  +'<div class="wkm-track" role="progressbar" aria-label="Weekly running volume" aria-valuemin="0" aria-valuenow="'+fmtKmVal(done)+'" aria-valuemax="'+fmtKmVal(target)+'"><span style="width:'+pct+'%"></span></div>'
+  +'<div class="metric-bar wkm-track" role="progressbar" aria-label="Weekly running volume" aria-valuemin="0" aria-valuenow="'+fmtKmVal(done)+'" aria-valuemax="'+fmtKmVal(target)+'"><span class="metric-bar-fill" style="width:'+pct+'%"></span></div>'
   +'<div class="wkm-foot"><span>'+footLeft+'</span>'+(srcLabel?'<span class="wkm-src">'+srcLabel+'</span>':'')+'</div>';
 }
 // Renders into #id, or hides it when there's no usable target for the week.
@@ -336,9 +295,9 @@ function coachTargetsHtml(week){
       // The figure in the hole, and the record of both absolute numbers right
       // under it — so "2.8 km to go" never leaves an athlete guessing what it
       // is 2.8km of.
-      +'<div class="sport-target-distance'+figure.state+'"><strong>'+figure.value+'</strong>'
+      +'<div class="sport-target-distance readout readout--compact'+figure.state+'"><strong>'+figure.value+'</strong>'
         +'<span>'+figure.qualifier+'</span></div>'
-      +'<div class="sport-target-track" style="--value:'+pct+'" role="progressbar"'
+      +'<div class="sport-target-track ring ring--72" style="--value:'+pct+'" role="progressbar"'
         +' aria-label="'+COACH_SPORT_LABELS[sport]+(target?' weekly distance':' weekly planned distance')+'"'
         +' aria-valuemin="0" aria-valuenow="'+Math.round(actual)+'" aria-valuemax="'+targetDistance+'"></div>'
       +(targetDistance>0
@@ -471,7 +430,7 @@ function volumeStripHtml(data,mode,collapsible){
     ? '<div class="sport-target-error" role="status"><span>Coach targets are unavailable. Existing targets stay locked.</span><button type="button" onclick="retryProgrammeVolume()">Retry</button></div>'
     : coachTargetsHtml(selectedWeek);
   var runningBlock=withPlan.length&&max>0
-    ? '<div class="vstrip-running-block">'+(selectedTargets.length?'<div class="vstrip-subtitle">Running block</div>':'')
+    ? '<div class="chart-frame vstrip-running-block">'+(selectedTargets.length?'<div class="vstrip-subtitle">Running block</div>':'')
       +(collapsible?'<div class="vstrip-legend vstrip-legend-row"><span><i class="key-planned"></i>planned</span><span><i class="key-actual"></i>run</span></div>':'')
       +'<div class="vstrip-scroll">'+bars+'</div>'
       +'<div class="vstrip-foot">'+foot+'</div></div>'
