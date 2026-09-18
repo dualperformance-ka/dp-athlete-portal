@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v204'; // v204: home screen composition - session first, duplicate metric blocks removed
+const CACHE_NAME = 'dp-athlete-v205'; // v205: session-first home screen plus aligned weekly-volume drawer
 const APP_SHELL = [
   '/index.html', '/styles.css?v=161', '/desktop.css?v=9', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -7,7 +7,7 @@ const APP_SHELL = [
   '/js/03-nav-nudges.js?v=115',
   '/js/04-checkin.js?v=96',
   '/js/05-handbook.js?v=85',
-  '/js/06-nutrition.js?v=98',
+  '/js/06-nutrition.js?v=99',
   '/js/07-progress.js?v=89',
   '/js/strava-match.js?v=8',
   '/js/08-training-interval-rest.js?v=1',
