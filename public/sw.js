@@ -1,11 +1,11 @@
-const CACHE_NAME = 'dp-athlete-v208'; // v208: PB history reachable again, recovery flag visible on the phone home screen
+const CACHE_NAME = 'dp-athlete-v210'; // v210: final shared component-token visual parity pass
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=164', '/desktop.css?v=10', '/config.js',
+  '/index.html', '/styles.css?v=166', '/desktop.css?v=10', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=125',
-  '/js/02-login-goals.js?v=115',
+  '/js/02-login-goals.js?v=116',
   '/js/03-nav-nudges.js?v=116',
-  '/js/04-checkin.js?v=98',
+  '/js/04-checkin.js?v=99',
   '/js/05-handbook.js?v=85',
   '/js/06-nutrition.js?v=99',
   '/js/07-progress.js?v=89',
@@ -15,10 +15,10 @@ const APP_SHELL = [
   '/js/08-training-focus.js?v=1',
   '/js/08-strength-engine.js?v=4',
   '/js/08-training.js?v=147',
-  '/js/09-logging.js?v=124',
+  '/js/09-logging.js?v=125',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=110',
-  '/login.js?v=49', '/icons.css?v=4',
+  '/login.js?v=50', '/icons.css?v=4',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
 ];

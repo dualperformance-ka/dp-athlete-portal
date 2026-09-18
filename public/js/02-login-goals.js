@@ -159,9 +159,9 @@ function hydrateLocalPortalState(code){
 async function doLogin(code,prevalidatedRoster){
   if(typeof invalidateProgrammeVolume==='function')invalidateProgrammeVolume();
   var btn=document.getElementById('loginBtn')||document.querySelector('.lbtn');
-  btn.textContent='Authenticating...';btn.disabled=true;btn.classList.add('loading');
+  btn.disabled=true;btn.classList.add('loading');btn.setAttribute('aria-busy','true');
   clearLoginError();
-  function resetBtn(){btn.textContent='Enter Portal';btn.disabled=false;btn.classList.remove('loading');}
+  function resetBtn(){btn.disabled=false;btn.classList.remove('loading');btn.removeAttribute('aria-busy');}
   var showWelcome=manualLoginIntent;
   manualLoginIntent=false;
   var roster=prevalidatedRoster||await validateRosterCode(code);
@@ -466,7 +466,7 @@ function pickEx(exName,chosen){
 }
 
 async function saveGoals(){
-  var btn=document.getElementById('goalsSaveBtn');btn.textContent='Saving...';btn.disabled=true;
+  var btn=document.getElementById('goalsSaveBtn');btn.disabled=true;btn.classList.add('is-loading');btn.setAttribute('aria-busy','true');
   var selectedRaceBtn=document.querySelector('#raceOptions .race-opt.selected');
   var raceVal=selectedRaceBtn?(selectedRaceBtn.dataset.val==='Other'?document.getElementById('gRaceOther').value.trim():selectedRaceBtn.dataset.val):'';
   var goals={goalRace:raceVal,peakWeek:document.getElementById('gPeakWeek').value.trim(),raceDate:document.getElementById('gRaceDate').value.trim(),
@@ -483,7 +483,7 @@ async function saveGoals(){
   try{await portalStateWrite('goals',goals);}catch(e){console.warn('Goals sync failed:',e);}
   athlete.startWeight=goals.startWeight||athlete.startWeight;
   var coachResult=await coachWrite(GOALS_WEBHOOK,Object.assign({type:'goals',athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,submittedAt:goals.savedAt},goals));
-  btn.textContent='Saved ✓';btn.classList.add('saved');
+  btn.classList.remove('is-loading');btn.removeAttribute('aria-busy');btn.textContent='Saved ✓';btn.classList.add('saved');
   var d=new Date(goals.savedAt);
   document.getElementById('goalsSavedTime').textContent=d.toLocaleDateString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('goalsSavedBadge').classList.add('show');
@@ -492,5 +492,5 @@ async function saveGoals(){
   if(gDot) gDot.style.display='none';
   if(typeof syncWeekCardState==='function') syncWeekCardState();
   showToast(coachResult.queued?'Goals saved - coach dashboard sync pending':'Goals saved ✓');
-  setTimeout(function(){btn.textContent='Save Goals';btn.classList.remove('saved');btn.disabled=false;},2500);
+  setTimeout(function(){btn.textContent='Save Goals';btn.classList.remove('saved');btn.disabled=false;},2000);
 }

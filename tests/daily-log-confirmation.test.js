@@ -179,7 +179,8 @@ test('a confirmed daily log becomes an unmistakable green button', () => {
   assert.match(stylesSource, /\.quicklog-btn\.is-done \.icon\{color:var\(--ink-success\)\}/);
   assert.match(stylesSource, /\.quicklog-btn\.is-done \.ql-icon-done\{display:inline-block\}/);
   assert.match(stylesSource, /\.quicklog-btn\.ql-body\.is-done,.quicklog-btn\.ql-nut\.is-done\{[\s\S]*?background:var\(--ok\)/);
-  assert.match(stylesSource, /\.outdoor-mode \.quicklog-btn\.ql-body\.is-done,.outdoor-mode \.quicklog-btn\.ql-nut\.is-done\{[\s\S]*?background:var\(--success-deep\)/);
+  assert.match(stylesSource, /\.btn\.is-success,\.btn\.saved,\.savebtn\.saved,\.save-run-btn\.saved,\.quicklog-btn\.is-done\{[\s\S]*?background:var\(--done\)/);
+  assert.doesNotMatch(stylesSource, /\.outdoor-mode \.quicklog-btn/);
 });
 
 test('an unconfirmed daily log stays amber rather than looking successful', () => {
