@@ -240,8 +240,6 @@ async function loadWeek(){
   if(weekOffset===0) initPhotoNudge();
   renderTodaySection();
   var wkS=sessions.find(function(s){return s.week;});
-  var outputWeek=document.getElementById('heroOutputWeek');
-  if(outputWeek) outputWeek.textContent=trainingWeekDisplayLabel();
   if(wkS){
     var _hl=document.querySelector('.hero-week-label');
     var _hn=document.getElementById('heroWeek');
@@ -811,40 +809,6 @@ function getHomeInsights(){
   var kmTarget=currentWeekKmData&&Number(currentWeekKmData.target),kmDone=currentWeekKmData&&Number(currentWeekKmData.completed||0);
   return {planned:planned,completed:completed,compliance:compliance,readiness:readiness,pbs:Object.keys(exerciseNames).length,weights:weights.slice(-7),body:body,warning:warning,next:next,checkinDone:checkinDone,kmTarget:kmTarget||0,kmDone:kmDone||0};
 }
-function miniSparkline(points){
-  if(!points||points.length<2)return '<span class="insight-empty">Log 2+ weigh-ins</span>';
-  var vals=points.map(function(p){return p.weight;}),min=Math.min.apply(null,vals),max=Math.max.apply(null,vals),range=max-min||1;
-  var coords=vals.map(function(v,i){return (i*(78/(vals.length-1))).toFixed(1)+','+(24-((v-min)/range)*18).toFixed(1);}).join(' ');
-  var delta=vals[vals.length-1]-vals[0];
-  return '<svg class="mini-spark" viewBox="0 0 80 28" role="img" aria-label="Recent bodyweight trend"><polyline points="'+coords+'"/></svg><span class="insight-delta">'+(delta>0?'+':'')+delta.toFixed(1)+'kg</span>';
-}
-function renderInsightRail(data){
-  var readiness=data.readiness==null?'—':data.readiness;
-  var readinessPct=data.readiness==null?0:data.readiness;
-  var weightLabel='Open progress';
-  if(data.weights&&data.weights.length>=2){
-    var delta=data.weights[data.weights.length-1].weight-data.weights[0].weight;
-    weightLabel=(delta>0?'+':'')+delta.toFixed(1)+'kg across recent logs';
-  }
-  return '<div class="insight-rail" aria-label="This week at a glance">'+
-    '<button type="button" class="insight-card insight-card-button" onclick="openWeeklySummary()" aria-label="View weekly compliance summary"><div class="insight-ring" style="--value:'+data.compliance+'"><strong>'+data.compliance+'%</strong></div><div><span>Session completion</span><small>'+data.completed+' of '+data.planned+' planned done</small></div></button>'+
-    '<button type="button" class="insight-card insight-card-button" onclick="openQuickLog(\'body\')" aria-label="'+(data.readiness==null?'Log today’s readiness':'Review today’s readiness')+'"><div class="insight-ring readiness" style="--value:'+readinessPct+'"><strong>'+readiness+'</strong></div><div><span>Readiness</span><small>'+(data.readiness==null?'Log your body check':'Body log already captured')+'</small></div></button>'+
-    '<button type="button" class="insight-card insight-card-button bodyweight" onclick="switchTab(\'progress\')" aria-label="View bodyweight progress"><div class="insight-viz">'+miniSparkline(data.weights)+'</div><div><span>Bodyweight trend</span><small>'+esc(weightLabel)+'</small></div></button>'+
-    '<button type="button" class="insight-card insight-card-button" onclick="openPbHistory()" aria-label="View personal best history"><div class="insight-pb"><svg class="icon"><use href="#i-trophy"/></svg><strong>'+data.pbs+'</strong></div><div><span>Personal bests</span><small>Review your strength history</small></div></button>'+
-  '</div>';
-}
-function renderCommandStatus(data){
-  var kmPct=data.kmTarget?Math.min(100,Math.round(data.kmDone/data.kmTarget*100)):0;
-  var nextText='No upcoming session';
-  if(data.next){var nd=localDateFromISO(data.next.date);nextText=nd.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' · '+(data.next.name||'Session');}
-  var html='<div class="command-status-grid">';
-  html+='<button class="command-status" onclick="switchTab(\'checkin\')"><span class="command-status-icon '+(data.checkinDone?'done':'')+'"><svg class="icon"><use href="#i-clipboard"/></svg></span><span><small>Check-in status</small><strong>'+(data.checkinDone?'Locked in for the week':'Still waiting on your check-in')+'</strong></span></button>';
-  html+='<button class="command-status" onclick="switchTab(\'nutrition\')" aria-label="View weekly kilometre details"><span class="command-status-icon"><svg class="icon"><use href="#i-run"/></svg></span><span><small>Run volume</small><strong>'+(data.kmTarget?(data.kmDone.toFixed(1).replace(/\.0$/,'')+' / '+data.kmTarget.toFixed(1).replace(/\.0$/,'')+' km'):'Target loading')+'</strong><i><b style="width:'+kmPct+'%"></b></i></span></button>';
-  html+='<button class="command-status next-session" onclick="goTrainingPlan()"><span class="command-status-icon"><svg class="icon"><use href="#i-calendar"/></svg></span><span><small>Next key session</small><strong>'+esc(nextText)+'</strong></span></button>';
-  html+='</div>';
-  if(data.warning)html+='<div class="recovery-warning"><svg class="icon"><use href="#i-pulse"/></svg><div><strong>Recovery flag</strong><span>'+esc(data.warning)+'</span></div><button onclick="openQuickLog(\'body\')">Review</button></div>';
-  return html;
-}
 
 // ── STREAK ───────────────────────────────────────────────────────────────────
 // Shown next to the week number, and only from two weeks up — one week is not
@@ -912,10 +876,6 @@ function syncHeroShell(insights,todaySessions){
   if(readinessNote)readinessNote.textContent=readinessText;
   var readinessCard=document.getElementById('heroReadinessCard');
   if(readinessCard)readinessCard.setAttribute('aria-label',(readinessPct?'Review readiness '+readinessPct+' out of 100. ':'Log today’s readiness. ')+readinessText+'.');
-  var pbs=document.getElementById('heroStatPbs');
-  if(pbs) pbs.textContent=(insights&&insights.pbs!=null)?String(insights.pbs):'—';
-  var pbsCard=document.getElementById('heroPbsCard');
-  if(pbsCard&&insights)pbsCard.setAttribute('aria-label','Open all personal bests. '+insights.pbs+' exercises tracked.');
 }
 
 function renderTodaySection(){
@@ -931,12 +891,6 @@ function renderTodaySection(){
   // while letting desktop.css place them as two independent-height columns.
   var html='<div class="todaypanel"><div class="today-mobile-heading"><span>Today&rsquo;s session</span><small>'+esc(label)+'</small></div>';
   html+='<div class="today-head-wrap"><div class="todayeyebrow">Today plan</div><div class="todayhead"><div><div class="todaytitle">'+title+'</div><div class="today-subtitle">'+subtitle+'</div></div><div class="todaydate">'+esc(label)+'</div></div></div>';
-  html+='<div class="today-context">';
-  html+=renderCoachMoment(todaySessions,insights);
-  html+=renderInsightRail(insights);
-  html+=renderCommandStatus(insights);
-  if(insights.planned>0&&insights.completed>=insights.planned){html+='<div class="milestone-celebration"><svg class="icon"><use href="#i-trophy"/></svg><div><strong>Week complete</strong><span>You showed up for every planned session. That consistency compounds.</span></div></div>';}
-  html+='</div>';
   html+='<div class="today-sessions">';
   if(!todaySessions.length){
     html+='<div class="todayempty">No session scheduled today. Recover well and check ahead.</div>';
@@ -1015,6 +969,11 @@ function renderTodaySection(){
     });
     html+='</div>';
   }
+  html+='</div>';
+  if(insights.warning)html+='<div class="recovery-warning"><svg class="icon"><use href="#i-pulse"/></svg><div><strong>Recovery flag</strong><span>'+esc(insights.warning)+'</span></div><button onclick="openQuickLog(\'body\')">Review</button></div>';
+  html+='<div class="today-context">';
+  html+=renderCoachMoment(todaySessions,insights);
+  if(insights.planned>0&&insights.completed>=insights.planned){html+='<div class="milestone-celebration"><svg class="icon"><use href="#i-trophy"/></svg><div><strong>Week complete</strong><span>You showed up for every planned session. That consistency compounds.</span></div></div>';}
   html+='</div>';
   html+='</div>';
   el.innerHTML=html;

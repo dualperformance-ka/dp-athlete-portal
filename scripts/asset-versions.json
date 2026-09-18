@@ -1,11 +1,11 @@
 {
   "styles.css": {
-    "version": 160,
-    "sha": "18702dd6d22d"
+    "version": 161,
+    "sha": "ad295b426dc6"
   },
   "desktop.css": {
-    "version": 8,
-    "sha": "a2f476209cb4"
+    "version": 9,
+    "sha": "db442eadebc8"
   },
   "icons.css": {
     "version": 4,
@@ -64,8 +64,8 @@
     "sha": "cafd28bcda3f"
   },
   "js/08-training.js": {
-    "version": 144,
-    "sha": "fef48543bab1"
+    "version": 145,
+    "sha": "d22016e3aabf"
   },
   "js/09-logging.js": {
     "version": 123,

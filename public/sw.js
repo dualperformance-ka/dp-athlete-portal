@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v204'; // v204: align the weekly-volume drawer before its first painted frame
+const CACHE_NAME = 'dp-athlete-v205'; // v205: session-first home screen plus aligned weekly-volume drawer
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=160', '/desktop.css?v=8', '/config.js',
+  '/index.html', '/styles.css?v=161', '/desktop.css?v=9', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=125',
   '/js/02-login-goals.js?v=115',
@@ -14,7 +14,7 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=1',
   '/js/08-strength-engine.js?v=4',
-  '/js/08-training.js?v=144',
+  '/js/08-training.js?v=145',
   '/js/09-logging.js?v=123',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=110',
