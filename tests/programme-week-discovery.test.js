@@ -242,8 +242,65 @@ test('no surface names a week without going through the one helper', () => {
       // week including the discovery one, because that is what the coaches
       // write. Routing it through the helper stops that athlete's plan loading.
       if (/var weekLabel='Week '\+displayWeek;/.test(line)) return;
+      // weekLabelCandidates builds LOOKUP keys, not a name shown to an athlete.
+      if (/return isDiscoveryWeek\(displayWeek\)\?\['Week 0','Discovery Week'\]/.test(line)) return;
       offenders.push(`${name}.js:${i + 1} ${line.trim().slice(0, 70)}`);
     });
   }
   assert.deepEqual(offenders, [], 'these build a week name by hand instead of calling programmeWeekLabel()');
+});
+
+
+// ── Lookup, not just display ────────────────────────────────────────────────
+//
+// Naming the week consistently is half of it. The other half is finding it:
+// planned_sessions stores the same week as "Week 0" for ALVIN and SHAUN and as
+// "Discovery Week" for BENNY, CHUNG, KARL and THOMAS. A query that matches one
+// spelling returns nothing for the athletes on the other, which showed up as a
+// discovery week with no planned kilometres.
+test('a week 0 lookup accepts both spellings, and no other week does', () => {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(slice(handbook, 'function isDiscoveryWeek(', 'function getDisplayWeekNumber(', 'weekLabelCandidates'), context);
+
+  // Joined rather than deepEqual'd: an array built inside the vm carries that
+  // realm's Array prototype, which strict deepEqual rejects on principle.
+  assert.equal(context.weekLabelCandidates(0).join(' | '), 'Week 0 | Discovery Week',
+    'canonical spelling first — it is what the dashboard writes most often');
+  assert.equal(context.weekLabelCandidates(1).join(' | '), 'Week 1');
+  assert.equal(context.weekLabelCandidates(12).join(' | '), 'Week 12');
+
+  for (const stored of ['Week 0', 'week 0', '  Discovery Week  ', 'DISCOVERY WEEK']) {
+    assert.equal(context.weekLabelMatches(0, stored), true, JSON.stringify(stored));
+  }
+  // Week 1 must not start matching the discovery week's rows.
+  assert.equal(context.weekLabelMatches(1, 'Discovery Week'), false);
+  assert.equal(context.weekLabelMatches(1, 'Week 0'), false);
+  assert.equal(context.weekLabelMatches(0, 'Week 1'), false);
+  assert.equal(context.weekLabelMatches(0, ''), false);
+  assert.equal(context.weekLabelMatches(0, null), false);
+});
+
+test('the nutrition week lookup goes through the matcher, not a string compare', () => {
+  const nutrition = readFileSync(join(root, 'public', 'js', '06-nutrition.js'), 'utf8');
+  assert.match(nutrition, /snapshot\.nutritionRows\.find\(function\(item\)\{return weekLabelMatches\(displayWeek,item\.week_label\);\}\)/);
+  assert.match(nutrition, /snapshot\.plannedRows\.filter\(function\(item\)\{return weekLabelMatches\(displayWeek,item\.week_label\);\}\)/);
+  assert.doesNotMatch(nutrition, /item\.week_label\|\|''\)\.toLowerCase\(\)===weekLabel\.toLowerCase\(\)/,
+    'the exact-match compare is what missed half the athletes');
+});
+
+// The server half. weekLabel() stays strict — it is the guard on what a browser
+// can put into a query — so the second spelling is tried server-side instead of
+// being accepted from the client.
+test('the server retries week 0 under its other spelling', () => {
+  const writeApi = readFileSync(join(root, 'api', 'write.js'), 'utf8');
+  assert.match(writeApi, /const weekLabelPattern = undefined/ .test(writeApi) ? /never/ : /\/\^Week \\d\{1,2\}\$\/i/,
+    'the client-facing validator must stay strict');
+  const fn = writeApi.slice(writeApi.indexOf('async function nutritionWeek('));
+  const body = fn.slice(0, fn.indexOf('\n}\n'));
+  assert.match(body, /alternateLabel = \/\^week 0\$\/i\.test\(label\) \? 'Discovery Week' : null/);
+  assert.match(body, /if \(!Array\.isArray\(plans\) \|\| !plans\.length\) plans = await planQuery\(alternateLabel\)/);
+  assert.match(body, /if \(!Array\.isArray\(planned\) \|\| !planned\.length\) planned = await plannedQuery\(alternateLabel\)/);
+  // Only week 0 pays the extra round trip.
+  assert.doesNotMatch(body, /await planQuery\('Discovery Week'\)/);
 });

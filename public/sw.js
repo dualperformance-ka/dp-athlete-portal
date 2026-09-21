@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v219'; // v219: one week name everywhere - week 0 and Discovery Week render identically on every surface
+const CACHE_NAME = 'dp-athlete-v220'; // v220: week 0 lookups accept both stored spellings, so a discovery week finds its plan and sessions
 const APP_SHELL = [
   '/index.html', '/styles.css?v=174', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -6,8 +6,8 @@ const APP_SHELL = [
   '/js/02-login-goals.js?v=119',
   '/js/03-nav-nudges.js?v=123',
   '/js/04-checkin.js?v=104',
-  '/js/05-handbook.js?v=88',
-  '/js/06-nutrition.js?v=105',
+  '/js/05-handbook.js?v=89',
+  '/js/06-nutrition.js?v=106',
   '/js/07-progress.js?v=91',
   '/js/strava-match.js?v=8',
   '/js/08-training-interval-rest.js?v=1',
