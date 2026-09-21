@@ -570,11 +570,13 @@ function buildCard(s,i){
     metaLine=meta.join(' · ');
   }
   var h='<div class="sc'+(done?' done':'')+(needsFeedback?' pending-feedback':'')+(marked?' marked':'')+'" id="sc_'+i+'">';
-  h+='<div class="sch" onclick="togS('+i+')">';
+  h+='<div class="sch">';
+  h+='<button type="button" class="sch-toggle" onclick="togS('+i+')" aria-expanded="false" aria-controls="scb_'+i+'" id="scht_'+i+'">';
   h+='<div class="sdot dot-'+type+'"></div>';
   h+='<div class="sinfo"><div class="sname '+type+'">'+esc(displayName)+'</div>';
   if(metaLine) h+='<div class="smeta">'+esc(metaLine)+'</div>';
   h+='</div>';
+  h+='</button>';
   h+='<button class="reschedule-btn" title="Reschedule" aria-label="Reschedule '+esc(displayName)+'" onclick="event.stopPropagation();openReschedule('+i+')"><svg class="icon"><use href="#i-calendar"/></svg></button><input class="reschedule-input" id="reschedule_'+i+'" type="date" value="'+esc(s.date||'')+'" onchange="rescheduleSession('+i+',this.value)" />';
   h+='<button class="tick'+(done?' on':'')+(marked?' marked':'')+'" id="tick_'+i+'" aria-label="Mark '+esc(displayName)+' complete" aria-pressed="'+(done||marked?'true':'false')+'" onclick="event.stopPropagation();tickS('+i+')">';
   h+='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
@@ -2031,7 +2033,8 @@ function refreshStrengthExerciseStates(i){
 function toggleExc(el){
   var c=el&&el.closest?el.closest('.exc'):null;
   if(!c) return;
-  c.classList.toggle('open');
+  var open=c.classList.toggle('open');
+  if(el&&el.setAttribute) el.setAttribute('aria-expanded',open?'true':'false');
   refreshStrengthExerciseState(c);
 }
 // Expands the wider same-muscle swap bank under an exercise. Kept collapsed by
@@ -2335,7 +2338,7 @@ function buildBody(s,i,type){
         var _nsStateCls=exerciseIsComplete?' ns-logged':(hasExerciseData?' ns-inprogress':' ns-t-'+_ov.tone);
         var _nsLiveUnlocked=!!(_ov.live&&_ov.live.unlocked);
         h+='<div class="exc'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-session-id="'+esc(s.id)+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-rest-seconds="'+(parseInt(ex.rest,10)||0)+'" data-rpe-required="'+(sessionRpeRequired?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'" data-ns-live-unlocked="'+(_nsLiveUnlocked?'true':'false')+'" data-ns-unlock-celebrated="'+(_nsLiveUnlocked?'true':'false')+'">';
-        h+='<div class="exc-summary" onclick="toggleExc(this)">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn-row"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>'+(isTimeCrunchPriority?'<span class="female-priority-badge">Priority</span>':'')+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div></div>'+_nsChip(_ov)+'<div class="exc-chev">▾</div></div>';
+        h+='<button type="button" class="exc-summary" onclick="toggleExc(this)" aria-expanded="'+((ei===0&&!exerciseIsComplete)?'true':'false')+'">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn-row"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>'+(isTimeCrunchPriority?'<span class="female-priority-badge">Priority</span>':'')+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div></div>'+_nsChip(_ov)+'<div class="exc-chev">▾</div></button>';
         h+='<div class="exc-body">'+_nsBody(_ov);
         h+='<div class="exh">';
         h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">';
@@ -2628,7 +2631,10 @@ function closeFocusedSession(){
   if(returnFocus&&typeof returnFocus.focus==='function')setTimeout(function(){returnFocus.focus();},180);
 }
 document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(focusedSessionIndex!=null)closeFocusedSession();else if(dayPlanDateISO)closeDayPlan();});
-function togS(i){var el=document.getElementById('scb_'+i);if(el) el.classList.toggle('open');}
+function togS(i){var el=document.getElementById('scb_'+i);if(!el) return;
+  var open=el.classList.toggle('open');
+  var toggle=document.getElementById('scht_'+i);
+  if(toggle) toggle.setAttribute('aria-expanded',open?'true':'false');}
 function syncMobileWeekSessionCompletion(i,done){
   document.querySelectorAll('.mobile-week-session[data-session-index="'+i+'"]').forEach(function(button){
     button.classList.toggle('done',!!done);

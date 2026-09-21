@@ -1,11 +1,11 @@
-const CACHE_NAME = 'dp-athlete-v216'; // v216: nutrition content split three ways (Today/Week/Guide), check-in cut to four steps, testimonial asked after submit
+const CACHE_NAME = 'dp-athlete-v217'; // v217: accessibility authored into the markup and the component library; accessibility.js reduced to a logging safety net
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=172', '/desktop.css?v=13', '/config.js',
+  '/index.html', '/styles.css?v=173', '/desktop.css?v=13', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
-  '/js/02-login-goals.js?v=118',
-  '/js/03-nav-nudges.js?v=121',
-  '/js/04-checkin.js?v=103',
+  '/js/02-login-goals.js?v=119',
+  '/js/03-nav-nudges.js?v=122',
+  '/js/04-checkin.js?v=104',
   '/js/05-handbook.js?v=86',
   '/js/06-nutrition.js?v=103',
   '/js/07-progress.js?v=90',
@@ -14,9 +14,9 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
-  '/js/08-training.js?v=150',
+  '/js/08-training.js?v=151',
   '/js/09-logging.js?v=127',
-  '/accessibility.js?v=2',
+  '/accessibility.js?v=3',
   '/js/10-boot.js?v=110',
   '/login.js?v=50', '/icons.css?v=4',
   '/dual_performance_one_line_filled_logo_black_preview.png',

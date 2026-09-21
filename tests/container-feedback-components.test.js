@@ -346,10 +346,32 @@ test('the set row keeps its own density spec', () => {
   // nothing shrank or grew to reach the floor.
   assert.match(styles, /\.st\{position:relative;width:32px;height:32px/);
   assert.match(styles, /\.st::after\{content:'';position:absolute;inset:-6px/);
-  // A 12px floor on every label in the row.
+  // A 12px floor on every label in the row. The token is rem now, so that
+  // Android's font-size setting and the desktop browsers' own text-size
+  // preference reach the scale at all (1.4.4) - but it must still BE 12px at
+  // the default root, which is what this asserts rather than the literal px.
   assert.match(styles, /\.slbl\{font-family:var\(--mono\);font-size:var\(--fs-label\)/);
   assert.match(styles, /\.snum\{font-family:var\(--mono\);font-size:var\(--fs-label\)/);
-  assert.match(styles, /--fs-label:12px/);
+  const label = styles.match(/--fs-label:([\d.]+)rem/);
+  assert.ok(label, '--fs-label must be declared in rem so text scaling reaches it');
+  assert.equal(Number(label[1]) * 16, 12, '--fs-label must still be 12px at a 16px root');
+});
+
+// A rem on the root element resolves against the root, so the moment the type
+// scale became relative, `html{font-size:var(--font-md)}` would have made 1rem
+// 17px and silently scaled the entire app up by 6.25% - and again on every
+// reload for anyone whose browser reports a different base. The root has to
+// stay on the user's own setting; the reading size belongs to body.
+test('the type scale is relative and the root is left at the user\'s own size', () => {
+  const tokens = ['--fs-readout', '--fs-1', '--fs-1-sm', '--fs-2', '--fs-2-sm', '--fs-3', '--fs-data', '--fs-label'];
+  tokens.forEach((token) => {
+    const declared = styles.match(new RegExp(token + ':([^;]+);'));
+    assert.ok(declared, token + ' should be declared');
+    assert.match(declared[1].trim(), /rem$/, token + ' must be rem, not px, or text scaling cannot reach it');
+  });
+  assert.match(styles, /html\{font-size:100%\}/, 'the root must honour the browser text size');
+  assert.doesNotMatch(styles, /html,body\{[^}]*font-size:/,
+    'a font-size on html would make 1rem resolve against itself and rescale the whole app');
 });
 
 test('a very narrow screen scrolls the set row instead of shrinking it', () => {

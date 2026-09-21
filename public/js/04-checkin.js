@@ -917,7 +917,110 @@ function resetQuickLogSubmitButton(btn,label){
   if(!btn)return;
   btn.classList.remove('saved','is-sending','is-loading');btn.removeAttribute('aria-busy');btn.textContent=label;btn.disabled=false;
 }
+// ── 3.3.1 ERROR IDENTIFICATION ───────────────────────────────────────────────
+// The numeric fields in the log sheets accepted anything. "abc" became NaN,
+// "-5" and "9999" went to the coaches as real readings, and the only feedback
+// was silence. Each field now says what is wrong and what would be right, in
+// text, next to the field, announced, and wired up with aria-describedby so a
+// screen reader reads it as part of the field rather than as loose prose.
+var LOG_FIELD_RULES={
+  qlbWeight:{label:'Weight',unit:'kg',min:30,max:300},
+  qlnCal:{label:'Calories',unit:'kcal',min:0,max:10000},
+  qlnPro:{label:'Protein',unit:'g',min:0,max:2000},
+  qlnCarbs:{label:'Carbs',unit:'g',min:0,max:2000},
+  qlnFat:{label:'Fat',unit:'g',min:0,max:2000},
+  qlnFibre:{label:'Fibre',unit:'g',min:0,max:2000}
+};
+var LOG_FIELD_GROUPS={body:['qlbWeight'],nut:['qlnCal','qlnPro','qlnCarbs','qlnFat','qlnFibre']};
+function logFieldError(id,message){
+  var field=document.getElementById(id);
+  if(!field) return;
+  var errId=id+'-error';
+  var note=document.getElementById(errId);
+  if(message){
+    if(!note){
+      note=document.createElement('div');
+      note.id=errId;
+      note.className='field-error';
+      note.setAttribute('role','alert');
+      (field.parentNode||field).insertBefore(note,field.nextSibling);
+    }
+    note.textContent=message;
+    note.hidden=false;
+    field.setAttribute('aria-invalid','true');
+    field.setAttribute('aria-describedby',errId);
+    field.classList.add('is-error');
+  }else if(note){
+    note.textContent='';
+    note.hidden=true;
+    field.removeAttribute('aria-invalid');
+    field.removeAttribute('aria-describedby');
+    field.classList.remove('is-error');
+  }else{
+    field.removeAttribute('aria-invalid');
+    field.classList.remove('is-error');
+  }
+}
+// Empty is allowed everywhere — these logs are filled in through the day and a
+// blank field is "not yet", not "wrong". Only a value that IS there and cannot
+// be true is an error.
+function validateLogField(id){
+  var rule=LOG_FIELD_RULES[id],field=document.getElementById(id);
+  if(!rule||!field) return true;
+  // A number input hands back '' for anything it cannot parse — "--", "1-2",
+  // a pasted "72kg" — so an empty value is ambiguous: it is either "not filled
+  // in yet" or "filled in with something impossible". validity.badInput is the
+  // only way to tell them apart, and without it the field looks answered and
+  // silently saves nothing.
+  if(field.validity&&field.validity.badInput){
+    logFieldError(id,rule.label+' needs to be a number, in '+rule.unit+'. Clear the field and enter digits only.');
+    return false;
+  }
+  var raw=String(field.value==null?'':field.value).trim();
+  if(raw===''){logFieldError(id,'');return true;}
+  if(!/^-?\d*\.?\d+$/.test(raw)){
+    logFieldError(id,rule.label+' needs to be a number, in '+rule.unit+'. Remove any letters or symbols.');
+    return false;
+  }
+  var n=Number(raw);
+  if(isNaN(n)){
+    logFieldError(id,rule.label+' needs to be a number, in '+rule.unit+'.');
+    return false;
+  }
+  if(n<rule.min||n>rule.max){
+    logFieldError(id,rule.label+' looks wrong at '+raw+rule.unit+'. Enter a value between '+rule.min+' and '+rule.max+rule.unit+'.');
+    return false;
+  }
+  logFieldError(id,'');
+  return true;
+}
+// Validates the sheet, puts the athlete on the first problem and says how many
+// there are, rather than failing quietly on submit.
+function validateLogSheet(kind){
+  var ids=LOG_FIELD_GROUPS[kind]||[];
+  var bad=ids.filter(function(id){return !validateLogField(id);});
+  if(!bad.length) return true;
+  var first=document.getElementById(bad[0]);
+  if(first){try{first.focus({preventScroll:false});}catch(e){first.focus();}}
+  if(typeof showToast==='function'){
+    showToast(bad.length===1?'Check the highlighted field before saving'
+      :'Check the '+bad.length+' highlighted fields before saving','error');
+  }
+  return false;
+}
+// Inline means while they type, not only when they submit. Checking on input
+// once a field has already been marked keeps the error from lingering after it
+// has been fixed; blur catches the first-time case without nagging mid-entry.
+document.addEventListener('blur',function(e){
+  if(e.target&&e.target.id&&LOG_FIELD_RULES[e.target.id]) validateLogField(e.target.id);
+},true);
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.id&&LOG_FIELD_RULES[e.target.id]&&e.target.getAttribute('aria-invalid')==='true'){
+    validateLogField(e.target.id);
+  }
+});
 async function submitQuickBody(){
+  if(!validateLogSheet('body'))return;
   var btn=document.getElementById('qlbSubmitBtn');btn.disabled=true;btn.classList.add('is-loading');btn.setAttribute('aria-busy','true');
   var bodyDate=document.getElementById('qlbDate').value||todayISO2();
   var pain=document.getElementById('qlbPain').value||'0',painLocation=document.getElementById('qlbPainLocation').value||'',notes=document.getElementById('qlbNotes').value||'';
@@ -961,6 +1064,7 @@ async function submitQuickBody(){
   if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();
 }
 async function submitQuickNut(){
+  if(!validateLogSheet('nut'))return;
   var btn=document.getElementById('qlnSubmitBtn');btn.disabled=true;btn.classList.add('is-loading');btn.setAttribute('aria-busy','true');
   var nutDate=document.getElementById('qlnDate').value||todayISO2();
   var payload={type:'daily_nutrition',athleteName:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,

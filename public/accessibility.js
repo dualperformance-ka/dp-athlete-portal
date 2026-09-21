@@ -1,3 +1,23 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — SAFETY NET, NOT A SWEEP
+   ────────────────────────────────────────────────────────────────────────────
+   This file used to author the accessible markup at runtime: `for` attributes
+   on orphaned labels, aria-label from a placeholder, role="button" and a
+   keydown handler on every clickable div, tab wiring, dialog roles. It ran
+   enhance() from a MutationObserver over document.body with subtree:true AND
+   attributes:true, so every class toggle anywhere in the app re-ran the whole
+   thing — on a screen that repaints as often as this one.
+
+   Phase 2 step 7 moved all of that into the markup and the component library.
+   What is left is the part that genuinely cannot live in markup — the modal
+   focus trap, Escape, and returning focus — plus a net that catches anything
+   the markup still misses.
+
+   The net LOGS. In development every fix it makes is reported with the element
+   that needed it, and collected on window.__a11yGaps, so the next person sees
+   the markup gap instead of silently inheriting the patch. Anything appearing
+   in that list is a bug in the markup, not a feature of this file.
+   ══════════════════════════════════════════════════════════════════════════ */
 (function () {
   var generatedId = 0;
   var activeModal = null;
@@ -5,12 +25,33 @@
   var modalSelector = '.hb-modal,.ql-modal,.photo-modal,.focus-overlay,.day-plan-overlay,.profile-menu';
   var focusableSelector = 'button:not([disabled]),a[href],input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
+  // Dev = a local host, or ?a11y=debug on any build so the net can be read in
+  // a deployed preview without shipping console noise to athletes.
+  var DEBUG = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ||
+    /(^|[?&])a11y=debug(&|$)/.test(location.search);
+  var gaps = (window.__a11yGaps = []);
+  function report(rule, element, detail) {
+    var where = element && element.tagName
+      ? element.tagName.toLowerCase() + (element.id ? '#' + element.id : '') +
+        (element.className && typeof element.className === 'string'
+          ? '.' + element.className.trim().split(/\s+/).join('.') : '')
+      : String(element);
+    gaps.push({ rule: rule, element: where, detail: detail || '' });
+    if (DEBUG) {
+      console.warn('[a11y] ' + rule + ' had to be patched at runtime on ' + where +
+        (detail ? ' — ' + detail : '') + '. This belongs in the markup.');
+    }
+  }
+
   function visible(element) {
     if (!element) return false;
     var style = getComputedStyle(element);
     return style.display !== 'none' && style.visibility !== 'hidden' && element.getClientRects().length > 0;
   }
 
+  // ── NET 1 · unlabelled controls ───────────────────────────────────────────
+  // Every <label> in index.html now carries `for`, and every generated control
+  // carries its own aria-label. Anything this catches is a regression.
   function labelControls(root) {
     (root || document).querySelectorAll('label:not([for])').forEach(function (label) {
       var control = label.querySelector('input,select,textarea');
@@ -18,92 +59,33 @@
         var field = label.closest('.lf,.stat-field,.milestone-field,.run-field,.pain-log-block');
         if (field) control = field.querySelector('input,select,textarea');
       }
-      if (!control && label.nextElementSibling && /^(INPUT|SELECT|TEXTAREA)$/.test(label.nextElementSibling.tagName)) {
-        control = label.nextElementSibling;
-      }
       if (!control) return;
       if (!control.id) control.id = 'dp-field-' + (++generatedId);
       label.htmlFor = control.id;
+      report('label[for]', label, 'label wrapped or adjacent to ' + control.id);
     });
 
     (root || document).querySelectorAll('input,select,textarea').forEach(function (control) {
       if (control.type === 'hidden' || control.getAttribute('aria-label') || control.getAttribute('aria-labelledby')) return;
       if (control.id && document.querySelector('label[for="' + CSS.escape(control.id) + '"]')) return;
       var placeholder = control.getAttribute('placeholder');
-      var setMatch = control.id.match(/^(w|r|rL|rR|rpe)_\d+_\d+_(\d+)$/);
-      if (setMatch) {
-        var setNumber = Number(setMatch[2]) + 1;
-        var setLabels = { w:'Weight', r:'Repetitions', rL:'Left-side repetitions', rR:'Right-side repetitions', rpe:'RPE' };
-        control.setAttribute('aria-label', setLabels[setMatch[1]] + ' for set ' + setNumber);
-      }
-      else if (placeholder) control.setAttribute('aria-label', placeholder);
-      else if (/^reschedule_/.test(control.id)) control.setAttribute('aria-label', 'Reschedule session date');
-      else if (control.id === 'angleInput') control.setAttribute('aria-label', 'Upload progress photo');
+      if (placeholder) control.setAttribute('aria-label', placeholder);
+      report('accessible name', control, placeholder ? 'fell back to the placeholder' : 'has no name at all');
     });
   }
 
-  function enhanceTabs(root) {
-    (root || document).querySelectorAll('[role="tab"][data-tab]').forEach(function (tab) {
-      var panelMap = { today:'training', week:'weekly', coaching:'calls' };
-      var panel = document.getElementById('tab-' + (panelMap[tab.dataset.tab] || tab.dataset.tab));
-      if (!panel) return;
-      if (!tab.id) tab.id = 'dp-tab-' + tab.dataset.tab;
-      tab.setAttribute('aria-controls', panel.id);
-      tab.tabIndex = tab.getAttribute('aria-selected') === 'true' ? 0 : -1;
-      panel.setAttribute('role', 'tabpanel');
-      panel.setAttribute('aria-labelledby', tab.id);
-      panel.tabIndex = -1;
-    });
-  }
-
-  function enhanceClickTargets(root) {
-    (root || document).querySelectorAll('div[onclick]:not([role]),span[onclick]:not([role])').forEach(function (element) {
-      if (element.querySelector('button,a[href],input,select,textarea,[tabindex]')) return;
-      element.setAttribute('role', 'button');
-      element.tabIndex = 0;
-      element.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          element.click();
-        }
-      });
-    });
-  }
-
+  // ── NET 2 · icon-only buttons ─────────────────────────────────────────────
   function labelIconButtons(root) {
     (root || document).querySelectorAll('button').forEach(function (button) {
       if (button.getAttribute('aria-label') || button.getAttribute('aria-labelledby') || button.textContent.trim()) return;
-      var setMatch = button.id.match(/^st_\d+_\d+_(\d+)$/);
-      if (setMatch) {
-        button.setAttribute('aria-label', 'Mark set ' + (Number(setMatch[1]) + 1) + ' complete');
-        button.setAttribute('aria-pressed', button.classList.contains('on') ? 'true' : 'false');
-      } else if (/^tick_\d+$/.test(button.id)) {
-        button.setAttribute('aria-label', 'Mark session complete');
-        button.setAttribute('aria-pressed', button.classList.contains('on') || button.classList.contains('marked') ? 'true' : 'false');
-      }
+      report('accessible name', button, 'icon-only button with no aria-label');
     });
   }
 
-  function titleFor(modal) {
-    return modal.querySelector('.ql-modal-title,.hb-modal-title,.photo-modal-title,.focus-overlay-title,.day-plan-title,.profile-menu-title');
-  }
-
-  function enhanceModals() {
-    document.querySelectorAll(modalSelector).forEach(function (modal) {
-      modal.setAttribute('role', 'dialog');
-      modal.setAttribute('aria-modal', 'true');
-      var title = titleFor(modal);
-      if (title) {
-        if (!title.id) title.id = modal.id + '-title';
-        modal.setAttribute('aria-labelledby', title.id);
-      } else if (!modal.getAttribute('aria-label')) {
-        modal.setAttribute('aria-label', 'Dialog');
-      }
-      var isOpen = modal.classList.contains('open');
-      modal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
-    });
-  }
-
+  // ── The modal contract · genuinely runtime ────────────────────────────────
+  // role/aria-modal/aria-labelledby are authored in the markup now. What is
+  // left is state: which dialog is open, trapping Tab inside it, and putting
+  // focus back where it came from. None of that can be static.
   function syncModalState() {
     var open = Array.from(document.querySelectorAll(modalSelector)).filter(function (modal) {
       return modal.classList.contains('open') && visible(modal);
@@ -111,6 +93,7 @@
 
     document.querySelectorAll(modalSelector).forEach(function (modal) {
       modal.setAttribute('aria-hidden', modal === open ? 'false' : 'true');
+      if (!modal.getAttribute('role')) report('role="dialog"', modal, 'sheet is missing its dialog role in the markup');
     });
 
     if (open && open !== activeModal) {
@@ -148,32 +131,47 @@
     }
   });
 
-  function enhance(root) {
+  function net(root) {
     labelControls(root);
-    enhanceTabs(root);
-    enhanceClickTargets(root);
     labelIconButtons(root);
-    enhanceModals();
-    syncModalState();
   }
 
-  var toast = document.getElementById('toast');
-  if (toast) {
-    toast.setAttribute('role', 'status');
-    toast.setAttribute('aria-live', 'polite');
-    toast.setAttribute('aria-atomic', 'true');
-  }
+  net(document);
+  syncModalState();
 
-  enhance(document);
-  var observer = new MutationObserver(function (records) {
+  // ── Observation, narrowed ─────────────────────────────────────────────────
+  // Was: document.body, subtree:true, attributes:true — so a class toggle
+  // anywhere re-ran every rule over the whole document. Now: the mounts that
+  // actually receive innerHTML, childList only, for the net; and a separate
+  // class-only watch on the sheet roots, which is the one attribute that
+  // changes what syncModalState has to do.
+  var RENDER_ROOTS = ['todayEl', 'calEl', 'callsSurface', 'logSheetBody', 'checkinModalBody',
+    'hbModalBody', 'angleGrid', 'photoGrid', 'trainingVolumeStrip', 'weeklyVolumeStrip'];
+  var netObserver = new MutationObserver(function (records) {
     records.forEach(function (record) {
       record.addedNodes.forEach(function (node) {
-        if (node.nodeType === 1) enhance(node);
+        if (node.nodeType === 1) net(node);
       });
     });
-    enhanceTabs(document);
-    enhanceModals();
-    syncModalState();
   });
-  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'aria-selected'] });
+  RENDER_ROOTS.forEach(function (id) {
+    var mount = document.getElementById(id);
+    if (mount) netObserver.observe(mount, { childList: true, subtree: true });
+  });
+
+  var modalObserver = new MutationObserver(syncModalState);
+  document.querySelectorAll(modalSelector).forEach(function (modal) {
+    modalObserver.observe(modal, { attributes: true, attributeFilter: ['class'] });
+  });
+
+  if (DEBUG) {
+    setTimeout(function () {
+      if (gaps.length) {
+        console.warn('[a11y] ' + gaps.length + ' markup gap(s) still patched at runtime. ' +
+          'window.__a11yGaps has the list.');
+      } else {
+        console.info('[a11y] no runtime patching needed — the markup carries its own semantics.');
+      }
+    }, 3000);
+  }
 })();

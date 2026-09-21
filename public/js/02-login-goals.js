@@ -291,17 +291,29 @@ function populateStatic(){
   if(athlete.checkinUrl!=='CHECKIN_URL'){document.querySelectorAll('[href="CHECKIN_URL"]').forEach(function(el){el.href=athlete.checkinUrl;});}
 }
 
+// The chips carried their state in a .selected class and nothing else, so a
+// screen reader was told "button, Marathon" whether it was chosen or not. One
+// place keeps aria-pressed in step with the class, called from every path that
+// changes a selection rather than trusting each of them to remember.
+function syncChipState(scope){
+  var root=scope&&scope.querySelectorAll?scope:document;
+  root.querySelectorAll('.race-opt').forEach(function(b){
+    b.setAttribute('aria-pressed',b.classList.contains('selected')?'true':'false');
+  });
+}
 function selectRace(btn){
   document.querySelectorAll('#raceOptions .race-opt').forEach(function(b){b.classList.remove('selected');});
   btn.classList.add('selected');
   document.getElementById('otherRaceField').style.display=btn.dataset.val==='Other'?'':'none';
   if(btn.dataset.val!=='Other') document.getElementById('gRaceOther').value='';
+  syncChipState(document.getElementById('raceOptions'));
 }
 function setRaceFromValue(val){
   if(!val) return;var v=val.trim();
   var btns=document.querySelectorAll('#raceOptions .race-opt'),matched=false;
   btns.forEach(function(b){if(b.dataset.val.toLowerCase().replace(/\s/g,'')=== v.toLowerCase().replace(/\s/g,'')){b.classList.add('selected');matched=true;}else{b.classList.remove('selected');}});
   if(!matched&&v){btns.forEach(function(b){if(b.dataset.val==='Other') b.classList.add('selected');});document.getElementById('otherRaceField').style.display='';document.getElementById('gRaceOther').value=v;}
+  syncChipState(document.getElementById('raceOptions'));
 }
 
 // ── GOAL CHIP GROUPS ─────────────────────────────────────────────────────────
@@ -312,6 +324,7 @@ function selectGoalChip(btn){
   var group=goalChipGroup(btn);if(!group) return;
   group.querySelectorAll('.race-opt').forEach(function(b){b.classList.remove('selected');});
   btn.classList.add('selected');
+  syncChipState(group);
 }
 // Multi-select with a cap. At the cap the earliest pick drops out rather than the
 // tap doing nothing, so an athlete changing their mind never has to deselect first.
@@ -320,11 +333,12 @@ var _goalChipPickSeq=0;
 function toggleGoalChip(btn,max){
   var group=goalChipGroup(btn);if(!group) return;
   var limit=Number(max)>0?Number(max):99;
-  if(btn.classList.contains('selected')){btn.classList.remove('selected');delete btn.dataset.pickOrder;return;}
+  if(btn.classList.contains('selected')){btn.classList.remove('selected');delete btn.dataset.pickOrder;syncChipState(group);return;}
   var chosen=Array.prototype.slice.call(group.querySelectorAll('.race-opt.selected'));
   chosen.sort(function(a,b){return (Number(a.dataset.pickOrder)||0)-(Number(b.dataset.pickOrder)||0);});
   while(chosen.length>=limit){var earliest=chosen.shift();if(earliest){earliest.classList.remove('selected');delete earliest.dataset.pickOrder;}}
   btn.classList.add('selected');btn.dataset.pickOrder=String(++_goalChipPickSeq);
+  syncChipState(group);
 }
 function goalChipValue(groupId){
   var group=document.getElementById(groupId);if(!group) return '';

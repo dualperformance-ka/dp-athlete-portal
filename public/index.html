@@ -16,8 +16,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=172" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=172'></noscript>
+<link rel="preload" as="style" href="/styles.css?v=173" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=173'></noscript>
 <link rel="stylesheet" href="/desktop.css?v=13">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
@@ -266,7 +266,7 @@
       </div>
 
       <!-- PAIN FLAG — outranks every other demand. Coach-worded, not clinical. -->
-      <div id="painNudge" class="nudge-strip is-due" style="display:none" onclick="openQuickLog('body')">
+      <button type="button" id="painNudge" class="nudge-strip is-due" style="display:none" onclick="openQuickLog('body')">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-pulse"/></svg></span>
           <div class="nudge-strip-text">
@@ -275,7 +275,7 @@
           </div>
           <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
         </div>
-      </div>
+      </button>
 
       <!-- FIRST-LOGIN GOALS — a compact home row, hidden once goals are saved. -->
       <button type="button" class="nudge-strip goals-prompt is-due" id="goalsBanner" onclick="switchTab('goals')" aria-label="Set your goals">
@@ -290,7 +290,7 @@
       </button>
 
       <!-- NUDGE STRIP — call + photos -->
-      <div id="callNudge" class="nudge-strip is-due" style="display:none;border-top:1px solid rgba(236,233,226,.05)" onclick="openCallBooking()">
+      <button type="button" id="callNudge" class="nudge-strip is-due" style="display:none;border-top:1px solid rgba(236,233,226,.05)" onclick="openCallBooking()">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-calendar"/></svg></span>
           <div class="nudge-strip-text">
@@ -299,10 +299,10 @@
           </div>
           <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
         </div>
-      </div>
+      </button>
 
       <!-- CHECK-IN NUDGE — disappears once submitted -->
-      <div id="checkinNudge" class="nudge-strip is-due" style="display:none" onclick="openCheckinSheet()">
+      <button type="button" id="checkinNudge" class="nudge-strip is-due" style="display:none" onclick="openCheckinSheet()">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-clipboard"/></svg></span>
           <div class="nudge-strip-text">
@@ -311,7 +311,7 @@
           </div>
           <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
         </div>
-      </div>
+      </button>
 
       <!-- CALL CONFIRMED NUDGE — compact, appears once call is booked, shows day/time -->
       <div id="callConfirmedNudge" class="nudge-strip is-done" style="display:none;border-top:1px solid rgba(236,233,226,.05)">
@@ -325,7 +325,7 @@
       </div>
 
       <!-- PHOTO NUDGE — hidden once this week's photos uploaded -->
-      <div id="photoNudge" class="nudge-strip is-due" style="display:none" onclick="switchTab('progress')">
+      <button type="button" id="photoNudge" class="nudge-strip is-due" style="display:none" onclick="switchTab('progress')">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-camera"/></svg></span>
           <div class="nudge-strip-text">
@@ -334,10 +334,10 @@
           </div>
           <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
         </div>
-      </div>
+      </button>
 
       <!-- UNLOGGED SESSION — yesterday's work, still not written down. -->
-      <div id="logNudge" class="nudge-strip is-due" style="display:none" onclick="switchTab('today')">
+      <button type="button" id="logNudge" class="nudge-strip is-due" style="display:none" onclick="switchTab('today')">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-check"/></svg></span>
           <div class="nudge-strip-text">
@@ -346,7 +346,7 @@
           </div>
           <span class="nudge-strip-arr"><svg class="icon"><use href="#i-chevron-right"/></svg></span>
         </div>
-      </div>
+      </button>
     </div>
   </div>
 
@@ -364,19 +364,19 @@
 
   <div class="tabs" role="tablist" aria-label="Portal sections">
     <div class="rail-group-label rail-only">Navigate</div>
-    <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="today" onclick="switchTab('today')">Today</button>
-    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="week" onclick="switchTab('week')">Week</button>
+    <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="today" id="dp-tab-today" aria-controls="tab-training" tabindex="0" onclick="switchTab('today')">Today</button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="week" id="dp-tab-week" aria-controls="tab-weekly" tabindex="-1" onclick="switchTab('week')">Week</button>
     <button class="tab tab-log" type="button" data-tab="log" onclick="openLogSheet()">Log</button>
-    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="progress" onclick="switchTab('progress')">Progress<span class="tab-dot" id="tabDotProgress"></span></button>
-    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="coaching" onclick="switchTab('coaching')">Coaching<span class="tab-dot" id="tabDotCoaching"></span></button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="progress" id="dp-tab-progress" aria-controls="tab-progress" tabindex="-1" onclick="switchTab('progress')">Progress<span class="tab-dot" id="tabDotProgress"></span></button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="coaching" id="dp-tab-coaching" aria-controls="tab-calls" tabindex="-1" onclick="switchTab('coaching')">Coaching<span class="tab-dot" id="tabDotCoaching"></span></button>
     <div class="rail-group-label rail-only rail-profile-divider">Profile</div>
-    <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="goals" onclick="switchTab('goals')">Goals<span class="tab-dot" id="tabDotGoalsRail" style="display:none"></span></button>
-    <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="handbook" onclick="switchTab('handbook')">Guide</button>
+    <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="goals" id="dp-tab-goals" aria-controls="tab-goals" tabindex="-1" onclick="switchTab('goals')">Goals<span class="tab-dot" id="tabDotGoalsRail" style="display:none"></span></button>
+    <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="handbook" id="dp-tab-handbook" aria-controls="tab-handbook" tabindex="-1" onclick="switchTab('handbook')">Guide</button>
     <button class="tab rail-only" type="button" data-tab="preferences" onclick="openPreferences()">Preferences</button>
   </div>
 
   <!-- TRAINING -->
-  <div class="tab-content active" id="tab-training">
+  <div class="tab-content active" id="tab-training" role="tabpanel" tabindex="-1" aria-labelledby="dp-tab-today">
     <div class="page-intro">
       <div class="page-kicker">Today</div>
       <div class="page-title">Today's Plan</div>
@@ -403,7 +403,7 @@
   <!-- CALLS — the coaching-call surface. The next-call half reads the live
        booking state; prep notes, the recap and action items are stubbed
        behind fetchCallsSurfaceData() until the booking backend is wired. -->
-  <div class="tab-content" id="tab-calls">
+  <div class="tab-content" id="tab-calls" role="tabpanel" tabindex="-1" aria-labelledby="dp-tab-coaching">
     <div class="page-intro">
       <div class="page-kicker">Coaching</div>
       <div class="page-title">Coaching</div>
@@ -412,7 +412,7 @@
     <div id="callsSurface" class="calls-surface"></div>
   </div>
 
-  <div class="tab-content" id="tab-weekly">
+  <div class="tab-content" id="tab-weekly" role="tabpanel" tabindex="-1" aria-labelledby="dp-tab-week">
     <div class="page-intro">
       <div class="page-kicker">Week View</div>
       <div class="page-title">Weekly Plan</div>
@@ -434,7 +434,7 @@
   </div>
 
   <!-- GOALS -->
-  <div class="tab-content" id="tab-goals">
+  <div class="tab-content" id="tab-goals" role="tabpanel" tabindex="-1" aria-labelledby="dp-tab-goals">
     <div class="page-intro">
       <div class="page-kicker">Direction</div>
       <div class="page-title">Goals</div>
@@ -451,26 +451,26 @@
       <div class="card-title">Race Goal</div>
       <div class="stat-grid">
         <div class="stat-field u-grid-full">
-          <label>Goal Race</label>
-          <div class="race-options" id="raceOptions">
-            <button class="race-opt" data-val="5K" onclick="selectRace(this)">5K</button>
-            <button class="race-opt" data-val="10K" onclick="selectRace(this)">10K</button>
-            <button class="race-opt" data-val="Half Marathon" onclick="selectRace(this)">Half Marathon</button>
-            <button class="race-opt" data-val="Marathon" onclick="selectRace(this)">Marathon</button>
-            <button class="race-opt" data-val="Other" onclick="selectRace(this)">Other</button>
+          <span class="group-label" id="raceGroupLabel">Goal Race</span>
+          <div class="race-options" id="raceOptions" role="group" aria-labelledby="raceGroupLabel">
+            <button type="button" class="race-opt" aria-pressed="false" data-val="5K" onclick="selectRace(this)">5K</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="10K" onclick="selectRace(this)">10K</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Half Marathon" onclick="selectRace(this)">Half Marathon</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Marathon" onclick="selectRace(this)">Marathon</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Other" onclick="selectRace(this)">Other</button>
           </div>
         </div>
         <div class="stat-field" id="otherRaceField" style="display:none;grid-column:1/-1">
-          <label>Specify Race</label>
+          <label for="gRaceOther">Specify Race</label>
           <input class="stat-input" id="gRaceOther" type="text" placeholder="e.g. 63km ultra, trail race..." style="font-size:var(--font-md,16px)"/>
         </div>
         <div class="stat-field">
-          <label>Target Peak Week</label>
+          <label for="gPeakWeek">Target Peak Week</label>
           <input class="stat-input" id="gPeakWeek" type="number" placeholder="80" />
           <div class="field-hint">km, your biggest week</div>
         </div>
         <div class="stat-field">
-          <label>Race Date</label>
+          <label for="gRaceDate">Race Date</label>
           <input class="stat-input" id="gRaceDate" type="date" />
           <div class="field-hint">race day</div>
         </div>
@@ -480,17 +480,17 @@
       <div class="card-title">Body Composition</div>
       <div class="stat-grid">
         <div class="stat-field">
-          <label>Starting Weight</label>
+          <label for="gWeight">Starting Weight</label>
           <input class="stat-input" id="gWeight" type="text" placeholder="72.0" />
           <div class="field-hint">kg</div>
         </div>
         <div class="stat-field">
-          <label>Target Weight</label>
+          <label for="gTargetWeight">Target Weight</label>
           <input class="stat-input" id="gTargetWeight" type="text" placeholder="68.0" />
           <div class="field-hint">kg, your goal</div>
         </div>
         <div class="stat-field">
-          <label>Body Fat %</label>
+          <label for="gBodyFat">Body Fat %</label>
           <input class="stat-input" id="gBodyFat" type="text" placeholder="15" />
           <div class="field-hint">estimated %</div>
         </div>
@@ -500,27 +500,27 @@
       <div class="card-title">Current Running Times</div>
       <div class="stat-grid">
         <div class="stat-field">
-          <label>5km</label>
+          <label for="g5k">5km</label>
           <input class="stat-input" id="g5k" type="text" placeholder="23:00" />
           <div class="field-hint">mm:ss</div>
         </div>
         <div class="stat-field">
-          <label>10km</label>
+          <label for="g10k">10km</label>
           <input class="stat-input" id="g10k" type="text" placeholder="48:00" />
           <div class="field-hint">mm:ss</div>
         </div>
         <div class="stat-field">
-          <label>Half Marathon</label>
+          <label for="gHalf">Half Marathon</label>
           <input class="stat-input" id="gHalf" type="text" placeholder="1:45:00" />
           <div class="field-hint">h:mm:ss</div>
         </div>
         <div class="stat-field">
-          <label>Marathon</label>
+          <label for="gMarathon">Marathon</label>
           <input class="stat-input" id="gMarathon" type="text" placeholder="3:45:00" />
           <div class="field-hint">h:mm:ss</div>
         </div>
         <div class="stat-field">
-          <label>Long Run Pace</label>
+          <label for="gLRPace">Long Run Pace</label>
           <input class="stat-input" id="gLRPace" type="text" placeholder="5:30" />
           <div class="field-hint">min/km easy</div>
         </div>
@@ -532,25 +532,25 @@
       <div class="goals-block-label">Focus</div>
       <div class="stat-grid">
         <div class="stat-field u-grid-full">
-          <label>Primary Intent</label>
-          <div class="race-options" id="strengthIntentOptions">
-            <button class="race-opt" data-val="Injury Resilience" onclick="selectGoalChip(this)">Injury Resilience</button>
-            <button class="race-opt" data-val="Get Stronger" onclick="selectGoalChip(this)">Get Stronger</button>
-            <button class="race-opt" data-val="Build Muscle" onclick="selectGoalChip(this)">Build Muscle</button>
-            <button class="race-opt" data-val="Keep Muscle" onclick="selectGoalChip(this)">Keep Muscle</button>
+          <span class="group-label" id="strengthIntentLabel">Primary Intent</span>
+          <div class="race-options" id="strengthIntentOptions" role="group" aria-labelledby="strengthIntentLabel">
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Injury Resilience" onclick="selectGoalChip(this)">Injury Resilience</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Get Stronger" onclick="selectGoalChip(this)">Get Stronger</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Build Muscle" onclick="selectGoalChip(this)">Build Muscle</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Keep Muscle" onclick="selectGoalChip(this)">Keep Muscle</button>
           </div>
           <div class="field-hint">sets your rep ranges</div>
         </div>
         <div class="stat-field u-grid-full">
-          <label>Priority Areas</label>
-          <div class="race-options" id="strengthPriorityOptions">
-            <button class="race-opt" data-val="Glutes" onclick="toggleGoalChip(this,2)">Glutes</button>
-            <button class="race-opt" data-val="Hamstrings" onclick="toggleGoalChip(this,2)">Hamstrings</button>
-            <button class="race-opt" data-val="Quads" onclick="toggleGoalChip(this,2)">Quads</button>
-            <button class="race-opt" data-val="Calves &amp; Achilles" onclick="toggleGoalChip(this,2)">Calves &amp; Achilles</button>
-            <button class="race-opt" data-val="Core" onclick="toggleGoalChip(this,2)">Core</button>
-            <button class="race-opt" data-val="Upper Body" onclick="toggleGoalChip(this,2)">Upper Body</button>
-            <button class="race-opt" data-val="Back &amp; Posture" onclick="toggleGoalChip(this,2)">Back &amp; Posture</button>
+          <span class="group-label" id="strengthPriorityLabel">Priority Areas</span>
+          <div class="race-options" id="strengthPriorityOptions" role="group" aria-labelledby="strengthPriorityLabel">
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Glutes" onclick="toggleGoalChip(this,2)">Glutes</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Hamstrings" onclick="toggleGoalChip(this,2)">Hamstrings</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Quads" onclick="toggleGoalChip(this,2)">Quads</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Calves &amp; Achilles" onclick="toggleGoalChip(this,2)">Calves &amp; Achilles</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Core" onclick="toggleGoalChip(this,2)">Core</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Upper Body" onclick="toggleGoalChip(this,2)">Upper Body</button>
+            <button type="button" class="race-opt" aria-pressed="false" data-val="Back &amp; Posture" onclick="toggleGoalChip(this,2)">Back &amp; Posture</button>
           </div>
           <div class="field-hint">up to 2 — the rest still gets trained</div>
         </div>
@@ -558,22 +558,22 @@
       <div class="goals-block-label goals-block-label-split">Tracked Lift<span class="goals-block-note">normal working set, not a one-rep max</span></div>
       <div class="stat-grid">
         <div class="stat-field u-grid-full">
-          <label>Key Lift</label>
+          <label for="gStrengthLift">Key Lift</label>
           <input class="stat-input" id="gStrengthLift" type="text" placeholder="e.g. trap-bar deadlift" />
           <div class="field-hint">the one you want to track</div>
         </div>
         <div class="stat-field">
-          <label>Current Load</label>
+          <label for="gStrengthCurrentLoad">Current Load</label>
           <input class="stat-input" id="gStrengthCurrentLoad" type="number" min="0" step="0.5" inputmode="decimal" placeholder="60" />
           <div class="field-hint">kg, normal working set</div>
         </div>
         <div class="stat-field">
-          <label>12-Week Target</label>
+          <label for="gStrengthTargetLoad">12-Week Target</label>
           <input class="stat-input" id="gStrengthTargetLoad" type="number" min="0" step="0.5" inputmode="decimal" placeholder="75" />
           <div class="field-hint">kg, 12-week goal</div>
         </div>
         <div class="stat-field">
-          <label>Reps Per Set</label>
+          <label for="gStrengthReps">Reps Per Set</label>
           <input class="stat-input" id="gStrengthReps" type="number" min="1" max="30" step="1" inputmode="numeric" placeholder="6" />
           <div class="field-hint">keeps both loads comparable</div>
         </div>
@@ -581,14 +581,14 @@
     </div>
     <div class="card goals-section-card">
       <div class="card-title">Your Why</div>
-      <textarea class="why-textarea" id="gWhy" placeholder="Why did you join Dual Performance? What does success look like for you at the end of these 12 weeks? Be specific and honest — this is what we coach you toward."></textarea>
+      <textarea class="why-textarea" id="gWhy" aria-label="Why did you join Dual Performance, and what does success look like at the end of these 12 weeks?" placeholder="Why did you join Dual Performance? What does success look like for you at the end of these 12 weeks? Be specific and honest — this is what we coach you toward."></textarea>
     </div>
     <div class="card goals-section-card goals-milestones-card">
       <div class="card-title">Milestones — What does success look like?</div>
       <div class="milestone-grid">
-        <div class="milestone-field"><label>Week 4</label><textarea class="milestone-input" id="gM4" placeholder="e.g. Consistent with sessions, feeling stronger on runs..."></textarea></div>
-        <div class="milestone-field"><label>Week 8</label><textarea class="milestone-input" id="gM8" placeholder="e.g. Sub-50 10km, noticeable body comp change..."></textarea></div>
-        <div class="milestone-field"><label>Week 12</label><textarea class="milestone-input" id="gM12" placeholder="e.g. Race goal, weight target, PB..."></textarea></div>
+        <div class="milestone-field"><label for="gM4">Week 4</label><textarea class="milestone-input" id="gM4" placeholder="e.g. Consistent with sessions, feeling stronger on runs..."></textarea></div>
+        <div class="milestone-field"><label for="gM8">Week 8</label><textarea class="milestone-input" id="gM8" placeholder="e.g. Sub-50 10km, noticeable body comp change..."></textarea></div>
+        <div class="milestone-field"><label for="gM12">Week 12</label><textarea class="milestone-input" id="gM12" placeholder="e.g. Race goal, weight target, PB..."></textarea></div>
       </div>
     </div>
     <button class="savebtn" id="goalsSaveBtn" onclick="saveGoals()">Save Goals</button>
@@ -643,7 +643,7 @@
       <div class="ci-card lift"><div class="ci-val" id="ciLifts">—</div><div class="ci-lbl">Lifts this week</div></div>
     </div>
         <!-- STEP 1: BOOK — state-aware: renderBookingPrompts() flips it to "booked" once the call is confirmed -->
-        <div id="ciBookCard" onclick="openCallModal()" role="button" tabindex="0" style="background:var(--surface-void);border:1px solid rgba(245,158,11,.22);box-shadow:0 0 0 1px rgba(236,233,226,.03) inset, 0 10px 28px rgba(0,0,0,.22);border-radius:var(--radius-md,12px);margin-bottom:16px;overflow:hidden;cursor:pointer">
+        <button type="button" id="ciBookCard" onclick="openCallModal()" style="background:var(--surface-void);border:1px solid rgba(245,158,11,.22);box-shadow:0 0 0 1px rgba(236,233,226,.03) inset, 0 10px 28px rgba(0,0,0,.22);border-radius:var(--radius-md,12px);margin-bottom:16px;overflow:hidden;cursor:pointer">
           <div style="padding:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative">
             <div style="flex:1;min-width:0">
               <div id="ciBookKicker" style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.35);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">Step 1 — Do this first</div>
@@ -652,7 +652,7 @@
             </div>
             <div id="ciBookArrow" style="color:#f59e0b;flex-shrink:0;line-height:1"><svg class="icon" style="width:18px;height:18px"><use href="#i-chevron-right"/></svg></div>
           </div>
-        </div>
+        </button>
     </div><!-- /ci-rail -->
     <div class="ci-main" id="accWeeklyContent">
         <!-- STEP 2: CHECK-IN FORM -->
@@ -660,8 +660,8 @@
         <div id="ciFormContent">
           <!-- Always-visible details -->
           <div class="ci-identity-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
-            <div class="lf"><label>Your name</label><input type="text" class="li" id="ciName" placeholder="Your name" /></div>
-            <div class="lf"><label style="display:flex;align-items:center;gap:6px">Week ending <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.85);font-family:var(--mono)">— confirm before submitting</span></label><input type="date" class="li" id="ciWeekEnding" style="border-color:rgba(255,170,0,.4)" /></div>
+            <div class="lf"><label for="ciName">Your name</label><input type="text" class="li" id="ciName" placeholder="Your name" /></div>
+            <div class="lf"><label for="ciWeekEnding" style="display:flex;align-items:center;gap:6px">Week ending <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.85);font-family:var(--mono)">— confirm before submitting</span></label><input type="date" class="li" id="ciWeekEnding" style="border-color:rgba(255,170,0,.4)" /></div>
           </div>
           <!-- Step indicator -->
           <div class="ci-wizard-bar">
@@ -678,17 +678,17 @@
             <div class="ci-step-title"><svg class="icon"><use href="#i-run"/></svg> Running</div>
             <div class="card u-mb-12">
               <div class="rlog u-mb-10">
-                <div class="lf"><label>Sessions completed</label><input type="number" class="li" id="ciRunComp" min="0" max="20" placeholder="3" /></div>
-                <div class="lf"><label>Sessions planned</label><input type="number" class="li" id="ciRunPlan" min="0" max="20" placeholder="4" /></div>
+                <div class="lf"><label for="ciRunComp">Sessions completed</label><input type="number" class="li" id="ciRunComp" min="0" max="20" placeholder="3" /></div>
+                <div class="lf"><label for="ciRunPlan">Sessions planned</label><input type="number" class="li" id="ciRunPlan" min="0" max="20" placeholder="4" /></div>
               </div>
-              <div class="lf u-mb-12"><label>Total km this week</label><input type="number" class="li" id="ciRunKm" min="0" placeholder="42" /></div>
+              <div class="lf u-mb-12"><label for="ciRunKm">Total km this week</label><input type="number" class="li" id="ciRunKm" min="0" placeholder="42" /></div>
               <div class="lf" style="margin-bottom:6px">
-                <label>How did running feel? <span id="ciRunFeelVal" style="font-family:var(--mono);color:var(--run)">&mdash;</span>/10</label>
+                <label for="ciRunFeel">How did running feel? <span id="ciRunFeelVal" style="font-family:var(--mono);color:var(--run)">&mdash;</span>/10</label>
                 <input type="range" min="1" max="10" value="5" data-unset="1" id="ciRunFeel" oninput="document.getElementById('ciRunFeelVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Awful</span><span>Best ever</span></div>
               </div>
-              <div class="lf" style="margin-top:10px"><label>Wins or PBs this week? <svg class="icon icon-sm icon-pb"><use href="#i-trophy"/></svg></label><textarea class="li" id="ciRunWins" placeholder="A PB, a strong session, anything you're proud of. Or “nothing this week”." style="min-height:70px;resize:vertical;"></textarea></div>
-              <div class="lf" style="margin-top:var(--font-xs,12px)"><label>Pain, niggles or injuries?</label><textarea class="li" id="ciRunNiggles" placeholder="Even small things. The earlier we know, the better we manage it." style="min-height:var(--font-display,48px);resize:vertical;"></textarea></div>
+              <div class="lf" style="margin-top:10px"><label for="ciRunWins">Wins or PBs this week? <svg class="icon icon-sm icon-pb"><use href="#i-trophy"/></svg></label><textarea class="li" id="ciRunWins" placeholder="A PB, a strong session, anything you're proud of. Or “nothing this week”." style="min-height:70px;resize:vertical;"></textarea></div>
+              <div class="lf" style="margin-top:var(--font-xs,12px)"><label for="ciRunNiggles">Pain, niggles or injuries?</label><textarea class="li" id="ciRunNiggles" placeholder="Even small things. The earlier we know, the better we manage it." style="min-height:var(--font-display,48px);resize:vertical;"></textarea></div>
             </div>
           </div>
           <!-- Step 2: Lifting -->
@@ -696,16 +696,16 @@
             <div class="ci-step-title"><svg class="icon"><use href="#i-barbell"/></svg> Lifting</div>
             <div class="card u-mb-xs">
               <div class="rlog u-mb-xs">
-                <div class="lf"><label>Sessions completed</label><input type="number" class="li" id="ciLiftComp" min="0" max="20" placeholder="2" /></div>
-                <div class="lf"><label>Sessions planned</label><input type="number" class="li" id="ciLiftPlan" min="0" max="20" placeholder="3" /></div>
+                <div class="lf"><label for="ciLiftComp">Sessions completed</label><input type="number" class="li" id="ciLiftComp" min="0" max="20" placeholder="2" /></div>
+                <div class="lf"><label for="ciLiftPlan">Sessions planned</label><input type="number" class="li" id="ciLiftPlan" min="0" max="20" placeholder="3" /></div>
               </div>
               <div class="lf u-mb-xs">
-                <label>How did lifting feel? <span id="ciLiftFeelVal" style="font-family:var(--mono);color:var(--strength)">&mdash;</span>/10</label>
+                <label for="ciLiftFeel">How did lifting feel? <span id="ciLiftFeelVal" style="font-family:var(--mono);color:var(--strength)">&mdash;</span>/10</label>
                 <input type="range" min="1" max="10" value="5" data-unset="1" id="ciLiftFeel" oninput="document.getElementById('ciLiftFeelVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Awful</span><span>PR session</span></div>
               </div>
-              <div class="lf" style="margin-top:10px"><label> Lifting wins or notable sessions? <svg class="icon icon-sm icon-run"><use href="#i-barbell"/></svg></label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;"></textarea></div>
-              <div class="lf" style="margin-top:var(--font-xs,12px)"><label>Pain, niggles or discomfort in the gym?</label><textarea class="li" id="ciLiftNiggles" placeholder="Anything sharp, achy or off — don't push through without telling us first." style="min-height:var(--font-display,48px);resize:vertical;"></textarea></div>
+              <div class="lf" style="margin-top:10px"><label for="ciLiftWins"> Lifting wins or notable sessions? <svg class="icon icon-sm icon-run"><use href="#i-barbell"/></svg></label><textarea class="li" id="ciLiftWins" placeholder="New weights, better form, something that clicked — we want to hear it. Or 'nothing this week'." style="min-height:70px;resize:vertical;"></textarea></div>
+              <div class="lf" style="margin-top:var(--font-xs,12px)"><label for="ciLiftNiggles">Pain, niggles or discomfort in the gym?</label><textarea class="li" id="ciLiftNiggles" placeholder="Anything sharp, achy or off — don't push through without telling us first." style="min-height:var(--font-display,48px);resize:vertical;"></textarea></div>
             </div>
           </div>
           <!-- Step 3: Recovery -->
@@ -713,17 +713,17 @@
             <div class="ci-step-title"><svg class="icon"><use href="#i-moon"/></svg> Recovery</div>
             <div class="card u-mb-xs">
               <div class="lf" style="margin-bottom:var(--font-sm,14px)">
-                <label>Average sleep per night <span id="ciSleepVal" class="u-mono">&mdash;</span>/10</label>
+                <label for="ciSleep">Average sleep per night <span id="ciSleepVal" class="u-mono">&mdash;</span>/10</label>
                 <input type="range" min="1" max="10" value="5" data-unset="1" id="ciSleep" oninput="document.getElementById('ciSleepVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Under 5hrs</span><span>8+ hrs quality</span></div>
               </div>
               <div class="lf u-mb-14">
-                <label>Energy levels <span id="ciEnergyVal" class="u-mono">&mdash;</span>/10</label>
+                <label for="ciEnergy">Energy levels <span id="ciEnergyVal" class="u-mono">&mdash;</span>/10</label>
                 <input type="range" min="1" max="10" value="5" data-unset="1" id="ciEnergy" oninput="document.getElementById('ciEnergyVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Running on empty</span><span>Felt great</span></div>
               </div>
               <div class="lf">
-                <label>Muscle soreness / fatigue <span id="ciSorenessVal" class="u-mono">&mdash;</span>/10</label>
+                <label for="ciSoreness">Muscle soreness / fatigue <span id="ciSorenessVal" class="u-mono">&mdash;</span>/10</label>
                 <input type="range" min="1" max="10" value="5" data-unset="1" id="ciSoreness" oninput="document.getElementById('ciSorenessVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Destroyed</span><span>Fresh legs</span></div>
               </div>
@@ -736,16 +736,16 @@
                  duplicated Wins and Niggles above; this one did not exist
                  anywhere else and is what the call actually turns on. -->
             <div class="card u-mb-12">
-              <div class="lf"><label>One thing to decide with your coaches</label><textarea class="li" id="ciCallDecision" placeholder="What's the single call you want made this week? A session to move, a target to change, a niggle to plan around." style="min-height:70px;resize:vertical;"></textarea></div>
+              <div class="lf"><label for="ciCallDecision">One thing to decide with your coaches</label><textarea class="li" id="ciCallDecision" placeholder="What's the single call you want made this week? A session to move, a target to change, a niggle to plan around." style="min-height:70px;resize:vertical;"></textarea></div>
             </div>
             <div class="card u-mb-12">
               <div class="lf u-mb-14">
-                <label>Adherence to nutrition plan <span id="ciNutVal" class="u-mono">&mdash;</span>/10</label>
+                <label for="ciNut">Adherence to nutrition plan <span id="ciNutVal" class="u-mono">&mdash;</span>/10</label>
                 <input type="range" min="1" max="10" value="5" data-unset="1" id="ciNut" oninput="document.getElementById('ciNutVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Off the rails</span><span>Nailed it</span></div>
               </div>
               <div class="lf u-mb-14">
-                <label>Pre & post training fuelling</label>
+                <label for="ciFuelling">Pre & post training fuelling</label>
                 <select class="li" id="ciFuelling" style="margin-top:6px">
                   <option value="">Select...</option>
                   <option>Consistent — fuelled properly around every session</option>
@@ -755,17 +755,17 @@
                 </select>
               </div>
               <div class="lf u-mb-14">
-                <label>Work / life stress <span id="ciStressVal" class="u-mono">&mdash;</span>/10</label>
+                <label for="ciStress">Work / life stress <span id="ciStressVal" class="u-mono">&mdash;</span>/10</label>
                 <input type="range" min="1" max="10" value="5" data-unset="1" id="ciStress" oninput="document.getElementById('ciStressVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Calm</span><span>Extremely stressed</span></div>
               </div>
               <div class="lf u-mb-14">
-                <label>Motivation to train <span id="ciMotVal" class="u-mono">&mdash;</span>/10</label>
+                <label for="ciMot">Motivation to train <span id="ciMotVal" class="u-mono">&mdash;</span>/10</label>
                 <input type="range" min="1" max="10" value="5" data-unset="1" id="ciMot" oninput="document.getElementById('ciMotVal').textContent=this.value" class="u-range-full" />
                 <div class="u-range-labels"><span>Dragging myself</span><span>Couldn't wait</span></div>
               </div>
-              <div class="lf u-mb-10"><label>Social events affecting nutrition in the next 2 weeks?</label><textarea class="li" id="ciSocial" placeholder="e.g. birthday dinner, work event, holiday — anything that might affect your nutrition." style="min-height:60px;resize:vertical;margin-top:6px"></textarea></div>
-              <div class="lf"><label>Anything coming up that could affect training?</label><textarea class="li" id="ciNotes" placeholder="Travel, long work days, family commitments — the more we know, the better we can support you." style="min-height:60px;resize:vertical;margin-top:6px"></textarea></div>
+              <div class="lf u-mb-10"><label for="ciSocial">Social events affecting nutrition in the next 2 weeks?</label><textarea class="li" id="ciSocial" placeholder="e.g. birthday dinner, work event, holiday — anything that might affect your nutrition." style="min-height:60px;resize:vertical;margin-top:6px"></textarea></div>
+              <div class="lf"><label for="ciNotes">Anything coming up that could affect training?</label><textarea class="li" id="ciNotes" placeholder="Travel, long work days, family commitments — the more we know, the better we can support you." style="min-height:60px;resize:vertical;margin-top:6px"></textarea></div>
             </div>
             <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()" style="margin-bottom:8px">Submit Check-in</button>
           </div>
@@ -797,7 +797,7 @@
             </div>
             <div class="card ci-testimonial-card u-mb-10">
               <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Write freely — we may share this (with your permission) <svg class="icon icon-sm icon-run"><use href="#i-sparkle"/></svg></div>
-              <textarea class="li" id="ciTestimonial" placeholder="e.g. Three weeks ago I could barely run 2km without stopping. This week I nailed every session and hit a new PB. I didn't think I had it in me — but here I am. The coaching from Karl and Alex has completely changed how I train..." style="min-height:180px;resize:vertical;line-height:1.6"></textarea>
+              <textarea class="li" id="ciTestimonial" aria-label="Your words about this week" placeholder="e.g. Three weeks ago I could barely run 2km without stopping. This week I nailed every session and hit a new PB. I didn't think I had it in me — but here I am. The coaching from Karl and Alex has completely changed how I train..." style="min-height:180px;resize:vertical;line-height:1.6"></textarea>
               <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
                 <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Prompts to get you started <svg class="icon icon-sm icon-run"><use href="#i-bulb"/></svg></div>
                 <div class="u-help-copy">• What's something you did this week you couldn't have done a month ago?</div>
@@ -818,7 +818,7 @@
   </div>
 
   <!-- PROGRESS -->
-  <div class="tab-content" id="tab-progress">
+  <div class="tab-content" id="tab-progress" role="tabpanel" tabindex="-1" aria-labelledby="dp-tab-progress">
     <div class="page-intro progress-intro">
       <div class="progress-intro-head">
         <div>
@@ -960,7 +960,7 @@
   </div>
 
   <!-- HANDBOOK -->
-  <div class="tab-content" id="tab-handbook">
+  <div class="tab-content" id="tab-handbook" role="tabpanel" tabindex="-1" aria-labelledby="dp-tab-handbook">
     <div class="page-intro">
       <div class="page-kicker">Playbook</div>
       <div class="page-title">Athlete Guide</div>
@@ -969,17 +969,17 @@
     <div class="stitle">Athlete Handbook</div>
     <div class="guide-prompt">Choose a topic to open the coaching playbook.</div>
     <div class="hb-grid">
-      <div class="hb-card" onclick="openHB(0)"><div class="hb-icon"><svg class="icon"><use href="#i-gear"/></svg></div><div class="hb-title">How This Works</div><div class="hb-sub">The DP system</div></div>
-      <div class="hb-card" onclick="openHB(1)"><div class="hb-icon"><svg class="icon"><use href="#i-calendar"/></svg></div><div class="hb-title">Weekly Rhythm</div><div class="hb-sub">What to do & when</div></div>
-      <div class="hb-card" onclick="openHB(2)"><div class="hb-icon"><svg class="icon"><use href="#i-clipboard"/></svg></div><div class="hb-title">Training Rules</div><div class="hb-sub">5 non-negotiables</div></div>
-      <div class="hb-card" onclick="openHB(3)"><div class="hb-icon"><svg class="icon"><use href="#i-leaf"/></svg></div><div class="hb-title">Fuelling</div><div class="hb-sub">Priorities, timing &amp; principles</div></div>
-      <div class="hb-card" onclick="openHB(4)"><div class="hb-icon"><svg class="icon"><use href="#i-trend-up"/></svg></div><div class="hb-title">Progressive Overload</div><div class="hb-sub">8 → 10 → 12 → heavier</div></div>
-      <div class="hb-card" onclick="openHB(5)"><div class="hb-icon"><svg class="icon"><use href="#i-target"/></svg></div><div class="hb-title">Getting the Most</div><div class="hb-sub">Out of coaching</div></div>
-      <div class="hb-card" onclick="openHB(6)"><div class="hb-icon"><svg class="icon"><use href="#i-book"/></svg></div><div class="hb-title">Glossary</div><div class="hb-sub">Terms explained</div></div>
+      <button type="button" class="hb-card" onclick="openHB(0)"><div class="hb-icon"><svg class="icon"><use href="#i-gear"/></svg></div><div class="hb-title">How This Works</div><div class="hb-sub">The DP system</div></button>
+      <button type="button" class="hb-card" onclick="openHB(1)"><div class="hb-icon"><svg class="icon"><use href="#i-calendar"/></svg></div><div class="hb-title">Weekly Rhythm</div><div class="hb-sub">What to do & when</div></button>
+      <button type="button" class="hb-card" onclick="openHB(2)"><div class="hb-icon"><svg class="icon"><use href="#i-clipboard"/></svg></div><div class="hb-title">Training Rules</div><div class="hb-sub">5 non-negotiables</div></button>
+      <button type="button" class="hb-card" onclick="openHB(3)"><div class="hb-icon"><svg class="icon"><use href="#i-leaf"/></svg></div><div class="hb-title">Fuelling</div><div class="hb-sub">Priorities, timing &amp; principles</div></button>
+      <button type="button" class="hb-card" onclick="openHB(4)"><div class="hb-icon"><svg class="icon"><use href="#i-trend-up"/></svg></div><div class="hb-title">Progressive Overload</div><div class="hb-sub">8 → 10 → 12 → heavier</div></button>
+      <button type="button" class="hb-card" onclick="openHB(5)"><div class="hb-icon"><svg class="icon"><use href="#i-target"/></svg></div><div class="hb-title">Getting the Most</div><div class="hb-sub">Out of coaching</div></button>
+      <button type="button" class="hb-card" onclick="openHB(6)"><div class="hb-icon"><svg class="icon"><use href="#i-book"/></svg></div><div class="hb-title">Glossary</div><div class="hb-sub">Terms explained</div></button>
     </div>
   </div>
 
-  <div class="hb-modal" id="hbModal" onclick="if(event.target===this)closeHB()">
+  <div class="hb-modal" id="hbModal" role="dialog" aria-modal="true" aria-labelledby="hbModalTitle" onclick="if(event.target===this)closeHB()">
     <div class="hb-modal-inner">
       <div class="hb-modal-header">
         <div class="hb-modal-title" id="hbModalTitle"></div>
@@ -1010,7 +1010,7 @@
        duplicating it. The Session panel is built at open time from the live
        session list and hands off to startFocusedSession(), so there is still
        only one run/strength logging implementation in the app. -->
-  <div class="ql-modal" id="logSheet" onclick="if(event.target===this)closeLogSheet()">
+  <div class="ql-modal" id="logSheet" role="dialog" aria-modal="true" aria-labelledby="logSheetTitle" onclick="if(event.target===this)closeLogSheet()">
     <div class="ql-modal-inner log-sheet-inner">
       <div class="ql-modal-header">
         <div class="ql-modal-title" id="logSheetTitle">Log</div>
@@ -1076,37 +1076,37 @@
             </div>
             <div class="rlog u-mb-14">
               <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm,8px);padding:10px 12px">
-                <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
+                <label for="qlbDate" style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
                 <input type="date" class="li" id="qlbDate" style="margin-top:6px;border-color:rgba(255,170,0,.4)" />
               </div>
-              <div class="lf"><label>Weight (kg)</label><input type="number" class="li" id="qlbWeight" step="0.1" placeholder="72.0" /></div>
+              <div class="lf"><label for="qlbWeight">Weight (kg)</label><input type="number" class="li" id="qlbWeight" step="0.1" placeholder="72.0" /></div>
             </div>
             <div class="lf u-mb-14">
-              <label>Sleep Quality <span id="qlbSleepVal" class="u-mono">&mdash;</span>/10</label>
+              <label for="qlbSleep">Sleep Quality <span id="qlbSleepVal" class="u-mono">&mdash;</span>/10</label>
               <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" class="u-range-full" />
               <div class="u-range-labels"><span>Terrible</span><span>Amazing</span></div>
             </div>
             <div class="lf u-mb-14">
-              <label>Energy <span id="qlbEnergyVal" class="u-mono">&mdash;</span>/10</label>
+              <label for="qlbEnergy">Energy <span id="qlbEnergyVal" class="u-mono">&mdash;</span>/10</label>
               <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" class="u-range-full" />
               <div class="u-range-labels"><span>Drained</span><span>Energised</span></div>
             </div>
             <div class="lf u-mb-14">
-              <label>Stress <span id="qlbStressVal" class="u-mono">&mdash;</span>/10</label>
+              <label for="qlbStress">Stress <span id="qlbStressVal" class="u-mono">&mdash;</span>/10</label>
               <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbStress" oninput="document.getElementById('qlbStressVal').textContent=this.value" class="u-range-full" />
               <div class="u-range-labels"><span>Calm</span><span>Maxed out</span></div>
             </div>
             <div class="lf u-mb-16">
-              <label>Muscle Soreness <span id="qlbSoreVal" class="u-mono">&mdash;</span>/10</label>
+              <label for="qlbSore">Muscle Soreness <span id="qlbSoreVal" class="u-mono">&mdash;</span>/10</label>
               <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" class="u-range-full" />
               <div class="u-range-labels"><span>Fresh</span><span>Destroyed</span></div>
             </div>
             <div class="pain-log-block">
-              <div class="lf"><label>Pain or niggle <span id="qlbPainVal" class="u-mono">0</span>/10</label><input type="range" min="0" max="10" value="0" id="qlbPain" oninput="document.getElementById('qlbPainVal').textContent=this.value;document.getElementById('qlbPainLocationWrap').style.display=Number(this.value)>0?'':'none'" /></div>
-              <div class="lf" id="qlbPainLocationWrap" style="display:none"><label>Where is it?</label><input type="text" class="li" id="qlbPainLocation" placeholder="e.g. left knee, outside ankle" /></div>
+              <div class="lf"><label for="qlbPain">Pain or niggle <span id="qlbPainVal" class="u-mono">0</span>/10</label><input type="range" min="0" max="10" value="0" id="qlbPain" oninput="document.getElementById('qlbPainVal').textContent=this.value;document.getElementById('qlbPainLocationWrap').style.display=Number(this.value)>0?'':'none'" /></div>
+              <div class="lf" id="qlbPainLocationWrap" style="display:none"><label for="qlbPainLocation">Where is it?</label><input type="text" class="li" id="qlbPainLocation" placeholder="e.g. left knee, outside ankle" /></div>
               <div class="pain-help">Sharp, sudden or worsening pain is automatically flagged for coach review.</div>
             </div>
-            <div class="lf u-mb-16"><label>Notes (optional)</label><input type="text" class="li" id="qlbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
+            <div class="lf u-mb-16"><label for="qlbNotes">Notes (optional)</label><input type="text" class="li" id="qlbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
             <!-- Shown only once the server holds this day, so the form reads as a
                  record you can correct rather than an empty box you might not have
                  filled in. Populated by applyQuickLogSubmittedState(). -->
@@ -1153,12 +1153,12 @@
             </div>
             <div class="rlog u-mb-14">
               <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm,8px);padding:10px 12px">
-                <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
+                <label for="qlnDate" style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
                 <input type="date" class="li" id="qlnDate" style="margin-top:6px;border-color:rgba(255,170,0,.4)" />
               </div>
               <div class="lf">
                 <div class="u-flex-between">
-                  <label>Calories (kcal)</label>
+                  <label for="qlnCal">Calories (kcal)</label>
                   <span class="qln-tgt" id="qlnTgtCal"></span>
                 </div>
                 <input type="number" class="li" id="qlnCal" placeholder="2300" oninput="updateNutFeedback()" />
@@ -1167,14 +1167,14 @@
             <div class="rlog u-mb-14">
               <div class="lf">
                 <div class="u-flex-between">
-                  <label>Protein (g)</label>
+                  <label for="qlnPro">Protein (g)</label>
                   <span class="qln-tgt" id="qlnTgtPro"></span>
                 </div>
                 <input type="number" class="li" id="qlnPro" placeholder="165" oninput="updateNutFeedback()" />
               </div>
               <div class="lf">
                 <div class="u-flex-between">
-                  <label>Carbs (g)</label>
+                  <label for="qlnCarbs">Carbs (g)</label>
                   <span class="qln-tgt" id="qlnTgtCarb"></span>
                 </div>
                 <input type="number" class="li" id="qlnCarbs" placeholder="295" oninput="updateNutFeedback()" />
@@ -1183,14 +1183,14 @@
             <div class="rlog u-mb-14">
               <div class="lf">
                 <div class="u-flex-between">
-                  <label>Fat (g)</label>
+                  <label for="qlnFat">Fat (g)</label>
                   <span class="qln-tgt" id="qlnTgtFat"></span>
                 </div>
                 <input type="number" class="li" id="qlnFat" placeholder="55" oninput="updateNutFeedback()" />
               </div>
               <div class="lf">
                 <div class="u-flex-between">
-                  <label>Fibre (g)</label>
+                  <label for="qlnFibre">Fibre (g)</label>
                   <span class="qln-tgt" id="qlnTgtFibre"></span>
                 </div>
                 <input type="number" class="li" id="qlnFibre" placeholder="35" oninput="updateNutFeedback()" />
@@ -1198,7 +1198,7 @@
             </div>
             <!-- Live macro vs target feedback -->
             <div id="qlnFeedback" class="qln-feedback"></div>
-            <div class="lf u-mb-16"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
+            <div class="lf u-mb-16"><label for="qlnNotes">Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
             <div class="ql-submitted" id="qlnSubmittedNote" role="status" style="display:none"></div>
             <div class="sheet-actions"><button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Save nutrition log</button></div>
         </div>
@@ -1207,7 +1207,7 @@
   </div>
 
   <!-- BOOKING MODAL (GHL / LeadConnector) -->
-  <div class="ql-modal" id="callModal" onclick="if(event.target===this)closeCallModal()">
+  <div class="ql-modal" id="callModal" role="dialog" aria-modal="true" aria-labelledby="callModalTitle" onclick="if(event.target===this)closeCallModal()">
     <div class="ql-modal-inner" style="height:92vh;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0">
       <div class="ql-modal-header" style="flex-shrink:0">
         <div class="ql-modal-title" id="callModalTitle">Book Your Call</div>
@@ -1226,7 +1226,7 @@
        is NOT duplicated here: openCheckinSheet() moves the live #ciFormContent
        and #ciSuccess nodes in, closeCheckinSheet() puts them back. One set of
        field ids, one draft, one submit path, whichever surface opened it. -->
-  <div class="ql-modal" id="checkinModal" onclick="if(event.target===this)closeCheckinSheet()">
+  <div class="ql-modal" id="checkinModal" role="dialog" aria-modal="true" aria-labelledby="checkinModalTitle" onclick="if(event.target===this)closeCheckinSheet()">
     <div class="ql-modal-inner" style="height:92vh;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0">
       <div class="ql-modal-header" style="flex-shrink:0">
         <div class="ql-modal-title" id="checkinModalTitle">Weekly Check-In</div>
@@ -1276,7 +1276,7 @@
     <button class="mobile-nav-item" type="button" data-mobile-tab="coaching" onclick="switchTab('coaching')"><svg class="icon"><use href="#i-video"/></svg><span>Coaching</span><span class="mobile-nav-dot" id="mobileCoachingDot"></span></button>
   </nav>
 
-  <div class="profile-menu" id="profileMenu" aria-hidden="true" onclick="if(event.target===this)toggleProfileMenu(false)">
+  <div class="profile-menu" id="profileMenu" role="dialog" aria-modal="true" aria-labelledby="profileMenuTitle" aria-hidden="true" onclick="if(event.target===this)toggleProfileMenu(false)">
     <div class="profile-menu-sheet" role="dialog" aria-modal="true" aria-labelledby="profileMenuTitle">
       <div class="profile-menu-handle"></div>
       <div class="profile-menu-head"><div><div class="profile-menu-kicker">Profile</div><div class="profile-menu-title" id="profileMenuTitle">Your portal</div></div><button class="profile-menu-close" onclick="toggleProfileMenu(false)" aria-label="Close profile">×</button></div>
@@ -1291,9 +1291,9 @@
     </div>
   </div>
 
-  <div class="ql-modal" id="preferencesModal" onclick="if(event.target===this)closePreferences()">
+  <div class="ql-modal" id="preferencesModal" role="dialog" aria-modal="true" aria-labelledby="preferencesTitle" onclick="if(event.target===this)closePreferences()">
     <div class="ql-modal-inner preferences-modal-inner">
-      <div class="ql-modal-header"><div><div class="ql-modal-title">Preferences</div><div class="modal-subtitle">Your coaching reminders and data controls.</div></div><button class="ql-modal-close" onclick="closePreferences()" aria-label="Close preferences">×</button></div>
+      <div class="ql-modal-header"><div><div class="ql-modal-title" id="preferencesTitle">Preferences</div><div class="modal-subtitle">Your coaching reminders and data controls.</div></div><button class="ql-modal-close" onclick="closePreferences()" aria-label="Close preferences">×</button></div>
       <div class="ql-modal-body">
         <div class="preference-list" id="notificationPreferences"></div>
         <div class="data-controls">
@@ -1310,7 +1310,7 @@
   <!-- DATA RIGHTS REQUEST — deletion is destructive, so it is never one tap.
        Nothing is deleted client-side: this raises a recorded request that a
        human actions, which is what dualperformance.au/support promises. -->
-  <div class="ql-modal" id="dataRequestModal" onclick="if(event.target===this)closeDataRequest()">
+  <div class="ql-modal" id="dataRequestModal" role="dialog" aria-modal="true" aria-labelledby="dataRequestTitle" onclick="if(event.target===this)closeDataRequest()">
     <div class="ql-modal-inner data-request-inner">
       <div class="ql-modal-header">
         <div><div class="ql-modal-title" id="dataRequestTitle">Request deletion</div><div class="modal-subtitle" id="dataRequestSubtitle"></div></div>
@@ -1328,9 +1328,9 @@
   </div>
 
   <!-- PRIVATE NOTE TO COACH — one direction, no threads. Deliberately small. -->
-  <div class="ql-modal" id="coachNoteModal" onclick="if(event.target===this)closeCoachNote()">
+  <div class="ql-modal" id="coachNoteModal" role="dialog" aria-modal="true" aria-labelledby="coachNoteTitle" onclick="if(event.target===this)closeCoachNote()">
     <div class="ql-modal-inner coach-note-inner">
-      <div class="ql-modal-header"><div><div class="ql-modal-title">Private note to your coaches</div><div class="modal-subtitle">Goes straight to Karl and Alex. Not the Discord.</div></div><button class="ql-modal-close" onclick="closeCoachNote()" aria-label="Close note">&times;</button></div>
+      <div class="ql-modal-header"><div><div class="ql-modal-title" id="coachNoteTitle">Private note to your coaches</div><div class="modal-subtitle">Goes straight to Karl and Alex. Not the Discord.</div></div><button class="ql-modal-close" onclick="closeCoachNote()" aria-label="Close note">&times;</button></div>
       <div class="ql-modal-body">
         <label class="coach-note-label" for="coachNoteBody">Your message</label>
         <textarea id="coachNoteBody" class="coach-note-input" rows="7" maxlength="2000" oninput="draftCoachNote()" placeholder="Injuries, how the training is actually landing, anything you would not put in a group chat."></textarea>
@@ -1342,25 +1342,25 @@
     </div>
   </div>
 
-  <div class="ql-modal" id="weeklySummaryModal" onclick="if(event.target===this)closeWeeklySummary()">
+  <div class="ql-modal" id="weeklySummaryModal" role="dialog" aria-modal="true" aria-labelledby="weeklySummaryTitle" onclick="if(event.target===this)closeWeeklySummary()">
     <div class="ql-modal-inner summary-modal-inner">
-      <div class="ql-modal-header"><div><div class="ql-modal-title">This week</div><div class="modal-subtitle">A quick coaching snapshot.</div></div><button class="ql-modal-close" onclick="closeWeeklySummary()" aria-label="Close weekly summary">×</button></div>
+      <div class="ql-modal-header"><div><div class="ql-modal-title" id="weeklySummaryTitle">This week</div><div class="modal-subtitle">A quick coaching snapshot.</div></div><button class="ql-modal-close" onclick="closeWeeklySummary()" aria-label="Close weekly summary">×</button></div>
       <div class="ql-modal-body" id="weeklySummaryBody"></div>
     </div>
   </div>
 
-  <div class="ql-modal" id="notificationInboxModal" onclick="if(event.target===this)closeNotificationInbox()">
+  <div class="ql-modal" id="notificationInboxModal" role="dialog" aria-modal="true" aria-labelledby="notificationInboxTitle" onclick="if(event.target===this)closeNotificationInbox()">
     <div class="ql-modal-inner notification-inbox-inner">
-      <div class="ql-modal-header"><div><div class="ql-modal-title">Notifications</div><div class="modal-subtitle">Your durable coaching inbox.</div></div><div class="notification-inbox-header-actions"><button class="notification-clear-all" id="clearAllNotificationsBtn" type="button" onclick="clearAllNotifications()" hidden>Clear all</button><button class="ql-modal-close" onclick="closeNotificationInbox()" aria-label="Close notifications">×</button></div></div>
+      <div class="ql-modal-header"><div><div class="ql-modal-title" id="notificationInboxTitle">Notifications</div><div class="modal-subtitle">Your durable coaching inbox.</div></div><div class="notification-inbox-header-actions"><button class="notification-clear-all" id="clearAllNotificationsBtn" type="button" onclick="clearAllNotifications()" hidden>Clear all</button><button class="ql-modal-close" onclick="closeNotificationInbox()" aria-label="Close notifications">×</button></div></div>
       <div class="ql-modal-body notification-inbox-list" id="notificationInboxList"><div class="notification-empty">Loading notifications…</div></div>
     </div>
   </div>
 
-  <div class="ql-modal" id="pbHistoryModal" onclick="if(event.target===this)closePbHistory()">
+  <div class="ql-modal" id="pbHistoryModal" role="dialog" aria-modal="true" aria-labelledby="pbHistoryTitle" onclick="if(event.target===this)closePbHistory()">
     <div class="ql-modal-inner pb-history-modal-inner">
-      <div class="ql-modal-header"><div><div class="ql-modal-title">PB History</div><div class="modal-subtitle" id="pbHistorySubtitle">Your strongest recorded efforts.</div></div><button class="ql-modal-close" onclick="closePbHistory()" aria-label="Close PB history">×</button></div>
+      <div class="ql-modal-header"><div><div class="ql-modal-title" id="pbHistoryTitle">PB History</div><div class="modal-subtitle" id="pbHistorySubtitle">Your strongest recorded efforts.</div></div><button class="ql-modal-close" onclick="closePbHistory()" aria-label="Close PB history">×</button></div>
       <div class="ql-modal-body">
-        <label class="pb-search"><svg class="icon"><use href="#i-search"/></svg><input id="pbHistorySearch" type="search" placeholder="Search exercises" oninput="renderPbHistory(this.value)" autocomplete="off"></label>
+        <label for="pbHistorySearch" class="pb-search"><svg class="icon"><use href="#i-search"/></svg><input id="pbHistorySearch" type="search" placeholder="Search exercises" oninput="renderPbHistory(this.value)" autocomplete="off"></label>
         <div class="pb-history-list" id="pbHistoryList"></div>
       </div>
     </div>
@@ -1370,7 +1370,7 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<div class="photo-modal" id="photoModal" onclick="closePhotoModal(event)">
+<div class="photo-modal" id="photoModal" role="dialog" aria-modal="true" aria-labelledby="photoModalTitle" onclick="closePhotoModal(event)">
   <div class="photo-modal-inner">
     <div class="photo-modal-header">
       <div class="photo-modal-title" id="photoModalTitle">Week 1 Photos</div>
@@ -1386,7 +1386,7 @@
     </div>
     <div class="angle-grid" id="angleGrid"></div>
     <button type="button" class="photo-next-btn" id="photoNextBtn" onclick="uploadNextPhotoAngle()">Add Front photo</button>
-    <input type="file" id="angleInput" accept="image/*" style="display:none" onchange="handleAngleUpload(this)" />
+    <input type="file" id="angleInput" aria-label="Choose a progress photo for this angle" accept="image/*" style="display:none" onchange="handleAngleUpload(this)" />
   </div>
 </div>
 
@@ -1438,9 +1438,9 @@
 </script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=128"></script>
-<script src="js/02-login-goals.js?v=118"></script>
-<script src="js/03-nav-nudges.js?v=121"></script>
-<script src="js/04-checkin.js?v=103"></script>
+<script src="js/02-login-goals.js?v=119"></script>
+<script src="js/03-nav-nudges.js?v=122"></script>
+<script src="js/04-checkin.js?v=104"></script>
 <script src="js/05-handbook.js?v=86"></script>
 <script src="js/06-nutrition.js?v=103"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=90" hidden></span>
@@ -1449,9 +1449,9 @@
 <script src="js/08-training-muscle-coverage.js?v=1"></script>
 <script src="js/08-training-focus.js?v=2"></script>
 <script src="js/08-strength-engine.js?v=4"></script>
-<script src="js/08-training.js?v=150"></script>
+<script src="js/08-training.js?v=151"></script>
 <script src="js/09-logging.js?v=127"></script>
-<script src="accessibility.js?v=2"></script>
+<script src="accessibility.js?v=3"></script>
 <script src="js/10-boot.js?v=110"></script>
 </body>
 </html>

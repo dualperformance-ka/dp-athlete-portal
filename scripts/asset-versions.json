@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 172,
-    "sha": "10920c59f34a"
+    "version": 173,
+    "sha": "40660c90f6da"
   },
   "desktop.css": {
     "version": 13,
@@ -20,16 +20,16 @@
     "sha": "1a421598b577"
   },
   "js/02-login-goals.js": {
-    "version": 118,
-    "sha": "0dce6bf858aa"
+    "version": 119,
+    "sha": "ab3e419932f3"
   },
   "js/03-nav-nudges.js": {
-    "version": 121,
-    "sha": "ffdbdda24f2c"
+    "version": 122,
+    "sha": "3dceca9a0008"
   },
   "js/04-checkin.js": {
-    "version": 103,
-    "sha": "72a428d89bbc"
+    "version": 104,
+    "sha": "89eece7c44bc"
   },
   "js/05-handbook.js": {
     "version": 86,
@@ -64,16 +64,16 @@
     "sha": "cafd28bcda3f"
   },
   "js/08-training.js": {
-    "version": 150,
-    "sha": "40a649f658a1"
+    "version": 151,
+    "sha": "d240c1756a3c"
   },
   "js/09-logging.js": {
     "version": 127,
     "sha": "0816b2757f91"
   },
   "accessibility.js": {
-    "version": 2,
-    "sha": "95443837f866"
+    "version": 3,
+    "sha": "92cf32569619"
   },
   "js/10-boot.js": {
     "version": 110,

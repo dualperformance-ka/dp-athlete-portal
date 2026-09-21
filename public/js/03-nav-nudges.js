@@ -595,6 +595,29 @@ var PORTAL_DESTINATIONS={
 };
 var PORTAL_DESTINATION_ALIASES={training:'today',home:'today',weekly:'week',calls:'coaching',checkin:'coaching'};
 function resolvePortalDestination(requested){return PORTAL_DESTINATION_ALIASES[requested]||requested;}
+// A tablist is one tab stop; Left/Right (and Home/End) move between the tabs
+// inside it. Without this the roving tabindex above would trap a keyboard user
+// on whichever tab happened to be selected.
+document.addEventListener('keydown',function(e){
+  var tab=e.target&&e.target.closest&&e.target.closest('[role="tab"][data-tab]');
+  if(!tab)return;
+  var list=tab.closest('[role="tablist"]');
+  if(!list)return;
+  var tabs=Array.prototype.filter.call(list.querySelectorAll('[role="tab"][data-tab]'),function(t){
+    return t.offsetParent!==null;
+  });
+  var i=tabs.indexOf(tab);
+  if(i<0)return;
+  var to=null;
+  if(e.key==='ArrowRight'||e.key==='ArrowDown')to=tabs[(i+1)%tabs.length];
+  else if(e.key==='ArrowLeft'||e.key==='ArrowUp')to=tabs[(i-1+tabs.length)%tabs.length];
+  else if(e.key==='Home')to=tabs[0];
+  else if(e.key==='End')to=tabs[tabs.length-1];
+  if(!to)return;
+  e.preventDefault();
+  to.focus();
+  to.click();
+});
 function switchTab(requested,options){
   options=options||{};
   var destination=resolvePortalDestination(requested),state=PORTAL_DESTINATIONS[destination];
@@ -602,7 +625,10 @@ function switchTab(requested,options){
   var previous=document.body.getAttribute('data-active-tab');
   if(previous!==destination)track('tab_viewed',{tab:destination});
   document.body.setAttribute('data-active-tab',destination);
-  document.querySelectorAll('.tab').forEach(function(t){var active=t.dataset.tab===destination;t.classList.toggle('active',active);if(t.hasAttribute('role'))t.setAttribute('aria-selected',active?'true':'false');});
+  // aria-selected AND the roving tabindex: a tablist exposes one tab stop, and
+  // arrow keys move within it. accessibility.js used to set this after every
+  // render; it is part of switching a tab, so it lives here now.
+  document.querySelectorAll('.tab').forEach(function(t){var active=t.dataset.tab===destination;t.classList.toggle('active',active);if(t.hasAttribute('role')){t.setAttribute('aria-selected',active?'true':'false');t.tabIndex=active?0:-1;}});
   document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+state.panel);});
   document.querySelectorAll('[data-portal-dest]').forEach(function(item){item.classList.toggle('active',item.dataset.portalDest===destination);});
   var sectionLabel=document.getElementById('portalSectionLabel');
