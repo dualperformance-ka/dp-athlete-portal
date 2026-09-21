@@ -16,9 +16,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=171" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=171'></noscript>
-<link rel="stylesheet" href="/desktop.css?v=12">
+<link rel="preload" as="style" href="/styles.css?v=172" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=172'></noscript>
+<link rel="stylesheet" href="/desktop.css?v=13">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
      if this request is blocked or fails, window.Sentry is simply absent and
@@ -177,6 +177,10 @@
     </div>
     <div class="header-actions">
       <div class="save-state-pill saved" id="saveStatePill" aria-live="polite"><span></span><b>Synced with coach</b></div>
+      <!-- Restored. This is the one action an athlete takes when the plan on
+           screen looks wrong, and hardRefreshPortal() in 10-boot.js clears the
+           week snapshots as well as Cache Storage, so it now actually works. -->
+      <button class="hicon header-refresh" id="portalRefreshBtn" type="button" onclick="hardRefreshPortal()" title="Refresh portal" aria-label="Refresh portal data"><svg class="icon"><use href="#i-refresh"/></svg></button>
       <button class="hicon notification-bell" id="notificationBell" type="button" onclick="openNotificationInbox()" title="Notifications" aria-label="Open notifications"><svg class="icon"><use href="#i-alert"/></svg><span class="notification-count" id="notificationCount" hidden>0</span></button>
       <button class="profile-avatar" id="profileAvatar" type="button" onclick="toggleProfileMenu(true)" aria-controls="profileMenu" aria-expanded="false" aria-label="Open profile"><span id="profileAvatarInitial">A</span></button>
     </div>
@@ -1006,197 +1010,219 @@
     </div>
   </div>
 
-  <!-- QUICK LOG DOCK — pinned because both are daily actions. Only the next
-       thing you have not logged is blue; once logged a segment turns green so
-       completion is unambiguous. State is set
-       by syncQuickLogDock() in 09-logging.js.
+  <!-- LOG SHEET — one component, three tabs, present everywhere.
+       Body check-in and fuel are the two highest-frequency athlete actions in
+       the product. They used to live in a pinned quick-log dock that was hidden
+       on five of six screens and opened two separate overlays, while session
+       logging sat somewhere else again inside the focus overlay. One raised
+       centre Log button in the bottom bar now opens all three, from any screen.
 
-       Three states, not two. A tick means the COACHES have it, confirmed by
-       the server. "Sending" is the state that used to be invisible: saved on
-       this device, never acknowledged — which read as success to the athlete
-       and as nothing at all to the coach. -->
-  <div class="quicklog-strip" id="quicklogStrip">
-    <button class="quicklog-btn ql-body" id="qlDockBody" onclick="openQuickLog('body')" aria-label="Body check-in">
-      <svg class="icon ql-icon-todo" aria-hidden="true"><use href="#i-bars"/></svg>
-      <svg class="icon ql-icon-done" aria-hidden="true"><use href="#i-check"/></svg>
-      <svg class="icon ql-icon-sending" aria-hidden="true"><use href="#i-alert"/></svg>
-      <span>Body check-in</span>
-    </button>
-    <button class="quicklog-btn ql-nut" id="qlDockNut" onclick="openQuickLog('nut')" aria-label="Nutrition log">
-      <svg class="icon ql-icon-todo" aria-hidden="true"><use href="#i-utensils"/></svg>
-      <svg class="icon ql-icon-done" aria-hidden="true"><use href="#i-check"/></svg>
-      <svg class="icon ql-icon-sending" aria-hidden="true"><use href="#i-alert"/></svg>
-      <span>Nutrition log</span>
-    </button>
-  </div>
-  <div class="quicklog-hint" id="quicklogHint" role="status" style="display:none"></div>
+       The tab buttons ARE the state display. They keep the dock's three-state
+       sync vocabulary — .quicklog-btn with is-done / is-sending, stamped by
+       syncQuickLogDock() in 09-logging.js via the shared setSyncState() helper.
+       A tick means the COACHES have it, confirmed by the server. "Sending" is
+       the state that used to be invisible: saved on this device, never
+       acknowledged — which read as success to the athlete and as nothing at all
+       to the coach.
 
-  <!-- QUICK LOG BODY MODAL -->
-  <div class="ql-modal" id="qlBodyModal" onclick="if(event.target===this)closeQuickLog('body')">
-    <div class="ql-modal-inner">
+       There is exactly ONE copy of each form here. One set of field ids, one
+       draft, one submit path, whichever surface opened the sheet — the same
+       discipline openCheckinSheet() keeps by moving #ciFormContent rather than
+       duplicating it. The Session panel is built at open time from the live
+       session list and hands off to startFocusedSession(), so there is still
+       only one run/strength logging implementation in the app. -->
+  <div class="ql-modal" id="logSheet" onclick="if(event.target===this)closeLogSheet()">
+    <div class="ql-modal-inner log-sheet-inner">
       <div class="ql-modal-header">
-        <div class="ql-modal-title">Body Check-in</div>
-        <button class="ql-modal-close" onclick="closeQuickLog('body')" aria-label="Close body log">×</button>
+        <div class="ql-modal-title" id="logSheetTitle">Log</div>
+        <button class="ql-modal-close" onclick="closeLogSheet()" aria-label="Close log">×</button>
       </div>
-      <div class="ql-modal-body">
-        <!-- Previous day reference panel -->
-        <div id="qlbPrevDay" style="display:none;background:var(--surface-void);border-radius:var(--radius-md,12px);padding:12px 14px;margin-bottom:14px">
-          <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" id="qlbPrevDayLabel">Yesterday</div>
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px">
-            <div class="u-text-center">
-              <div style="font-family:var(--display);font-size:var(--font-xl,24px);font-weight:700;color:#fff;line-height:1" id="qlbPrevWeight">—</div>
-              <div class="u-metric-label">weight kg</div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-              <div class="u-text-center">
-                <div id="qlbPrevSleep" class="u-metric-value">—</div>
-                <div class="u-metric-label-tight">sleep</div>
-              </div>
-              <div class="u-text-center">
-                <div id="qlbPrevEnergy" class="u-metric-value">—</div>
-                <div class="u-metric-label-tight">energy</div>
-              </div>
-              <div class="u-text-center">
-                <div id="qlbPrevStress" class="u-metric-value">—</div>
-                <div class="u-metric-label-tight">stress</div>
-              </div>
-              <div class="u-text-center">
-                <div id="qlbPrevSore" class="u-metric-value">—</div>
-                <div class="u-metric-label-tight">soreness</div>
-              </div>
-            </div>
-          </div>
-          <div id="qlbPrevNotes" style="display:none;font-size:var(--font-xs,12px);color:rgba(236,233,226,.4);font-style:italic;border-top:1px solid rgba(236,233,226,.08);padding-top:8px"></div>
-        </div>
-        <div class="rlog u-mb-14">
-          <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm,8px);padding:10px 12px">
-            <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
-            <input type="date" class="li" id="qlbDate" style="margin-top:6px;border-color:rgba(255,170,0,.4)" />
-          </div>
-          <div class="lf"><label>Weight (kg)</label><input type="number" class="li" id="qlbWeight" step="0.1" placeholder="72.0" /></div>
-        </div>
-        <div class="lf u-mb-14">
-          <label>Sleep Quality <span id="qlbSleepVal" class="u-mono">&mdash;</span>/10</label>
-          <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" class="u-range-full" />
-          <div class="u-range-labels"><span>Terrible</span><span>Amazing</span></div>
-        </div>
-        <div class="lf u-mb-14">
-          <label>Energy <span id="qlbEnergyVal" class="u-mono">&mdash;</span>/10</label>
-          <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" class="u-range-full" />
-          <div class="u-range-labels"><span>Drained</span><span>Energised</span></div>
-        </div>
-        <div class="lf u-mb-14">
-          <label>Stress <span id="qlbStressVal" class="u-mono">&mdash;</span>/10</label>
-          <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbStress" oninput="document.getElementById('qlbStressVal').textContent=this.value" class="u-range-full" />
-          <div class="u-range-labels"><span>Calm</span><span>Maxed out</span></div>
-        </div>
-        <div class="lf u-mb-16">
-          <label>Muscle Soreness <span id="qlbSoreVal" class="u-mono">&mdash;</span>/10</label>
-          <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" class="u-range-full" />
-          <div class="u-range-labels"><span>Fresh</span><span>Destroyed</span></div>
-        </div>
-        <div class="pain-log-block">
-          <div class="lf"><label>Pain or niggle <span id="qlbPainVal" class="u-mono">0</span>/10</label><input type="range" min="0" max="10" value="0" id="qlbPain" oninput="document.getElementById('qlbPainVal').textContent=this.value;document.getElementById('qlbPainLocationWrap').style.display=Number(this.value)>0?'':'none'" /></div>
-          <div class="lf" id="qlbPainLocationWrap" style="display:none"><label>Where is it?</label><input type="text" class="li" id="qlbPainLocation" placeholder="e.g. left knee, outside ankle" /></div>
-          <div class="pain-help">Sharp, sudden or worsening pain is automatically flagged for coach review.</div>
-        </div>
-        <div class="lf u-mb-16"><label>Notes (optional)</label><input type="text" class="li" id="qlbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
-        <!-- Shown only once the server holds this day, so the form reads as a
-             record you can correct rather than an empty box you might not have
-             filled in. Populated by applyQuickLogSubmittedState(). -->
-        <div class="ql-submitted" id="qlbSubmittedNote" role="status" style="display:none"></div>
-        <div class="sheet-actions"><button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Save body check-in</button></div>
+      <div class="log-sheet-tabs" id="logSheetTabs" role="tablist" aria-label="What to log">
+      <button class="quicklog-btn log-tab ql-session" id="logTabSession" type="button" role="tab" aria-selected="false" aria-controls="logPanelSession" onclick="showLogTab('session')">
+        <svg class="icon ql-icon-todo" aria-hidden="true"><use href="#i-pulse"/></svg>
+        <svg class="icon ql-icon-done" aria-hidden="true"><use href="#i-check"/></svg>
+        <svg class="icon ql-icon-sending" aria-hidden="true"><use href="#i-alert"/></svg>
+        <span>Session</span>
+      </button>
+      <button class="quicklog-btn log-tab ql-body" id="qlDockBody" type="button" role="tab" aria-selected="false" aria-controls="logPanelBody" onclick="showLogTab('body')">
+        <svg class="icon ql-icon-todo" aria-hidden="true"><use href="#i-bars"/></svg>
+        <svg class="icon ql-icon-done" aria-hidden="true"><use href="#i-check"/></svg>
+        <svg class="icon ql-icon-sending" aria-hidden="true"><use href="#i-alert"/></svg>
+        <span>Body check-in</span>
+      </button>
+      <button class="quicklog-btn log-tab ql-nut" id="qlDockNut" type="button" role="tab" aria-selected="false" aria-controls="logPanelFuel" onclick="showLogTab('fuel')">
+        <svg class="icon ql-icon-todo" aria-hidden="true"><use href="#i-utensils"/></svg>
+        <svg class="icon ql-icon-done" aria-hidden="true"><use href="#i-check"/></svg>
+        <svg class="icon ql-icon-sending" aria-hidden="true"><use href="#i-alert"/></svg>
+        <span>Nutrition log</span>
+      </button>
       </div>
-    </div>
-  </div>
-
-  <!-- QUICK LOG NUTRITION MODAL -->
-  <div class="ql-modal" id="qlNutModal" onclick="if(event.target===this)closeQuickLog('nut')">
-    <div class="ql-modal-inner">
-      <div class="ql-modal-header">
-        <div class="ql-modal-title">Nutrition Log</div>
-        <button class="ql-modal-close" onclick="closeQuickLog('nut')" aria-label="Close nutrition log">×</button>
-      </div>
-      <div class="ql-modal-body">
-        <!-- Previous day reference panel -->
-        <div id="qlnPrevDay" style="display:none;background:var(--surface-void);border-radius:var(--radius-md,12px);padding:12px 14px;margin-bottom:14px">
-          <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px" id="qlnPrevDayLabel">Yesterday</div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px">
-            <div class="u-text-center">
-              <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:700;color:#fff;line-height:1" id="qlnPrevCal">—</div>
-              <div class="u-metric-label">kcal</div>
+      <div class="quicklog-hint" id="quicklogHint" role="status" style="display:none"></div>
+      <div class="ql-modal-body log-sheet-body" id="logSheetBody">
+        <!-- SESSION — the logging half of the session card, for an athlete who
+             trained and never opened the session. Rendered by
+             renderLogSessionPanel(); each row hands off to the existing
+             run/strength log path rather than repeating it. -->
+        <div class="log-panel" id="logPanelSession" role="tabpanel" aria-labelledby="logTabSession" hidden></div>
+        <div class="log-panel" id="logPanelBody" role="tabpanel" aria-labelledby="qlDockBody" hidden>
+          <div class="log-draft-note" id="qlbDraftNote" role="status" hidden></div>
+            <!-- Previous day reference panel -->
+            <div id="qlbPrevDay" style="display:none;background:var(--surface-void);border-radius:var(--radius-md,12px);padding:12px 14px;margin-bottom:14px">
+              <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" id="qlbPrevDayLabel">Yesterday</div>
+              <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px">
+                <div class="u-text-center">
+                  <div style="font-family:var(--display);font-size:var(--font-xl,24px);font-weight:700;color:#fff;line-height:1" id="qlbPrevWeight">—</div>
+                  <div class="u-metric-label">weight kg</div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                  <div class="u-text-center">
+                    <div id="qlbPrevSleep" class="u-metric-value">—</div>
+                    <div class="u-metric-label-tight">sleep</div>
+                  </div>
+                  <div class="u-text-center">
+                    <div id="qlbPrevEnergy" class="u-metric-value">—</div>
+                    <div class="u-metric-label-tight">energy</div>
+                  </div>
+                  <div class="u-text-center">
+                    <div id="qlbPrevStress" class="u-metric-value">—</div>
+                    <div class="u-metric-label-tight">stress</div>
+                  </div>
+                  <div class="u-text-center">
+                    <div id="qlbPrevSore" class="u-metric-value">—</div>
+                    <div class="u-metric-label-tight">soreness</div>
+                  </div>
+                </div>
+              </div>
+              <div id="qlbPrevNotes" style="display:none;font-size:var(--font-xs,12px);color:rgba(236,233,226,.4);font-style:italic;border-top:1px solid rgba(236,233,226,.08);padding-top:8px"></div>
             </div>
-            <div class="u-text-center">
-              <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:700;color:#93c5fd;line-height:1" id="qlnPrevPro">—</div>
-              <div class="u-metric-label">protein</div>
+            <div class="rlog u-mb-14">
+              <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm,8px);padding:10px 12px">
+                <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
+                <input type="date" class="li" id="qlbDate" style="margin-top:6px;border-color:rgba(255,170,0,.4)" />
+              </div>
+              <div class="lf"><label>Weight (kg)</label><input type="number" class="li" id="qlbWeight" step="0.1" placeholder="72.0" /></div>
             </div>
-            <div class="u-text-center">
-              <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:700;color:#92d2ed;line-height:1" id="qlnPrevCarb">—</div>
-              <div class="u-metric-label">carbs</div>
+            <div class="lf u-mb-14">
+              <label>Sleep Quality <span id="qlbSleepVal" class="u-mono">&mdash;</span>/10</label>
+              <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbSleep" oninput="document.getElementById('qlbSleepVal').textContent=this.value" class="u-range-full" />
+              <div class="u-range-labels"><span>Terrible</span><span>Amazing</span></div>
             </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div class="u-text-center">
-              <div style="font-family:var(--display);font-size:var(--font-md,16px);font-weight:700;color:rgba(236,233,226,.7);line-height:1" id="qlnPrevFat">—</div>
-              <div class="u-metric-label">fat g</div>
+            <div class="lf u-mb-14">
+              <label>Energy <span id="qlbEnergyVal" class="u-mono">&mdash;</span>/10</label>
+              <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbEnergy" oninput="document.getElementById('qlbEnergyVal').textContent=this.value" class="u-range-full" />
+              <div class="u-range-labels"><span>Drained</span><span>Energised</span></div>
             </div>
-            <div class="u-text-center">
-              <div style="font-family:var(--display);font-size:var(--font-md,16px);font-weight:700;color:rgba(236,233,226,.7);line-height:1" id="qlnPrevFibre">—</div>
-              <div class="u-metric-label">fibre g</div>
+            <div class="lf u-mb-14">
+              <label>Stress <span id="qlbStressVal" class="u-mono">&mdash;</span>/10</label>
+              <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbStress" oninput="document.getElementById('qlbStressVal').textContent=this.value" class="u-range-full" />
+              <div class="u-range-labels"><span>Calm</span><span>Maxed out</span></div>
             </div>
-          </div>
-          <div id="qlnPrevNotes" style="display:none;margin-top:8px;font-size:var(--font-xs,12px);color:rgba(236,233,226,.45);font-style:italic;border-top:1px solid rgba(236,233,226,.08);padding-top:8px"></div>
+            <div class="lf u-mb-16">
+              <label>Muscle Soreness <span id="qlbSoreVal" class="u-mono">&mdash;</span>/10</label>
+              <input type="range" min="1" max="10" value="5" data-unset="1" id="qlbSore" oninput="document.getElementById('qlbSoreVal').textContent=this.value" class="u-range-full" />
+              <div class="u-range-labels"><span>Fresh</span><span>Destroyed</span></div>
+            </div>
+            <div class="pain-log-block">
+              <div class="lf"><label>Pain or niggle <span id="qlbPainVal" class="u-mono">0</span>/10</label><input type="range" min="0" max="10" value="0" id="qlbPain" oninput="document.getElementById('qlbPainVal').textContent=this.value;document.getElementById('qlbPainLocationWrap').style.display=Number(this.value)>0?'':'none'" /></div>
+              <div class="lf" id="qlbPainLocationWrap" style="display:none"><label>Where is it?</label><input type="text" class="li" id="qlbPainLocation" placeholder="e.g. left knee, outside ankle" /></div>
+              <div class="pain-help">Sharp, sudden or worsening pain is automatically flagged for coach review.</div>
+            </div>
+            <div class="lf u-mb-16"><label>Notes (optional)</label><input type="text" class="li" id="qlbNotes" placeholder="Anything to flag..." style="margin-top:4px" /></div>
+            <!-- Shown only once the server holds this day, so the form reads as a
+                 record you can correct rather than an empty box you might not have
+                 filled in. Populated by applyQuickLogSubmittedState(). -->
+            <div class="ql-submitted" id="qlbSubmittedNote" role="status" style="display:none"></div>
+            <div class="sheet-actions"><button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Save body check-in</button></div>
         </div>
-        <div class="rlog u-mb-14">
-          <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm,8px);padding:10px 12px">
-            <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
-            <input type="date" class="li" id="qlnDate" style="margin-top:6px;border-color:rgba(255,170,0,.4)" />
-          </div>
-          <div class="lf">
-            <div class="u-flex-between">
-              <label>Calories (kcal)</label>
-              <span class="qln-tgt" id="qlnTgtCal"></span>
+        <div class="log-panel" id="logPanelFuel" role="tabpanel" aria-labelledby="qlDockNut" hidden>
+          <div class="log-draft-note" id="qlnDraftNote" role="status" hidden></div>
+          <!-- Yesterday's totals are seeded into the fields as a starting point,
+               because macros are logged in stages and a blank form invites
+               re-entering the day from scratch. The seed is marked, not hidden:
+               seedFuelFromYesterday() only fires on a day with no record of its
+               own, every seeded field is flagged until it is edited, and the
+               button still reads "Save", never "Update". -->
+          <div class="log-seed-note" id="qlnSeedNote" role="status" hidden></div>
+            <!-- Previous day reference panel -->
+            <div id="qlnPrevDay" style="display:none;background:var(--surface-void);border-radius:var(--radius-md,12px);padding:12px 14px;margin-bottom:14px">
+              <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px" id="qlnPrevDayLabel">Yesterday</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px">
+                <div class="u-text-center">
+                  <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:700;color:#fff;line-height:1" id="qlnPrevCal">—</div>
+                  <div class="u-metric-label">kcal</div>
+                </div>
+                <div class="u-text-center">
+                  <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:700;color:#93c5fd;line-height:1" id="qlnPrevPro">—</div>
+                  <div class="u-metric-label">protein</div>
+                </div>
+                <div class="u-text-center">
+                  <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:700;color:#92d2ed;line-height:1" id="qlnPrevCarb">—</div>
+                  <div class="u-metric-label">carbs</div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div class="u-text-center">
+                  <div style="font-family:var(--display);font-size:var(--font-md,16px);font-weight:700;color:rgba(236,233,226,.7);line-height:1" id="qlnPrevFat">—</div>
+                  <div class="u-metric-label">fat g</div>
+                </div>
+                <div class="u-text-center">
+                  <div style="font-family:var(--display);font-size:var(--font-md,16px);font-weight:700;color:rgba(236,233,226,.7);line-height:1" id="qlnPrevFibre">—</div>
+                  <div class="u-metric-label">fibre g</div>
+                </div>
+              </div>
+              <div id="qlnPrevNotes" style="display:none;margin-top:8px;font-size:var(--font-xs,12px);color:rgba(236,233,226,.45);font-style:italic;border-top:1px solid rgba(236,233,226,.08);padding-top:8px"></div>
             </div>
-            <input type="number" class="li" id="qlnCal" placeholder="2300" oninput="updateNutFeedback()" />
-          </div>
+            <div class="rlog u-mb-14">
+              <div class="lf" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm,8px);padding:10px 12px">
+                <label style="color:#ffaa00;font-weight:600;display:flex;align-items:center;gap:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Date <span style="font-size:var(--font-xs,12px);font-weight:400;color:rgba(255,170,0,.7);font-family:var(--mono)">— confirm before submitting</span></label>
+                <input type="date" class="li" id="qlnDate" style="margin-top:6px;border-color:rgba(255,170,0,.4)" />
+              </div>
+              <div class="lf">
+                <div class="u-flex-between">
+                  <label>Calories (kcal)</label>
+                  <span class="qln-tgt" id="qlnTgtCal"></span>
+                </div>
+                <input type="number" class="li" id="qlnCal" placeholder="2300" oninput="updateNutFeedback()" />
+              </div>
+            </div>
+            <div class="rlog u-mb-14">
+              <div class="lf">
+                <div class="u-flex-between">
+                  <label>Protein (g)</label>
+                  <span class="qln-tgt" id="qlnTgtPro"></span>
+                </div>
+                <input type="number" class="li" id="qlnPro" placeholder="165" oninput="updateNutFeedback()" />
+              </div>
+              <div class="lf">
+                <div class="u-flex-between">
+                  <label>Carbs (g)</label>
+                  <span class="qln-tgt" id="qlnTgtCarb"></span>
+                </div>
+                <input type="number" class="li" id="qlnCarbs" placeholder="295" oninput="updateNutFeedback()" />
+              </div>
+            </div>
+            <div class="rlog u-mb-14">
+              <div class="lf">
+                <div class="u-flex-between">
+                  <label>Fat (g)</label>
+                  <span class="qln-tgt" id="qlnTgtFat"></span>
+                </div>
+                <input type="number" class="li" id="qlnFat" placeholder="55" oninput="updateNutFeedback()" />
+              </div>
+              <div class="lf">
+                <div class="u-flex-between">
+                  <label>Fibre (g)</label>
+                  <span class="qln-tgt" id="qlnTgtFibre"></span>
+                </div>
+                <input type="number" class="li" id="qlnFibre" placeholder="35" oninput="updateNutFeedback()" />
+              </div>
+            </div>
+            <!-- Live macro vs target feedback -->
+            <div id="qlnFeedback" class="qln-feedback"></div>
+            <div class="lf u-mb-16"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
+            <div class="ql-submitted" id="qlnSubmittedNote" role="status" style="display:none"></div>
+            <div class="sheet-actions"><button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Save nutrition log</button></div>
         </div>
-        <div class="rlog u-mb-14">
-          <div class="lf">
-            <div class="u-flex-between">
-              <label>Protein (g)</label>
-              <span class="qln-tgt" id="qlnTgtPro"></span>
-            </div>
-            <input type="number" class="li" id="qlnPro" placeholder="165" oninput="updateNutFeedback()" />
-          </div>
-          <div class="lf">
-            <div class="u-flex-between">
-              <label>Carbs (g)</label>
-              <span class="qln-tgt" id="qlnTgtCarb"></span>
-            </div>
-            <input type="number" class="li" id="qlnCarbs" placeholder="295" oninput="updateNutFeedback()" />
-          </div>
-        </div>
-        <div class="rlog u-mb-14">
-          <div class="lf">
-            <div class="u-flex-between">
-              <label>Fat (g)</label>
-              <span class="qln-tgt" id="qlnTgtFat"></span>
-            </div>
-            <input type="number" class="li" id="qlnFat" placeholder="55" oninput="updateNutFeedback()" />
-          </div>
-          <div class="lf">
-            <div class="u-flex-between">
-              <label>Fibre (g)</label>
-              <span class="qln-tgt" id="qlnTgtFibre"></span>
-            </div>
-            <input type="number" class="li" id="qlnFibre" placeholder="35" oninput="updateNutFeedback()" />
-          </div>
-        </div>
-        <!-- Live macro vs target feedback -->
-        <div id="qlnFeedback" class="qln-feedback"></div>
-        <div class="lf u-mb-16"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
-        <div class="ql-submitted" id="qlnSubmittedNote" role="status" style="display:none"></div>
-        <div class="sheet-actions"><button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Save nutrition log</button></div>
       </div>
     </div>
   </div>
@@ -1432,10 +1458,10 @@
 })();
 </script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=127"></script>
-<script src="js/02-login-goals.js?v=117"></script>
-<script src="js/03-nav-nudges.js?v=120"></script>
-<script src="js/04-checkin.js?v=101"></script>
+<script src="js/01-core.js?v=128"></script>
+<script src="js/02-login-goals.js?v=118"></script>
+<script src="js/03-nav-nudges.js?v=121"></script>
+<script src="js/04-checkin.js?v=102"></script>
 <script src="js/05-handbook.js?v=85"></script>
 <script src="js/06-nutrition.js?v=102"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=90" hidden></span>
@@ -1445,7 +1471,7 @@
 <script src="js/08-training-focus.js?v=2"></script>
 <script src="js/08-strength-engine.js?v=4"></script>
 <script src="js/08-training.js?v=150"></script>
-<script src="js/09-logging.js?v=126"></script>
+<script src="js/09-logging.js?v=127"></script>
 <script src="accessibility.js?v=2"></script>
 <script src="js/10-boot.js?v=110"></script>
 </body>

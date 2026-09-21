@@ -341,9 +341,9 @@ test('a technique or niggle answer never earns more load', async ({ page }) => {
   expect(body).not.toMatch(/Ready to Increase/);
 });
 
-test('4. body check-in updates the dock state', async ({ page }) => {
+test('4. body check-in updates the Log sheet tab state', async ({ page }) => {
   await codeLogin(page);
-  await page.getByRole('button', { name: 'Body check-in' }).click();
+  await page.evaluate(() => openLogSheet('body'));
   await page.locator('#qlbWeight').fill('72.4');
   await page.getByRole('button', { name: 'Save body check-in' }).click();
   await expect(page.locator('#qlDockBody')).toHaveClass(/is-done/);
@@ -353,7 +353,7 @@ test('5. offline submit shows pending state and online recovery drains it', asyn
   const state = await codeLogin(page);
   state.offline = true;
   await context.setOffline(true);
-  await page.getByRole('button', { name: 'Body check-in' }).click();
+  await page.evaluate(() => openLogSheet('body'));
   await page.locator('#qlbWeight').fill('72.5');
   await page.getByRole('button', { name: 'Save body check-in' }).click();
   await expect(page.locator('#queuePendingBanner')).toBeVisible();

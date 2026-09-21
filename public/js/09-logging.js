@@ -1144,6 +1144,10 @@ function quickLogState(kind){
 }
 // Kept for callers that only care whether there is anything to do today.
 function quickLogDoneToday(kind){return quickLogState(kind)==='logged';}
+// The dock is gone; these are the Body and Fuel tabs of the Log sheet, which is
+// reachable from every screen. The three states and the vocabulary are unchanged
+// — that was the part worth keeping — they are just no longer hidden on five of
+// six destinations.
 function syncQuickLogDock(){
   var body=document.getElementById('qlDockBody');
   var nut=document.getElementById('qlDockNut');
@@ -1172,8 +1176,8 @@ function syncQuickLogDock(){
   var nextUp=bodySettled?(nutSettled?null:'nut'):'body';
   body.classList.toggle('is-next',nextUp==='body');
   nut.classList.toggle('is-next',nextUp==='nut');
-  var strip=document.getElementById('quicklogStrip');
-  if(strip) strip.classList.toggle('all-logged',bodySettled&&nutSettled);
+  var tabs=document.getElementById('logSheetTabs');
+  if(tabs) tabs.classList.toggle('all-logged',bodySettled&&nutSettled);
   var label={
     logged:function(n){return n+', logged and sent to your coaches';},
     sending:function(n){return n+', saved on this device but not yet sent — tap to resend';},

@@ -77,8 +77,10 @@ test(`every day of a 10-session week is reachable above fixed navigation on ${si
   const days = page.locator('#weeklyCalEl .mobile-week-day');
   await expect(days).toHaveCount(7);
 
-  // Quick actions remain available on every destination.
-  await expect(page.locator('.quicklog-strip')).toBeVisible();
+  // Quick actions remain available on every destination — through the Log
+  // control in the bottom bar, which is the only fixed layer now that the
+  // two-button dock is gone.
+  await expect(page.locator('[data-mobile-tab="log"]')).toBeVisible();
   // The email-upgrade prompt is a one-off nag, not part of this layout; it
   // steals ~150px and would make the measurements lie about a normal week.
   await page.evaluate(() => { const p = document.getElementById('emailUpgradePrompt'); if (p) { p.hidden = true; p.style.display = 'none'; } });
@@ -93,18 +95,16 @@ test(`every day of a 10-session week is reachable above fixed navigation on ${si
   await days.nth(6).scrollIntoViewIfNeeded();
   await page.waitForTimeout(150);
   let nav = await page.locator('.mobile-nav').boundingBox();
-  let dock = await page.locator('.quicklog-strip').boundingBox();
   let last = await days.nth(6).boundingBox();
-  const firstObstruction = Math.min(nav?.y ?? size.height, dock?.y ?? size.height);
+  const firstObstruction = nav?.y ?? size.height;
   if (last && last.y + last.height > firstObstruction - 8) {
     await page.evaluate(delta => window.scrollBy(0, delta), last.y + last.height - firstObstruction + 10);
     await page.waitForTimeout(150);
     nav = await page.locator('.mobile-nav').boundingBox();
-    dock = await page.locator('.quicklog-strip').boundingBox();
     last = await days.nth(6).boundingBox();
   }
-  const obstructionTop = Math.min(nav?.y ?? size.height, dock?.y ?? size.height);
-  expect(last.y + last.height, 'Sunday is hidden behind the quick actions or navigation').toBeLessThanOrEqual(obstructionTop - 7);
+  const obstructionTop = nav?.y ?? size.height;
+  expect(last.y + last.height, 'Sunday is hidden behind the navigation').toBeLessThanOrEqual(obstructionTop - 7);
 
   // The weekly volume strip stays on screen alongside it.
   const vstrip = page.locator('.vstrip').first();

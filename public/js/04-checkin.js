@@ -454,8 +454,61 @@ document.addEventListener('change',function(e){
   }
 });
 function openQuickLog(type){
+  // Compat entry point. The readiness chip, the pain nudge and the recovery
+  // flag all call this, and they should keep meaning "open the body check-in" —
+  // they now open it as a tab of the one Log sheet instead of its own overlay.
+  if(typeof openLogSheet==='function')return openLogSheet(type==='nut'?'fuel':'body');
+  showLogTab(type==='nut'?'fuel':'body');
+}
+// ── LOG SHEET ─────────────────────────────────────────────────────────────────
+// Session, Body and Fuel in one component. The forms are not cloned into it:
+// each exists exactly once, inside its panel, so there is one set of field ids,
+// one draft and one submit path no matter which surface opened the sheet. The
+// tab buttons carry the sync state, so the three states stay visible from every
+// screen rather than only the one the old dock was allowed on.
+var LOG_TABS=['session','body','fuel'];
+function logTabButton(tab){
+  return document.getElementById(tab==='body'?'qlDockBody':tab==='fuel'?'qlDockNut':'logTabSession');
+}
+function logTabPanel(tab){
+  return document.getElementById(tab==='body'?'logPanelBody':tab==='fuel'?'logPanelFuel':'logPanelSession');
+}
+// Session if today has a session that has not been logged, otherwise Body if
+// today's check is missing, otherwise Fuel. Anything unconfirmed counts as
+// outstanding: saved on this device is not with the coaches.
+function defaultLogTab(){
   var today=todayISO2();
-  if(type==='body'){
+  try{
+    if(typeof sessions!=='undefined'&&Array.isArray(sessions)){
+      var due=sessions.some(function(s){
+        return s&&s.date===today&&!(typeof isSessionLogged==='function'&&isSessionLogged(s.id));
+      });
+      if(due)return 'session';
+    }
+  }catch(e){}
+  try{if(typeof quickLogState==='function'&&quickLogState('body')!=='logged')return 'body';}catch(e){
+    if(!storedDailyLog('body',today))return 'body';
+  }
+  return 'fuel';
+}
+function showLogTab(tab){
+  if(LOG_TABS.indexOf(tab)<0)tab='body';
+  LOG_TABS.forEach(function(name){
+    var btn=logTabButton(name),panel=logTabPanel(name),on=name===tab;
+    if(btn){btn.classList.toggle('is-active',on);btn.setAttribute('aria-selected',on?'true':'false');}
+    if(panel)panel.hidden=!on;
+  });
+  var title=document.getElementById('logSheetTitle');
+  if(title)title.textContent=tab==='session'?'Log session':tab==='fuel'?'Nutrition log':'Body check-in';
+  if(tab==='body')prepareLogBodyTab();
+  else if(tab==='fuel')prepareLogFuelTab();
+  else renderLogSessionPanel();
+  var body=document.getElementById('logSheetBody');
+  if(body)body.scrollTop=0;
+  try{track('log_tab_viewed',{tab:tab});}catch(e){}
+}
+function prepareLogBodyTab(){
+  var today=todayISO2();
     // Always reopen on today. The form now keeps its values, so leaving a
     // previously chosen date in place would silently point today's entry at
     // yesterday's row.
@@ -490,9 +543,10 @@ function openQuickLog(type){
       else{notesEl.style.display='none';}
       prevPanel.style.display='block';
     })();
-    document.getElementById('qlBodyModal').classList.add('open');
-    document.body.style.overflow='hidden';
-  } else {
+  restoreLogDraft('body',document.getElementById('qlbDate').value||todayISO2());
+}
+function prepareLogFuelTab(){
+  var today=todayISO2();
     var dateEl=document.getElementById('qlnDate');
     if(dateEl) dateEl.value=today;
     prefillQuickNut(today);
@@ -543,14 +597,199 @@ function openQuickLog(type){
       setTgt('qlnTgtFibre',t.fibre,'g');
     })();
     updateNutFeedback();
-    document.getElementById('qlNutModal').classList.add('open');
-    document.body.style.overflow='hidden';
+  var fuelDate=document.getElementById('qlnDate').value||todayISO2();
+  seedFuelFromYesterday(fuelDate);
+  restoreLogDraft('fuel',fuelDate);
+  updateNutFeedback();
+}
+// Yesterday's totals as a starting point, because macros are logged in stages
+// through the day and a blank form invites re-entering the whole day. Only ever
+// on a day that has no record of its own — a day already logged shows itself,
+// not yesterday — and every seeded field is marked until the athlete edits it,
+// so nothing silently saves yesterday's numbers as today's.
+var LOG_FUEL_SEED_FIELDS=[['qlnCal','calories'],['qlnPro','protein'],['qlnCarbs','carbs'],['qlnFat','fat'],['qlnFibre','fibre']];
+function clearFuelSeedMark(){
+  LOG_FUEL_SEED_FIELDS.forEach(function(pair){
+    var el=document.getElementById(pair[0]);if(el)el.classList.remove('is-seeded');
+  });
+  var note=document.getElementById('qlnSeedNote');if(note)note.hidden=true;
+}
+function seedFuelFromYesterday(date){
+  var note=document.getElementById('qlnSeedNote');
+  clearFuelSeedMark();
+  if(storedDailyLog('nut',date))return false;
+  var d=new Date(date+'T00:00:00');d.setDate(d.getDate()-1);
+  var prev=storedDailyLog('nut',localISO(d));
+  if(!prev)return false;
+  var seeded=0;
+  LOG_FUEL_SEED_FIELDS.forEach(function(pair){
+    var el=document.getElementById(pair[0]);if(!el)return;
+    var v=prev[pair[1]];
+    if(v==null||v==='')return;
+    el.value=v;el.classList.add('is-seeded');seeded++;
+  });
+  if(!seeded)return false;
+  if(note){
+    note.textContent='Started from yesterday\u2019s totals \u2014 edit them to today\u2019s and save. Nothing is sent until you do.';
+    note.hidden=false;
   }
+  try{track('fuel_seeded_from_yesterday');}catch(e){}
+  return true;
+}
+// ── LOG SHEET DRAFTS ─────────────────────────────────────────────────────────
+// Same contract as the weekly check-in: every field is kept locally as it is
+// typed, and a restored draft says plainly that it has NOT been sent. A draft is
+// this device's unfinished work — it must never read as a submitted log.
+var LOG_DRAFT_FIELDS={
+  body:['qlbWeight','qlbSleep','qlbEnergy','qlbStress','qlbSore','qlbPain','qlbPainLocation','qlbNotes'],
+  fuel:['qlnCal','qlnPro','qlnCarbs','qlnFat','qlnFibre','qlnNotes']
+};
+var _logDraftTimer=null;
+function logDraftKey(kind,date){return 'dp_log_draft_'+kind+'_'+((athlete&&athlete.code)||'default')+'_'+date;}
+function currentLogDraftKind(el){
+  if(!el||!el.id)return null;
+  if(LOG_DRAFT_FIELDS.body.indexOf(el.id)>=0)return 'body';
+  if(LOG_DRAFT_FIELDS.fuel.indexOf(el.id)>=0)return 'fuel';
+  return null;
+}
+function saveLogDraft(kind){
+  var dateEl=document.getElementById(kind==='body'?'qlbDate':'qlnDate');
+  var date=(dateEl&&dateEl.value)||todayISO2();
+  var d={_savedAt:Date.now()};
+  LOG_DRAFT_FIELDS[kind].forEach(function(id){
+    var el=document.getElementById(id);if(!el)return;
+    // An untouched slider is still at its default — don't bake 5s into a draft.
+    if(el.type==='range'&&el.classList.contains('sl-untouched'))return;
+    // Nor a value the athlete has not looked at yet.
+    if(el.classList.contains('is-seeded'))return;
+    if(el.value==='')return;
+    d[id]=el.value;
+  });
+  var hasAny=Object.keys(d).length>1;
+  try{
+    if(hasAny)localStorage.setItem(logDraftKey(kind,date),JSON.stringify(d));
+    else localStorage.removeItem(logDraftKey(kind,date));
+  }catch(e){}
+}
+function clearLogDraft(kind,date){
+  try{localStorage.removeItem(logDraftKey(kind,date));}catch(e){}
+  var note=document.getElementById(kind==='body'?'qlbDraftNote':'qlnDraftNote');
+  if(note)note.hidden=true;
+}
+function restoreLogDraft(kind,date){
+  var note=document.getElementById(kind==='body'?'qlbDraftNote':'qlnDraftNote');
+  if(note)note.hidden=true;
+  var d=null;try{d=JSON.parse(localStorage.getItem(logDraftKey(kind,date))||'null');}catch(e){}
+  if(!d||!d._savedAt)return false;
+  // A confirmed day is the coaches' record; the form already shows it. An old
+  // draft must not paint over it.
+  var confirmed=false;
+  try{confirmed=!!(_confirmedLogDates&&_confirmedLogDates[kind==='fuel'?'nut':'body']&&_confirmedLogDates[kind==='fuel'?'nut':'body'][date]);}catch(e){}
+  if(confirmed){clearLogDraft(kind,date);return false;}
+  var restored=0;
+  LOG_DRAFT_FIELDS[kind].forEach(function(id){
+    if(d[id]==null||d[id]==='')return;
+    var el=document.getElementById(id);if(!el)return;
+    el.value=d[id];el.classList.remove('is-seeded');restored++;
+    if(el.type==='range'){
+      el.classList.remove('sl-untouched');el.removeAttribute('data-unset');
+      var valEl=document.getElementById(id+'Val');if(valEl)valEl.textContent=d[id];
+      if(id==='qlbPain'){
+        var wrap=document.getElementById('qlbPainLocationWrap');
+        if(wrap)wrap.style.display=Number(d[id])>0?'':'none';
+      }
+    }
+  });
+  if(!restored)return false;
+  if(note){
+    note.textContent='Unsaved draft restored \u2014 this has not been sent to your coaches yet. Check it and save.';
+    note.hidden=false;
+  }
+  if(kind==='fuel'){clearFuelSeedMark();updateNutFeedback();}
+  try{track('log_draft_restored',{kind:kind});}catch(e){}
+  return true;
+}
+document.addEventListener('input',function(e){
+  var kind=currentLogDraftKind(e.target);
+  if(!kind)return;
+  // Typing over a seeded value makes it the athlete's own number.
+  if(e.target.classList&&e.target.classList.contains('is-seeded')){
+    e.target.classList.remove('is-seeded');
+    var remaining=LOG_FUEL_SEED_FIELDS.some(function(pair){
+      var el=document.getElementById(pair[0]);return el&&el.classList.contains('is-seeded');
+    });
+    var seedNote=document.getElementById('qlnSeedNote');
+    if(seedNote&&!remaining)seedNote.hidden=true;
+  }
+  if(_logDraftTimer)clearTimeout(_logDraftTimer);
+  _logDraftTimer=setTimeout(function(){saveLogDraft(kind);},400);
+});
+// ── SESSION TAB ──────────────────────────────────────────────────────────────
+// For the athlete who trained and never opened the session. This lists what is
+// open and hands each row to startFocusedSession(), the existing run/strength
+// logging path — the sheet deliberately contains no second implementation of it.
+function logSessionRowsForToday(){
+  var today=todayISO2(),rows=[];
+  if(typeof sessions==='undefined'||!Array.isArray(sessions))return rows;
+  sessions.forEach(function(s,i){
+    if(!s||s.date!==today)return;
+    var logged=typeof isSessionLogged==='function'&&isSessionLogged(s.id);
+    rows.push({index:i,session:s,logged:logged});
+  });
+  return rows;
+}
+function renderLogSessionPanel(){
+  var panel=document.getElementById('logPanelSession');
+  if(!panel)return;
+  var rows=logSessionRowsForToday();
+  if(!rows.length){
+    panel.innerHTML='<div class="log-session-empty"><strong>No session scheduled today</strong>'
+      +'<span>Nothing to log. Body and fuel are still open in the other tabs.</span></div>';
+    return;
+  }
+  var html='';
+  rows.forEach(function(row){
+    var s=row.session,name=typeof esc==='function'?esc(s.name||'Session'):(s.name||'Session');
+    var kind=(s.type==='gym'||s.type==='strength')?'strength':'run';
+    html+='<div class="log-session-row'+(row.logged?' is-logged':'')+'">'
+      +'<div class="log-session-copy"><strong>'+name+'</strong>'
+      +'<span>'+(row.logged?'Logged \u2713':(kind==='strength'?'Strength session \u2014 not logged':'Run \u2014 not logged'))+'</span></div>'
+      +'<button type="button" class="savebtn log-session-open" onclick="openSessionFromLogSheet('+row.index+')">'
+      +(row.logged?'Review':'Log it')+'</button>'
+      +'</div>';
+    // One-tap confirm when Strava already has the run. This is the same builder
+    // and the same confirmStravaMatch() the session card uses — the sheet adds a
+    // surface, not a second matching path.
+    if(kind==='run'&&typeof stravaMatchHtml==='function'){
+      try{html+=stravaMatchHtml(s,row.index,'log-sheet');}catch(e){}
+    }
+  });
+  panel.innerHTML=html;
+}
+// confirmStravaMatch() writes the log and marks the session; the sheet has to
+// repaint to stop offering a confirm for a session that now has one.
+function confirmStravaFromLogSheet(i){
+  var done=typeof confirmStravaMatch==='function'?confirmStravaMatch(i):null;
+  if(done&&typeof done.then==='function')done.then(function(){renderLogSessionPanel();},function(){});
+  else renderLogSessionPanel();
+}
+function openSessionFromLogSheet(i){
+  closeLogSheet();
+  try{track('log_session_opened',{source:'log_sheet'});}catch(e){}
+  if(typeof startFocusedSession==='function')setTimeout(function(){startFocusedSession(i);},120);
+  else if(typeof switchTab==='function')switchTab('today');
+}
+function closeLogSheet(){
+  var sheet=document.getElementById('logSheet');
+  // Anything typed is already in the draft, so closing is deliberately silent —
+  // no "discard?" prompt for work that was never lost.
+  try{saveLogDraft('body');saveLogDraft('fuel');}catch(e){}
+  if(sheet)sheet.classList.remove('open');
+  document.body.style.overflow='';
 }
 function closeQuickLog(type){
-  var id=type==='body'?'qlBodyModal':'qlNutModal';
-  var el=document.getElementById(id);if(el) el.classList.remove('open');
-  document.body.style.overflow='';
+  // Both forms live in the one sheet now, so either kind closes the same thing.
+  closeLogSheet();
 }
 function updateNutFeedback(){
   var fb=document.getElementById('qlnFeedback');
