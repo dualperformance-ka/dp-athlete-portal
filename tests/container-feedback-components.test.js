@@ -127,7 +127,7 @@ test('the overlays already trap focus, close on Escape and return focus', () => 
   // This was NOT added here: accessibility.js owns it and already covers every
   // overlay, which is why this step did not rebuild it. Asserted so a later
   // sheet change cannot quietly drop an overlay out of that coverage.
-  for (const sel of ['.hb-modal', '.ql-modal', '.photo-modal', '.day-plan-overlay', '.more-menu']) {
+  for (const sel of ['.hb-modal', '.ql-modal', '.photo-modal', '.day-plan-overlay', '.profile-menu']) {
     assert.ok(a11y.includes(sel), sel);
   }
   assert.match(a11y, /event\.key === 'Escape'/);
@@ -355,7 +355,7 @@ test('this step deleted daylight overrides rather than adding any', () => {
     'ql-modal', 'ql-modal-inner', 'ql-modal-header', 'ql-modal-body', 'ql-modal-close',
     'hb-modal', 'hb-modal-inner', 'hb-modal-header', 'hb-modal-body', 'hb-modal-close',
     'photo-modal', 'photo-modal-inner', 'photo-modal-header', 'photo-modal-close', 'photo-modal-guide',
-    'more-menu', 'more-menu-sheet', 'more-menu-handle', 'more-menu-grid', 'more-menu-close', 'more-menu-due',
+    'profile-menu', 'profile-menu-sheet', 'profile-menu-handle', 'profile-menu-grid', 'profile-menu-close', 'profile-menu-due',
     'day-plan-overlay', 'day-plan-dialog', 'day-plan-close', 'day-plan-pager', 'day-plan-kicker', 'day-plan-rest',
     'toast', 'toast-error', 'toast-dismiss',
     'sync-pill', 'save-state-pill',

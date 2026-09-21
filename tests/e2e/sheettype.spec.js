@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const athlete = { ok: true, exists: true, active: true, code: 'KARL', name: 'Karl Sexon', auth_mode: 'both', email: 'k@e.com', access_token: 'signed-session' };
 
-test('check-in sheet fields are sized for the sheet, and the tab is untouched', async ({ page }) => {
+test('check-in fields stay iOS-safe in the Coaching sheet and return to their host', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.addInitScript(() => {
     window.supabase = { createClient: () => ({ auth: {
@@ -36,24 +36,14 @@ test('check-in sheet fields are sized for the sheet, and the tab is untouched', 
     inline: el.style.fontSize || '',
   }));
 
-  // On the tab the field keeps the shared control size.
-  await page.evaluate(() => switchTab('checkin'));
-  const onTab = await size();
-  expect(onTab.inline, 'no inline font-size should shadow the stylesheet').toBe('');
-  // The mobile accessibility floor pins form controls to 16px+ so iOS does not
-  // zoom the page on focus. The sheet must not undercut it.
-  expect(onTab.font).toBeGreaterThanOrEqual(16);
-
-  // In the sheet it steps down to fit the narrower column.
-  await page.evaluate(() => switchTab('calls'));
+  const host = await page.locator('#ciFormContent').evaluate(el => el.parentElement.id);
+  await page.evaluate(() => switchTab('coaching'));
   await page.evaluate(() => openCheckinSheet());
   await expect(page.locator('#checkinModal')).toHaveClass(/open/);
   const inSheet = await size();
-  // Smaller than the tab, but exactly on the threshold: below 16px iOS zooms
-  // the page on every field tap, which on a five-step form is worse than the
-  // extra pixel. This asserts both halves of that trade.
+  expect(inSheet.inline, 'no inline font-size should shadow the stylesheet').toBe('');
+  // Below 16px iOS zooms the page on every field tap.
   expect(inSheet.font, 'the sheet must not drop below the iOS zoom floor').toBeGreaterThanOrEqual(16);
-  expect(inSheet.font, 'and should be smaller than the tab').toBeLessThan(onTab.font);
 
   // The placeholder must actually fit rather than being clipped by min-height.
   const clipped = await page.evaluate(() => {
@@ -68,8 +58,8 @@ test('check-in sheet fields are sized for the sheet, and the tab is untouched', 
 
   await page.screenshot({ path: 'test-results/sheet-type.png' });
 
-  // And closing hands it back at the tab's size.
+  // Closing returns the one shared form to its inert host.
   await page.evaluate(() => closeCheckinSheet());
-  const backOnTab = await size();
-  expect(backOnTab.font).toBe(onTab.font);
+  const returnedHost = await page.locator('#ciFormContent').evaluate(el => el.parentElement.id);
+  expect(returnedHost).toBe(host);
 });

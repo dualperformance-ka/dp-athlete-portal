@@ -84,7 +84,7 @@ if (apiFunctions.length > API_FUNCTION_BUDGET) {
   failures.push(`api/ has ${apiFunctions.length} functions, over the self-imposed budget of ${API_FUNCTION_BUDGET}. This is not a Vercel Pro limit — raise the budget deliberately if the new route is genuinely warranted.`);
 }
 
-if (!index.includes('accessibility.js?v=1')) failures.push('Accessibility runtime is not loaded');
+if (!/accessibility\.js\?v=\d+/.test(index)) failures.push('Accessibility runtime is not loaded');
 if (!loginGoals.includes("portalRequest('bootstrap')") ||
     !loginGoals.includes('Combined portal bootstrap failed; using compatibility reads') ||
     !/await loadCloudData\(code,bootstrap\.state\);[\s\S]*await loadStructuredBodyData\(code,bootstrap\.bodyLogs\);[\s\S]*await loadSessionLogs\(bootstrap\.sessionLogs\);/.test(loginGoals)) {

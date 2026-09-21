@@ -104,6 +104,7 @@ function syncWeekCardState(){
   // With every row completed the card has nothing to frame, so it goes too —
   // otherwise mobile is left with an empty bordered sliver under the hero.
   card.classList.toggle('has-rows',rows>0);
+  card.style.display=rows>0?'grid':'none';
 }
 // Completed rows leave rather than switching to a done state. The collapse is
 // short enough to read as "that's handled" without holding up the screen.
@@ -212,7 +213,6 @@ function renderBookingPrompts(){
   var st=getCallBookedState();
   var nudge=document.getElementById('callNudge');
   var confirmed=document.getElementById('callConfirmedNudge');
-  var dot=document.getElementById('tabDotCheckin');
   if(nudge){
     nudge.style.display=st.booked?'none':'';
     var sub=nudge.querySelector('.nudge-strip-sub');
@@ -225,7 +225,7 @@ function renderBookingPrompts(){
   var subEl=document.getElementById('callConfirmedSub');
   if(titleEl) titleEl.textContent='Call booked';
   if(subEl) subEl.textContent=st.displayTime?(st.displayTime+' · Karl & Alex'):'Confirming date and time…';
-  if(dot) dot.classList.toggle('visible',!st.booked);
+  syncCoachingBadge();
   var card=document.getElementById('ciBookCard');
   if(card){
     card.classList.toggle('booked',st.booked);
@@ -354,15 +354,13 @@ function initCheckinNudge(){
   var _d=new Date().getDay();
   var dueWindow=(_d===0||_d>=4);
   nudge.style.display=(done||!dueWindow)?'none':'';
-  var mobileDot=document.getElementById('mobileCheckinDot');if(mobileDot)mobileDot.classList.toggle('visible',!done);
-  var moreDue=document.getElementById('moreCheckinDue');if(moreDue)moreDue.classList.toggle('visible',!done);
+  syncCoachingBadge();
   syncWeekCardState();
 }
 function hideCheckinNudge(){
   localStorage.setItem(checkinWeekKey(),'1');
   dismissNudge(document.getElementById('checkinNudge'));
-  var mobileDot=document.getElementById('mobileCheckinDot');if(mobileDot)mobileDot.classList.remove('visible');
-  var moreDue=document.getElementById('moreCheckinDue');if(moreDue)moreDue.classList.remove('visible');
+  syncCoachingBadge();
 }
 // ── PAIN FLAG ─────────────────────────────────────────────────────────────────
 // Same read as getHomeInsights().warning, same threshold. Pain outranks every
@@ -435,7 +433,7 @@ function hidePhotoNudge(){
   syncWeekCardState();
 }
 function openCallBooking(){
-  switchTab('checkin');
+  switchTab('coaching');
   setTimeout(function(){ openCallModal(); },180);
 }
 function callWidgetUrl(base,state){
@@ -586,41 +584,44 @@ window.addEventListener('message',function(e){
   }
 });
 
-function switchTab(tab){
-  track('tab_viewed',{tab:tab});
-  document.body.setAttribute('data-active-tab',tab); // desktop: hero shows on Today only
-  document.querySelectorAll('.tab').forEach(function(t){var active=t.dataset.tab===tab;t.classList.toggle('active',active);t.setAttribute('aria-selected',active?'true':'false');});
-  document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+tab);});
-  document.querySelectorAll('[data-portal-dest]').forEach(function(item){item.classList.toggle('active',item.dataset.portalDest===tab);});
+var PORTAL_DESTINATIONS={
+  today:{panel:'training',label:'Today',primary:true},
+  week:{panel:'weekly',label:'Week',primary:true},
+  progress:{panel:'progress',label:'Progress',primary:true},
+  coaching:{panel:'calls',label:'Coaching',primary:true},
+  goals:{panel:'goals',label:'Goals'},
+  handbook:{panel:'handbook',label:'Guide'},
+  comms:{panel:'comms',label:'Contact'}
+};
+var PORTAL_DESTINATION_ALIASES={training:'today',home:'today',weekly:'week',calls:'coaching',checkin:'coaching'};
+function resolvePortalDestination(requested){return PORTAL_DESTINATION_ALIASES[requested]||requested;}
+function switchTab(requested,options){
+  options=options||{};
+  var destination=resolvePortalDestination(requested),state=PORTAL_DESTINATIONS[destination];
+  if(!state)return;
+  var previous=document.body.getAttribute('data-active-tab');
+  if(previous!==destination)track('tab_viewed',{tab:destination});
+  document.body.setAttribute('data-active-tab',destination);
+  document.querySelectorAll('.tab').forEach(function(t){var active=t.dataset.tab===destination;t.classList.toggle('active',active);if(t.hasAttribute('role'))t.setAttribute('aria-selected',active?'true':'false');});
+  document.querySelectorAll('.tab-content').forEach(function(c){c.classList.toggle('active',c.id==='tab-'+state.panel);});
+  document.querySelectorAll('[data-portal-dest]').forEach(function(item){item.classList.toggle('active',item.dataset.portalDest===destination);});
   var sectionLabel=document.getElementById('portalSectionLabel');
-  if(sectionLabel){
-    var labels={training:'Today\'s Plan',weekly:'Weekly Plan',nutrition:'Nutrition',checkin:'Weekly Check-in',progress:'Progress',calls:'Calls',goals:'Goals',handbook:'Athlete Guide',comms:'Contact'};
-    sectionLabel.textContent=labels[tab]||'Athlete Portal';
+  if(sectionLabel)sectionLabel.textContent=state.label;
+  var topShell=document.querySelector('.top-shell');
+  if(topShell){topShell.hidden=destination!=='today';topShell.style.display=destination==='today'?'block':'none';}
+  toggleProfileMenu(false);
+  if(state.primary)setMobileNav(destination);
+  var weekBar=document.getElementById('wbar');if(weekBar)weekBar.style.display=destination==='week'?'':'none';
+  syncTodayPlacement();
+  if((destination==='today'||destination==='week')&&Date.now()-_nutLastLoad>60000)loadNutrition();
+  if(destination==='coaching')renderCallsTab();
+  if(destination==='progress')ensureProgressModule().then(function(){loadProgress();}).catch(function(){showToast('Progress is unavailable — check your connection');});
+  if(!previous){
+    try{history.replaceState(Object.assign({},history.state||{},{portalDestination:destination}),'',location.href);}catch(e){}
+  }else if(options.history!==false&&previous!==destination){
+    try{history.pushState({portalDestination:destination},'',location.href);}catch(e){}
   }
-  toggleMoreMenu(false);
-  var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
-  var secondaryTabs=['nutrition','goals','handbook','comms'];
-  var isMobileSecondary=!isDesktop&&secondaryTabs.indexOf(tab)>=0;
-  setMobileNav(tab==='weekly'?'training':(tab==='training'?'home':(tab==='nutrition'?'nutrition':(tab==='checkin'||isMobileSecondary?'more':tab))));
-  var showWeekBar=(tab==='weekly')||(!isDesktop&&tab==='training'&&trainingView==='plan');
-  document.body.classList.toggle('mobile-training-calendar',!isDesktop&&tab==='training'&&trainingView==='plan');
-  document.body.classList.toggle('mobile-portal-home',!isDesktop&&tab==='training'&&trainingView==='home');
-  document.body.classList.toggle('mobile-checkin-tab',!isDesktop&&tab==='checkin');
-  document.body.classList.toggle('mobile-progress-tab',!isDesktop&&tab==='progress');
-  document.body.classList.toggle('mobile-calls-tab',!isDesktop&&tab==='calls');
-  document.body.classList.toggle('mobile-secondary-tab',isMobileSecondary);
-  syncMobileHomePlacement();
-  document.getElementById('wbar').style.display=showWeekBar?'':'none';
-  if(tab==='nutrition'&&Date.now()-_nutLastLoad>60000) loadNutrition(); // skip refetch if loaded <60s ago (week shifts & post-save always reload directly)
-  if(tab==='checkin'){
-    track('weekly_checkin_started');
-    initCheckin();
-    if(!isDesktop) window.scrollTo({top:0,behavior:'smooth'});
-  }
-  if(isMobileSecondary) window.scrollTo({top:0,behavior:'smooth'});
-  if(tab==='calls') renderCallsTab();
-  if(tab==='progress')ensureProgressModule().then(function(){loadProgress();}).catch(function(){showToast('Progress is unavailable — check your connection');});
-  if(tab==='training'||tab==='weekly') applyTrainingView();
+  if(previous!==destination&&!options.keepScroll)window.scrollTo({top:0,behavior:options.history===false?'auto':'smooth'});
 }
 
 function setMobileNav(tab){
@@ -630,16 +631,14 @@ function setMobileNav(tab){
     if(active) item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');
   });
 }
-// Mobile keeps the home/training split inside one tab. Desktop now has
-// separate tabs: Today's Plan and Weekly Plan.
-var trainingView='home';
-function syncMobileHomePlacement(){
+function syncTodayPlacement(){
   var today=document.getElementById('todayEl');
   var anchor=document.getElementById('todayHomeAnchor');
   var topShell=document.querySelector('.top-shell');
   var priority=document.querySelector('.top-shell-priority');
   if(!today||!anchor||!topShell||!priority)return;
-  if(document.body.classList.contains('mobile-portal-home')){
+  var mobile=!(window.matchMedia&&window.matchMedia('(min-width:900px)').matches);
+  if(mobile&&document.body.getAttribute('data-active-tab')==='today'){
     // Instrument composition: the hero leads with TODAY'S SESSION, not the
     // athlete's name. The session sits directly under the greeting and above
     // the week metrics, so the first thing on screen is what to do today.
@@ -658,60 +657,28 @@ function syncMobileHomePlacement(){
     anchor.parentNode.insertBefore(today,anchor.nextSibling);
   }
 }
-function applyTrainingView(){
-  try{renderHeroGreeting();}catch(e){}
-  var t=document.getElementById('todayEl');
-  var c=document.getElementById('calEl');
-  var wc=document.getElementById('weeklyCalEl');
-  var wb=document.getElementById('wbar');
-  // The volume strip sits with #calEl on mobile and #weeklyCalEl on desktop,
-  // so it follows the plan view's visibility.
-  var vs=document.getElementById('trainingVolumeStrip');
-  var trainingTab=document.getElementById('tab-training');
-  var weeklyTab=document.getElementById('tab-weekly');
-  var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
-  var trainingActive=!!(trainingTab&&trainingTab.classList.contains('active'));
-  document.body.classList.toggle('mobile-portal-home',!isDesktop&&trainingActive&&trainingView==='home');
-  syncMobileHomePlacement();
-  if(isDesktop){
-    var weeklyActive=!!(weeklyTab&&weeklyTab.classList.contains('active'));
-    if(t&&t.innerHTML)t.style.display=trainingActive?'block':'none';
-    if(c&&c.innerHTML)c.style.display='none';
-    if(wc&&wc.innerHTML)wc.style.display=weeklyActive?'block':'none';
-    if(wb)wb.style.display=weeklyActive?'':'none';
-    if(vs)vs.style.display='none';
-    return;
-  }
-  if(!trainingTab||!trainingTab.classList.contains('active'))return;
-  if(t&&t.innerHTML)t.style.display=(trainingView==='plan')?'none':'block';
-  if(c&&c.innerHTML)c.style.display=(trainingView==='home')?'none':'block';
-  if(vs&&vs.innerHTML)vs.style.display=(trainingView==='home')?'none':'block';
-  if(wc&&wc.innerHTML)wc.style.display='none';
-  if(wb)wb.style.display=(trainingView==='home')?'none':'';
-}
 if(window.matchMedia){
   var portalDesktopQuery=window.matchMedia('(min-width:900px)');
-  if(portalDesktopQuery.addEventListener)portalDesktopQuery.addEventListener('change',applyTrainingView);
-  else if(portalDesktopQuery.addListener)portalDesktopQuery.addListener(applyTrainingView);
+  if(portalDesktopQuery.addEventListener)portalDesktopQuery.addEventListener('change',syncTodayPlacement);
+  else if(portalDesktopQuery.addListener)portalDesktopQuery.addListener(syncTodayPlacement);
 }
 function goPortalHome(){
-  // Home = TODAY: current week, today panel, nothing else.
-  trainingView='home';
-  switchTab('training');setMobileNav('home');
+  switchTab('today');
   if(weekOffset!==0){weekOffset=0;loadWeek();}
-  applyTrainingView();
-  window.scrollTo({top:0,behavior:'smooth'});
 }
 function goTrainingPlan(){
-  // Desktop jumps to the dedicated Weekly Plan tab. Mobile keeps the original
-  // single-tab split and opens the plan view inside Training.
-  trainingView='plan';
-  var isDesktop=window.matchMedia&&window.matchMedia('(min-width:900px)').matches;
-  switchTab(isDesktop?'weekly':'training');setMobileNav('training');
+  switchTab('week');
   if(typeof collapseTrainingVolumeStrips==='function')collapseTrainingVolumeStrips();
-  applyTrainingView();
-  window.scrollTo({top:0,behavior:'smooth'});
 }
+function openLogSheet(){
+  track('tab_viewed',{tab:'log'});
+  track('log_opened',{source:'navigation'});
+  if(typeof openQuickLog==='function')openQuickLog('body');
+}
+window.addEventListener('popstate',function(event){
+  var destination=event.state&&event.state.portalDestination;
+  if(destination&&PORTAL_DESTINATIONS[destination])switchTab(destination,{history:false});
+});
 function openReschedule(i){
   var input=document.getElementById('reschedule_'+i);if(!input)return;
   if(input.showPicker)input.showPicker();else input.click();
@@ -784,14 +751,19 @@ function renderReminderPreferences(showOnboarding){
     +'<div id="pushStatus" class="push-status">Notifications · '+(localStorage.getItem('dp_push_status')||'not set up yet')+'</div>';
 }
 function openPreferences(options){
-  options=options||{};toggleMoreMenu(false);_notificationOnboardingOpen=!!options.onboarding;
+  options=options||{};toggleProfileMenu(false);_notificationOnboardingOpen=!!options.onboarding;
   renderReminderPreferences(_notificationOnboardingOpen);
   syncPushSubscription();
-  setMobileNav('more');document.getElementById('preferencesModal').classList.add('open');document.body.style.overflow='hidden';
+  document.getElementById('preferencesModal').classList.add('open');document.body.style.overflow='hidden';
 }
 function closePreferences(){
   if(_notificationOnboardingOpen){localStorage.setItem(notificationOnboardingKey(),'dismissed');_notificationOnboardingOpen=false;}
-  document.getElementById('preferencesModal').classList.remove('open');document.body.style.overflow='';restoreMobileNavContext();
+  document.getElementById('preferencesModal').classList.remove('open');document.body.style.overflow='';
+}
+function openDataPrivacy(){
+  openPreferences();
+  var controls=document.querySelector('#preferencesModal .data-controls');
+  if(controls)setTimeout(function(){controls.scrollIntoView({block:'start'});},120);
 }
 function maybePromptPwaNotifications(){
   if(!athlete||!isInstalledPortalPwa()||!('Notification'in window)||!('PushManager'in window))return;
@@ -917,11 +889,11 @@ function getWeeklySummary(){
   return {insight:insight,volume:Math.round(volume),wins:wins};
 }
 function openWeeklySummary(){
-  toggleMoreMenu(false);var s=getWeeklySummary(),i=s.insight,body=document.getElementById('weeklySummaryBody');
+  toggleProfileMenu(false);var s=getWeeklySummary(),i=s.insight,body=document.getElementById('weeklySummaryBody');
   body.innerHTML='<div class="summary-week-label">Programme · '+(isDiscoveryWeek(getCurrentProgrammeWeek())?'Discovery Week':'Week '+getCurrentProgrammeWeek())+'</div><div class="summary-hero"><div class="summary-ring ring ring--72" style="--value:'+i.compliance+'"><strong class="readout readout--compact">'+i.compliance+'%</strong></div><div><strong>Week completion</strong><small>'+i.completed+' of '+i.planned+' planned sessions complete'+(i.completed<i.planned?' · still underway':' · week complete')+'</small></div></div><div class="summary-grid"><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-barbell"/></svg></span><small>Training volume</small><strong class="readout readout--small">'+s.volume.toLocaleString()+'kg</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-pulse"/></svg></span><small>Readiness</small><strong class="readout readout--small">'+(i.readiness==null?'Not logged':i.readiness+'/100')+'</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-run"/></svg></span><small>Running</small><strong class="readout readout--small">'+(i.kmTarget?i.kmDone.toFixed(1)+' / '+i.kmTarget.toFixed(1)+'km':'No target')+'</strong></div><div><span class="summary-metric-icon"><svg class="icon"><use href="#i-trophy"/></svg></span><small>PB history</small><strong class="readout readout--small">'+i.pbs+' exercises</strong></div></div><div class="summary-wins"><span class="summary-metric-icon"><svg class="icon"><use href="#i-trophy"/></svg></span><div><strong>Wins this week</strong><p>'+(s.wins.length?s.wins.map(esc).join(' · '):'Log your first completed session to start building the week.')+'</p></div></div>'+renderCoachMoment(sessions.filter(function(x){return x.date===localISO(new Date());}),i);
-  setMobileNav('more');document.getElementById('weeklySummaryModal').classList.add('open');document.body.style.overflow='hidden';
+  document.getElementById('weeklySummaryModal').classList.add('open');document.body.style.overflow='hidden';
 }
-function closeWeeklySummary(){document.getElementById('weeklySummaryModal').classList.remove('open');document.body.style.overflow='';restoreMobileNavContext();}
+function closeWeeklySummary(){document.getElementById('weeklySummaryModal').classList.remove('open');document.body.style.overflow='';}
 function getPbHistoryData(){
   var exerciseMap={},sessionMap={};
   (allSessions||[]).concat(sessions||[]).forEach(function(s){if(s&&s.id)sessionMap[s.id]=s;});
@@ -1103,7 +1075,7 @@ function draftCoachNote(){
   syncCoachNoteMeta();
 }
 function openCoachNote(){
-  toggleMoreMenu(false);
+  toggleProfileMenu(false);
   var modal=document.getElementById('coachNoteModal');if(!modal)return;
   var box=document.getElementById('coachNoteBody');
   if(box){
@@ -1123,7 +1095,7 @@ function openCoachNote(){
 }
 function closeCoachNote(){
   var modal=document.getElementById('coachNoteModal');if(!modal)return;
-  modal.classList.remove('open');document.body.style.overflow='';restoreMobileNavContext();
+  modal.classList.remove('open');document.body.style.overflow='';
 }
 async function sendCoachNote(){
   var box=document.getElementById('coachNoteBody'),send=document.getElementById('coachNoteSend');
@@ -1153,22 +1125,12 @@ document.addEventListener('keydown',function(e){
   var modal=document.getElementById('coachNoteModal');
   if(modal&&modal.classList.contains('open')) closeCoachNote();
 });
-function toggleMoreMenu(open){
-  var menu=document.getElementById('moreMenu');if(!menu)return;
+function toggleProfileMenu(open){
+  var menu=document.getElementById('profileMenu');if(!menu)return;
   var shouldOpen=typeof open==='boolean'?open:!menu.classList.contains('open');
   menu.classList.toggle('open',shouldOpen);menu.setAttribute('aria-hidden',shouldOpen?'false':'true');
-  var button=document.querySelector('[data-mobile-tab="more"]');if(button)button.setAttribute('aria-expanded',shouldOpen?'true':'false');
+  var button=document.getElementById('profileAvatar');if(button)button.setAttribute('aria-expanded',shouldOpen?'true':'false');
   document.body.classList.toggle('menu-open',shouldOpen);
-  if(shouldOpen)setMobileNav('more');else restoreMobileNavContext();
-}
-function restoreMobileNavContext(){
-  var active=document.querySelector('.tab-content.active');if(!active)return;
-  var tab=active.id.replace('tab-','');
-  if(tab==='training'){setMobileNav(trainingView==='home'?'home':'training');return;}
-  if(tab==='weekly'){setMobileNav('training');return;}
-  if(tab==='nutrition'){setMobileNav('nutrition');return;}
-  if(tab==='checkin'||['goals','handbook','comms'].indexOf(tab)>=0){setMobileNav('more');return;}
-  setMobileNav(tab);
 }
 function applyOutdoorMode(enabled,persist){
   document.documentElement.classList.toggle('outdoor-mode',!!enabled);
@@ -1179,8 +1141,6 @@ function applyOutdoorMode(enabled,persist){
     var hint=enabled?'Switch to indoor mode':'Switch to outdoor mode';
     button.title=hint;button.setAttribute('aria-label',hint);
   }
-  var moreLabel=document.querySelector('.more-outdoor strong');if(moreLabel)moreLabel.textContent=enabled?'Indoor mode':'Outdoor mode';
-  var moreSub=document.querySelector('.more-outdoor small');if(moreSub)moreSub.textContent=enabled?'Return to the dark indoor theme':'Use the light theme in bright conditions';
   if(persist===undefined||persist)try{localStorage.setItem('dp_outdoor_mode',enabled?'1':'0');}catch(e){}
 }
 function toggleOutdoorMode(){applyOutdoorMode(!document.documentElement.classList.contains('outdoor-mode'));}
@@ -1220,6 +1180,13 @@ function callsCheckinState(){
   var done=false;
   try{done=!!localStorage.getItem(checkinWeekKey());}catch(e){done=false;}
   return {done:done};
+}
+function syncCoachingBadge(){
+  var next=(typeof getCallBookedState==='function')?getCallBookedState():{booked:true};
+  var owed=!next.booked||!callsCheckinState().done;
+  ['mobileCoachingDot','tabDotCoaching'].forEach(function(id){
+    var dot=document.getElementById(id);if(dot)dot.classList.toggle('visible',owed);
+  });
 }
 
 function fetchCallsSurfaceData(){
@@ -1285,6 +1252,10 @@ function renderCallsTab(){
         (checkin.done?'Review your check-in':'Complete your check-in')+'</button></div>';
   html+='</div>';
 
+  html+='<div class="calls-card"><div class="calls-head"><span class="calls-label">Coach access</span></div>'+
+        '<div class="calls-actions"><button type="button" class="calls-btn calls-btn-primary" onclick="openCoachNote()">Message your coaches</button>'+
+        '<button type="button" class="calls-btn" onclick="openNotificationInbox()">Notifications</button></div></div>';
+
   var last=data.last;
   if(last){
     html+='<div class="calls-card"><div class="calls-head"><span class="calls-label">Last call · '+esc(last.when)+'</span></div>';
@@ -1297,8 +1268,5 @@ function renderCallsTab(){
   }
 
   mount.innerHTML=html;
-  var dot=document.getElementById('mobileCallsDot');
-  if(dot) dot.classList.toggle('visible',!next.booked);
-  var railDot=document.getElementById('tabDotCalls');
-  if(railDot) railDot.classList.toggle('visible',!next.booked);
+  syncCoachingBadge();
 }

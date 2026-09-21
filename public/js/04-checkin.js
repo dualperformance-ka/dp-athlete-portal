@@ -230,7 +230,7 @@ function openCheckinSheet(){
   if(!modal||!body||!nodes.length){
     // No sheet in this shell: fall back to the tab so the check-in is never
     // unreachable, whatever state the DOM is in.
-    if(typeof switchTab==='function')switchTab('checkin');
+    if(typeof switchTab==='function')switchTab('coaching');
     return;
   }
   if(!_ciSheetHome){

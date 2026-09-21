@@ -2,7 +2,7 @@
   var generatedId = 0;
   var activeModal = null;
   var returnFocus = null;
-  var modalSelector = '.hb-modal,.ql-modal,.photo-modal,.focus-overlay,.day-plan-overlay,.more-menu';
+  var modalSelector = '.hb-modal,.ql-modal,.photo-modal,.focus-overlay,.day-plan-overlay,.profile-menu';
   var focusableSelector = 'button:not([disabled]),a[href],input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
   function visible(element) {
@@ -44,7 +44,8 @@
 
   function enhanceTabs(root) {
     (root || document).querySelectorAll('[role="tab"][data-tab]').forEach(function (tab) {
-      var panel = document.getElementById('tab-' + tab.dataset.tab);
+      var panelMap = { today:'training', week:'weekly', coaching:'calls' };
+      var panel = document.getElementById('tab-' + (panelMap[tab.dataset.tab] || tab.dataset.tab));
       if (!panel) return;
       if (!tab.id) tab.id = 'dp-tab-' + tab.dataset.tab;
       tab.setAttribute('aria-controls', panel.id);
@@ -84,7 +85,7 @@
   }
 
   function titleFor(modal) {
-    return modal.querySelector('.ql-modal-title,.hb-modal-title,.photo-modal-title,.focus-overlay-title,.day-plan-title,.more-menu-title');
+    return modal.querySelector('.ql-modal-title,.hb-modal-title,.photo-modal-title,.focus-overlay-title,.day-plan-title,.profile-menu-title');
   }
 
   function enhanceModals() {
@@ -129,7 +130,7 @@
   document.addEventListener('keydown', function (event) {
     if (!activeModal) return;
     if (event.key === 'Escape') {
-      var close = activeModal.querySelector('[aria-label^="Close"],.focus-close,.day-plan-close,.more-menu-close');
+      var close = activeModal.querySelector('[aria-label^="Close"],.focus-close,.day-plan-close,.profile-menu-close');
       if (close) {
         event.preventDefault();
         close.click();
