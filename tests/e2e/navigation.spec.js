@@ -54,11 +54,13 @@ for (const mode of [
     const mobile = mode.width < 900;
     await openPortal(page, mode);
     await expect(page.locator('body')).toHaveAttribute('data-active-tab', 'today');
-    await expect(page.locator('.quicklog-strip')).toBeVisible();
+    // Logging is reachable from every destination through the Log control itself
+    // now, not a dock that was hidden on most of them.
+    await expect(mobile ? page.locator('[data-mobile-tab="log"]') : page.locator('.tabs [data-tab="log"]')).toBeVisible();
 
     await choose(page, 'week', mobile);
     await expect(page.locator('#tab-weekly')).toBeVisible();
-    await expect(page.locator('.quicklog-strip')).toBeVisible();
+    await expect(mobile ? page.locator('[data-mobile-tab="log"]') : page.locator('.tabs [data-tab="log"]')).toBeVisible();
 
     await choose(page, 'progress', mobile);
     await expect(page.locator('#tab-progress')).toBeVisible();
@@ -71,8 +73,10 @@ for (const mode of [
 
     const log = mobile ? page.locator('[data-mobile-tab="log"]') : page.locator('.tabs [data-tab="log"]');
     await log.click();
-    await expect(page.locator('#qlBodyModal')).toHaveClass(/open/);
-    await page.getByRole('button', { name:'Close body log' }).click();
+    await expect(page.locator('#logSheet')).toHaveClass(/open/);
+    // Three tabs, one sheet: Session, Body and Fuel are all reachable from here.
+    await expect(page.locator('#logSheetTabs .quicklog-btn')).toHaveCount(3);
+    await page.getByRole('button', { name:'Close log' }).click();
 
     await page.locator('#profileAvatar').click();
     await expect(page.locator('#profileMenu')).toHaveClass(/open/);

@@ -166,6 +166,9 @@ test('hydrating replaces prior state rather than accumulating it', () => {
 });
 
 test('the two daily actions keep distinct, purpose-led names', () => {
+  // These are the Log sheet's Body and Fuel tabs now. They kept their ids and
+  // their names: the dock's three-state vocabulary is the part worth preserving,
+  // and syncQuickLogDock() still writes it to exactly these elements.
   assert.match(indexSource, /id="qlDockBody"[\s\S]*?<span>Body check-in<\/span>/);
   assert.match(indexSource, /id="qlDockNut"[\s\S]*?<span>Nutrition log<\/span>/);
   assert.match(indexSource, /id="qlbSubmitBtn"[^>]*>Save body check-in<\/button>/);
@@ -186,6 +189,48 @@ test('a confirmed daily log becomes an unmistakable green button', () => {
 test('an unconfirmed daily log stays amber rather than looking successful', () => {
   assert.match(stylesSource, /\.quicklog-btn\.is-sending\{[^}]*background:rgba\(240,173,78/);
   assert.doesNotMatch(stylesSource, /\.quicklog-btn\.is-sending\{[^}]*background:var\(--ok\)/);
+});
+
+test('logging is one sheet with three tabs, not a dock plus two overlays', () => {
+  // The regression this guards: body and fuel logging used to be a dock hidden
+  // on five of six screens, opening two separate overlays, with session logging
+  // somewhere else again.
+  assert.doesNotMatch(indexSource, /quicklog-strip/, 'the dock must be gone');
+  assert.doesNotMatch(indexSource, /id="qlBodyModal"|id="qlNutModal"/, 'the two overlays must be gone');
+  assert.doesNotMatch(stylesSource, /quicklog-strip/, 'no dock placements may survive in styles.css');
+  assert.match(indexSource, /id="logSheet"/);
+  for (const id of ['logTabSession', 'qlDockBody', 'qlDockNut', 'logPanelSession', 'logPanelBody', 'logPanelFuel']) {
+    assert.match(indexSource, new RegExp(`id="${id}"`), `Log sheet is missing ${id}`);
+  }
+  // One copy of each form: a second set of these ids would make every
+  // getElementById in 04-checkin.js bind to whichever copy came first.
+  for (const id of ['qlbDate', 'qlbWeight', 'qlbSubmitBtn', 'qlnDate', 'qlnCal', 'qlnSubmitBtn']) {
+    assert.equal(indexSource.split(`id="${id}"`).length - 1, 1, `${id} must appear exactly once`);
+  }
+});
+
+test('an unsent draft says so, and a seeded fuel form does not pose as a record', () => {
+  assert.match(checkinSource, /function restoreLogDraft/);
+  assert.match(checkinSource, /function saveLogDraft/);
+  // A draft is this device's unfinished work and must never read as submitted.
+  assert.match(checkinSource, /has not been sent to your coaches yet/);
+  // A confirmed day is the coaches' record; an older draft must not paint over it.
+  assert.match(checkinSource, /if\(confirmed\)\{clearLogDraft\(kind,date\);return false;\}/);
+  // Yesterday's totals seed a blank day only, and stay marked until edited.
+  assert.match(checkinSource, /function seedFuelFromYesterday/);
+  assert.match(checkinSource, /if\(storedDailyLog\('nut',date\)\)return false;/);
+  assert.match(checkinSource, /el\.classList\.add\('is-seeded'\)/);
+  // A seeded value is not the athlete's number, so it must not enter the draft.
+  assert.match(checkinSource, /if\(el\.classList\.contains\('is-seeded'\)\)return;/);
+});
+
+test('the Session tab reuses the existing logging path instead of repeating it', () => {
+  assert.match(checkinSource, /function renderLogSessionPanel/);
+  // The one run/strength logging implementation stays in 08-training.js.
+  assert.match(checkinSource, /startFocusedSession\(i\)/);
+  // And the Strava one-tap confirm is the session card's own component.
+  assert.match(checkinSource, /stravaMatchHtml\(s,row\.index,'log-sheet'\)/);
+  assert.doesNotMatch(checkinSource, /function saveRunLog|function submitRunLog/, 'no second run log implementation');
 });
 
 test('the form submit button shows its delivery colour before the modal closes', () => {
