@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
@@ -123,6 +123,32 @@ test('the session focus overlay is left out of the sheet component', () => {
   assert.match(styles, /\.focus-overlay\{position:fixed;inset:0/);
 });
 
+// Deleting a UI element is only half the job: any script that still reaches for
+// it by id throws on the property access and takes the rest of that function
+// with it. Removing the quick-log dock did exactly this to doLogin(), which
+// left the portal stuck on "Loading your plan..." while every grep-based check
+// and `npm test` stayed green — only a browser caught it. This is the guard.
+test('no script reaches for an element id that index.html does not define', () => {
+  const ids = new Set([...index.matchAll(/id="([\w-]+)"/g)].map((m) => m[1]));
+  // Ids that legitimately do not appear in index.html:
+  //   dayPlan* — written into the day-plan overlay by a JS template at runtime.
+  //   gym*Val  — inside renderGymTracker(), which returns early because #gymBar
+  //              is not in the markup either; dead code, reached by nothing.
+  const runtimeCreated = new Set(['dayPlanDate', 'dayPlanTitle', 'dayPlanMeta', 'gymTargetVal', 'gymDoneVal']);
+  const scripts = ['accessibility.js', 'coach-mode.js', 'login.js',
+    ...readdirSync(join(root, 'public', 'js')).filter((f) => f.endsWith('.js')).map((f) => 'js/' + f)];
+  const missing = [];
+  for (const file of scripts) {
+    const source = read('public', ...file.split('/'));
+    // Only unguarded uses: `getElementById('x').prop`, where a null throws.
+    for (const m of source.matchAll(/document\.getElementById\('([\w-]+)'\)\s*\./g)) {
+      if (!ids.has(m[1]) && !runtimeCreated.has(m[1])) missing.push(`${file} -> #${m[1]}`);
+    }
+  }
+  assert.deepEqual(missing, [], 'these ids are gone from index.html but still dereferenced without a null check; '
+    + 'guard the call, drop it, or add the id to runtimeCreated if a script builds it at runtime');
+});
+
 test('the overlays already trap focus, close on Escape and return focus', () => {
   // This was NOT added here: accessibility.js owns it and already covers every
   // overlay, which is why this step did not rebuild it. Asserted so a later
@@ -134,11 +160,19 @@ test('the overlays already trap focus, close on Escape and return focus', () => 
   assert.match(a11y, /returnFocus.*focus\(\)/s);
   // Every overlay closes on a backdrop tap and has a close control Escape can
   // find by accessible name.
-  const backdrops = index.match(/class="(?:ql|hb|photo)-modal"[^>]*onclick="[^"]*"/g) || [];
-  assert.ok(backdrops.length >= 12, 'expected every modal to keep its backdrop handler');
-  backdrops.forEach((tag) => assert.match(tag, /event\.target===this|closePhotoModal\(event\)/));
+  // Counted structurally rather than against a fixed total: the unified Log
+  // sheet replaced two separate overlays, so a magic number here would have to
+  // be revised every time a sheet is merged, and would pass while a NEW overlay
+  // shipped without a handler. The class list is matched loosely because a sheet
+  // may carry its own layout class alongside the shared one.
+  const roots = index.match(/class="(?:ql|hb|photo)-modal(?:\s[^"]*)?"[^>]*/g) || [];
+  assert.ok(roots.length >= 10, `expected the portal's overlays, found ${roots.length}`);
+  roots.forEach((tag) => {
+    assert.match(tag, /onclick="[^"]*"/, `overlay is missing its backdrop handler: ${tag.slice(0, 70)}`);
+    assert.match(tag, /event\.target===this|closePhotoModal\(event\)/);
+  });
   const closers = index.match(/class="(?:ql|hb|photo)-modal-close"[^>]*aria-label="Close[^"]*"/g) || [];
-  assert.ok(closers.length >= 12, 'every sheet needs a Close-named control for Escape');
+  assert.equal(closers.length, roots.length, 'every sheet needs a Close-named control for Escape');
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

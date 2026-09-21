@@ -1,11 +1,11 @@
-const CACHE_NAME = 'dp-athlete-v213'; // v213: unified navigation destinations and profile menu
+const CACHE_NAME = 'dp-athlete-v215'; // v214: unified Log sheet (Session/Body/Fuel), quick-log dock removed, header refresh restored
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=171', '/desktop.css?v=12', '/config.js',
+  '/index.html', '/styles.css?v=172', '/desktop.css?v=13', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=127',
-  '/js/02-login-goals.js?v=117',
-  '/js/03-nav-nudges.js?v=120',
-  '/js/04-checkin.js?v=101',
+  '/js/01-core.js?v=128',
+  '/js/02-login-goals.js?v=118',
+  '/js/03-nav-nudges.js?v=121',
+  '/js/04-checkin.js?v=102',
   '/js/05-handbook.js?v=85',
   '/js/06-nutrition.js?v=102',
   '/js/07-progress.js?v=90',
@@ -15,7 +15,7 @@ const APP_SHELL = [
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
   '/js/08-training.js?v=150',
-  '/js/09-logging.js?v=126',
+  '/js/09-logging.js?v=127',
   '/accessibility.js?v=2',
   '/js/10-boot.js?v=110',
   '/login.js?v=50', '/icons.css?v=4',
