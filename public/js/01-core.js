@@ -432,9 +432,36 @@ function handleAuthSessionLost(){
 // latest edits reach Supabase before a mobile browser evicts/reloads the page.
 var _sbSyncTimers={},_sbSyncPending={};
 var _saveStateTimer=null;
+// ── SYNC STATE · synced / sending / queued ───────────────────────────────────
+// The three-state model from syncQuickLogDock() generalised: any logged object
+// can carry the state, not just the header pill and the two dock buttons.
+// "sending" has to be visible and distinct from "done" because a write that is
+// saved on the device but has not reached the coaches is NOT finished, and an
+// athlete who is told it is will never tap again. That is why this is the one
+// element permitted to animate on a loop — and only while sending.
+// The state is a class plus data-sync-state; it deliberately does NOT add the
+// .sync-pill skin, so a dock button, a card or a row can carry the same state
+// without inheriting the pill's shape.
+var SYNC_STATE_CLASS={synced:'is-synced',sending:'is-sending',queued:'is-queued'};
+var SYNC_STATE_LABEL={
+  synced:function(n){return n+', logged and sent to your coaches';},
+  sending:function(n){return n+', saved on this device but not yet sent — tap to resend';},
+  queued:function(n){return n+', queued — it will send when you are back online';}
+};
+function setSyncState(target,state,name){
+  var el=typeof target==='string'?document.getElementById(target):target;
+  if(!el) return null;
+  var key=SYNC_STATE_CLASS[state]?state:null;
+  Object.keys(SYNC_STATE_CLASS).forEach(function(k){el.classList.toggle(SYNC_STATE_CLASS[k],k===key);});
+  if(key) el.setAttribute('data-sync-state',key); else el.removeAttribute('data-sync-state');
+  if(key&&name) el.setAttribute('aria-label',SYNC_STATE_LABEL[key](name));
+  return key;
+}
+var SAVE_STATE_SYNC={saved:'synced',saving:'sending',offline:'queued'};
 function setSaveState(state,label){
   var pill=document.getElementById('saveStatePill');if(!pill)return;
   pill.className='save-state-pill '+state;
+  setSyncState(pill,SAVE_STATE_SYNC[state]);
   var text=pill.querySelector('b');if(text)text.textContent=label||(state==='saving'?'Syncing with coach':state==='offline'?'Saved on device · will sync':'Synced with coach');
   if(_saveStateTimer)clearTimeout(_saveStateTimer);
   if(state==='saved')_saveStateTimer=setTimeout(function(){pill.classList.add('quiet');},2200);else pill.classList.remove('quiet');
@@ -1801,3 +1828,105 @@ function renderHeroGreeting(){
 document.addEventListener('visibilitychange',function(){
   if(document.visibilityState==='visible') try{renderHeroGreeting();}catch(e){}
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SHEET · shared overlay behaviour
+// The CSS in styles.css makes .ql-modal / .hb-modal / .photo-modal / .more-menu
+// one component; this is the behaviour half of it. accessibility.js already
+// owns role=dialog, the focus trap, Escape and returning focus to the trigger,
+// and each overlay's markup already closes on a backdrop tap, so the two things
+// missing were a body scroll lock that does not shift the page behind the
+// sheet, and swipe-down to dismiss with the drag tracking the finger.
+//
+// This does NOT touch .focus-overlay. That is a full-screen mode, not a sheet.
+// ══════════════════════════════════════════════════════════════════════════════
+var SHEET_SELECTOR='.sheet,.hb-modal,.ql-modal,.photo-modal,.more-menu';
+var SHEET_INNER_SELECTOR='.sheet-inner,.hb-modal-inner,.ql-modal-inner,.photo-modal-inner,.more-menu-sheet';
+(function(){
+  // A dismiss needs either a long drag, or a flick that still travelled far
+  // enough to be a deliberate gesture. Speed alone dismissed a 20px twitch.
+  var DISMISS_PX=88,FLICK_PX=44,DISMISS_SPEED=0.55,DESKTOP_MIN=761;
+  var locked=false,drag=null;
+  function openSheets(){
+    return Array.prototype.filter.call(document.querySelectorAll(SHEET_SELECTOR),function(el){
+      return el.classList.contains('open');
+    });
+  }
+  // Locking body scroll removes the scrollbar on desktop, which is what makes
+  // the page behind a dialog jump sideways as it opens. Reserve exactly the
+  // width the scrollbar gave back.
+  function syncScrollLock(){
+    var any=openSheets().length>0;
+    if(any===locked) return;
+    locked=any;
+    var body=document.body;
+    if(any){
+      var gap=window.innerWidth-document.documentElement.clientWidth;
+      if(gap>0) body.style.paddingRight=gap+'px';
+      body.classList.add('sheet-open');
+    }else{
+      body.style.paddingRight='';
+      body.classList.remove('sheet-open');
+    }
+  }
+  function closeControl(sheet){
+    return sheet.querySelector('[aria-label^="Close"],.more-menu-close,.day-plan-close');
+  }
+  function clearDrag(sheet,dismissed){
+    sheet.classList.remove('is-dragging');
+    sheet.classList.add('is-releasing');
+    sheet.style.setProperty('--sheet-drag','0px');
+    setTimeout(function(){
+      sheet.classList.remove('is-releasing');
+      sheet.style.removeProperty('--sheet-drag');
+    },dismissed?0:260);
+  }
+  function onDown(e){
+    drag=null;
+    if(e.pointerType==='mouse') return;
+    if(window.innerWidth>=DESKTOP_MIN) return;     // centred dialog, nothing to drag
+    var sheet=e.target.closest&&e.target.closest(SHEET_SELECTOR);
+    if(!sheet||!sheet.classList.contains('open')) return;
+    var inner=sheet.querySelector(SHEET_INNER_SELECTOR);
+    if(!inner||!inner.contains(e.target)) return;
+    drag={sheet:sheet,inner:inner,y0:e.clientY,t0:Date.now(),dy:0,active:false};
+  }
+  function onMove(e){
+    if(!drag) return;
+    var dy=e.clientY-drag.y0;
+    if(!drag.active){
+      // Only a downward drag that begins at the top of the sheet's own scroll
+      // counts, so the gesture never fights the body of a long form.
+      if(dy<=8){ if(dy<-8) drag=null; return; }
+      if(drag.inner.scrollTop>0){ drag=null; return; }
+      drag.active=true;
+      drag.sheet.classList.add('is-dragging');
+    }
+    drag.dy=Math.max(0,dy);
+    drag.sheet.style.setProperty('--sheet-drag',drag.dy+'px');
+    if(e.cancelable) e.preventDefault();
+  }
+  function onUp(){
+    if(!drag) return;
+    var d=drag;drag=null;
+    if(!d.active) return;
+    var speed=d.dy/Math.max(1,Date.now()-d.t0);
+    var dismiss=d.dy>DISMISS_PX||(d.dy>FLICK_PX&&speed>DISMISS_SPEED);
+    clearDrag(d.sheet,dismiss);
+    if(dismiss){
+      var close=closeControl(d.sheet);
+      if(close) close.click();
+    }
+  }
+  document.addEventListener('pointerdown',onDown,true);
+  document.addEventListener('pointermove',onMove,{passive:false});
+  document.addEventListener('pointerup',onUp,true);
+  document.addEventListener('pointercancel',onUp,true);
+  // One observer keeps the lock honest however an overlay is opened or closed:
+  // every one of them toggles .open, none of them share a code path.
+  try{
+    new MutationObserver(syncScrollLock).observe(document.documentElement,
+      {subtree:true,attributes:true,attributeFilter:['class']});
+  }catch(e){}
+  document.addEventListener('DOMContentLoaded',syncScrollLock);
+})();

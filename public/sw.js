@@ -1,8 +1,8 @@
-const CACHE_NAME = 'dp-athlete-v211'; // v211: shared data-display component contract
+const CACHE_NAME = 'dp-athlete-v212'; // v212: one sheet, toast queue, sync-state vocabulary
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=169', '/desktop.css?v=10', '/config.js',
+  '/index.html', '/styles.css?v=170', '/desktop.css?v=11', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=125',
+  '/js/01-core.js?v=126',
   '/js/02-login-goals.js?v=116',
   '/js/03-nav-nudges.js?v=117',
   '/js/04-checkin.js?v=100',
@@ -14,8 +14,8 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=1',
   '/js/08-strength-engine.js?v=4',
-  '/js/08-training.js?v=148',
-  '/js/09-logging.js?v=125',
+  '/js/08-training.js?v=149',
+  '/js/09-logging.js?v=126',
   '/accessibility.js?v=1',
   '/js/10-boot.js?v=110',
   '/login.js?v=50', '/icons.css?v=4',

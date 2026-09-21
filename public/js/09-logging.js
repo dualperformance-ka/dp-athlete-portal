@@ -1002,24 +1002,63 @@ async function saveGym(i,splitKey){
   if(gymDate!==s.date)setSessionDateOverride(s.id,gymDate,{silent:true});
 }
 function flashSave(i,label){var btn=document.getElementById('sb_'+i);if(btn){btn.classList.add('is-success');btn.disabled=true;setTimeout(function(){btn.classList.remove('is-success');btn.disabled=false;},2000);}}
+// ── TOAST · one at a time, three seconds, dismissible ───────────────────────
+// showToast() used to clobber: a second message overwrote the first mid-read
+// and reset the timer, so two PBs logged together showed one of them for a
+// fraction of a second. It now QUEUES. The element is a single #toast so the
+// queue is the only way to show two messages without one eating the other.
+//
+// type==='error' is still persistent until dismissed — a failed submission must
+// never vanish while the athlete is looking at their phone — so it holds the
+// queue rather than being timed out. A second error replaces the one on screen
+// instead of waiting behind it, because the newer failure is the current truth.
+var TOAST_MS=3000;
+var _toastQueue=[],_toastShowing=false;
 function showToast(msg,type){
-  // type==='error': persistent until dismissed — a failed submission must
-  // never vanish after 2.5s while the athlete is looking at their phone.
-  var t=document.getElementById('toast');
-  if(t._timer){clearTimeout(t._timer);t._timer=null;}
   var isErr=type==='error';
-  t.classList.toggle('toast-error',isErr);
   if(isErr){
-    t.textContent='';
-    var span=document.createElement('span');span.textContent=msg;t.appendChild(span);
-    var btn=document.createElement('button');btn.className='toast-dismiss';btn.textContent='Dismiss';btn.onclick=hideToast;t.appendChild(btn);
+    // Drop any queued error and pre-empt whatever is on screen.
+    _toastQueue=_toastQueue.filter(function(item){return item.type!=='error';});
+    _toastQueue.unshift({msg:msg,type:'error'});
+    if(_toastShowing) hideToast(true);
+  }else{
+    _toastQueue.push({msg:msg,type:type});
+  }
+  _pumpToast();
+}
+function _pumpToast(){
+  if(_toastShowing) return;
+  var next=_toastQueue.shift();
+  if(!next) return;
+  var t=document.getElementById('toast');
+  if(!t) return;
+  if(t._timer){clearTimeout(t._timer);t._timer=null;}
+  _toastShowing=true;
+  var isErr=next.type==='error';
+  t.classList.toggle('toast-error',isErr);
+  t.textContent='';
+  var span=document.createElement('span');span.textContent=next.msg;t.appendChild(span);
+  if(isErr){
+    var btn=document.createElement('button');btn.className='toast-dismiss';btn.textContent='Dismiss';btn.onclick=function(e){e.stopPropagation();hideToast();};t.appendChild(btn);
     t.style.display='flex';
   }else{
-    t.textContent=msg;t.style.display='block';
-    t._timer=setTimeout(hideToast,2500);
+    t.style.display='block';
+    t._timer=setTimeout(function(){hideToast();},TOAST_MS);
   }
+  // Every toast is dismissible, not just the error variant: tapping it clears
+  // it and lets the next one through.
+  t.onclick=function(){hideToast();};
 }
-function hideToast(){var t=document.getElementById('toast');t.style.display='none';t.classList.remove('toast-error');}
+function hideToast(preempted){
+  var t=document.getElementById('toast');
+  if(!t) return;
+  if(t._timer){clearTimeout(t._timer);t._timer=null;}
+  t.style.display='none';
+  t.classList.remove('toast-error');
+  t.onclick=null;
+  _toastShowing=false;
+  if(!preempted&&_toastQueue.length) setTimeout(_pumpToast,120);
+}
 
 // Sliders start visually "untouched" (dimmed) and light up on first input —
 // nudges athletes to actually set them instead of submitting a wall of 5s.
@@ -1113,7 +1152,13 @@ function syncQuickLogDock(){
   [['body',body],['nut',nut]].forEach(function(pair){
     var s=state[pair[0]],el=pair[1];
     el.classList.toggle('is-done',s==='logged');
-    el.classList.toggle('is-sending',s==='sending');
+    // The dock's states are the shared sync vocabulary now (01-core.js), so the
+    // same three states can be stamped onto any other logged object.
+    if(typeof setSyncState==='function'){
+      setSyncState(el,s==='logged'?'synced':s==='sending'?'sending':null);
+    }else{
+      el.classList.toggle('is-sending',s==='sending');
+    }
     var text=el.querySelector('span');
     var copy=pair[0]==='body'
       ?{logged:'Body checked in',sending:'Body check-in sending',none:'Body check-in'}
@@ -1134,6 +1179,7 @@ function syncQuickLogDock(){
     sending:function(n){return n+', saved on this device but not yet sent — tap to resend';},
     none:function(n){return n+', not logged yet today';}
   };
+  // Written after setSyncState so the "not logged yet" case keeps a name too.
   body.setAttribute('aria-label',label[state.body]('Body check-in'));
   nut.setAttribute('aria-label',label[state.nut]('Nutrition log'));
   var hint=document.getElementById('quicklogHint');

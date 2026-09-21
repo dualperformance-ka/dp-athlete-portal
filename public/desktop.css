@@ -89,7 +89,7 @@
   .portal-context strong{font-size:var(--font-md)}
   .header-actions{gap:8px;align-items:center}
   .header-actions .hicon{min-height:34px;padding:7px 12px;font-size:var(--font-xs)}
-  .save-state-pill{min-height:30px;padding:5px 10px;background:rgba(255,255,255,.03)}
+  .sync-pill,.save-state-pill{min-height:30px;padding:5px 10px;background:color-mix(in srgb,var(--t-1) 3%,transparent)}
   /* Goals / Guide / Contact now live in the rail — drop them from the header. */
   .header-actions #goalsBtn,
   .header-actions .hicon-desktop{display:none}
@@ -161,7 +161,7 @@
   #tab-training .todayeyebrow{margin:0 0 8px;font-size:var(--font-xs)}
   #tab-training .todayhead{margin:0}
   #tab-training .todaylist{gap:12px}
-  #tab-training .coach-moment{padding:16px;margin:0;border-radius:var(--r-sm);background:rgba(146,210,237,.05);border:1px solid var(--border)}
+  #tab-training .coach-moment{padding:16px;margin:0;border-radius:var(--r-sm);background:var(--readout-soft);border:1px solid var(--border)}
 
   .todaytitle{font-size:var(--font-2xl);line-height:1.02;max-width:20ch}
   .today-subtitle{font-size:var(--font-sm);max-width:52ch}

@@ -16,9 +16,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=169" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=169'></noscript>
-<link rel="stylesheet" href="/desktop.css?v=10">
+<link rel="preload" as="style" href="/styles.css?v=170" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=170'></noscript>
+<link rel="stylesheet" href="/desktop.css?v=11">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
      if this request is blocked or fails, window.Sentry is simply absent and
@@ -1108,7 +1108,7 @@
              record you can correct rather than an empty box you might not have
              filled in. Populated by applyQuickLogSubmittedState(). -->
         <div class="ql-submitted" id="qlbSubmittedNote" role="status" style="display:none"></div>
-        <button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Save body check-in</button>
+        <div class="sheet-actions"><button class="savebtn" id="qlbSubmitBtn" onclick="submitQuickBody()">Save body check-in</button></div>
       </div>
     </div>
   </div>
@@ -1199,7 +1199,7 @@
         <div id="qlnFeedback" class="qln-feedback"></div>
         <div class="lf u-mb-16"><label>Notes (optional)</label><input type="text" class="li" id="qlnNotes" placeholder="e.g. ate out, protein shake" style="margin-top:4px" /></div>
         <div class="ql-submitted" id="qlnSubmittedNote" role="status" style="display:none"></div>
-        <button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Save nutrition log</button>
+        <div class="sheet-actions"><button class="savebtn" id="qlnSubmitBtn" onclick="submitQuickNut()">Save nutrition log</button></div>
       </div>
     </div>
   </div>
@@ -1325,7 +1325,7 @@
         <label class="data-request-label" for="dataRequestNote">Anything you want us to know (optional)</label>
         <textarea id="dataRequestNote" class="data-request-note" rows="3" maxlength="1000" placeholder="Optional context for Karl and Alex."></textarea>
         <div class="data-request-status" id="dataRequestStatus" role="status"></div>
-        <button type="button" class="data-request-confirm" id="dataRequestConfirm" onclick="submitDataRequest()">Confirm request</button>
+        <div class="sheet-actions"><button type="button" class="data-request-confirm" id="dataRequestConfirm" onclick="submitDataRequest()">Confirm request</button></div>
         <a class="data-request-policy" href="https://dualperformance.au/support" target="_blank" rel="noopener">Read the full policy</a>
       </div>
     </div>
@@ -1340,7 +1340,7 @@
         <textarea id="coachNoteBody" class="coach-note-input" rows="7" maxlength="2000" oninput="draftCoachNote()" placeholder="Injuries, how the training is actually landing, anything you would not put in a group chat."></textarea>
         <div class="coach-note-foot"><span id="coachNoteDraft" class="coach-note-draft"></span><span id="coachNoteCount" class="coach-note-count">0 / 2000</span></div>
         <div class="coach-note-status" id="coachNoteStatus" role="status" aria-live="polite"></div>
-        <button class="coach-note-send" id="coachNoteSend" type="button" onclick="sendCoachNote()">Send to your coaches</button>
+        <div class="sheet-actions"><button class="coach-note-send" id="coachNoteSend" type="button" onclick="sendCoachNote()">Send to your coaches</button></div>
         <div class="coach-note-hint">Your coaches read these directly. For anything urgent or medical, contact a health professional first.</div>
       </div>
     </div>
@@ -1372,7 +1372,7 @@
 
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <div class="photo-modal" id="photoModal" onclick="closePhotoModal(event)">
   <div class="photo-modal-inner">
@@ -1441,7 +1441,7 @@
 })();
 </script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=125"></script>
+<script src="js/01-core.js?v=126"></script>
 <script src="js/02-login-goals.js?v=116"></script>
 <script src="js/03-nav-nudges.js?v=117"></script>
 <script src="js/04-checkin.js?v=100"></script>
@@ -1453,8 +1453,8 @@
 <script src="js/08-training-muscle-coverage.js?v=1"></script>
 <script src="js/08-training-focus.js?v=1"></script>
 <script src="js/08-strength-engine.js?v=4"></script>
-<script src="js/08-training.js?v=148"></script>
-<script src="js/09-logging.js?v=125"></script>
+<script src="js/08-training.js?v=149"></script>
+<script src="js/09-logging.js?v=126"></script>
 <script src="accessibility.js?v=1"></script>
 <script src="js/10-boot.js?v=110"></script>
 </body>
