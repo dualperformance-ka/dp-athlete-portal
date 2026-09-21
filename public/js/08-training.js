@@ -2747,3 +2747,80 @@ function togSet(i,ei,si){
     startRest(i,ei,exerciseName?exerciseName.textContent.trim():'');
   }
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DAY CELL · long-press to reschedule
+// The week board unit already carries the type indicator (.session-mark, step
+// 2), the day label, the session name and its completion state. The one thing
+// it had no affordance for was moving a session: that lived only on the
+// reschedule button in the Training list. A 500ms hold now opens the same date
+// picker, with .is-holding filling the cell's leading edge while the finger is
+// down so holding visibly does something before the picker appears.
+// Tap is unchanged and still opens the session. The keyboard path is unchanged
+// too — it goes through the reschedule button in the Training list, which is
+// why this is an additional affordance rather than the only one.
+// ══════════════════════════════════════════════════════════════════════════════
+(function(){
+  var DAY_CELL='.day-cell,.mobile-week-session';
+  var HOLD_MS=500,AFFORDANCE_MS=150,MOVE_TOLERANCE=10;
+  var hold=null;
+  function stop(){
+    if(!hold) return;
+    if(hold.timer) clearTimeout(hold.timer);
+    if(hold.affordance) clearTimeout(hold.affordance);
+    hold.cell.classList.remove('is-holding');
+  }
+  function openDayCellReschedule(cell,index){
+    // The Training list's own input is reused when it is actually on screen;
+    // on the week board it is in a hidden tab, where showPicker() cannot open.
+    var existing=document.getElementById('reschedule_'+index);
+    if(existing&&existing.offsetParent!==null&&typeof openReschedule==='function'){openReschedule(index);return;}
+    var input=cell.querySelector('.reschedule-input');
+    if(!input){
+      input=document.createElement('input');
+      input.type='date';
+      input.className='reschedule-input';
+      input.setAttribute('aria-label','Reschedule session date');
+      input.addEventListener('change',function(){
+        if(input.value&&typeof rescheduleSession==='function') rescheduleSession(index,input.value);
+      });
+      cell.appendChild(input);
+    }
+    var session=(typeof allSessions!=='undefined'&&allSessions)?allSessions[index]:null;
+    input.value=(session&&session.date)||'';
+    try{if(input.showPicker)input.showPicker();else input.click();}catch(e){try{input.click();}catch(e2){}}
+  }
+  document.addEventListener('pointerdown',function(e){
+    stop();hold=null;
+    var cell=e.target.closest&&e.target.closest(DAY_CELL);
+    if(!cell) return;
+    var raw=cell.getAttribute('data-session-index');
+    if(raw==null||raw==='') return;
+    var index=Number(raw);
+    if(!isFinite(index)) return;
+    hold={cell:cell,index:index,x:e.clientX,y:e.clientY,timer:null,affordance:null,fired:false};
+    // Delayed so an ordinary tap never flashes the hold state.
+    hold.affordance=setTimeout(function(){if(hold)hold.cell.classList.add('is-holding');},AFFORDANCE_MS);
+    hold.timer=setTimeout(function(){
+      if(!hold) return;
+      hold.fired=true;
+      hold.cell.classList.remove('is-holding');
+      try{if(navigator.vibrate)navigator.vibrate(8);}catch(err){}
+      openDayCellReschedule(hold.cell,hold.index);
+    },HOLD_MS);
+  },true);
+  document.addEventListener('pointermove',function(e){
+    if(!hold||hold.fired) return;
+    if(Math.abs(e.clientX-hold.x)>MOVE_TOLERANCE||Math.abs(e.clientY-hold.y)>MOVE_TOLERANCE){stop();hold=null;}
+  },true);
+  document.addEventListener('pointerup',function(){stop();},true);
+  document.addEventListener('pointercancel',function(){stop();hold=null;},true);
+  // A completed hold has already acted, so the click that ends it must not also
+  // open the session.
+  document.addEventListener('click',function(e){
+    var fired=hold&&hold.fired;
+    hold=null;
+    if(!fired) return;
+    if(e.target.closest&&e.target.closest(DAY_CELL)){e.preventDefault();e.stopPropagation();}
+  },true);
+})();
