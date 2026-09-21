@@ -16,9 +16,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=173" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=173'></noscript>
-<link rel="stylesheet" href="/desktop.css?v=13">
+<link rel="preload" as="style" href="/styles.css?v=174" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=174'></noscript>
+<link rel="stylesheet" href="/desktop.css?v=14">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
      if this request is blocked or fails, window.Sentry is simply absent and
@@ -595,39 +595,6 @@
     <div style="height:8px"></div>
   </div>
 
-  <!-- NUTRITION -->
-  <div class="tab-content" id="tab-nutrition">
-    <div class="page-intro">
-      <div class="page-kicker">Fuel</div>
-      <div class="page-title">Nutrition Plan</div>
-      <div class="page-copy">Your current targets, timing guidance, and the habits that matter most this week.</div>
-    </div>
-    <div class="nut-wbar">
-      <div class="wnav">
-        <button class="warr nut-arr" onclick="shiftNutWeek(-1)" aria-label="Previous nutrition week"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
-        <button class="warr nut-arr" onclick="shiftNutWeek(1)" aria-label="Next nutrition week"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
-        <button class="wtoday nut-arr" onclick="goNutToday()">Current</button>
-      </div>
-      <div class="nut-wlabel" id="nutWLabel">—</div>
-    </div>
-    <div class="loading skeleton skeleton--metrics" id="nutLoadingEl" role="status" aria-label="Loading nutrition targets">
-      <div class="skeleton-metric-grid" aria-hidden="true"><span class="skeleton-block"></span><span class="skeleton-block"></span><span class="skeleton-block"></span></div>
-      <div class="ltxt">Loading targets...</div>
-    </div>
-    <div class="noplan empty-state" id="nutNoplan" style="display:none">No targets set for this week.<br>Your coach will update these soon.</div>
-    <div id="nutContent" style="display:none">
-      <div class="cnote" id="nutCoachNote" style="display:none;margin-bottom:14px"></div>
-      <div class="macro-grid">
-        <div class="mc cal"><div class="mv readout" id="nutCal">—</div><div class="ml">Calories kcal</div></div>
-        <div class="mc pro"><div class="mv readout" id="nutPro">—</div><div class="ml">Protein g</div></div>
-        <div class="mc carb"><div class="mv readout" id="nutCarb">—</div><div class="ml">Carbs g</div></div>
-        <div class="mc fat"><div class="mv readout" id="nutFat">—</div><div class="ml">Fat g</div></div>
-        <div class="mc fibre u-grid-full"><div class="mv readout" id="nutFibre">—</div><div class="ml">Fibre g (target)</div></div>
-      </div>
-      <div class="card wkm-card" id="nutKmCard" style="display:none"></div>
-      <div class="card vstrip-card" id="nutVolumeStrip" style="display:none"></div>
-    </div>
-  </div>
 
   <!-- CHECK-IN -->
   <div class="tab-content" id="tab-checkin">
@@ -1441,8 +1408,8 @@
 <script src="js/02-login-goals.js?v=119"></script>
 <script src="js/03-nav-nudges.js?v=122"></script>
 <script src="js/04-checkin.js?v=104"></script>
-<script src="js/05-handbook.js?v=86"></script>
-<script src="js/06-nutrition.js?v=103"></script>
+<script src="js/05-handbook.js?v=87"></script>
+<script src="js/06-nutrition.js?v=104"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=90" hidden></span>
 <script type="module" src="js/strava-match.js?v=8"></script>
 <script src="js/08-training-interval-rest.js?v=1"></script>

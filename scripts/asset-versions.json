@@ -1,11 +1,11 @@
 {
   "styles.css": {
-    "version": 173,
-    "sha": "40660c90f6da"
+    "version": 174,
+    "sha": "00305b42dbe2"
   },
   "desktop.css": {
-    "version": 13,
-    "sha": "23f2a4234d75"
+    "version": 14,
+    "sha": "6647be47572b"
   },
   "icons.css": {
     "version": 4,
@@ -32,12 +32,12 @@
     "sha": "89eece7c44bc"
   },
   "js/05-handbook.js": {
-    "version": 86,
-    "sha": "4e22aff54921"
+    "version": 87,
+    "sha": "2c2812a0cd16"
   },
   "js/06-nutrition.js": {
-    "version": 103,
-    "sha": "890a190c7d91"
+    "version": 104,
+    "sha": "79fb7b78b929"
   },
   "js/07-progress.js": {
     "version": 90,

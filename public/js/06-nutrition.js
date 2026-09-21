@@ -88,6 +88,10 @@ function weekFuelSummary(){
   if(!km&&!sessionText) return null;
   return {km:km||'—',sessions:sessionText||''};
 }
+// The coach's note for the nutrition week. It used to live on the Nutrition
+// tab; that tab is gone, and this is the only coach-written text it carried,
+// so it travels with the week's targets instead of being deleted with the markup.
+var currentNutCoachNote='';
 var FUEL_LOGGED_KEY={cal:'calories',pro:'protein',carb:'carbs',fat:'fat',fibre:'fibre'};
 function renderNavigationFuelTargets(targets){
   var today=document.getElementById('todayFuelTarget'),week=document.getElementById('weekFuelTargets');
@@ -140,6 +144,11 @@ function renderNavigationFuelTargets(targets){
         +esc(summary.sessions)+'</span></div>';
     }
     weekHtml+='<div class="fuel-target-grid">'+items.map(function(item){return cell(item,false);}).join('')+'</div>';
+    // Coach-written, so it keeps the coach-note treatment it had on the old tab.
+    if(currentNutCoachNote){
+      weekHtml+='<div class="cnote fuel-target-note"><svg class="icon icon-run"><use href="#i-chat"/></svg> '
+        +esc(currentNutCoachNote)+'</div>';
+    }
     week.innerHTML=weekHtml;
     week.hidden=false;
   }
@@ -191,9 +200,8 @@ function renderWeeklyKmCard(id,data){
 // on Weekly Plan and Nutrition; the Progress tab renders the same data larger.
 function jumpToProgrammeWeek(wk,mode){
   var base=baseProgrammeWeek();
-  if(mode==='nutrition'){nutWeekOffset=wk-base;loadNutrition();}
-  else{weekOffset=wk-base;loadWeek();}
-  var el=document.getElementById(mode==='nutrition'?'nutKmCard':(document.getElementById('trainingVolumeStrip')&&document.getElementById('trainingVolumeStrip').offsetParent?'trainingVolumeStrip':'weeklyVolumeStrip'));
+  weekOffset=wk-base;loadWeek();
+  var el=document.getElementById(document.getElementById('trainingVolumeStrip')&&document.getElementById('trainingVolumeStrip').offsetParent?'trainingVolumeStrip':'weeklyVolumeStrip');
   if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'center'});
 }
 // Collapsible on Training, where the week list is the point of the page.
@@ -462,7 +470,6 @@ function coachTargetsHtml(week){
 function retryProgrammeVolume(){
   invalidateProgrammeVolume();
   if(typeof renderTrainingVolumeStrips==='function')renderTrainingVolumeStrips();
-  if(document.getElementById('nutVolumeStrip'))renderVolumeStrip('nutVolumeStrip','nutrition');
 }
 
 function volumeStripHtml(data,mode,collapsible){
@@ -587,8 +594,6 @@ document.addEventListener('visibilitychange',function(){
   _volumeVisibleTimer=setTimeout(function(){
     loadProgrammeVolume(true).then(function(){
       if(typeof renderTrainingVolumeStrips==='function')renderTrainingVolumeStrips();
-      var nutritionTab=document.getElementById('tab-nutrition');
-      if(nutritionTab&&nutritionTab.classList.contains('active'))renderVolumeStrip('nutVolumeStrip','nutrition');
     }).catch(function(){});
   },250);
 });
@@ -601,10 +606,6 @@ async function loadNutrition(){
   if(displayWeek>programmeWeeks) displayWeek=programmeWeeks;
 
   currentWeekKmData=null;
-  document.getElementById('nutWLabel').textContent=isDiscoveryWeek(displayWeek)?'Discovery Week':'Week '+displayWeek;
-  document.getElementById('nutLoadingEl').style.display='block';
-  document.getElementById('nutContent').style.display='none';
-  document.getElementById('nutNoplan').style.display='none';
 
   var weekLabel='Week '+displayWeek;
 
@@ -633,23 +634,20 @@ async function loadNutrition(){
   }
 
   _nutLastLoad=Date.now();
-  document.getElementById('nutLoadingEl').style.display='none';
-
   var volumeData=await volumePromise;
   var volumeWeek=volumeData&&volumeData.weeks&&volumeData.weeks.find(function(item){return item.week===displayWeek;});
   var coachRunTarget=volumeWeek&&targetForProgrammeWeek(volumeWeek.coachTargets,volumeWeek.weekIdentifier,'running');
 
   if(!row){
     currentNutTargets=null;
+    currentNutCoachNote='';
     renderNavigationFuelTargets(null);
-    document.getElementById('nutNoplan').style.display='block';
     if(coachRunTarget&&volumeData.targetState!=='error'){
       var noPlanMetrics=volumeWeek.actualBySport&&volumeWeek.actualBySport.running;
       currentWeekKmData={week:weekLabel,target:coachRunTarget.distanceTargetMetres/1000,
         completed:noPlanMetrics?noPlanMetrics.distanceMetres/1000:0,source:'strava',locked:true};
       renderKmTracker(currentWeekKmData);
     }else document.getElementById('kmBar').style.display='none';
-    renderWeeklyKmCard('nutKmCard',null);
     // No nutrition row still leaves a planned-session km target for the week list.
     if(typeof renderTrainingVolumeStrips==='function') renderTrainingVolumeStrips();
     return;
@@ -668,11 +666,6 @@ async function loadNutrition(){
   var mCarb=getMacro(row.carbs);
   var mFat=getMacro(row.fats);
   var mFibre=getMacro(row.fibre);
-  document.getElementById('nutCal').textContent=mCal;
-  document.getElementById('nutPro').textContent=mPro;
-  document.getElementById('nutCarb').textContent=mCarb;
-  document.getElementById('nutFat').textContent=mFat;
-  document.getElementById('nutFibre').textContent=mFibre;
   function toNutNum(v){
     if(typeof v==='number') return {display:String(v),min:v};
     if(!v||v==='—') return null;
@@ -682,14 +675,7 @@ async function loadNutrition(){
   }
   currentNutTargets={cal:toNutNum(mCal),pro:toNutNum(mPro),carb:toNutNum(mCarb),fat:toNutNum(mFat),fibre:toNutNum(mFibre)};
 
-  var note=(row.notes||'').trim();
-  var noteEl=document.getElementById('nutCoachNote');
-  if(note){
-    noteEl.innerHTML='<svg class="icon icon-run"><use href="#i-chat"/></svg> '+esc(note);
-    noteEl.style.display='block';
-  }else{
-    noteEl.style.display='none';
-  }
+  currentNutCoachNote=(row.notes||'').trim();
 
   // Weekly KM: manual target wins; otherwise auto-sum this week's planned
   // session distances (with "Weekly KM Total: 65km" rows as a floor).
@@ -756,11 +742,8 @@ async function loadNutrition(){
   }else{
     document.getElementById('kmBar').style.display='none';
   }
-  renderWeeklyKmCard('nutKmCard',{target:kmTarget,completed:kmCompleted,source:currentWeekKmData.source,weekLabel:document.getElementById('nutWLabel').textContent});
-  renderVolumeStrip('nutVolumeStrip','nutrition');
   // Keep the programme volume strip current when the selected week changes.
   if(typeof renderTrainingVolumeStrips==='function') renderTrainingVolumeStrips();
 
-  document.getElementById('nutContent').style.display='block';
   if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();
 }

@@ -228,13 +228,6 @@
   #tab-progress .progress-photos,
   #tab-progress .progress-entries{border-radius:var(--r-card)}
 
-  /* Nutrition — macros in one row; content in balanced columns. */
-  #tab-nutrition.active{max-width:none}
-  #tab-nutrition>*{max-width:1160px;margin-left:auto;margin-right:auto}
-  .macro-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
-  #nutContent{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 26px;align-items:start}
-  #nutContent>.macro-grid,#nutContent>.cnote{grid-column:1/-1}
-  #nutContent p,#nutContent li{max-width:66ch}
 
   /* Goals — structured two-column form, readable inputs, sticky save. */
   #tab-goals.active{
@@ -401,20 +394,22 @@
   #tab-goals .race-options{display:flex;flex-wrap:wrap;gap:8px}
   #tab-goals .race-opt{max-width:100%;white-space:normal}
 
-  #tab-nutrition .timing-table{
+  /* The carb-timing table lives in the Guide's Fuelling topic now. These
+     column widths followed it; before this they were still scoped to the
+     retired Nutrition tab, so the table had no sizing on desktop at all. */
+  .hb-modal-body .timing-table{
     width:100%;
     table-layout:fixed;
   }
-  #tab-nutrition .timing-table :where(th,td){
+  .hb-modal-body .timing-table :where(th,td){
     overflow-wrap:break-word;
     word-break:normal;
   }
-  #tab-nutrition .timing-table th:nth-child(1){width:20%}
-  #tab-nutrition .timing-table th:nth-child(2){width:24%}
-  #tab-nutrition .timing-table th:nth-child(3){width:18%}
-  #tab-nutrition .timing-table th:nth-child(4){width:38%}
-  #tab-nutrition .nutrition-principles{grid-column:1/-1}
-  #tab-nutrition .nutrition-principles .nutrnote{max-width:82ch}
+  .hb-modal-body .timing-table th:nth-child(1){width:20%}
+  .hb-modal-body .timing-table th:nth-child(2){width:24%}
+  .hb-modal-body .timing-table th:nth-child(3){width:18%}
+  .hb-modal-body .timing-table th:nth-child(4){width:38%}
+  .hb-modal-body .nutrnote{max-width:82ch}
 
   #tab-handbook .hb-card{height:100%}
   #tab-handbook .hb-title{line-height:1.22}
