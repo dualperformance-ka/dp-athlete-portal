@@ -25,6 +25,70 @@ function renderKmTracker(kmData){
   bar.classList.toggle('km-hit',done>=target);
   bar.style.display='';
 }
+// The retired Nutrition tab stacked five personalised macro numbers on top of
+// three blocks of advice that were identical for every athlete in every week.
+// The advice moved to the Guide, once. The numbers moved here, to the two
+// places the athlete is already looking: today's beside what has actually been
+// logged today, the week's beside the km and sessions they are measured on.
+var FUEL_SESSION_GUIDE=[
+  {kind:'long',label:'Long run today',note:'20–30g carbs 30–60 min before · 30–60g/hr during runs over 75 min · 60–80g within 30 min after'},
+  {kind:'speed',label:'Speed session today',note:'50–70g carbs 2 hrs before · 20–30g during if it runs over 60 min'},
+  {kind:'gym',label:'Gym today',note:'50–70g carbs 1–2 hrs before'},
+  {kind:'easy',label:'Easy run today',note:'30–50g carbs 1–2 hrs before'}
+];
+// Ordered by fuelling demand, and the first match wins: a long run and an easy
+// run on the same day is still a long-run day.
+function fuelSessionGuideFor(list){
+  if(typeof getType!=='function') return null;
+  var kinds={};
+  (list||[]).forEach(function(s){
+    var type=getType(s);
+    if(type==='strength'){kinds.gym=true;return;}
+    if(type!=='run') return;
+    var name=String((s&&s.name)||'').toLowerCase();
+    if(/long/.test(name)) kinds.long=true;
+    else if(/speed|interval|tempo|threshold|\brep\b|vo2|fartlek|track/.test(name)) kinds.speed=true;
+    else kinds.easy=true;
+  });
+  for(var i=0;i<FUEL_SESSION_GUIDE.length;i++){
+    if(kinds[FUEL_SESSION_GUIDE[i].kind]) return FUEL_SESSION_GUIDE[i];
+  }
+  return null;
+}
+// Only when the plan actually carries a session for today.
+function todayFuelSessionGuide(){
+  if(typeof allSessions==='undefined'||!allSessions||!allSessions.length) return null;
+  if(typeof localISO!=='function') return null;
+  var iso=localISO(new Date());
+  return fuelSessionGuideFor(allSessions.filter(function(s){return s.date===iso;}));
+}
+// km belongs to the nutrition week that produced these targets. The session
+// count comes from the Weekly Plan's own list, so it is only shown when both
+// tabs sit on the same week — one card must never pair two different weeks.
+function weekFuelSummary(){
+  var km=null;
+  if(typeof currentWeekKmData!=='undefined'&&currentWeekKmData&&currentWeekKmData.target!=null){
+    var target=Number(currentWeekKmData.target);
+    if(!isNaN(target)&&target>0){
+      var done=Number(currentWeekKmData.completed||0);
+      if(isNaN(done)||done<0) done=0;
+      km=fmtKmVal(done)+' / '+fmtKmVal(target)+' km';
+    }
+  }
+  var sessionText=null;
+  if(typeof nutWeekOffset!=='undefined'&&typeof weekOffset!=='undefined'&&nutWeekOffset===weekOffset
+     &&typeof sessions!=='undefined'&&sessions&&sessions.length&&typeof getType==='function'){
+    var planned=sessions.filter(function(s){var type=getType(s);return type==='run'||type==='strength';});
+    if(planned.length){
+      var logged=(typeof trainingSessionIsComplete==='function')
+        ?planned.filter(trainingSessionIsComplete).length:0;
+      sessionText=logged+' of '+planned.length+' sessions logged';
+    }
+  }
+  if(!km&&!sessionText) return null;
+  return {km:km||'—',sessions:sessionText||''};
+}
+var FUEL_LOGGED_KEY={cal:'calories',pro:'protein',carb:'carbs',fat:'fat',fibre:'fibre'};
 function renderNavigationFuelTargets(targets){
   var today=document.getElementById('todayFuelTarget'),week=document.getElementById('weekFuelTargets');
   var items=[['Energy','cal','kcal'],['Protein','pro','g'],['Carbs','carb','g'],['Fat','fat','g'],['Fibre','fibre','g']];
@@ -32,16 +96,55 @@ function renderNavigationFuelTargets(targets){
     [today,week].forEach(function(el){if(el){el.hidden=true;el.innerHTML='';}});
     return;
   }
-  function value(item){var target=targets[item[1]];return target?esc(target.display)+(item[2]?' '+item[2]:''):'—';}
+  var loggedToday=null;
+  try{
+    if(typeof storedDailyLog==='function'&&typeof todayISO2==='function') loggedToday=storedDailyLog('nut',todayISO2());
+  }catch(e){}
+  function loggedValue(key){
+    if(!loggedToday) return null;
+    var raw=loggedToday[FUEL_LOGGED_KEY[key]];
+    if(raw==null||raw==='') return null;
+    var n=Number(raw);
+    return isNaN(n)?null:Math.round(n);
+  }
+  var anyLogged=items.some(function(item){return loggedValue(item[1])!=null;});
+  // On Today the cell carries two numbers, so the unit moves up into the label
+  // rather than being clipped off the end of "1840 / 2300 kcal" on a phone.
+  function cell(item,withLogged){
+    var target=targets[item[1]];
+    var unit=item[2]?' '+item[2]:'';
+    var head='<small>'+item[0]+(withLogged?unit:'')+'</small>';
+    if(!target) return '<div>'+head+'<strong>—</strong></div>';
+    if(!withLogged) return '<div>'+head+'<strong>'+esc(target.display)+unit+'</strong></div>';
+    var done=loggedValue(item[1]);
+    return '<div>'+head+'<strong>'+(done==null?'—':String(done))+' / '+esc(target.display)+'</strong></div>';
+  }
   if(today){
-    today.innerHTML='<div class="fuel-target-head"><span>Today\'s fuel</span><small>Daily targets</small></div><div class="fuel-target-primary"><strong>'+value(items[0])+'</strong><span>'+value(items[1])+' protein</span></div>';
+    var guide=todayFuelSessionGuide();
+    var todayHtml='<div class="fuel-target-head"><span>Today\'s fuel</span><small>'
+      +(anyLogged?'Logged vs target':'Daily targets')+'</small></div>';
+    if(guide){
+      todayHtml+='<div class="u-help-copy u-mb-12"><span class="chip chip--accent">'+esc(guide.label)
+        +'</span> '+esc(guide.note)+'</div>';
+    }
+    // Nothing logged at all is a target list, not five copies of "— / target".
+    todayHtml+='<div class="fuel-target-grid">'+items.map(function(item){return cell(item,anyLogged);}).join('')+'</div>';
+    today.innerHTML=todayHtml;
     today.hidden=false;
   }
   if(week){
-    week.innerHTML='<div class="fuel-target-head"><span>This week\'s targets</span><small>Daily nutrition plan</small></div><div class="fuel-target-grid">'+items.map(function(item){return '<div><small>'+item[0]+'</small><strong>'+value(item)+'</strong></div>';}).join('')+'</div>';
+    var weekHtml='<div class="fuel-target-head"><span>This week\'s targets</span><small>Daily nutrition plan</small></div>';
+    var summary=weekFuelSummary();
+    if(summary){
+      weekHtml+='<div class="fuel-target-primary u-mb-12"><strong>'+esc(summary.km)+'</strong><span>'
+        +esc(summary.sessions)+'</span></div>';
+    }
+    weekHtml+='<div class="fuel-target-grid">'+items.map(function(item){return cell(item,false);}).join('')+'</div>';
+    week.innerHTML=weekHtml;
     week.hidden=false;
   }
 }
+
 // ── WEEKLY KM TARGET CARD ─────────────────────────────────────────────────────
 // Same numbers as the home-screen km tracker, rendered as a standalone card
 // under the Nutrition macros. Training keeps the lighter Volume by week strip.
@@ -578,7 +681,6 @@ async function loadNutrition(){
     return isNaN(n)?null:{display:s,min:n};
   }
   currentNutTargets={cal:toNutNum(mCal),pro:toNutNum(mPro),carb:toNutNum(mCarb),fat:toNutNum(mFat),fibre:toNutNum(mFibre)};
-  renderNavigationFuelTargets(currentNutTargets);
 
   var note=(row.notes||'').trim();
   var noteEl=document.getElementById('nutCoachNote');
@@ -645,6 +747,9 @@ async function loadNutrition(){
   currentWeekKmData.completed=kmCompleted;
   currentWeekKmData.source=hasStrava?'strava':(trackerCompleted>0?'portal':(localCompleted>0?'local':'nutrition_row'));
   currentWeekKmData.locked=!!coachRunTarget;
+  // Now that the week's km is resolved, the Today and Week fuel blocks can be
+  // painted with both halves of what they show.
+  renderNavigationFuelTargets(currentNutTargets);
 
   if(kmTarget!=null){
     renderKmTracker({target:kmTarget,completed:kmCompleted,source:currentWeekKmData.source});
