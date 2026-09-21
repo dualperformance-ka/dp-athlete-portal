@@ -171,6 +171,29 @@ for (const name of ['ingest.js', 'my-logs.js', 'progress-photos.js', 'reminders.
   if (!source.includes('getRequestAthlete')) failures.push(`Protected API lost its athlete auth boundary: api/${name}`);
 }
 
+// Shell integrity, for the same reason as the stylesheet check below. One
+// missing </div> does not break the page loudly: the browser re-parents
+// everything after it into the last open element, so markup that should be on
+// Progress ends up inside a display:none tab and simply never appears. Every
+// static gate still passes, every unit test still passes, and only a browser
+// notices. Counted rather than parsed — div is the only tag this shell nests
+// deeply, and a running count is enough to catch the one that went missing.
+{
+  const body = index
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, '');
+  let depth = 0;
+  let underflow = false;
+  for (const match of body.matchAll(/<(\/?)div\b[^>]*>/g)) {
+    depth += match[1] ? -1 : 1;
+    if (depth < 0) underflow = true;
+  }
+  if (depth !== 0 || underflow) {
+    failures.push(`index.html has unbalanced <div> tags (${depth > 0 ? `${depth} left open` : `${-depth} closed too many`}). The browser will re-parent everything after the break into the nearest open element, which usually means a hidden tab — the page still loads and the markup simply never shows.`);
+  }
+}
+
 // Stylesheet integrity. An unbalanced /* ... */ silently swallows every rule
 // after it — the file still "loads", the page just quietly loses its styling
 // from that point down. Cheap to check, expensive to debug.

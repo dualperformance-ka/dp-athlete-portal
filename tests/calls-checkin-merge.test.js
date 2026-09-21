@@ -44,15 +44,59 @@ test('Coaching opens the one check-in sheet instead of duplicating it', () => {
   assert.match(nav, /return \{next:next,checkin:checkin,last:last\};/);
 });
 
-test('the one prep question worth keeping lives in the check-in now', () => {
+test('the one prep question worth keeping opens the final step', () => {
   assert.match(index, /id="ciCallDecision"/, 'the field must exist in the shell');
-  const stepFive = index.slice(index.indexOf('data-step="5"'));
-  assert.ok(stepFive.indexOf('ciCallDecision') < stepFive.indexOf('ciTestimonial'),
-    'it belongs in the final step, ahead of the reflection');
+  // Asserted structurally rather than against a step number: this used to sit
+  // below a motivational panel and a testimonial box at the bottom of step 5,
+  // and the point of moving it is that it is now the FIRST thing the athlete
+  // answers in the last step, because it is what the call actually turns on.
+  const stepFour = index.slice(index.indexOf('data-step="4"'), index.indexOf('<!-- Nav buttons -->'));
+  assert.ok(stepFour.includes('id="ciCallDecision"'), 'it belongs in the final step');
+  const fields = [...stepFour.matchAll(/id="(ci[A-Za-z]+)"/g)].map((m) => m[1]);
+  assert.equal(fields[0], 'ciCallDecision', 'it must be the first question of the step');
+  // Submit ends the form; nothing is asked after it.
+  assert.ok(stepFour.indexOf('id="ciSubmitBtn"') > stepFour.lastIndexOf('id="ciNotes"'),
+    'Submit must be the last thing in the step');
   assert.match(checkin, /'ciNotes','ciCallDecision','ciTestimonial'/,
     'it must be drafted like every other field, or a half-finished answer is lost');
   assert.match(checkin, /callDecision:document\.getElementById\('ciCallDecision'\)\.value/,
     'it must be submitted');
+});
+
+// The testimonial ask is legitimate; gating the weekly check-in behind it was
+// a weekly adherence tax on the ritual the coaching model depends on. It now
+// sits on the confirmation screen, after the check-in is already in.
+test('the testimonial is asked after the check-in, not in front of Submit', () => {
+  assert.equal((index.match(/id="ciTestimonial"/g) || []).length, 1);
+  const panels = index.slice(index.indexOf('data-step="1"'), index.indexOf('<!-- Nav buttons -->'));
+  assert.ok(!panels.includes('id="ciTestimonial"'), 'no step of the form may ask for it');
+  const success = index.slice(index.indexOf('id="ciSuccess"'));
+  assert.ok(success.indexOf('Check-in received') < success.indexOf('id="ciTestimonial"'),
+    'the ask comes after a real confirmation, not instead of one');
+  // Declining has to be as easy as agreeing, and visibly free of consequence.
+  assert.match(success, /id="ciTestimonialSkip"[^>]*onclick="dismissTestimonial\(\)"/);
+  assert.match(success, /Not this week/);
+  // The consent travels with the thing it consents to.
+  assert.ok(success.indexOf('id="ciTestimonial"')
+    < success.indexOf('may use your testimonial on social media'),
+    'the consent line belongs to the testimonial, not to the check-in submit');
+  assert.ok(!index.slice(0, index.indexOf('id="ciSuccess"')).includes('may use your testimonial'),
+    'and must not still hang off Submit');
+  // Four steps, four dots, one counter.
+  assert.match(checkin, /var CI_STEP=1,CI_TOTAL=4;/);
+  assert.equal((index.match(/class="ci-sdot[ "]/g) || []).length, 4);
+  assert.equal((index.match(/class="ci-step-panel[ "]/g) || []).length, 4);
+  assert.match(index, /id="ciStepCounter">1 of 4</);
+  // A declined testimonial still leaves a submitted check-in: dismissing only
+  // clears the field, it never touches the submission or re-opens the form.
+  const dismiss = checkin.slice(checkin.indexOf('function dismissTestimonial('));
+  assert.ok(!dismiss.slice(0, dismiss.indexOf('\n}')).includes('ciFormContent'));
+  // And the testimonial goes back as the same check-in, so the coaches keep
+  // one row per week rather than a second kind of message to reconcile.
+  assert.match(checkin, /coachWrite\(CHECKIN_WEBHOOK,Object\.assign\(\{type:'weekly_checkin'\},payload\)\)/);
+  const send = checkin.slice(checkin.indexOf('async function submitTestimonial('));
+  assert.match(send, /Object\.assign\(\{\},_ciSubmittedPayload,\{testimonial:text\}\)/,
+    'the second write must be the first payload with the one empty column filled');
 });
 
 test('the answer has somewhere to land', () => {

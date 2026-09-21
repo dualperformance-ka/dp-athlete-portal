@@ -1,13 +1,13 @@
-const CACHE_NAME = 'dp-athlete-v215'; // v214: unified Log sheet (Session/Body/Fuel), quick-log dock removed, header refresh restored
+const CACHE_NAME = 'dp-athlete-v216'; // v216: nutrition content split three ways (Today/Week/Guide), check-in cut to four steps, testimonial asked after submit
 const APP_SHELL = [
   '/index.html', '/styles.css?v=172', '/desktop.css?v=13', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
   '/js/02-login-goals.js?v=118',
   '/js/03-nav-nudges.js?v=121',
-  '/js/04-checkin.js?v=102',
-  '/js/05-handbook.js?v=85',
-  '/js/06-nutrition.js?v=102',
+  '/js/04-checkin.js?v=103',
+  '/js/05-handbook.js?v=86',
+  '/js/06-nutrition.js?v=103',
   '/js/07-progress.js?v=90',
   '/js/strava-match.js?v=8',
   '/js/08-training-interval-rest.js?v=1',

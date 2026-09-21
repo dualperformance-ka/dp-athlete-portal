@@ -28,16 +28,16 @@
     "sha": "ffdbdda24f2c"
   },
   "js/04-checkin.js": {
-    "version": 102,
-    "sha": "c8e6225efb34"
+    "version": 103,
+    "sha": "72a428d89bbc"
   },
   "js/05-handbook.js": {
-    "version": 85,
-    "sha": "b36fd66006a3"
+    "version": 86,
+    "sha": "4e22aff54921"
   },
   "js/06-nutrition.js": {
-    "version": 102,
-    "sha": "3376da4b8298"
+    "version": 103,
+    "sha": "890a190c7d91"
   },
   "js/07-progress.js": {
     "version": 90,

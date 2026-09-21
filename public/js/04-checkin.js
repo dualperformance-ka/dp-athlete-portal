@@ -1,5 +1,5 @@
 // ── CHECK-IN WIZARD ───────────────────────────────────────────────────────────
-var CI_STEP=1,CI_TOTAL=5;
+var CI_STEP=1,CI_TOTAL=4;
 // A slider nobody moved is not an answer, so a step cannot be left behind with
 // one still sitting at its resting position. Gentle: the sliders in question
 // are highlighted and one line appears above Next. No alert, no toast, and
@@ -68,7 +68,7 @@ function ciStep(dir){
 
 // ── CHECK-IN DRAFTS + CONSENT ─────────────────────────────────────────────────
 var CI_DRAFT_FIELDS=['ciName','ciWeekEnding','ciRunComp','ciRunPlan','ciRunKm','ciRunFeel','ciRunWins','ciRunNiggles','ciLiftComp','ciLiftPlan','ciLiftFeel','ciLiftWins','ciLiftNiggles','ciSleep','ciEnergy','ciSoreness','ciNut','ciFuelling','ciStress','ciMot','ciSocial','ciNotes','ciCallDecision','ciTestimonial'];
-var _ciDraftTimer=null,_ciDraftHooked=false;
+var _ciDraftTimer=null,_ciDraftHooked=false,_ciSubmitted=false,_ciSubmittedPayload=null;
 function ciDraftKey(){return 'dp_ci_draft_'+((athlete&&athlete.code)||'default')+'_'+checkinWeekSuffix();}
 function draftCheckin(){
   if(_ciDraftTimer)clearTimeout(_ciDraftTimer);
@@ -76,7 +76,11 @@ function draftCheckin(){
 }
 function saveCiDraft(){
   var d={_savedAt:Date.now()};
-  CI_DRAFT_FIELDS.forEach(function(id){
+  // Once the check-in is in, the only field still worth drafting is the
+  // testimonial. Saving the rest would rebuild a submitted form as a draft and
+  // the athlete would be shown their own answers back as unsent work.
+  var fields=_ciSubmitted?['ciTestimonial']:CI_DRAFT_FIELDS;
+  fields.forEach(function(id){
     var el=document.getElementById(id);if(!el)return;
     // Untouched sliders are still at their default — don't bake 5s into the draft
     if(el.type==='range'&&el.classList.contains('sl-untouched'))return;
@@ -100,6 +104,7 @@ function restoreCiDraft(){
 }
 function clearCiDraft(){
   try{localStorage.removeItem(ciDraftKey());}catch(e){}
+
   if(_ciDraftTimer){clearTimeout(_ciDraftTimer);_ciDraftTimer=null;}
 }
 
@@ -107,8 +112,13 @@ function initCheckin(){
   renderBookingPrompts();
   restoreCiDraft();
   if(!_ciDraftHooked){
-    var fc=document.getElementById('ciFormContent');
-    if(fc){fc.addEventListener('input',draftCheckin);fc.addEventListener('change',draftCheckin);}
+    // #ciTestimonial sits on the confirmation screen now, so the autosave has
+    // to listen there too or a half-written testimonial is lost on close.
+    ['ciFormContent','ciSuccess'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(!el)return;
+      el.addEventListener('input',draftCheckin);el.addEventListener('change',draftCheckin);
+    });
     _ciDraftHooked=true;
   }
   var nameEl=document.getElementById('ciName');if(nameEl&&!nameEl.value) nameEl.value=athlete.name;
@@ -193,6 +203,12 @@ async function submitCheckin(){
     track('weekly_checkin_submitted');
     hideCheckinNudge();
     clearCiDraft();
+    // Stashed so the testimonial can be sent afterwards as the same check-in,
+    // re-upserted on the same athlete_code + week_key rather than as a second
+    // kind of message the coaches would have to reconcile.
+    _ciSubmitted=true;
+    _ciSubmittedPayload=payload;
+    showTestimonialAsk();
     document.getElementById('ciFormContent').style.display='none';document.getElementById('ciSuccess').style.display='block';
     // Say which of the two actually happened. "Sent" when it reached the
     // coaches, "saved" when it is sitting in the outbox — claiming delivery for
@@ -203,17 +219,75 @@ async function submitCheckin(){
     if(sheet&&sheet.classList.contains('open')){
       var confirmation=document.getElementById('ciSuccess');
       if(confirmation)confirmation.scrollIntoView({block:'center',behavior:'smooth'});
-      // Long enough to read the confirmation, short enough not to trap them.
-      setTimeout(function(){
-        if(sheet.classList.contains('open')){
-          // Put the form back into its submitted-and-reset state on the way
-          // out, so reopening the sheet is not a dead success screen.
-          if(typeof resetCheckin==='function')resetCheckin();
-          closeCheckinSheet();
-        }
-      },2600);
+      // The sheet used to close itself 2.6s after submit. It cannot any more:
+      // the testimonial ask lives on this screen, and closing the sheet out
+      // from under it would be the same tax in a different place. The athlete
+      // answers the ask — either way — and that closes it.
     }
   }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit your check-in — please try again','error');}
+}
+// ── TESTIMONIAL ASK ───────────────────────────────────────────────────────────
+// Asking for a testimonial is fair. Making the weekly check-in wait behind it
+// was not: it put a 180px box and a consent line between the athlete and Submit
+// every single week, on the one ritual the coaching model actually depends on.
+// The ask moved here, after a real confirmation, where "Not this week" is free.
+function showTestimonialAsk(){
+  var ask=document.getElementById('ciTestimonialAsk');
+  var thanks=document.getElementById('ciTestimonialThanks');
+  if(ask)ask.hidden=false;
+  if(thanks)thanks.hidden=true;
+  var send=document.getElementById('ciTestimonialSend');
+  if(send){send.textContent='Send my testimonial';send.disabled=false;}
+}
+// Shared exit for both answers. Only the sheet has anywhere to go; on the tab
+// the confirmation simply stays put.
+function closeCheckinAfterAsk(){
+  var sheet=document.getElementById('checkinModal');
+  if(!sheet||!sheet.classList.contains('open'))return;
+  setTimeout(function(){
+    if(!sheet.classList.contains('open'))return;
+    // Put the form back into its submitted-and-reset state on the way out, so
+    // reopening the sheet is not a dead success screen.
+    if(typeof resetCheckin==='function')resetCheckin();
+    closeCheckinSheet();
+  },1600);
+}
+// Declining is a real answer and leaves the submitted check-in exactly as it is.
+function dismissTestimonial(){
+  var ask=document.getElementById('ciTestimonialAsk');
+  if(ask)ask.hidden=true;
+  var tEl=document.getElementById('ciTestimonial');
+  if(tEl)tEl.value='';
+  clearCiDraft();
+  track('weekly_checkin_testimonial_skipped');
+  closeCheckinAfterAsk();
+}
+// The testimonial goes back as the same check-in it belongs to: same type, same
+// payload shape, same athlete_code + week_key, so api/ingest upserts the row
+// that is already there and fills in the one column that was empty.
+async function submitTestimonial(){
+  var tEl=document.getElementById('ciTestimonial');
+  var text=tEl?tEl.value.trim():'';
+  if(!text){showToast('Write a few words first, or tap Not this week');return;}
+  if(!_ciSubmittedPayload){showToast('Could not send your testimonial — please try again','error');return;}
+  var btn=document.getElementById('ciTestimonialSend');
+  if(btn){btn.textContent='Sending...';btn.disabled=true;}
+  var payload=Object.assign({},_ciSubmittedPayload,{testimonial:text});
+  try{
+    var result=await coachWrite(CHECKIN_WEBHOOK,Object.assign({type:'weekly_checkin'},payload));
+    _ciSubmittedPayload=payload;
+    track('weekly_checkin_testimonial_submitted');
+    clearCiDraft();
+    var ask=document.getElementById('ciTestimonialAsk');
+    if(ask)ask.hidden=true;
+    var thanks=document.getElementById('ciTestimonialThanks');
+    if(thanks)thanks.hidden=false;
+    showToast(result.queued?'Testimonial saved \u00b7 will send when you\u2019re back online':'Thanks \u2014 sent to Karl and Alex \u2713');
+    closeCheckinAfterAsk();
+  }catch(e){
+    if(btn){btn.textContent='Send my testimonial';btn.disabled=false;}
+    showToast('Could not send your testimonial \u2014 please try again','error');
+  }
 }
 // ── CHECK-IN SHEET ────────────────────────────────────────────────────────────
 // The Calls tab opens the check-in in place rather than switching tabs. The form
@@ -270,7 +344,9 @@ function closeCheckinSheet(){
 }
 function resetCheckin(){
   clearCiDraft();
+  _ciSubmitted=false;_ciSubmittedPayload=null;
   var tEl=document.getElementById('ciTestimonial');if(tEl)tEl.value='';
+  showTestimonialAsk();
   document.getElementById('ciFormContent').style.display='block';document.getElementById('ciSuccess').style.display='none';
   var btn=document.getElementById('ciSubmitBtn');btn.textContent='Submit Check-in';btn.disabled=false;ciGoStep(1);
 }

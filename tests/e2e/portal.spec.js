@@ -492,9 +492,11 @@ test('9. the Calls tab routes to the one check-in rather than asking again', asy
   expect(await page.locator('#ciRunKm').count()).toBe(1);
 
   // The one prep question that survived, drafted like every other field. It
-  // sits in the wizard's last step, so walk there the way an athlete would.
-  await page.evaluate(() => ciGoStep(5));
-  await expect(page.locator('.ci-step-panel[data-step="5"]')).toHaveClass(/active/);
+  // opens the wizard's last step, so walk there the way an athlete would.
+  await page.evaluate(() => ciGoStep(4));
+  await expect(page.locator('.ci-step-panel[data-step="4"]')).toHaveClass(/active/);
+  await expect(page.locator('#ciStepCounter')).toHaveText('Step 4 of 4');
+  await expect(page.locator('#ciCallDecision')).toBeVisible();
   await page.locator('#ciCallDecision').fill('Whether to move Thursday intervals to Friday.');
   await expect.poll(async () => page.evaluate(() => {
     const raw = localStorage.getItem('dp_ci_draft_KARL_' + checkinWeekSuffix());
@@ -556,8 +558,82 @@ test('10. the check-in sheet drafts, confirms delivery, and hands the form back'
   await expect(page.locator('#ciSuccess')).toBeVisible();
   await expect.poll(() => ingested.filter(p => p.type === 'weekly_checkin').length, { timeout: 8000 }).toBeGreaterThan(0);
 
-  // Submitted means the draft is gone and the Calls card reflects it.
+  // Submitted means the draft is gone.
   await expect.poll(async () => page.evaluate(() => localStorage.getItem(ciDraftKey())), { timeout: 8000 }).toBeNull();
+
+  // The testimonial is asked here, after the confirmation, and the sheet holds
+  // still for it rather than closing itself out from under the ask.
+  await expect(page.locator('#ciSuccess')).toContainText('Check-in received');
+  await expect(page.locator('#ciTestimonialAsk')).toBeVisible();
+  await expect(page.locator('#checkinModal')).toHaveClass(/open/);
+  // Declining costs nothing and leaves the submitted check-in exactly as it is.
+  await page.locator('#ciTestimonialSkip').click();
+  await expect(page.locator('#ciTestimonialAsk')).toBeHidden();
+  expect(ingested.filter(p => p.type === 'weekly_checkin').length).toBe(1);
   await expect(page.locator('#checkinModal')).not.toHaveClass(/open/, { timeout: 8000 });
   await expect(page.locator('#callsSurface')).toContainText('Submitted');
+});
+
+// The testimonial goes back as the same check-in, so the coaches keep one row
+// per week instead of a second kind of message to reconcile by hand.
+test('11. a testimonial sent after submit is the same check-in, with the one empty column filled', async ({ page }) => {
+  const ingested = [];
+  const stateRows = [];
+  await installSupabaseStub(page);
+  await page.route('**/_vercel/**', route => route.abort());
+  await page.route('**/api/**', async route => {
+    const url = new URL(route.request().url());
+    let body = {};
+    try { body = route.request().postDataJSON() || {}; } catch (error) {}
+    let json = { ok: true };
+    if (url.pathname === '/api/auth-athlete') {
+      json = url.searchParams.get('action') === 'eligibility' ? { ok: true, enabled: true, eligible: true, active: true } : athlete;
+    } else if (url.pathname === '/api/ingest') { ingested.push(body.payload || {}); json = { ok: true }; }
+    else if (url.pathname === '/api/portal-data') {
+      if (body.action === 'state-write') { stateRows.push({ key: body.key, value: body.value }); json = { key: body.key, synced_at: 'now' }; }
+      else if (body.action === 'state-read') json = { ok: true, rows: stateRows, checkins: [] };
+      else if (body.action === 'bootstrap') json = { ok: true, state: { rows: stateRows, checkins: [] }, bodyLogs: { rows: [] }, nutritionLogs: { rows: [] }, sessionLogs: { rows: [] }, dailyLogged: { body: [], nutrition: [] } };
+      else json = { ok: true, rows: [], checkins: [], body: [], nutrition: [] };
+    } else if (url.pathname.startsWith('/api/strava')) json = { connected: false, activities: [] };
+    else if (url.pathname === '/api/reminders') json = { ok: true, notifications: [], unread: 0 };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json) });
+  });
+
+  await page.goto('/index.html');
+  await page.getByRole('button', { name: 'Use athlete access code' }).click();
+  await page.getByLabel('Athlete access code').fill('KARL');
+  await page.getByRole('button', { name: 'Enter Portal' }).click();
+  await expect(page.locator('#portalScreen')).toBeVisible();
+
+  await page.evaluate(() => switchTab('coaching'));
+  await page.evaluate(() => openCheckinSheet());
+  await page.evaluate(() => { document.getElementById('ciName').value = 'Karl Sexon'; });
+  await page.locator('#ciRunWins').fill('Negative split on the long run.');
+  await page.evaluate(() => submitCheckin());
+  await expect.poll(() => ingested.filter(p => p.type === 'weekly_checkin').length, { timeout: 8000 }).toBe(1);
+  const first = ingested.find(p => p.type === 'weekly_checkin');
+  expect(first.testimonial).toBe('');
+
+  await expect(page.locator('#ciTestimonialAsk')).toBeVisible();
+  await page.locator('#ciTestimonial').fill('Three weeks ago I could not run 2km. This week I hit a PB.');
+  // A half-written testimonial survives, and drafting it cannot resurrect the
+  // check-in that has already gone.
+  await expect.poll(async () => page.evaluate(() => {
+    const raw = localStorage.getItem(ciDraftKey());
+    return raw ? JSON.parse(raw) : null;
+  }), { timeout: 8000 }).toMatchObject({ ciTestimonial: /PB/ });
+  expect(await page.evaluate(() => {
+    const raw = localStorage.getItem(ciDraftKey());
+    return raw ? Object.keys(JSON.parse(raw)).sort().join(',') : '';
+  })).toBe('_savedAt,ciTestimonial');
+
+  await page.locator('#ciTestimonialSend').click();
+  await expect.poll(() => ingested.filter(p => p.type === 'weekly_checkin').length, { timeout: 8000 }).toBe(2);
+  const second = ingested.filter(p => p.type === 'weekly_checkin')[1];
+  expect(second.testimonial).toContain('hit a PB');
+  // Same shape, same week, same row: everything but the testimonial is identical.
+  expect(Object.keys(second).sort()).toEqual(Object.keys(first).sort());
+  expect(second.weekEnding).toBe(first.weekEnding);
+  expect(second.runWins).toBe(first.runWins);
+  await expect(page.locator('#ciTestimonialThanks')).toBeVisible();
 });

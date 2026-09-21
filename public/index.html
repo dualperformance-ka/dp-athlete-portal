@@ -626,34 +626,6 @@
       </div>
       <div class="card wkm-card" id="nutKmCard" style="display:none"></div>
       <div class="card vstrip-card" id="nutVolumeStrip" style="display:none"></div>
-      <div class="card nutrition-card nutrition-priorities">
-        <div class="card-title">Priority Order</div>
-        <div class="priority-list">
-          <div class="priority-item"><div class="priority-num">1</div><div class="priority-text"><strong>Hit protein every day.</strong> Non-negotiable — protects muscle and keeps you full.</div></div>
-          <div class="priority-item"><div class="priority-num">2</div><div class="priority-text"><strong>Stay within your calorie target.</strong> Ceiling on rest days, floor on hard training days.</div></div>
-          <div class="priority-item"><div class="priority-num">3</div><div class="priority-text"><strong>Hit your fibre target.</strong> 31–40g daily from vegetables, fruit, oats and legumes.</div></div>
-          <div class="priority-item"><div class="priority-num">4</div><div class="priority-text"><strong>Carbs and fat fill around protein.</strong> Use carbs around training, fat fills the rest.</div></div>
-        </div>
-      </div>
-      <div class="card nutrition-card nutrition-timing">
-        <div class="card-title">Carb Timing by Session</div>
-        <table class="timing-table">
-          <thead><tr><th>Session</th><th>Timing</th><th>Amount</th><th>Examples</th></tr></thead>
-          <tbody>
-            <tr><td>Long Run</td><td>30–60 min before</td><td>20–30g</td><td>White rice crackers, banana</td></tr>
-            <tr><td>Long Run</td><td>During (>75 min)</td><td>30–60g/hr</td><td>Gels, sports drink, dates</td></tr>
-            <tr><td>Long Run</td><td>30 min after</td><td>60–80g</td><td>Rice + juice / banana + rice cakes</td></tr>
-            <tr><td>Easy Run</td><td>1–2 hrs before</td><td>30–50g</td><td>Small oats or toast + banana</td></tr>
-            <tr><td>Speed Session</td><td>2 hrs before</td><td>50–70g</td><td>White rice or pasta + light protein</td></tr>
-            <tr><td>Speed Session</td><td>During (if >60 min)</td><td>20–30g</td><td>Gel or sports drink</td></tr>
-            <tr><td>Gym</td><td>1–2 hrs before</td><td>50–70g</td><td>Rice + protein source or shake + banana</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="card nutrition-card nutrition-principles">
-        <div class="card-title">Key Principles</div>
-        <div class="nutrnote" style="margin:0">Never train fasted during speed or long runs. Saturday night is your most important meal — eat 80–100g carbs (pasta, rice, noodles) to top off glycogen for Sunday's long run. Spread protein across 4–5 meals, aiming for 35–55g per main meal.</div>
-      </div>
     </div>
   </div>
 
@@ -697,10 +669,9 @@
               <button class="ci-sdot active" onclick="ciGoStep(1)" aria-label="Running step"></button>
               <button class="ci-sdot" onclick="ciGoStep(2)" aria-label="Lifting step"></button>
               <button class="ci-sdot" onclick="ciGoStep(3)" aria-label="Recovery step"></button>
-              <button class="ci-sdot" onclick="ciGoStep(4)" aria-label="Fuelling and life step"></button>
-              <button class="ci-sdot" onclick="ciGoStep(5)" aria-label="Week reflection step"></button>
+              <button class="ci-sdot" onclick="ciGoStep(4)" aria-label="Fuelling, life and the week step"></button>
             </div>
-            <div class="ci-step-counter" id="ciStepCounter">1 of 5</div>
+            <div class="ci-step-counter" id="ciStepCounter">1 of 4</div>
           </div>
           <!-- Step 1: Running -->
           <div class="ci-step-panel active" data-step="1">
@@ -760,7 +731,13 @@
           </div>
           <!-- Step 4: Fuelling & Life -->
           <div class="ci-step-panel" data-step="4">
-            <div class="ci-step-title"><svg class="icon"><use href="#i-leaf"/></svg> Fuelling &amp; Life</div>
+            <div class="ci-step-title"><svg class="icon"><use href="#i-leaf"/></svg> Fuelling, Life &amp; The Week</div>
+            <!-- Folded in from the Calls tab prep card. Its other two questions
+                 duplicated Wins and Niggles above; this one did not exist
+                 anywhere else and is what the call actually turns on. -->
+            <div class="card u-mb-12">
+              <div class="lf"><label>One thing to decide with your coaches</label><textarea class="li" id="ciCallDecision" placeholder="What's the single call you want made this week? A session to move, a target to change, a niggle to plan around." style="min-height:70px;resize:vertical;"></textarea></div>
+            </div>
             <div class="card u-mb-12">
               <div class="lf u-mb-14">
                 <label>Adherence to nutrition plan <span id="ciNutVal" class="u-mono">&mdash;</span>/10</label>
@@ -790,16 +767,29 @@
               <div class="lf u-mb-10"><label>Social events affecting nutrition in the next 2 weeks?</label><textarea class="li" id="ciSocial" placeholder="e.g. birthday dinner, work event, holiday — anything that might affect your nutrition." style="min-height:60px;resize:vertical;margin-top:6px"></textarea></div>
               <div class="lf"><label>Anything coming up that could affect training?</label><textarea class="li" id="ciNotes" placeholder="Travel, long work days, family commitments — the more we know, the better we can support you." style="min-height:60px;resize:vertical;margin-top:6px"></textarea></div>
             </div>
+            <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()" style="margin-bottom:8px">Submit Check-in</button>
           </div>
-          <!-- Step 5: This week -->
-          <div class="ci-step-panel" data-step="5">
-            <div class="ci-step-title"><svg class="icon"><use href="#i-sparkle"/></svg> Your Week in Words</div>
-            <!-- Folded in from the Calls tab prep card. Its other two questions
-                 duplicated Wins and Niggles above; this one did not exist
-                 anywhere else and is what the call actually turns on. -->
-            <div class="card u-mb-12">
-              <div class="lf"><label>One thing to decide with your coaches</label><textarea class="li" id="ciCallDecision" placeholder="What's the single call you want made this week? A session to move, a target to change, a niggle to plan around." style="min-height:70px;resize:vertical;"></textarea></div>
+          <!-- Nav buttons -->
+          <div class="ci-step-hint" id="ciStepHint" role="status" hidden></div>
+          <div class="ci-nav-row solo" id="ciNavRow">
+            <button class="ci-btn-back" id="ciBtnBack" onclick="ciStep(-1)" style="display:none"><svg class="icon"><use href="#i-arrow-left"/></svg> Back</button>
+            <button class="ci-btn-next" id="ciBtnNext" onclick="ciStep(1)">Next <svg class="icon"><use href="#i-arrow-right"/></svg></button>
+          </div>
+        </div>
+        <div id="ciSuccess" style="display:none;padding:40px 10px">
+          <div style="text-align:center">
+            <div style="width:48px;height:48px;border-radius:var(--radius-pill,999px);background:var(--surface-void);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
+            <div style="font-family:var(--display);font-size:var(--font-xl,24px);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">Check-in received</div>
+            <div style="font-size:var(--font-sm,14px);color:var(--muted);margin-bottom:16px">Karl and Alex will review this before your call.</div>
+          </div>
+          <!-- The testimonial ask sits here, after a real confirmation, rather
+               than in front of Submit. The weekly check-in is the ritual the
+               coaching model runs on, so nothing is allowed to tax it: "Not
+               this week" is one tap and costs the athlete nothing. The consent
+               line travels with the testimonial, which is what it consents to. -->
+          <div id="ciTestimonialAsk" style="text-align:left;margin-top:26px">
             <div class="ci-reflection-intro" style="background:var(--surface-void);border-radius:var(--radius-md,12px);padding:18px;margin-bottom:14px">
               <div style="font-family:var(--mono);font-size:var(--font-xs,12px);color:rgba(236,233,226,.45);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px">This one matters</div>
               <div style="font-family:var(--display);font-size:var(--font-lg,20px);font-weight:800;text-transform:uppercase;color:#fff;letter-spacing:.02em;line-height:1.15;margin-bottom:8px">What did this week mean to you?</div>
@@ -816,23 +806,12 @@
                 <div class="u-help-copy">• What would you say to someone thinking about starting?</div>
               </div>
             </div>
-            <button class="savebtn" id="ciSubmitBtn" onclick="submitCheckin()" style="margin-bottom:8px">Submit Check-in</button>
+            <button class="savebtn" id="ciTestimonialSend" onclick="submitTestimonial()" style="margin-bottom:8px">Send my testimonial</button>
             <div style="font-size:var(--font-xs,12px);color:var(--dim);line-height:1.5;text-align:center;margin-bottom:10px">By submitting, you agree Dual Performance may use your testimonial on social media.</div>
+            <button class="ci-btn-back" id="ciTestimonialSkip" onclick="dismissTestimonial()" style="width:100%;justify-content:center">Not this week</button>
           </div>
-          <!-- Nav buttons -->
-          <div class="ci-step-hint" id="ciStepHint" role="status" hidden></div>
-          <div class="ci-nav-row solo" id="ciNavRow">
-            <button class="ci-btn-back" id="ciBtnBack" onclick="ciStep(-1)" style="display:none"><svg class="icon"><use href="#i-arrow-left"/></svg> Back</button>
-            <button class="ci-btn-next" id="ciBtnNext" onclick="ciStep(1)">Next <svg class="icon"><use href="#i-arrow-right"/></svg></button>
-          </div>
-        </div>
-        <div id="ciSuccess" style="display:none;text-align:center;padding:40px 10px">
-          <div style="width:48px;height:48px;border-radius:var(--radius-pill,999px);background:var(--surface-void);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          </div>
-          <div style="font-family:var(--display);font-size:var(--font-xl,24px);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">Check-in received</div>
-          <div style="font-size:var(--font-sm,14px);color:var(--muted);margin-bottom:16px">Karl and Alex will review this before your call.</div>
-          <button class="savebtn" style="max-width:240px" onclick="resetCheckin()">Submit another</button>
+          <div id="ciTestimonialThanks" style="text-align:center;margin-top:26px;font-size:var(--font-sm,14px);color:var(--muted)" hidden>Thanks — we won’t use a word of it without asking you first.</div>
+          <div style="text-align:center;margin-top:26px"><button class="savebtn" style="max-width:240px" onclick="resetCheckin()">Submit another</button></div>
         </div>
       </div>
     <div style="height:20px"></div>
@@ -993,7 +972,7 @@
       <div class="hb-card" onclick="openHB(0)"><div class="hb-icon"><svg class="icon"><use href="#i-gear"/></svg></div><div class="hb-title">How This Works</div><div class="hb-sub">The DP system</div></div>
       <div class="hb-card" onclick="openHB(1)"><div class="hb-icon"><svg class="icon"><use href="#i-calendar"/></svg></div><div class="hb-title">Weekly Rhythm</div><div class="hb-sub">What to do & when</div></div>
       <div class="hb-card" onclick="openHB(2)"><div class="hb-icon"><svg class="icon"><use href="#i-clipboard"/></svg></div><div class="hb-title">Training Rules</div><div class="hb-sub">5 non-negotiables</div></div>
-      <div class="hb-card" onclick="openHB(3)"><div class="hb-icon"><svg class="icon"><use href="#i-leaf"/></svg></div><div class="hb-title">Nutrition</div><div class="hb-sub">4 rules that matter</div></div>
+      <div class="hb-card" onclick="openHB(3)"><div class="hb-icon"><svg class="icon"><use href="#i-leaf"/></svg></div><div class="hb-title">Fuelling</div><div class="hb-sub">Priorities, timing &amp; principles</div></div>
       <div class="hb-card" onclick="openHB(4)"><div class="hb-icon"><svg class="icon"><use href="#i-trend-up"/></svg></div><div class="hb-title">Progressive Overload</div><div class="hb-sub">8 → 10 → 12 → heavier</div></div>
       <div class="hb-card" onclick="openHB(5)"><div class="hb-icon"><svg class="icon"><use href="#i-target"/></svg></div><div class="hb-title">Getting the Most</div><div class="hb-sub">Out of coaching</div></div>
       <div class="hb-card" onclick="openHB(6)"><div class="hb-icon"><svg class="icon"><use href="#i-book"/></svg></div><div class="hb-title">Glossary</div><div class="hb-sub">Terms explained</div></div>
@@ -1461,9 +1440,9 @@
 <script src="js/01-core.js?v=128"></script>
 <script src="js/02-login-goals.js?v=118"></script>
 <script src="js/03-nav-nudges.js?v=121"></script>
-<script src="js/04-checkin.js?v=102"></script>
-<script src="js/05-handbook.js?v=85"></script>
-<script src="js/06-nutrition.js?v=102"></script>
+<script src="js/04-checkin.js?v=103"></script>
+<script src="js/05-handbook.js?v=86"></script>
+<script src="js/06-nutrition.js?v=103"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=90" hidden></span>
 <script type="module" src="js/strava-match.js?v=8"></script>
 <script src="js/08-training-interval-rest.js?v=1"></script>
