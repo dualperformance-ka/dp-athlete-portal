@@ -224,8 +224,16 @@ boundaries at year end.
 - No coaches-dashboard work
 - No new API route files
 - No design system, CSS token, type scale or colour work — that's Phase 4
+  > Note for anyone auditing: the design-system programme (component library, navigation,
+  > content deduplication, accessibility) is Phase 4 and its brief is `docs/phase-4-prompt.md`.
+  > It has sometimes been referred to in conversation as "Phase 2, step N of 7". This file is
+  > the *other* Phase 2 — coach cue, nudge priority, contact/export, streak.
 - No changes to the weekly check-in. It is already five steps with draft-save, and the testimonial
   field stays by the owner's decision
+  > **Superseded.** This held for Phase 2. A later design step cut the check-in to four steps and
+  > moved the testimonial ask to the confirmation screen, after Submit, with a "Not this week"
+  > dismissal — gating the weekly check-in behind a testimonial was a weekly adherence tax on the
+  > ritual the coaching model depends on. `CI_TOTAL` is 4 and `#ciTestimonial` lives in `#ciSuccess`.
 - No refactoring of `08-training.js`
 - No changes to auth, RLS, Strava, or reminders
 - No new npm dependencies

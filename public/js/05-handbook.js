@@ -13,8 +13,6 @@ function closeHB(){document.getElementById('hbModal').classList.remove('open');d
 function toggleAcc(id){var content=document.getElementById(id+'Content');var arrow=document.getElementById(id+'Arrow');var open=content.style.display==='none';content.style.display=open?'block':'none';arrow.classList.toggle('open',open);}
 function shiftWeek(d){weekOffset+=d;loadWeek();}
 function goToday(){weekOffset=0;loadWeek();}
-function shiftNutWeek(d){nutWeekOffset+=d;loadNutrition();}
-function goNutToday(){nutWeekOffset=0;loadNutrition();}
 
 
 function numFromProp(prop){
