@@ -48,6 +48,18 @@ function isDiscoveryWeek(v){
 function programmeWeekLabel(v){
   return isDiscoveryWeek(v)?'Discovery Week':'Week '+v;
 }
+// Display is one problem; LOOKUP is the other. The same week is stored under
+// both spellings — planned_sessions has "Week 0" for ALVIN and SHAUN and
+// "Discovery Week" for BENNY, CHUNG, KARL and THOMAS — so a query for week 0
+// that matches only one of them silently finds nothing. Canonical spelling
+// first, because that is what the coaches' dashboard writes most often.
+function weekLabelCandidates(displayWeek){
+  return isDiscoveryWeek(displayWeek)?['Week 0','Discovery Week']:['Week '+displayWeek];
+}
+function weekLabelMatches(displayWeek,value){
+  var wanted=weekLabelCandidates(displayWeek).map(function(x){return x.toLowerCase();});
+  return wanted.indexOf(String(value||'').trim().toLowerCase())>=0;
+}
 function getDisplayWeekNumber(offset){
   var weekNum=getCurrentProgrammeWeek();
   var displayWeek=weekNum+offset;

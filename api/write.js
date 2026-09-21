@@ -468,23 +468,35 @@ async function nutritionWeek(code, body) {
     error.status = 400;
     throw error;
   }
-  const [plans, planned] = await Promise.all([
-    select('nutrition_plans', {
-      athlete_code: `eq.${code}`,
-      week_label: `eq.${label}`,
-      select: '*',
-      limit: '1',
-    }),
-    // Drafts must not inflate the week's planned kilometres.
-    select('planned_sessions', {
-      athlete_code: `eq.${code}`,
-      week_label: `eq.${label}`,
-      publish_state: 'eq.published',
-      select: 'distance_km,title,session_type,library_id,week_label',
-      order: 'planned_date.asc',
-      limit: '100',
-    }),
-  ]);
+  // The discovery week is stored under two spellings. planned_sessions holds
+  // "Week 0" for some athletes and "Discovery Week" for others, for the same
+  // week, so an exact match on one of them finds nothing for the others. The
+  // client still asks for "Week 0" — weekLabel() above stays strict, because
+  // it is the guard on what the browser can put into a query — and the second
+  // spelling is tried here, only for week 0, only when the first came back
+  // empty. Two round trips in that one case, and no filter syntax that could
+  // silently match nothing.
+  const alternateLabel = /^week 0$/i.test(label) ? 'Discovery Week' : null;
+  const planQuery = (weekValue) => select('nutrition_plans', {
+    athlete_code: `eq.${code}`,
+    week_label: `eq.${weekValue}`,
+    select: '*',
+    limit: '1',
+  });
+  // Drafts must not inflate the week's planned kilometres.
+  const plannedQuery = (weekValue) => select('planned_sessions', {
+    athlete_code: `eq.${code}`,
+    week_label: `eq.${weekValue}`,
+    publish_state: 'eq.published',
+    select: 'distance_km,title,session_type,library_id,week_label',
+    order: 'planned_date.asc',
+    limit: '100',
+  });
+  let [plans, planned] = await Promise.all([planQuery(label), plannedQuery(label)]);
+  if (alternateLabel) {
+    if (!Array.isArray(plans) || !plans.length) plans = await planQuery(alternateLabel);
+    if (!Array.isArray(planned) || !planned.length) planned = await plannedQuery(alternateLabel);
+  }
   return {
     plan: Array.isArray(plans) && plans[0] ? plans[0] : null,
     planned: Array.isArray(planned) ? planned : [],
