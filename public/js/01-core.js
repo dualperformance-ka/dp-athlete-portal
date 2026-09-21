@@ -1778,7 +1778,6 @@ function logoutToLogin(preserveEmail){
   if(athlete&&athlete.code){try{localStorage.removeItem('dp_profile_'+athlete.code);}catch(e){}}
   athlete=null;sessions=[];allSessions=[];ticked={};logs={};exPicks={};
   document.getElementById('portalScreen').style.display='none';
-  document.getElementById('quicklogStrip').style.display='none';
   document.getElementById('codeInput').value='';
   clearLoginError();
   renderCode();

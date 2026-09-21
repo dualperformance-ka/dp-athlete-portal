@@ -65,17 +65,8 @@
      header toolbar — this is a secondary, always-reachable copy). */
   .rail-spacer{flex:1 1 auto;min-height:12px}
 
-  /* Quick logging docked into the rail foot instead of floating over content. */
-  .quicklog-strip{
-    left:0;right:auto;bottom:0;width:var(--railw);
-    transform:none;border-radius:0;border:0;border-top:1px solid var(--border);
-    border-right:1px solid var(--border);
-    grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px;
-    background:linear-gradient(180deg,rgba(31,30,28,.92),rgba(22,21,20,.96));
-    backdrop-filter:blur(18px);box-shadow:none;z-index:141;
-  }
-  .quicklog-strip .quicklog-btn{padding:8px 6px;font-size:11px;white-space:nowrap}
-  .quicklog-strip .quicklog-btn .icon{width:14px;height:14px;margin-right:3px}
+  /* The rail foot no longer carries a copy of the quick-log dock. Logging is one
+     sheet opened from the Log button, so there is nothing to dock here. */
 
   /* ===================================================================== */
   /* 2 · HEADER — compact contextual toolbar (not a second nav)            */
@@ -333,7 +324,7 @@
     content:"";width:6px;height:6px;border-radius:var(--radius-pill);background:var(--run);
     display:inline-block;margin-right:9px;vertical-align:middle
   }
-  /* The dock is a centred bar on desktop; its state classes come from
+  /* The Log sheet's tab buttons carry the same state classes from
      syncQuickLogDock() and need the same one-accent discipline. */
   .quicklog-btn.is-next{background:var(--run);border-color:var(--run);color:var(--ink-action)}
   .quicklog-btn.is-done{background:transparent;border-color:transparent;color:var(--ok)}

@@ -648,7 +648,6 @@ body.sheet-open{overflow:hidden}
 @media(max-width:430px){.logo-text{font-size:var(--font-xs);letter-spacing:.06em}.logo{gap:8px}.header-actions{gap:4px}.hicon{font-size:var(--font-xs);padding:4px 8px}}
 
 /* Quick-log bottom strip */
-.quicklog-strip{position:fixed;bottom:0;left:0;right:0;z-index:140;background:var(--surface-deep);border-top:1px solid rgba(236,233,226,.1);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:none;gap:10px}
 .quicklog-btn{flex:1;padding:11px;border:none;border-radius:var(--radius-sm);font-family:var(--display);font-size:var(--font-sm);font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:opacity .12s}
 .quicklog-btn:active{opacity:.75}
 .quicklog-btn.ql-body{background:var(--g-2);color:var(--t-1);border:1px solid transparent;box-shadow:var(--edge-plate)}
@@ -808,7 +807,6 @@ body.sheet-open{overflow:hidden}
   .hb-modal-inner{max-height:82vh}
 
   /* Quick-log strip + floating button align with the shell */
-  .quicklog-strip{padding-left:var(--shellpad);padding-right:var(--shellpad);justify-content:center}
   .quicklog-btn{flex:0 1 280px}
 
   /* Login centered vertically-ish on big screens */
@@ -882,7 +880,6 @@ header{background:rgba(6,8,10,.92);backdrop-filter:blur(12px)}
 .dgh{border-bottom-width:1px;border-bottom-color:rgba(236,233,226,.12)}
 .dgh.today{border-bottom-color:rgba(146,210,237,.46)}
 .sc{box-shadow:none}
-.quicklog-strip{background:rgba(6,8,10,.88);backdrop-filter:blur(12px);border-top-color:rgba(236,233,226,.08);padding-top:8px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .quicklog-btn{padding:10px;border-radius:var(--radius-sm);font-size:var(--font-sm)}
 .quicklog-btn.ql-body,.quicklog-btn.ql-nut{background:rgba(236,233,226,.055);border:1px solid rgba(236,233,226,.11);color:rgba(236,233,226,.72);box-shadow:none}
 .quicklog-btn.ql-nut{border-color:rgba(146,210,237,.24);color:rgba(183,230,247,.88)}
@@ -1623,7 +1620,7 @@ body{font-size:var(--font-md);line-height:1.55}
 }
 .outdoor-mode body,.outdoor-mode #portalScreen{background:var(--bg);color:var(--text)}
 .outdoor-mode .top-shell{background:var(--g-0);border-bottom-color:var(--border)}
-.outdoor-mode header,.outdoor-mode .hero,.outdoor-mode .wbar,.outdoor-mode .tabs,.outdoor-mode .quicklog-strip,.outdoor-mode .mobile-nav{background:rgba(255,255,255,.94);color:var(--text);border-color:var(--border)}
+.outdoor-mode header,.outdoor-mode .hero,.outdoor-mode .wbar,.outdoor-mode .tabs,.outdoor-mode .mobile-nav{background:rgba(255,255,255,.94);color:var(--text);border-color:var(--border)}
 .outdoor-mode .todaypanel,.outdoor-mode .sc,.outdoor-mode .todayitem,.outdoor-mode .mc{background:var(--surface);color:var(--text);border-color:var(--border);box-shadow:0 8px 24px rgba(19,19,18,.06)}
 .outdoor-mode .todaytarget{background:var(--surface2);border-color:var(--border)}
 .outdoor-mode .page-intro{background:var(--color-white);border-color:var(--border);box-shadow:0 16px 34px rgba(30,55,67,.08)}
@@ -1744,12 +1741,10 @@ body{font-size:var(--font-md);line-height:1.55}
   .todaypanel{padding:19px 16px;border-radius:var(--radius-lg)}
   .todaytitle{font-size:var(--font-2xl)}.todaydate{padding-top:4px}
   .coach-moment{align-items:start}.coach-moment p{font-size:var(--font-sm)}
-  .quicklog-strip{display:grid!important;grid-template-columns:1fr 1fr;left:10px;right:10px;bottom:calc(82px + env(safe-area-inset-bottom));z-index:169;width:auto;padding:6px;gap:6px;background:rgba(10,13,16,.94);border:1px solid var(--border-mid);border-radius:var(--radius-lg);box-shadow:0 12px 36px rgba(0,0,0,.30);backdrop-filter:blur(18px)}
   .quicklog-btn{min-width:0;min-height:42px;padding:9px 8px;border-radius:var(--radius-md);font-family:var(--body);font-size:var(--font-xs);font-weight:700;text-transform:none;letter-spacing:0;justify-content:center}
   .quicklog-btn.ql-body{background:rgba(236,233,226,.06);border-color:var(--border-mid);color:var(--text)}
   .quicklog-btn.ql-nut{background:var(--run);border-color:var(--run);color:var(--ink-action)}
   .quicklog-btn.ql-nut .icon{color:var(--ink-action)}
-  .outdoor-mode .quicklog-strip{background:rgba(255,255,255,.97);box-shadow:0 10px 30px rgba(19,19,18,.13)}
   :root{--bottom-bar-h:calc(66px + 8px + env(safe-area-inset-bottom))}
   .mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:170;min-height:66px;padding:6px 2px;background:var(--surface-glass);border:1px solid transparent;border-radius:var(--radius-lg);box-shadow:var(--edge-plate);backdrop-filter:blur(18px)}
   .mobile-nav-item{position:relative;border:0;background:transparent;color:var(--dim);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:var(--body);font-size:var(--font-xs);font-weight:600;cursor:pointer;border-radius:var(--radius-md)}
@@ -1774,7 +1769,6 @@ body{font-size:var(--font-md);line-height:1.55}
 /* Desktop command centre: give the daily card enough room to remain useful,
    while preserving a wider week-plan column. */
 @media(min-width:900px){
-  .quicklog-strip{left:50%;right:auto;width:min(720px,calc(100vw - 48px));transform:translateX(-50%);border:1px solid var(--border-mid);border-bottom:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:0 -10px 35px rgba(0,0,0,.24)}
 }
 @media(min-width:1200px){
   #tab-training.active,#tab-weekly.active{max-width:none}
@@ -1883,7 +1877,7 @@ body.focus-session-open{overflow:hidden}
 .queue-pending-banner{position:sticky;top:72px;z-index:45;width:min(720px,calc(100% - 24px));margin:10px auto 0;padding:12px 14px;border:1px solid rgba(240,173,78,.55);border-radius:var(--radius-md);background:#2a2013;color:var(--color-white);display:flex;align-items:center;gap:9px;text-align:left;box-shadow:0 10px 28px rgba(0,0,0,.28);cursor:pointer}
 .queue-pending-banner b{font-size:var(--font-sm);line-height:1.2}.queue-pending-banner>span:last-child{margin-left:auto;color:rgba(236,233,226,.72);font-size:var(--font-xs)}.queue-pending-dot{width:9px;height:9px;border-radius:var(--radius-pill);background:var(--amber);box-shadow:0 0 0 4px rgba(240,173,78,.14);flex:0 0 auto}.queue-pending-banner.is-retrying{opacity:.7;pointer-events:none}
   .sync-pill.is-sending,.sync-pill.is-queued,.save-state-pill.saving,.save-state-pill.offline{opacity:1;pointer-events:auto}
-  .focus-session-open>.quicklog-strip,.focus-session-open .mobile-nav{display:none}
+.focus-session-open .mobile-nav{display:none}
 }
 /* Premium desktop presentation. Mobile deliberately keeps its direct,
    low-friction layout. */
@@ -1948,7 +1942,6 @@ body.focus-session-open{overflow:hidden}
   #tab-weekly>#weeklyCalEl .sc:hover{transform:translateY(-2px);border-color:rgba(146,210,237,.2);background:rgba(236,233,226,.045);box-shadow:0 12px 26px rgba(0,0,0,.2)}
   #tab-weekly>#weeklyCalEl .sch{padding:17px 18px}
   .coach-moment{margin-top:2px}
-  .quicklog-strip{bottom:14px;padding:7px;background:rgba(10,14,17,.82);border:1px solid rgba(236,233,226,.13);border-radius:var(--radius-lg);backdrop-filter:blur(22px) saturate(135%);box-shadow:0 18px 50px rgba(0,0,0,.42)}
   .quicklog-btn{min-height:44px;border-radius:var(--radius-md);text-transform:none;letter-spacing:0;font-family:var(--body);font-size:var(--font-sm)}
 
   /* ── Premium pass: remaining tabs (Goals, Progress, Nutrition, Check-in,
@@ -1992,7 +1985,7 @@ body.focus-session-open{overflow:hidden}
   .outdoor-mode #tab-weekly>#weeklyCalEl{background:rgba(255,255,255,.82);border-color:rgba(19,19,18,.12);box-shadow:0 22px 55px rgba(30,55,67,.09)}
   .outdoor-mode #tab-weekly>#weeklyCalEl .sc{background:var(--color-white);border-color:rgba(19,19,18,.13)}
   .outdoor-mode #tab-weekly>#weeklyCalEl .sc:hover{border-color:rgba(8,127,174,.35);box-shadow:0 12px 25px rgba(30,55,67,.1)}
-  .outdoor-mode .quicklog-strip{background:rgba(255,255,255,.9);border-color:rgba(19,19,18,.15);box-shadow:0 18px 45px rgba(30,55,67,.15)}.outdoor-mode .mc,.outdoor-mode .pstat{background:var(--color-white);border-color:rgba(19,19,18,.13);box-shadow:0 14px 30px rgba(30,55,67,.08)}
+  .outdoor-mode .mc,.outdoor-mode .pstat{background:var(--color-white);border-color:rgba(19,19,18,.13);box-shadow:0 14px 30px rgba(30,55,67,.08)}
   .outdoor-mode .goals-hero{background:var(--color-white);border-color:rgba(19,19,18,.13);box-shadow:0 24px 55px rgba(30,55,67,.12)}
   .outdoor-mode .goals-hero::after{background:linear-gradient(90deg,transparent,var(--run),transparent)}
   .outdoor-mode .goals-prompt{background:var(--color-white);border-color:rgba(19,19,18,.13);box-shadow:0 18px 40px rgba(30,55,67,.1)}
@@ -2036,7 +2029,6 @@ body.focus-session-open{overflow:hidden}
   #tab-checkin>.ci-rail{top:118px}
 
   /* Floating chrome re-centres within the content area */
-  .quicklog-strip{left:calc(var(--railw) + (100vw - var(--railw))/2);width:min(720px,calc(100vw - var(--railw) - 48px))}
 
   /* Daylight rail */
   .outdoor-mode .tabs{background:rgba(255,255,255,.93);backdrop-filter:blur(22px);border-right:1px solid var(--border)}
@@ -2769,7 +2761,6 @@ html:not(.outdoor-mode) #portalScreen{
   #tab-comms>*{max-width:900px}
   #tab-handbook>*{max-width:1120px}
 
-  .quicklog-strip{left:calc(var(--railw) + (100vw - var(--railw))/2);width:min(760px,calc(100vw - var(--railw) - 56px))}
 }
 
 @media(min-width:1180px){
@@ -2861,7 +2852,6 @@ html:not(.outdoor-mode) #portalScreen{
   .week-glance{gap:5px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
   .wg-day{min-width:62px;padding:10px 6px;border-radius:var(--radius-lg);scroll-snap-align:start}
 
-  .quicklog-strip{bottom:calc(80px + env(safe-area-inset-bottom));left:8px;right:8px}
   :root{--bottom-bar-h:calc(64px + 7px + env(safe-area-inset-bottom))}
   .mobile-nav{left:8px;right:8px;bottom:calc(7px + env(safe-area-inset-bottom));min-height:64px;border-radius:var(--radius-lg)}
   .mobile-nav-item{min-height:50px}
@@ -5078,7 +5068,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .quicklog-btn.is-done .icon{color:var(--ink-success)}
 .quicklog-btn.is-next{background:var(--run);border-color:var(--run);color:var(--ink-action);font-weight:800}
 .quicklog-btn.is-next .icon{color:var(--ink-action)}
-.quicklog-strip.all-logged{opacity:1}
 
 /* Keep the persistent dock actions authoritative over their earlier body and
    nutrition base colours. These higher-specificity rules also protect the
@@ -5097,8 +5086,6 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .quicklog-btn.is-sending .ql-icon-sending{display:inline-block}
 .quicklog-btn.is-sending{background:rgba(240,173,78,.14);border-color:rgba(240,173,78,.55);color:var(--amber);font-weight:800}
 .quicklog-btn.is-sending .icon{color:var(--amber)}
-.quicklog-hint{margin:6px 2px 0;font-size:var(--font-xs);line-height:1.45;color:var(--amber)}
-.outdoor-mode .quicklog-hint{color:#8a5406}
 
 /* One accent, enforced. The mobile tier fills .ql-nut unconditionally, so a
    dock where nothing is confirmed yet rendered TWO filled blue buttons — the
@@ -6219,7 +6206,6 @@ body[data-active-tab="today"] .top-shell{display:block}
   .mobile-nav-log-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:var(--r-pill);background:var(--c2);color:var(--ink-action);box-shadow:0 10px 26px color-mix(in srgb,var(--c2) 36%,transparent)}
   .mobile-nav-log .icon{width:22px;height:22px}.mobile-nav-log::before{display:none}
   .tab-content{padding-bottom:calc(190px + env(safe-area-inset-bottom))}
-  .quicklog-strip{bottom:calc(78px + env(safe-area-inset-bottom));left:10px;right:10px}
   body:not([data-active-tab="today"]) .top-shell{display:none}
   body[data-active-tab="week"]{height:auto;overflow:auto}
   body[data-active-tab="week"] #portalScreen{height:auto;min-height:100vh;overflow:visible}
@@ -6240,4 +6226,61 @@ body[data-active-tab="today"] .top-shell{display:block}
   .tabs .tab[data-tab="coaching"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3a8 8 0 0 1 0 16 8 8 0 0 1-3-.58L4 20l1.58-5A8 8 0 0 1 12 3z'/%3E%3C/svg%3E")}
   .tabs .tab-log{margin:7px 0;background:color-mix(in srgb,var(--c2) 12%,var(--g-2));color:var(--c2)}
   .tabs .rail-profile-divider{margin-top:12px;padding-top:14px;border-top:1px solid var(--hairline)}
+}
+
+/* ── LOG SHEET ───────────────────────────────────────────────────────────────
+   One component, three tabs, opened from the raised centre Log button on every
+   screen. This replaces a pinned two-button dock that was hidden on five of six
+   destinations plus two separate overlays.
+
+   The tab buttons keep .quicklog-btn so the three sync states — todo, sending,
+   confirmed — stay exactly the vocabulary they were, stamped by
+   syncQuickLogDock(). The layout below is all that is new. */
+.log-sheet-inner{height:92vh;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
+.log-sheet-inner>.ql-modal-header{flex-shrink:0}
+.log-sheet-tabs{flex-shrink:0;display:flex;gap:6px;padding:2px 0 10px}
+.log-sheet-tabs .quicklog-btn{flex:1 1 0;min-width:0;min-height:44px;padding:9px 8px;border-radius:var(--radius-md);
+  font-family:var(--body);font-size:var(--font-xs);font-weight:700;text-transform:none;letter-spacing:0;
+  justify-content:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-sheet-tabs .quicklog-btn .icon{width:15px;height:15px;margin-right:5px;flex-shrink:0}
+/* The selected tab is a selection, not a call to action, so it reads as a raised
+   surface rather than taking the accent that .is-next uses for "do this next". */
+.log-sheet-tabs .quicklog-btn.is-active{background:var(--g-3);border-color:var(--border-mid);color:var(--t-1);box-shadow:var(--edge-plate)}
+.log-sheet-tabs .quicklog-btn.is-active.is-done{background:var(--ok);border-color:var(--ok);color:var(--ink-success)}
+.log-sheet-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.log-panel[hidden]{display:none}
+/* A draft and a seed are both "this is not with your coaches" states, and both
+   have to out-shout a form that otherwise looks filled in and finished. */
+.log-draft-note,.log-seed-note{margin:0 0 12px;padding:9px 11px;border-radius:var(--radius-sm);
+  font-size:var(--font-xs);line-height:1.45;background:rgba(240,173,78,.12);
+  border:1px solid rgba(240,173,78,.4);color:var(--amber)}
+.log-draft-note[hidden],.log-seed-note[hidden]{display:none}
+.outdoor-mode .log-draft-note,.outdoor-mode .log-seed-note{background:rgba(240,173,78,.14);color:#8a5406;border-color:rgba(138,84,6,.35)}
+/* A seeded field holds yesterday's number until the athlete touches it. */
+.li.is-seeded{border-color:rgba(240,173,78,.45);color:var(--amber);font-style:italic}
+.log-session-row{display:flex;align-items:center;gap:12px;padding:12px 13px;margin-bottom:10px;
+  background:var(--g-1);border:1px solid var(--hairline);border-radius:var(--radius-md)}
+.log-session-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.log-session-copy strong{font-size:var(--font-sm);font-weight:700;color:var(--t-1)}
+.log-session-copy span{font-size:var(--font-xs);color:var(--t-3)}
+.log-session-row .log-session-open{flex:0 0 auto;width:auto;margin:0;padding:9px 16px;font-size:var(--font-xs)}
+.log-session-row.is-logged{opacity:.72}
+.log-session-row.is-logged .log-session-copy span{color:var(--ok)}
+.log-session-empty{padding:26px 18px;text-align:center;display:flex;flex-direction:column;gap:6px}
+.log-session-empty strong{font-size:var(--font-sm);color:var(--t-1)}
+.log-session-empty span{font-size:var(--font-xs);color:var(--t-3);line-height:1.5}
+/* The Strava suggestion is the session card's component, reused verbatim; it
+   only needs its margins reset inside a sheet row. */
+.strava-match-suggestion.log-sheet,.strava-match-removed.log-sheet{margin:-4px 0 10px}
+/* Unsent logs still need somewhere to say so, now that the dock is gone. */
+.quicklog-hint{margin:0 0 10px;font-size:var(--font-xs);line-height:1.45;color:var(--amber)}
+.outdoor-mode .quicklog-hint{color:#8a5406}
+.log-sheet-tabs.all-logged{opacity:1}
+/* Refresh sits with the other header utilities. Icon-only: the label would push
+   the notification bell and avatar off a narrow phone header. */
+.header-refresh{padding:4px 8px}
+.header-refresh .icon{width:15px;height:15px}
+@media(min-width:900px){
+  .log-sheet-inner{max-width:680px;height:auto;max-height:86vh}
+  .log-sheet-tabs .quicklog-btn{font-size:var(--font-sm)}
 }

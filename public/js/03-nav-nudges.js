@@ -670,10 +670,19 @@ function goTrainingPlan(){
   switchTab('week');
   if(typeof collapseTrainingVolumeStrips==='function')collapseTrainingVolumeStrips();
 }
-function openLogSheet(){
+// The raised centre Log button opens this from every destination, and ⌘K will
+// join it on desktop. Which tab opens is a guess at what the athlete came to do:
+// the session if one is scheduled today and still unlogged, otherwise the body
+// check if today's is missing, otherwise fuel.
+function openLogSheet(tab){
+  var sheet=document.getElementById('logSheet');
+  if(!sheet)return;
   track('tab_viewed',{tab:'log'});
-  track('log_opened',{source:'navigation'});
-  if(typeof openQuickLog==='function')openQuickLog('body');
+  var chosen=tab||(typeof defaultLogTab==='function'?defaultLogTab():'body');
+  if(typeof showLogTab==='function')showLogTab(chosen);
+  sheet.classList.add('open');
+  document.body.style.overflow='hidden';
+  track('log_opened',{source:'navigation',tab:chosen});
 }
 window.addEventListener('popstate',function(event){
   var destination=event.state&&event.state.portalDestination;

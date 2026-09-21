@@ -37,7 +37,6 @@ function showPausedScreen(name){
   if(n) n.textContent=name?('Hey '+String(name).split(' ')[0]+' —'):'Hey —';
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('portalScreen').style.display='none';
-  var strip=document.getElementById('quicklogStrip');if(strip) strip.style.display='none';
   el.style.display='flex';
 }
 function pausedBackToLogin(){
@@ -190,7 +189,6 @@ async function doLogin(code,prevalidatedRoster){
   // the athlete experience.
   var coachLogout=document.getElementById('coachLogoutBtn');
   if(coachLogout)coachLogout.style.display=localStorage.getItem('dp_auth_method')==='code'?'flex':'none';
-  document.getElementById('quicklogStrip').style.display='flex';
   requestPersistentPortalStorage();
   maybeShowEmailUpgradePrompt(roster);
   updatePendingQueueIndicator();
