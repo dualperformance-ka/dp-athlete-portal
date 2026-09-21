@@ -186,10 +186,12 @@ function trainingWeekDisplayLabel(){
   var raw=wkS&&wkS.week;
   if(isDiscoveryWeek(raw)) return 'Discovery Week';
   var match=String(raw||'').match(/\d+/);
-  if(match) return 'Week '+parseInt(match[0],10);
+  // A label like "W0" or "Block 1 · Week 0" gets here with a 0 in it, and
+  // "Week 0" is the same week as "Discovery Week".
+  if(match) return programmeWeekLabel(parseInt(match[0],10));
   var fallback=getCurrentProgrammeWeek()+weekOffset;
   fallback=Math.max(0,Math.min(programmeWeeks,fallback));
-  return isDiscoveryWeek(fallback)?'Discovery Week':'Week '+fallback;
+  return programmeWeekLabel(fallback);
 }
 async function loadWeek(){
   var ws=getWS(),we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);

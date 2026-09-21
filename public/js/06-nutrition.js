@@ -500,7 +500,7 @@ function volumeStripHtml(data,mode,collapsible){
     var disp=volumeWeekDisplay(w);
     // Screen readers get the full picture — both numbers, named — because the
     // visual shortcut of "big number is what you ran" is not available to them.
-    var aria='Week '+w.week+(w.planned?', '+fmtKmVal(w.planned)+' km planned':', no target')
+    var aria=programmeWeekLabel(w.week)+(w.planned?', '+fmtKmVal(w.planned)+' km planned':', no target')
       +(w.actual!=null?', '+fmtKmVal(w.actual)+' km run':'');
     bars+='<button type="button" class="'+cls+'" onclick="jumpToProgrammeWeek('+w.week+',\''+mode+'\')" aria-label="'+esc(aria)+'">'
       +'<span class="vstrip-bar">'+(ph?'<i style="height:'+ph+'%"></i>':'')+(ah?'<b style="height:'+ah+'%"></b>':'')+'</span>'
@@ -607,6 +607,11 @@ async function loadNutrition(){
 
   currentWeekKmData=null;
 
+  // NOT a display label — do not route this through programmeWeekLabel(). It is
+  // the key this week's row is looked up by, matched against
+  // nutrition_plans.week_label, which the coaches write as "Week N" for every
+  // week including the discovery week ("Week 0"). Making this say "Discovery
+  // Week" would stop that athlete's nutrition plan loading at all.
   var weekLabel='Week '+displayWeek;
 
   // Kick off the completed-KM tracker scan now — it's the slowest fetch and is

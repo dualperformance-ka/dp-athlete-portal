@@ -7,7 +7,9 @@ function completedPhotoAngles(weekPhotos){
   weekPhotos=weekPhotos||{};
   return ANGLES.filter(function(angle){return !!weekPhotos[photoAngleKey(angle)];});
 }
-function photoWeekLabel(week){return week===0?'Discovery Week':'Week '+week;}
+// week===0 only caught the number. The label arrives as a string often enough
+// ('0', 'Discovery Week') that this missed it and printed "Week Discovery Week".
+function photoWeekLabel(week){return programmeWeekLabel(week);}
 function renderPhotoGrid(){
   var grid=document.getElementById('photoGrid');if(!grid) return;
   var photos=getPhotos(),html='';
@@ -99,7 +101,7 @@ function renderAngleGrid(week){
 }
 function uploadNextPhotoAngle(){if(photoModalNextAngle)triggerAngleUpload(photoModalNextAngle);}
 async function deleteAnglePhoto(angle){
-  if(!confirm('Remove '+angle+' photo for Week '+currentPhotoWeek+'?')) return;
+  if(!confirm('Remove '+angle+' photo for '+photoWeekLabel(currentPhotoWeek)+'?')) return;
   var key=photoAngleKey(angle);var photos=getPhotos();
   try{
     var response=await fetch('/api/progress-photos',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'delete',week:currentPhotoWeek,slot:key})});
@@ -279,7 +281,7 @@ async function loadProgress(){
   var savedGoals=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
   var portalStartWeight=savedGoals.startWeight||savedGoals.weight||athlete.startWeight||'';
   var progressWeek=getCurrentProgrammeWeek();
-  var progressWeekEl=document.getElementById('pgProgressWeek');if(progressWeekEl)progressWeekEl.textContent='Week '+progressWeek;
+  var progressWeekEl=document.getElementById('pgProgressWeek');if(progressWeekEl)progressWeekEl.textContent=programmeWeekLabel(progressWeek);
   document.getElementById('pgStart').textContent=formatKgValue(portalStartWeight);
   document.getElementById('pgCurrent').textContent='—';
   document.getElementById('pgTarget').textContent=formatKgValue(athlete.targetWeight);

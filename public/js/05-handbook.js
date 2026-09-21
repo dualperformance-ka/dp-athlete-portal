@@ -38,6 +38,16 @@ function isDiscoveryWeek(v){
   var s=String(v).trim().toLowerCase();
   return s==='0'||s==='week 0'||s==='discovery'||s==='discovery week';
 }
+// One name for one week. The coaches send the programme's first week two ways:
+// week_number 0 labelled "Week 0", and "Discovery Week" — which, for at least
+// one live athlete, sits on week_number 1 alongside their real Week 1.
+// getCurrentProgrammeWeek() already normalises both to 0, but the surfaces that
+// SHOW a week were each doing their own thing, so the same athlete could read
+// "Discovery Week" on Today and "Week 0" on Progress. Everything that names a
+// week to an athlete goes through here now.
+function programmeWeekLabel(v){
+  return isDiscoveryWeek(v)?'Discovery Week':'Week '+v;
+}
 function getDisplayWeekNumber(offset){
   var weekNum=getCurrentProgrammeWeek();
   var displayWeek=weekNum+offset;
@@ -214,7 +224,7 @@ async function loadProgrammeVolume(force){
       if(canonical&&canonical.startDate){
         var today=localISO(new Date());isPast=range.endISO<today;isFuture=range.startISO>today;isCurrent=!isPast&&!isFuture;
       }
-      weeks.push({week:wk,label:canonical&&canonical.weekLabel||'Week '+wk,weekIdentifier:weekIdentifier,
+      weeks.push({week:wk,label:canonical&&canonical.weekLabel||programmeWeekLabel(wk),weekIdentifier:weekIdentifier,
         planned:plannedTarget,actual:actual,actualBySport:actualBySport,coachTargets:weekCoachTargets,
         isCurrent:isCurrent,isPast:isPast,isFuture:isFuture,startISO:range.startISO,endISO:range.endISO});
     }
