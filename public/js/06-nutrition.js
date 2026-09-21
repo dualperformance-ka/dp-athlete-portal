@@ -25,6 +25,23 @@ function renderKmTracker(kmData){
   bar.classList.toggle('km-hit',done>=target);
   bar.style.display='';
 }
+function renderNavigationFuelTargets(targets){
+  var today=document.getElementById('todayFuelTarget'),week=document.getElementById('weekFuelTargets');
+  var items=[['Energy','cal','kcal'],['Protein','pro','g'],['Carbs','carb','g'],['Fat','fat','g'],['Fibre','fibre','g']];
+  if(!targets||!items.some(function(item){return targets[item[1]];})){
+    [today,week].forEach(function(el){if(el){el.hidden=true;el.innerHTML='';}});
+    return;
+  }
+  function value(item){var target=targets[item[1]];return target?esc(target.display)+(item[2]?' '+item[2]:''):'—';}
+  if(today){
+    today.innerHTML='<div class="fuel-target-head"><span>Today\'s fuel</span><small>Daily targets</small></div><div class="fuel-target-primary"><strong>'+value(items[0])+'</strong><span>'+value(items[1])+' protein</span></div>';
+    today.hidden=false;
+  }
+  if(week){
+    week.innerHTML='<div class="fuel-target-head"><span>This week\'s targets</span><small>Daily nutrition plan</small></div><div class="fuel-target-grid">'+items.map(function(item){return '<div><small>'+item[0]+'</small><strong>'+value(item)+'</strong></div>';}).join('')+'</div>';
+    week.hidden=false;
+  }
+}
 // ── WEEKLY KM TARGET CARD ─────────────────────────────────────────────────────
 // Same numbers as the home-screen km tracker, rendered as a standalone card
 // under the Nutrition macros. Training keeps the lighter Volume by week strip.
@@ -456,11 +473,7 @@ async function renderVolumeStrip(id,mode){
   el.classList.toggle('is-open',open);
   var tog=el.querySelector('.vstrip-toggle');
   if(tog) tog.setAttribute('aria-expanded',open?'true':'false');
-  // Programme volume belongs to the Training plan, not the mobile Home view.
-  // This render finishes asynchronously and used to turn the strip back on
-  // after applyTrainingView() had hidden it, leaving it below the fixed nav.
-  var hiddenOnMobileHome=id==='trainingVolumeStrip'&&document.body.classList.contains('mobile-portal-home');
-  el.style.display=hiddenOnMobileHome?'none':'block';
+  el.style.display=id==='trainingVolumeStrip'?'none':'block';
   // Keep the current week in view without yanking the page around.
   if(open) centreCurrentVolumeWeek(el);
 }
@@ -524,6 +537,8 @@ async function loadNutrition(){
   var coachRunTarget=volumeWeek&&targetForProgrammeWeek(volumeWeek.coachTargets,volumeWeek.weekIdentifier,'running');
 
   if(!row){
+    currentNutTargets=null;
+    renderNavigationFuelTargets(null);
     document.getElementById('nutNoplan').style.display='block';
     if(coachRunTarget&&volumeData.targetState!=='error'){
       var noPlanMetrics=volumeWeek.actualBySport&&volumeWeek.actualBySport.running;
@@ -563,6 +578,7 @@ async function loadNutrition(){
     return isNaN(n)?null:{display:s,min:n};
   }
   currentNutTargets={cal:toNutNum(mCal),pro:toNutNum(mPro),carb:toNutNum(mCarb),fat:toNutNum(mFat),fibre:toNutNum(mFibre)};
+  renderNavigationFuelTargets(currentNutTargets);
 
   var note=(row.notes||'').trim();
   var noteEl=document.getElementById('nutCoachNote');

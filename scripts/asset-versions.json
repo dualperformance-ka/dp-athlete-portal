@@ -1,11 +1,11 @@
 {
   "styles.css": {
-    "version": 170,
-    "sha": "bba52e9f63f3"
+    "version": 171,
+    "sha": "feb30f013698"
   },
   "desktop.css": {
-    "version": 11,
-    "sha": "0c58c248ef97"
+    "version": 12,
+    "sha": "9f4f537061d3"
   },
   "icons.css": {
     "version": 4,
@@ -16,28 +16,28 @@
     "sha": "fe00d2ebfa23"
   },
   "js/01-core.js": {
-    "version": 126,
-    "sha": "e3a78ff6b7ef"
+    "version": 127,
+    "sha": "5599676b7d58"
   },
   "js/02-login-goals.js": {
-    "version": 116,
-    "sha": "1c29e446b661"
+    "version": 117,
+    "sha": "b42192bbd26a"
   },
   "js/03-nav-nudges.js": {
-    "version": 117,
-    "sha": "6a1e2e8dcb1b"
+    "version": 120,
+    "sha": "927db391f3e8"
   },
   "js/04-checkin.js": {
-    "version": 100,
-    "sha": "c09f3f8fb764"
+    "version": 101,
+    "sha": "405c6e555492"
   },
   "js/05-handbook.js": {
     "version": 85,
     "sha": "b36fd66006a3"
   },
   "js/06-nutrition.js": {
-    "version": 101,
-    "sha": "4fcd3f982304"
+    "version": 102,
+    "sha": "3376da4b8298"
   },
   "js/07-progress.js": {
     "version": 90,
@@ -56,24 +56,24 @@
     "sha": "31115aaa0715"
   },
   "js/08-training-focus.js": {
-    "version": 1,
-    "sha": "24321002123e"
+    "version": 2,
+    "sha": "84c067e46e46"
   },
   "js/08-strength-engine.js": {
     "version": 4,
     "sha": "cafd28bcda3f"
   },
   "js/08-training.js": {
-    "version": 149,
-    "sha": "97b9924351b0"
+    "version": 150,
+    "sha": "40a649f658a1"
   },
   "js/09-logging.js": {
     "version": 126,
     "sha": "bae95ba30bf2"
   },
   "accessibility.js": {
-    "version": 1,
-    "sha": "3e9bf44307a4"
+    "version": 2,
+    "sha": "95443837f866"
   },
   "js/10-boot.js": {
     "version": 110,

@@ -74,6 +74,8 @@
     background:linear-gradient(180deg,rgba(31,30,28,.92),rgba(22,21,20,.96));
     backdrop-filter:blur(18px);box-shadow:none;z-index:141;
   }
+  .quicklog-strip .quicklog-btn{padding:8px 6px;font-size:11px;white-space:nowrap}
+  .quicklog-strip .quicklog-btn .icon{width:14px;height:14px;margin-right:3px}
 
   /* ===================================================================== */
   /* 2 · HEADER — compact contextual toolbar (not a second nav)            */

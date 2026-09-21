@@ -16,9 +16,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=170" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=170'></noscript>
-<link rel="stylesheet" href="/desktop.css?v=11">
+<link rel="preload" as="style" href="/styles.css?v=171" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=171'></noscript>
+<link rel="stylesheet" href="/desktop.css?v=12">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
      if this request is blocked or fails, window.Sentry is simply absent and
@@ -173,16 +173,12 @@
     </div>
     <div class="portal-context" aria-live="polite">
       <span class="portal-context-kicker">Athlete command center</span>
-      <strong id="portalSectionLabel">Today&rsquo;s Plan</strong>
+      <strong id="portalSectionLabel">Today</strong>
     </div>
     <div class="header-actions">
       <div class="save-state-pill saved" id="saveStatePill" aria-live="polite"><span></span><b>Synced with coach</b></div>
       <button class="hicon notification-bell" id="notificationBell" type="button" onclick="openNotificationInbox()" title="Notifications" aria-label="Open notifications"><svg class="icon"><use href="#i-alert"/></svg><span class="notification-count" id="notificationCount" hidden>0</span></button>
-      <button class="hicon theme-toggle hicon-accent" id="refreshBtn" type="button" onclick="hardRefreshPortal()" title="Refresh portal" aria-label="Refresh portal"><svg class="icon"><use href="#i-refresh"/></svg><span class="theme-toggle-label">Refresh</span></button>
-      <button class="hicon theme-toggle hicon-accent" id="themeToggle" type="button" onclick="toggleOutdoorMode()" title="Switch to outdoor mode" aria-label="Switch to outdoor mode" aria-pressed="false"><svg class="icon"><use href="#i-sparkle"/></svg><span class="theme-toggle-label">Outdoor</span></button>
-      <button class="hicon hicon-goals" id="goalsBtn" data-portal-dest="goals" onclick="switchTab('goals')">Goals <span class="hicon-dot" id="goalsDot" style="display:none"></span></button>
-      <button class="hicon hicon-desktop" data-portal-dest="handbook" onclick="switchTab('handbook')">Guide</button>
-      <button class="hicon hicon-desktop" data-portal-dest="comms" onclick="switchTab('comms')">Contact</button>
+      <button class="profile-avatar" id="profileAvatar" type="button" onclick="toggleProfileMenu(true)" aria-controls="profileMenu" aria-expanded="false" aria-label="Open profile"><span id="profileAvatarInitial">A</span></button>
     </div>
   </header>
 
@@ -302,7 +298,7 @@
       </div>
 
       <!-- CHECK-IN NUDGE — disappears once submitted -->
-      <div id="checkinNudge" class="nudge-strip is-due" style="display:none" onclick="switchTab('checkin')">
+      <div id="checkinNudge" class="nudge-strip is-due" style="display:none" onclick="openCheckinSheet()">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-clipboard"/></svg></span>
           <div class="nudge-strip-text">
@@ -337,7 +333,7 @@
       </div>
 
       <!-- UNLOGGED SESSION — yesterday's work, still not written down. -->
-      <div id="logNudge" class="nudge-strip is-due" style="display:none" onclick="switchTab('training')">
+      <div id="logNudge" class="nudge-strip is-due" style="display:none" onclick="switchTab('today')">
         <div class="nudge-strip-inner">
           <span class="nudge-strip-icon"><svg class="icon"><use href="#i-check"/></svg></span>
           <div class="nudge-strip-text">
@@ -363,17 +359,16 @@
   </div>
 
   <div class="tabs" role="tablist" aria-label="Portal sections">
-    <div class="rail-group-label rail-only">Sections</div>
-    <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="training" onclick="switchTab('training')">Today's Plan</button>
-    <button class="tab desktop-weekly-tab" type="button" role="tab" aria-selected="false" data-tab="weekly" onclick="switchTab('weekly')">Weekly Plan</button>
-    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="nutrition" onclick="switchTab('nutrition')">Nutrition</button>
-    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="checkin" onclick="switchTab('checkin')">Weekly Check-in<span class="tab-dot" id="tabDotCheckin"></span></button>
-    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="calls" onclick="switchTab('calls')">Calls<span class="tab-dot" id="tabDotCalls"></span></button>
+    <div class="rail-group-label rail-only">Navigate</div>
+    <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="today" onclick="switchTab('today')">Today</button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="week" onclick="switchTab('week')">Week</button>
+    <button class="tab tab-log" type="button" data-tab="log" onclick="openLogSheet()">Log</button>
     <button class="tab" type="button" role="tab" aria-selected="false" data-tab="progress" onclick="switchTab('progress')">Progress<span class="tab-dot" id="tabDotProgress"></span></button>
-    <div class="rail-group-label rail-only">More</div>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="coaching" onclick="switchTab('coaching')">Coaching<span class="tab-dot" id="tabDotCoaching"></span></button>
+    <div class="rail-group-label rail-only rail-profile-divider">Profile</div>
     <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="goals" onclick="switchTab('goals')">Goals<span class="tab-dot" id="tabDotGoalsRail" style="display:none"></span></button>
-    <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="handbook" onclick="switchTab('handbook')">Athlete Guide</button>
-    <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="comms" onclick="switchTab('comms')">Contact Coaches</button>
+    <button class="tab rail-only" type="button" role="tab" aria-selected="false" data-tab="handbook" onclick="switchTab('handbook')">Guide</button>
+    <button class="tab rail-only" type="button" data-tab="preferences" onclick="openPreferences()">Preferences</button>
   </div>
 
   <!-- TRAINING -->
@@ -395,6 +390,7 @@
     </div>
     <span id="todayHomeAnchor" hidden></span>
     <div id="todayEl" class="todaywrap" style="display:none"></div>
+    <section class="card fuel-target-card" id="todayFuelTarget" hidden aria-live="polite"></section>
     <div class="card vstrip-card" id="trainingVolumeStrip" style="display:none"></div>
     <div id="calEl" class="weeklyplan-wrap" style="display:none"></div>
     <div class="noplan empty-state" id="noplanEl" style="display:none">No sessions this week.<br>Check back soon.</div>
@@ -406,8 +402,8 @@
   <div class="tab-content" id="tab-calls">
     <div class="page-intro">
       <div class="page-kicker">Coaching</div>
-      <div class="page-title">Calls</div>
-      <div class="page-copy">Your next call, what to bring to it, and what you agreed last time.</div>
+      <div class="page-title">Coaching</div>
+      <div class="page-copy">Your check-in, next call, coach decisions, messages, and notifications in one place.</div>
     </div>
     <div id="callsSurface" class="calls-surface"></div>
   </div>
@@ -418,6 +414,7 @@
       <div class="page-title">Weekly Plan</div>
       <div class="page-copy">The full training week at a glance, with every session, reschedule, and log point in one place.</div>
     </div>
+    <section class="card fuel-target-card" id="weekFuelTargets" hidden aria-live="polite"></section>
     <div class="loading skeleton skeleton--session" id="weeklyLoadingEl" style="display:none" role="status" aria-label="Loading your weekly plan">
       <div class="skeleton-block" aria-hidden="true"><span class="skeleton-line skeleton-line--short"></span><span class="skeleton-line"></span><span class="skeleton-line skeleton-line--medium"></span></div>
       <div class="ltxt">Loading your weekly plan...</div>
@@ -1267,31 +1264,25 @@
 
   <!-- MOBILE PRIMARY NAVIGATION -->
   <nav class="mobile-nav" aria-label="Primary navigation">
-    <button class="mobile-nav-item active" type="button" data-mobile-tab="home" onclick="goPortalHome()"><svg class="icon"><use href="#i-target"/></svg><span>Home</span></button>
-    <button class="mobile-nav-item" type="button" data-mobile-tab="training" onclick="goTrainingPlan()"><svg class="icon"><use href="#i-calendar"/></svg><span>Training</span></button>
-    <button class="mobile-nav-item" type="button" data-mobile-tab="calls" onclick="switchTab('calls')"><svg class="icon"><use href="#i-video"/></svg><span>Calls</span><span class="mobile-nav-dot" id="mobileCallsDot"></span></button>
-    <button class="mobile-nav-item" type="button" data-mobile-tab="nutrition" onclick="switchTab('nutrition')"><svg class="icon"><use href="#i-utensils"/></svg><span>Nutrition</span></button>
+    <button class="mobile-nav-item active" type="button" data-mobile-tab="today" onclick="switchTab('today')"><svg class="icon"><use href="#i-target"/></svg><span>Today</span></button>
+    <button class="mobile-nav-item" type="button" data-mobile-tab="week" onclick="switchTab('week')"><svg class="icon"><use href="#i-calendar"/></svg><span>Week</span></button>
+    <button class="mobile-nav-item mobile-nav-log" type="button" data-mobile-tab="log" onclick="openLogSheet()"><span class="mobile-nav-log-icon"><svg class="icon"><use href="#i-check"/></svg></span><span>Log</span></button>
     <button class="mobile-nav-item" type="button" data-mobile-tab="progress" onclick="switchTab('progress')"><svg class="icon"><use href="#i-trend-up"/></svg><span>Progress</span><span class="mobile-nav-dot" id="mobileProgressDot"></span></button>
-    <button class="mobile-nav-item" type="button" data-mobile-tab="more" onclick="toggleMoreMenu(true)" aria-controls="moreMenu" aria-expanded="false"><svg class="icon"><use href="#i-bars"/></svg><span>More</span><span class="mobile-nav-dot" id="mobileCheckinDot"></span></button>
+    <button class="mobile-nav-item" type="button" data-mobile-tab="coaching" onclick="switchTab('coaching')"><svg class="icon"><use href="#i-video"/></svg><span>Coaching</span><span class="mobile-nav-dot" id="mobileCoachingDot"></span></button>
   </nav>
 
-  <div class="more-menu" id="moreMenu" aria-hidden="true" onclick="if(event.target===this)toggleMoreMenu(false)">
-    <div class="more-menu-sheet">
-      <div class="more-menu-handle"></div>
-      <div class="more-menu-head"><div><div class="more-menu-kicker">Dual Performance</div><div class="more-menu-title" id="moreMenuTitle">More</div></div><button class="more-menu-close" onclick="toggleMoreMenu(false)" aria-label="Close menu">×</button></div>
-      <div class="more-menu-section-label">Plan and support</div>
-      <div class="more-menu-grid">
-        <button onclick="switchTab('checkin')"><svg class="icon"><use href="#i-clipboard"/></svg><span><strong>Weekly check-in</strong><small>Review your week and send coach feedback</small></span><b class="more-menu-due" id="moreCheckinDue">Due</b></button>
+  <div class="profile-menu" id="profileMenu" aria-hidden="true" onclick="if(event.target===this)toggleProfileMenu(false)">
+    <div class="profile-menu-sheet" role="dialog" aria-modal="true" aria-labelledby="profileMenuTitle">
+      <div class="profile-menu-handle"></div>
+      <div class="profile-menu-head"><div><div class="profile-menu-kicker">Profile</div><div class="profile-menu-title" id="profileMenuTitle">Your portal</div></div><button class="profile-menu-close" onclick="toggleProfileMenu(false)" aria-label="Close profile">×</button></div>
+      <div class="profile-menu-list">
         <button onclick="switchTab('goals')"><svg class="icon"><use href="#i-target"/></svg><span><strong>Goals</strong><small>Your programme direction</small></span></button>
-        <button onclick="switchTab('handbook')"><svg class="icon"><use href="#i-book"/></svg><span><strong>Guide</strong><small>Training and nutrition help</small></span></button>
-        <button onclick="switchTab('comms')"><svg class="icon"><use href="#i-chat"/></svg><span><strong>Contact</strong><small>Reach Karl and Alex</small></span></button>
+        <button onclick="switchTab('handbook')"><svg class="icon"><use href="#i-book"/></svg><span><strong>Guide</strong><small>Training, fuel, and portal help</small></span></button>
+        <button onclick="openPreferences()"><svg class="icon"><use href="#i-gear"/></svg><span><strong>Preferences</strong><small>Coaching reminders</small></span></button>
+        <button id="themeToggle" onclick="toggleOutdoorMode()" aria-pressed="false"><svg class="icon"><use href="#i-sparkle"/></svg><span><strong>Theme</strong><small class="theme-toggle-label">Switch to outdoor mode</small></span></button>
+        <button onclick="openDataPrivacy()"><svg class="icon"><use href="#i-clipboard"/></svg><span><strong>Data and privacy</strong><small>Export or request deletion</small></span></button>
+        <button onclick="logout()"><svg class="icon"><use href="#i-logout"/></svg><span><strong>Sign out</strong><small>Return to sign in</small></span></button>
       </div>
-      <div class="more-menu-section-label more-menu-tools-label">Portal tools</div>
-      <div class="more-menu-utilities">
-        <button onclick="openPreferences()"><svg class="icon"><use href="#i-gear"/></svg><span><strong>Preferences</strong><small>Reminders and data controls</small></span></button>
-        <button onclick="openWeeklySummary()"><svg class="icon"><use href="#i-bars"/></svg><span><strong>Weekly summary</strong><small>Adherence, readiness and wins</small></span></button>
-      </div>
-      <button class="more-outdoor" onclick="toggleOutdoorMode()"><svg class="icon"><use href="#i-sparkle"/></svg><span><strong>Outdoor mode</strong><small>Use the light theme in bright conditions</small></span><span class="theme-switch" aria-hidden="true"></span></button>
     </div>
   </div>
 
@@ -1441,21 +1432,21 @@
 })();
 </script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
-<script src="js/01-core.js?v=126"></script>
-<script src="js/02-login-goals.js?v=116"></script>
-<script src="js/03-nav-nudges.js?v=117"></script>
-<script src="js/04-checkin.js?v=100"></script>
+<script src="js/01-core.js?v=127"></script>
+<script src="js/02-login-goals.js?v=117"></script>
+<script src="js/03-nav-nudges.js?v=120"></script>
+<script src="js/04-checkin.js?v=101"></script>
 <script src="js/05-handbook.js?v=85"></script>
-<script src="js/06-nutrition.js?v=101"></script>
+<script src="js/06-nutrition.js?v=102"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=90" hidden></span>
 <script type="module" src="js/strava-match.js?v=8"></script>
 <script src="js/08-training-interval-rest.js?v=1"></script>
 <script src="js/08-training-muscle-coverage.js?v=1"></script>
-<script src="js/08-training-focus.js?v=1"></script>
+<script src="js/08-training-focus.js?v=2"></script>
 <script src="js/08-strength-engine.js?v=4"></script>
-<script src="js/08-training.js?v=149"></script>
+<script src="js/08-training.js?v=150"></script>
 <script src="js/09-logging.js?v=126"></script>
-<script src="accessibility.js?v=1"></script>
+<script src="accessibility.js?v=2"></script>
 <script src="js/10-boot.js?v=110"></script>
 </body>
 </html>

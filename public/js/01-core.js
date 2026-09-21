@@ -1823,6 +1823,8 @@ function renderHeroGreeting(){
   var kicker=document.querySelector('.portal-context-kicker');
   var full=String((typeof athlete!=='undefined'&&athlete&&athlete.name)||'').trim();
   if(kicker&&full) kicker.textContent=full;
+  var avatar=document.getElementById('profileAvatarInitial');
+  if(avatar&&full)avatar.textContent=full.charAt(0).toUpperCase();
 }
 // Re-render on resume so the greeting and date follow real time, not session age.
 document.addEventListener('visibilitychange',function(){
@@ -1831,7 +1833,7 @@ document.addEventListener('visibilitychange',function(){
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SHEET · shared overlay behaviour
-// The CSS in styles.css makes .ql-modal / .hb-modal / .photo-modal / .more-menu
+// The CSS in styles.css makes .ql-modal / .hb-modal / .photo-modal / .profile-menu
 // one component; this is the behaviour half of it. accessibility.js already
 // owns role=dialog, the focus trap, Escape and returning focus to the trigger,
 // and each overlay's markup already closes on a backdrop tap, so the two things
@@ -1840,8 +1842,8 @@ document.addEventListener('visibilitychange',function(){
 //
 // This does NOT touch .focus-overlay. That is a full-screen mode, not a sheet.
 // ══════════════════════════════════════════════════════════════════════════════
-var SHEET_SELECTOR='.sheet,.hb-modal,.ql-modal,.photo-modal,.more-menu';
-var SHEET_INNER_SELECTOR='.sheet-inner,.hb-modal-inner,.ql-modal-inner,.photo-modal-inner,.more-menu-sheet';
+var SHEET_SELECTOR='.sheet,.hb-modal,.ql-modal,.photo-modal,.profile-menu';
+var SHEET_INNER_SELECTOR='.sheet-inner,.hb-modal-inner,.ql-modal-inner,.photo-modal-inner,.profile-menu-sheet';
 (function(){
   // A dismiss needs either a long drag, or a flick that still travelled far
   // enough to be a deliberate gesture. Speed alone dismissed a 20px twitch.
@@ -1870,7 +1872,7 @@ var SHEET_INNER_SELECTOR='.sheet-inner,.hb-modal-inner,.ql-modal-inner,.photo-mo
     }
   }
   function closeControl(sheet){
-    return sheet.querySelector('[aria-label^="Close"],.more-menu-close,.day-plan-close');
+    return sheet.querySelector('[aria-label^="Close"],.profile-menu-close,.day-plan-close');
   }
   function clearDrag(sheet,dismissed){
     sheet.classList.remove('is-dragging');

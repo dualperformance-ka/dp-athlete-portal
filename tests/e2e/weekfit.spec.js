@@ -37,7 +37,7 @@ const SIZES = [
 ];
 
 for (const size of SIZES) {
-test(`every day of a 10-session week is visible without scrolling on ${size.name}`, async ({ page }) => {
+test(`every day of a 10-session week is reachable above fixed navigation on ${size.name}`, async ({ page }) => {
   await page.setViewportSize({ width: size.width, height: size.height });
   const rows = weekRows();
   await page.addInitScript(() => {
@@ -68,42 +68,43 @@ test(`every day of a 10-session week is visible without scrolling on ${size.name
   await page.getByRole('button', { name: 'Enter Portal' }).click();
   await expect(page.locator('#portalScreen')).toBeVisible();
   await page.waitForTimeout(1500);
-  // The week agenda is the mobile training "plan" view; land on it explicitly.
+  // Week is the single calendar destination at every breakpoint.
   await page.evaluate(() => goTrainingPlan());
   await page.waitForTimeout(900);
 
-  // renderCal paints both the Training tab (#calEl) and the desktop Weekly tab,
-  // so scope to the one the mobile plan view actually shows.
-  const agenda = page.locator('#calEl .mobile-week-agenda');
+  const agenda = page.locator('#weeklyCalEl .mobile-week-agenda');
   await expect(agenda).toBeVisible();
-  const days = page.locator('#calEl .mobile-week-day');
+  const days = page.locator('#weeklyCalEl .mobile-week-day');
   await expect(days).toHaveCount(7);
 
-  // The quicklog dock is fixed-position and used to float over the bottom of
-  // the agenda, hiding Saturday and Sunday behind it.
-  const dock = await page.evaluate(() => {
-    const el = document.querySelector('.quicklog-strip');
-    return el ? getComputedStyle(el).display : 'none-el';
-  });
-  expect(dock, 'the quicklog dock must not cover the week agenda').toBe('none');
+  // Quick actions remain available on every destination.
+  await expect(page.locator('.quicklog-strip')).toBeVisible();
   // The email-upgrade prompt is a one-off nag, not part of this layout; it
   // steals ~150px and would make the measurements lie about a normal week.
   await page.evaluate(() => { const p = document.getElementById('emailUpgradePrompt'); if (p) { p.hidden = true; p.style.display = 'none'; } });
   await page.waitForTimeout(300);
   if (size.name === 'iPhone 15 Pro') await page.screenshot({ path: 'test-results/week-fits.png' });
 
-  // The agenda must sit above the tab bar, not run underneath it.
-  const nav = await page.locator('.mobile-nav').boundingBox();
-  const agendaBox = await agenda.boundingBox();
-  if (nav) expect(agendaBox.y + agendaBox.height, 'agenda runs under the tab bar').toBeLessThanOrEqual(nav.y + 1);
-  const box = await agenda.boundingBox();
-  // Sunday's row must sit inside the agenda, not clipped below it.
-  const last = await days.nth(6).boundingBox();
-  expect(last.y + last.height).toBeLessThanOrEqual(box.y + box.height + 1);
-
-  // And the agenda itself must not need scrolling.
+  // The agenda uses the page scroll, never a clipped internal scroller.
   const overflow = await agenda.evaluate(el => el.scrollHeight - el.clientHeight);
   expect(overflow).toBeLessThanOrEqual(1);
+
+  // Sunday can be brought fully above both fixed layers.
+  await days.nth(6).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(150);
+  let nav = await page.locator('.mobile-nav').boundingBox();
+  let dock = await page.locator('.quicklog-strip').boundingBox();
+  let last = await days.nth(6).boundingBox();
+  const firstObstruction = Math.min(nav?.y ?? size.height, dock?.y ?? size.height);
+  if (last && last.y + last.height > firstObstruction - 8) {
+    await page.evaluate(delta => window.scrollBy(0, delta), last.y + last.height - firstObstruction + 10);
+    await page.waitForTimeout(150);
+    nav = await page.locator('.mobile-nav').boundingBox();
+    dock = await page.locator('.quicklog-strip').boundingBox();
+    last = await days.nth(6).boundingBox();
+  }
+  const obstructionTop = Math.min(nav?.y ?? size.height, dock?.y ?? size.height);
+  expect(last.y + last.height, 'Sunday is hidden behind the quick actions or navigation').toBeLessThanOrEqual(obstructionTop - 7);
 
   // The weekly volume strip stays on screen alongside it.
   const vstrip = page.locator('.vstrip').first();
@@ -114,7 +115,7 @@ test(`every day of a 10-session week is visible without scrolling on ${size.name
   // so Saturday's "9km" was sliced in half.
   const clipped = await page.evaluate(() => {
     const out = [];
-    document.querySelectorAll('#calEl .mobile-week-day').forEach(day => {
+    document.querySelectorAll('#weeklyCalEl .mobile-week-day').forEach(day => {
       if (day.scrollHeight > day.clientHeight + 1) out.push(day.dataset.date + ':day');
       day.querySelectorAll('.mobile-week-session').forEach(b => {
         if (b.scrollHeight > b.clientHeight + 1) out.push(day.dataset.date + ':' + b.textContent.trim().slice(0, 18));
@@ -124,15 +125,8 @@ test(`every day of a 10-session week is visible without scrolling on ${size.name
   });
   expect(clipped, 'content clipped inside these rows').toEqual([]);
 
-  // No dead block under Sunday: the rows fill the agenda they were given.
-  const slack = await agenda.evaluate(el => {
-    const last = el.lastElementChild.getBoundingClientRect();
-    return el.getBoundingClientRect().bottom - last.bottom;
-  });
-  expect(slack, 'empty space left inside the agenda under the last day').toBeLessThanOrEqual(8);
-
   // Every session row stays big enough to hit.
-  const buttons = page.locator('#calEl .mobile-week-session');
+  const buttons = page.locator('#weeklyCalEl .mobile-week-session');
   const n = await buttons.count();
   for (let i = 0; i < n; i += 1) {
     const b = await buttons.nth(i).boundingBox();

@@ -198,6 +198,7 @@ async function doLogin(code,prevalidatedRoster){
   try{syncQuickLogDock();}catch(e){}
   document.getElementById('heroName').textContent=athlete.name;
   renderHeroGreeting();
+  if(typeof switchTab==='function')switchTab('today',{history:false,keepScroll:true});
   populateStatic();
   // The primary plan gets the network first. Strava, nutrition and programme
   // metrics start only after today's session has rendered; they update their
@@ -229,10 +230,10 @@ async function doLogin(code,prevalidatedRoster){
       if(typeof maybePromptPwaNotifications==='function')setTimeout(maybePromptPwaNotifications,700);
     },0);
     var deepParams=new URLSearchParams(location.search),deepTab=deepParams.get('tab'),deepDate=deepParams.get('date');
-    if(['training','weekly','nutrition','checkin','progress','goals','handbook','comms'].indexOf(deepTab)>=0){
+    if(['today','week','progress','coaching','goals','handbook','comms','training','weekly','checkin','calls'].indexOf(deepTab)>=0){
       setTimeout(function(){
         switchTab(deepTab);
-        if(deepTab==='training'&&/^\d{4}-\d{2}-\d{2}$/.test(deepDate||'')&&typeof openDayPlanDate==='function')openDayPlanDate(deepDate);
+        if((deepTab==='week'||deepTab==='weekly')&&/^\d{4}-\d{2}-\d{2}$/.test(deepDate||'')&&typeof openDayPlanDate==='function')openDayPlanDate(deepDate);
       },80);
     }
   });

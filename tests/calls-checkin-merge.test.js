@@ -36,11 +36,11 @@ test('the server still accepts calls_prep from clients on an older build', () =>
   assert.match(writeApi, /RETIRED 2026-09-05/, 'and be marked retired so it is removed deliberately');
 });
 
-test('the Calls tab routes to the check-in instead of duplicating it', () => {
+test('Coaching opens the one check-in sheet instead of duplicating it', () => {
   assert.match(nav, /function callsCheckinState\(\)/);
   assert.match(nav, /localStorage\.getItem\(checkinWeekKey\(\)\)/,
     'status must come from the same completion cache the nudge uses, not a second source of truth');
-  assert.match(nav, /switchTab\(\\?'checkin\\?'\)/, 'the card must link through to the check-in');
+  assert.match(nav, /onclick="openCheckinSheet\(\)"/, 'the card must open the live check-in in one tap');
   assert.match(nav, /return \{next:next,checkin:checkin,last:last\};/);
 });
 
@@ -111,8 +111,8 @@ test('the confirmation distinguishes sent from queued', () => {
   assert.match(checkin, /clearCiDraft\(\);/, 'a submitted check-in clears its draft');
 });
 
-test('the sheet degrades to the tab rather than becoming unreachable', () => {
+test('the sheet degrades to Coaching rather than becoming unreachable', () => {
   const open = checkin.slice(checkin.indexOf('function openCheckinSheet'));
-  assert.match(open.slice(0, 900), /switchTab\('checkin'\)/,
-    'a shell without the sheet must still be able to open the check-in');
+  assert.match(open.slice(0, 900), /switchTab\('coaching'\)/,
+    'a shell without the sheet must still lead to the Coaching entry point');
 });

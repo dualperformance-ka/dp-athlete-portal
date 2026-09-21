@@ -206,5 +206,5 @@ function renderCoachMoment(todaySessions,insights){
   var label=fromCoach?'Coach cue for today':'Today’s focus';
   // No avatars on derived text. The avatars mean a person wrote this.
   var avatars=fromCoach?'<div class="coach-avatars"><span>K</span><span>A</span></div>':'';
-  return '<div class="coach-moment'+(fromCoach?'':' is-derived')+'">'+avatars+'<div><div class="coach-moment-topline"><div class="coach-moment-label">'+label+'</div><div class="coach-moment-tag">Dual Performance</div></div><p>'+esc(note)+'</p></div><button onclick="switchTab(\'comms\')" aria-label="Contact your coaches"><svg class="icon"><use href="#i-chat"/></svg></button></div>';
+  return '<div class="coach-moment'+(fromCoach?'':' is-derived')+'">'+avatars+'<div><div class="coach-moment-topline"><div class="coach-moment-label">'+label+'</div><div class="coach-moment-tag">Dual Performance</div></div><p>'+esc(note)+'</p></div><button onclick="switchTab(\'coaching\')" aria-label="Contact your coaches"><svg class="icon"><use href="#i-chat"/></svg></button></div>';
 }

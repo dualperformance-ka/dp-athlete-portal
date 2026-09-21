@@ -180,7 +180,7 @@ async function refreshWeekInBackground(){
     return false;
   }
 }
-function isMobileTrainingCalendar(){return !!(window.matchMedia&&window.matchMedia('(max-width:760px)').matches);}
+function isMobileTrainingCalendar(){return !!(window.matchMedia&&window.matchMedia('(max-width:899px)').matches);}
 function trainingWeekDisplayLabel(){
   var wkS=sessions.find(function(s){return s.week;});
   var raw=wkS&&wkS.week;
@@ -202,7 +202,6 @@ async function loadWeek(){
   setDisplay('calEl','none');setDisplay('weeklyCalEl','none');setDisplay('noplanEl','none');setDisplay('weeklyNoplanEl','none');
   var _errEl=document.getElementById('loadErrEl');if(_errEl)_errEl.style.display='none';
   var _weeklyErrEl=document.getElementById('weeklyLoadErrEl');if(_weeklyErrEl)_weeklyErrEl.style.display='none';
-  if(typeof applyTrainingView==='function')applyTrainingView();
   // One authenticated read snapshot replaces the previous library + splits +
   // plan requests. Every section retains its original loader as a fallback, so
   // a partial Supabase failure cannot hide an otherwise valid training plan.
@@ -351,17 +350,12 @@ function renderCal(ws){
       html+='</div>';
     }
   }
-  // #calEl (Today's-Plan week list) and #weeklyCalEl (Weekly Plan) render the
-  // same markup, which duplicates every sc_i/scb_i/tick_i id. On desktop BOTH
-  // are in the DOM at once, so getElementById would resolve weekly clicks to the
-  // hidden Today-side copy and nothing opens/logs. Desktop uses #weeklyCalEl for
-  // the week and #todayEl for today, so leave #calEl empty there to keep ids
-  // unique. Mobile is untouched: it uses #calEl and never shows #weeklyCalEl.
-  var _isDesktopWk = window.matchMedia && window.matchMedia('(min-width:900px)').matches;
-  var el=document.getElementById('calEl');if(el){el.innerHTML=_isDesktopWk?'':html;el.style.display='block';}
+  // Today and Week are separate destinations on every viewport. Keep the old
+  // Today-side mount empty so duplicate session ids can never bind controls to
+  // a hidden copy; the shared Week destination owns the one calendar DOM.
+  var el=document.getElementById('calEl');if(el){el.innerHTML='';el.style.display='none';}
   var wel=document.getElementById('weeklyCalEl');if(wel){wel.innerHTML=html;wel.style.display='block';}
   renderTrainingVolumeStrips();
-  if(typeof applyTrainingView==='function')applyTrainingView();
 }
 // ── WEEKLY PLAN KM TARGET ─────────────────────────────────────────────────────
 // titleKmFromName() and safeKm() live in 05-handbook.js alongside the rest of
@@ -394,13 +388,11 @@ function computeWeeklyPlanKm(){
   var target=Math.round(Math.max(sum,declared)*10)/10;
   return target>0?target:null;
 }
-// Desktop reads the week from the Weekly Plan tab, mobile from the plan view
-// inside Training. The full km target already lives on Home; Training keeps
-// only the lighter programme-volume overview.
+// Week owns the plan at every viewport. The retired Today-side strip stays
+// empty until it can be removed with the old nutrition screen in step 6.
 function renderTrainingVolumeStrips(){
   renderVolumeStrip('weeklyVolumeStrip','training');
-  renderVolumeStrip('trainingVolumeStrip','training');
-  if(typeof applyTrainingView==='function') applyTrainingView();
+  var retired=document.getElementById('trainingVolumeStrip');if(retired){retired.style.display='none';retired.innerHTML='';}
 }
 function selectWeekDay(di,trigger){
   if(isMobileTrainingCalendar()){
@@ -1001,7 +993,6 @@ function renderTodaySection(){
   html+='</div>';
   el.innerHTML=html;
   el.style.display='block';
-  if(typeof applyTrainingView==='function')applyTrainingView();
 }
 
 // Readiness is strictly a daily score. Keep long-running/PWA sessions honest:

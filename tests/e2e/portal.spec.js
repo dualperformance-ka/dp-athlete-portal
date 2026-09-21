@@ -399,10 +399,10 @@ test('7. a booking sits under the slot and a cancellation clears the stale confi
     }],
   });
 
+  await expect.poll(() => page.evaluate(key => !!localStorage.getItem(key), localKey)).toBe(true);
   await expect(page.locator('#callConfirmedNudge')).toBeVisible();
   // A confirmation is status, not a demand: it sits at the foot of the card now.
   await expect.poll(() => page.locator('.top-shell-priority > .nudge-strip:visible').last().getAttribute('id')).toBe('callConfirmedNudge');
-  await expect.poll(() => page.evaluate(key => !!localStorage.getItem(key), localKey)).toBe(true);
 
   state.bookingRows = [];
   await page.evaluate(() => refreshCallBookingsFromCloud(0, true));
@@ -477,7 +477,7 @@ test('9. the Calls tab routes to the one check-in rather than asking again', asy
   await expect(page.locator('#portalScreen')).toBeVisible();
 
   // No second set of questions on the Calls tab, just the check-in's state.
-  await page.evaluate(() => switchTab('calls'));
+  await page.evaluate(() => switchTab('coaching'));
   const calls = page.locator('#callsSurface');
   await expect(calls).toContainText('Weekly check-in');
   await expect(calls).toContainText('Not yet');
@@ -540,7 +540,7 @@ test('10. the check-in sheet drafts, confirms delivery, and hands the form back'
   await expect(page.locator('#portalScreen')).toBeVisible();
 
   // Closing the sheet must never cost the athlete what they typed.
-  await page.evaluate(() => switchTab('calls'));
+  await page.evaluate(() => switchTab('coaching'));
   await page.evaluate(() => openCheckinSheet());
   await page.locator('#ciRunWins').fill('Negative split on the long run.');
   await page.evaluate(() => closeCheckinSheet());

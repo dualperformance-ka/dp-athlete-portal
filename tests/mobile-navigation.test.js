@@ -15,56 +15,87 @@ function mobileNavMarkup() {
   return index.slice(start, end);
 }
 
-test('Nutrition is a first-class mobile destination in the intended order', () => {
-  const markup = mobileNavMarkup();
-  const order = ['home', 'training', 'nutrition', 'progress', 'more'];
-  let last = -1;
-  for (const tab of order) {
-    const position = markup.indexOf(`data-mobile-tab="${tab}"`);
-    assert.ok(position > last, `${tab} should follow the preceding primary destination`);
-    last = position;
+function desktopRailMarkup() {
+  const start = index.indexOf('<div class="tabs"');
+  const end = index.indexOf('<!-- TRAINING -->', start);
+  return index.slice(start, end);
+}
+
+test('phone, tablet, and desktop expose the same five destinations in the same order', () => {
+  const order = ['today', 'week', 'log', 'progress', 'coaching'];
+  for (const [markup, attribute] of [[mobileNavMarkup(), 'data-mobile-tab'], [desktopRailMarkup(), 'data-tab']]) {
+    let last = -1;
+    for (const destination of order) {
+      const position = markup.indexOf(`${attribute}="${destination}"`);
+      assert.ok(position > last, `${destination} should follow the preceding primary destination`);
+      last = position;
+    }
   }
-  assert.match(markup, /data-mobile-tab="nutrition"[^>]+onclick="switchTab\('nutrition'\)"/);
-  assert.match(markup, /#i-utensils/);
-  assert.doesNotMatch(markup, /data-mobile-tab="checkin"/);
-});
-
-test('Nutrition owns its active navigation state instead of highlighting More', () => {
-  assert.match(nav, /tab==='nutrition'\?'nutrition'/);
-  assert.match(nav, /if\(tab==='nutrition'\)\{setMobileNav\('nutrition'\);return;\}/);
-  assert.match(nav, /tab==='checkin'\|\|isMobileSecondary\?'more'/);
-  assert.match(nav, /if\(tab==='checkin'\|\|\['goals','handbook','comms'\]\.indexOf\(tab\)>=0\)\{setMobileNav\('more'\);return;\}/);
-});
-
-test('the five-item mobile bar remains evenly sized and the duplicate Nutrition entry is gone', () => {
+  assert.match(mobileNavMarkup(), /class="[^"]*mobile-nav-log[^"]*"[^>]+data-mobile-tab="log"/);
   assert.match(styles, /grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
-  const moreStart = index.indexOf('<div class="more-menu"');
-  const moreEnd = index.indexOf('</div>\n\n  <div class="ql-modal"', moreStart);
-  const moreMarkup = index.slice(moreStart, moreEnd);
-  assert.doesNotMatch(moreMarkup, /onclick="switchTab\('nutrition'\)"/);
+  assert.match(styles, /--bottom-bar-h:calc\(72px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(styles, /--railw:248px/);
 });
 
-test('Check-in remains prominent on Home and at the top of More when due', () => {
-  assert.match(index, /id="checkinNudge"[^>]+onclick="switchTab\('checkin'\)"/);
-  const moreStart = index.indexOf('<div class="more-menu"');
-  const moreMarkup = index.slice(moreStart);
-  assert.match(moreMarkup, /onclick="switchTab\('checkin'\)"[\s\S]*id="moreCheckinDue">Due/);
-  assert.match(mobileNavMarkup(), /data-mobile-tab="more"[\s\S]*id="mobileCheckinDot"/);
-  assert.match(nav, /moreCheckinDue[\s\S]*classList\.toggle\('visible',!done\)/);
+test('retired primary destinations and the More sheet are absent', () => {
+  const primary = mobileNavMarkup() + desktopRailMarkup();
+  for (const retired of ['nutrition', 'calls', 'checkin', 'training', 'weekly', 'more']) {
+    assert.doesNotMatch(primary, new RegExp(`data-(?:mobile-)?tab="${retired}"`));
+  }
+  assert.doesNotMatch(index, /id="moreMenu"|class="more-menu/);
+  assert.doesNotMatch(nav, /function toggleMoreMenu|trainingView|function applyTrainingView/);
 });
 
-// This used to pin literal version numbers, so it failed on every deploy that
-// changed a shell file — which trains you to edit the assertion rather than
-// read it. What actually matters is that index.html and the service worker
-// agree: a mismatch means the PWA precaches one file and the page requests
-// another, and athletes sit on a stale build with no signal that they are.
+test('the destination state is a plain map and analytics receives only new destination names', () => {
+  assert.match(nav, /var PORTAL_DESTINATIONS=\{/);
+  assert.match(nav, /today:\{panel:'training'/);
+  assert.match(nav, /week:\{panel:'weekly'/);
+  assert.match(nav, /coaching:\{panel:'calls'/);
+  assert.match(nav, /track\('tab_viewed',\{tab:destination\}\)/);
+  assert.doesNotMatch(nav, /tab==='weekly'\?'training'/);
+});
+
+test('coaching owns the only owed-work dot and keeps check-in one tap away', () => {
+  const markup = mobileNavMarkup();
+  assert.match(markup, /data-mobile-tab="coaching"[\s\S]*id="mobileCoachingDot"/);
+  assert.match(index, /id="callsSurface"/);
+  assert.match(nav, /onclick="openCheckinSheet\(\)"/);
+  assert.doesNotMatch(index, /mobileCallsDot|mobileCheckinDot/);
+  assert.equal((markup.match(/mobile-nav-dot/g) || []).length, 2,
+    'only Coaching and Progress may expose badges');
+});
+
+test('the header is contextual and the avatar opens the profile actions', () => {
+  const header = index.slice(index.indexOf('<header>'), index.indexOf('</header>'));
+  assert.match(header, /id="portalSectionLabel"/);
+  assert.match(header, /id="saveStatePill"/);
+  assert.match(header, /id="notificationBell"/);
+  assert.match(header, /id="profileAvatar"[^>]+onclick="toggleProfileMenu\(true\)"/);
+  assert.doesNotMatch(header, /refreshBtn|themeToggle|goalsBtn|data-portal-dest="handbook"|data-portal-dest="comms"/);
+  assert.match(index, /id="profileMenu"[\s\S]*Goals[\s\S]*Guide[\s\S]*Preferences[\s\S]*Theme[\s\S]*Data and privacy[\s\S]*Sign out/);
+});
+
+test('the reconciliation body classes are completely gone', () => {
+  const retired = /mobile-portal-home|mobile-training-calendar|mobile-checkin-tab|mobile-progress-tab|mobile-calls-tab|mobile-secondary-tab/;
+  assert.doesNotMatch(styles, retired);
+  assert.doesNotMatch(nav, retired);
+});
+
+test('nutrition targets have homes on Today and Week and retain the 60 second guard', () => {
+  assert.match(index, /id="todayFuelTarget"/);
+  assert.match(index, /id="weekFuelTargets"/);
+  assert.match(nav, /\(destination==='today'\|\|destination==='week'\)&&Date\.now\(\)-_nutLastLoad>60000/);
+});
+
+// The exact version values should change freely. What matters is that the page
+// and service worker agree, so installed PWAs cannot remain on a stale shell.
 test('installed PWAs receive the new navigation shell', () => {
   const served = (source, file) => {
     const match = source.match(new RegExp(file.replace(/[.]/g, '\\.') + '\\?v=(\\d+)'));
     assert.ok(match, `${file} should be served with a version in this file`);
     return match[1];
   };
-  for (const file of ['styles.css', '03-nav-nudges.js', '09-logging.js', '10-boot.js']) {
+  for (const file of ['styles.css', '03-nav-nudges.js', '06-nutrition.js', '08-training.js']) {
     assert.equal(served(index, file), served(sw, file),
       `${file}: index.html and sw.js must request the same version`);
   }
