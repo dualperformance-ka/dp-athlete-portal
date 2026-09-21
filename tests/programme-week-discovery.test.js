@@ -194,3 +194,56 @@ test('the refresh button drops the training week snapshots', () => {
   assert.equal(context.window._trainingReadSnapshot, null);
   assert.equal(context.window._trainingReadServedPersistent, false);
 });
+
+
+// ── One name for one week ────────────────────────────────────────────────────
+//
+// The coaches send the programme's first week two ways. In live data:
+//   athlete_programme_weeks: week_number 0 / "Week 0"   (CHUNG)
+//                            week_number 1 / "Discovery Week" (BENNY, sitting
+//                            alongside his real Week 1)
+//   planned_sessions:        25 rows "Discovery Week", 9 rows "Week 0"
+// getCurrentProgrammeWeek() already folds both to 0, but every surface that
+// SHOWED a week name had its own copy of the ternary, and two had none at all —
+// so the same athlete on the same day read "Discovery Week" on Today and
+// "Week 0" on Progress. programmeWeekLabel() is the single answer now.
+test('week 0 and discovery week are the same week, by any name', () => {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(slice(handbook, 'function isDiscoveryWeek(', 'function getDisplayWeekNumber(', 'programmeWeekLabel'), context);
+
+  for (const input of [0, '0', 'Week 0', 'week 0', 'Discovery', 'discovery week', 'DISCOVERY WEEK']) {
+    assert.equal(context.programmeWeekLabel(input), 'Discovery Week', JSON.stringify(input));
+  }
+  // Nothing else is swept up with it.
+  assert.equal(context.programmeWeekLabel(1), 'Week 1');
+  assert.equal(context.programmeWeekLabel(10), 'Week 10');
+  assert.equal(context.programmeWeekLabel(12), 'Week 12');
+});
+
+// A regex guard, because the failure mode is a NEW week display being written
+// with its own inline 'Week '+n and quietly drifting from the rest of the app,
+// which is exactly how this happened the first time.
+test('no surface names a week without going through the one helper', () => {
+  const sources = {
+    '03-nav-nudges': readFileSync(join(root, 'public', 'js', '03-nav-nudges.js'), 'utf8'),
+    '05-handbook': handbook,
+    '06-nutrition': readFileSync(join(root, 'public', 'js', '06-nutrition.js'), 'utf8'),
+    '07-progress': readFileSync(join(root, 'public', 'js', '07-progress.js'), 'utf8'),
+    '08-training': training,
+  };
+  const offenders = [];
+  for (const [name, source] of Object.entries(sources)) {
+    source.split('\n').forEach((line, i) => {
+      if (!/'Week '\s*\+/.test(line)) return;
+      // The helper itself.
+      if (/return isDiscoveryWeek\(v\)/.test(line)) return;
+      // The nutrition_plans lookup key, which must stay "Week N" for every
+      // week including the discovery one, because that is what the coaches
+      // write. Routing it through the helper stops that athlete's plan loading.
+      if (/var weekLabel='Week '\+displayWeek;/.test(line)) return;
+      offenders.push(`${name}.js:${i + 1} ${line.trim().slice(0, 70)}`);
+    });
+  }
+  assert.deepEqual(offenders, [], 'these build a week name by hand instead of calling programmeWeekLabel()');
+});

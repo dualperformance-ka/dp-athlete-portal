@@ -24,24 +24,24 @@
     "sha": "ab3e419932f3"
   },
   "js/03-nav-nudges.js": {
-    "version": 122,
-    "sha": "3dceca9a0008"
+    "version": 123,
+    "sha": "0357307d7bea"
   },
   "js/04-checkin.js": {
     "version": 104,
     "sha": "89eece7c44bc"
   },
   "js/05-handbook.js": {
-    "version": 87,
-    "sha": "2c2812a0cd16"
+    "version": 88,
+    "sha": "2c85fe177e59"
   },
   "js/06-nutrition.js": {
-    "version": 104,
-    "sha": "79fb7b78b929"
+    "version": 105,
+    "sha": "031a26a27731"
   },
   "js/07-progress.js": {
-    "version": 90,
-    "sha": "82459290b5db"
+    "version": 91,
+    "sha": "1cb5da85aa3c"
   },
   "js/strava-match.js": {
     "version": 8,
@@ -64,8 +64,8 @@
     "sha": "cafd28bcda3f"
   },
   "js/08-training.js": {
-    "version": 151,
-    "sha": "d240c1756a3c"
+    "version": 152,
+    "sha": "bbc1af239025"
   },
   "js/09-logging.js": {
     "version": 127,
