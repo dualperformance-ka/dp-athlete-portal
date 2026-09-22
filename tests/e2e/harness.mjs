@@ -35,7 +35,14 @@ export function weekRows() {
   return rows;
 }
 
-export async function bootPortal(page, { rows = weekRows(), outdoor = false } = {}) {
+/**
+ * @param {object} options
+ *  - onPortalAction(action, body) — return `{ status?, json }` to answer a
+ *    /api/portal-data action yourself, or undefined to fall through to the
+ *    default stub. Lets a spec fail, delay or shape one action without
+ *    reimplementing the whole backend.
+ */
+export async function bootPortal(page, { rows = weekRows(), outdoor = false, onPortalAction = null } = {}) {
   await page.addInitScript(() => {
     window.supabase = { createClient: () => ({ auth: {
       onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; },
@@ -56,6 +63,17 @@ export async function bootPortal(page, { rows = weekRows(), outdoor = false } = 
     else if (url.pathname.startsWith('/api/strava')) json = { connected: false, activities: [] };
     else if (url.pathname === '/api/reminders') json = { ok: true, notifications: [], unread: 0 };
     else if (url.pathname === '/api/portal-data') {
+      if (onPortalAction) {
+        const handled = await onPortalAction(String(body.action || ''), body);
+        if (handled) {
+          await route.fulfill({
+            status: handled.status || 200,
+            contentType: 'application/json',
+            body: JSON.stringify(handled.json === undefined ? { ok: true } : handled.json),
+          });
+          return;
+        }
+      }
       const common = { planned, splits: { rows: [] }, changes: { rows: [] }, library: { rows: [], revision: 'e2e' } };
       if (body.action === 'bootstrap') json = { ok: true, state: { rows: [], checkins: [] }, bodyLogs: { rows: [] }, nutritionLogs: { rows: [] }, sessionLogs: { rows: [] }, dailyLogged: { body: [], nutrition: [] }, ...common };
       else json = { ok: true, rows: [], checkins: [], body: [], nutrition: [], ...common };

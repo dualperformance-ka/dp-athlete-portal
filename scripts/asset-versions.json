@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 175,
-    "sha": "34b870ae1891"
+    "version": 176,
+    "sha": "820d46dc1ea8"
   },
   "desktop.css": {
     "version": 14,
@@ -40,8 +40,8 @@
     "sha": "2a2e6dc51a66"
   },
   "js/07-progress.js": {
-    "version": 91,
-    "sha": "1cb5da85aa3c"
+    "version": 92,
+    "sha": "42d95377cdef"
   },
   "js/strava-match.js": {
     "version": 8,
