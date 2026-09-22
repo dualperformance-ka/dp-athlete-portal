@@ -522,10 +522,14 @@ function wrTrainingSection(summary){
   }).join('');
   var missed='';
   if(t.missedSessions.length){
+    // Name up to three, then count the rest. The first cut produced an ellipsis
+    // immediately followed by a full stop ("Lower A…."), and a bare "…" leaves
+    // the athlete guessing how many more there were.
+    var shown=t.missedSessions.slice(0,3).map(function(s){return esc(s.title);});
+    var rest=t.missedSessions.length-shown.length;
     missed='<p class="wr-note">'+t.missedSessions.length+' past session'
       +(t.missedSessions.length===1?'':'s')+' not logged: '
-      +t.missedSessions.slice(0,3).map(function(s){return esc(s.title);}).join(', ')
-      +(t.missedSessions.length>3?'…':'')+'.</p>';
+      +shown.join(', ')+(rest>0?' and '+rest+' more':'')+'.</p>';
   }
   return wrSection('Sessions',
     '<div class="wr-headline"><strong class="readout">'+t.completedSessions+'</strong>'
