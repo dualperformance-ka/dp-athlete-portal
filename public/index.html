@@ -16,8 +16,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=175" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=175'></noscript>
+<link rel="preload" as="style" href="/styles.css?v=176" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=176'></noscript>
 <link rel="stylesheet" href="/desktop.css?v=14">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
@@ -810,6 +810,28 @@
         </div>
       </div>
     </div>
+    <!-- WEEKLY REVIEW — the first thing on Progress, ahead of photos.
+         Every figure in here is generated server-side from Supabase by the
+         `performance-summary` action; nothing is computed from localStorage and
+         nothing is written back. See docs/weekly-performance-summary.md. -->
+    <section class="card progress-card weekly-review-card" id="weeklyReviewCard" aria-labelledby="weeklyReviewTitle">
+      <div class="progress-section-head">
+        <div>
+          <div class="card-title" id="weeklyReviewTitle">Weekly review</div>
+          <div class="progress-section-copy">What the week actually contained, from your logs.</div>
+        </div>
+        <span class="progress-section-icon"><svg class="icon"><use href="#i-clipboard"/></svg></span>
+      </div>
+      <div class="wr-nav">
+        <button type="button" class="wr-nav-btn" id="wrPrevBtn" onclick="weeklyReviewStep(-1)" aria-label="Show the previous programme week"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+        <div class="wr-nav-label">
+          <strong id="wrWeekLabel">Loading</strong>
+          <small id="wrWeekRange"><span id="wrWeekCurrent" class="wr-current-marker" hidden>Current week</span><span id="wrWeekDates"></span></small>
+        </div>
+        <button type="button" class="wr-nav-btn" id="wrNextBtn" onclick="weeklyReviewStep(1)" aria-label="Show the next programme week"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
+      </div>
+      <div class="wr-body" id="wrBody" aria-live="polite" aria-busy="false"></div>
+    </section>
     <section class="card progress-card progress-photo-card progress-photo-priority" aria-labelledby="progressPhotosTitle">
       <div class="progress-section-head">
         <div>
@@ -1417,7 +1439,7 @@
 <script src="js/04-checkin.js?v=104"></script>
 <script src="js/05-handbook.js?v=89"></script>
 <script src="js/06-nutrition.js?v=106"></script>
-<span id="progressModuleAsset" data-src="/js/07-progress.js?v=91" hidden></span>
+<span id="progressModuleAsset" data-src="/js/07-progress.js?v=92" hidden></span>
 <script type="module" src="js/strava-match.js?v=8"></script>
 <script src="js/08-training-interval-rest.js?v=1"></script>
 <script src="js/08-training-muscle-coverage.js?v=1"></script>

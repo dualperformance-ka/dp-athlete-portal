@@ -278,6 +278,10 @@ async function loadProgress(){
   syncProgressCards();
   renderPhotoGrid();
   renderVolumeChart();
+  // Fire and forget: the weekly review renders its own loading, empty and error
+  // states inside its card, so a slow or failed summary never blocks — or
+  // replaces — the rest of Progress.
+  try{loadWeeklyReview();}catch(e){console.warn('Weekly review failed to start',e);}
   var savedGoals=JSON.parse(localStorage.getItem('dp_goals_'+athlete.code)||'{}');
   var portalStartWeight=savedGoals.startWeight||savedGoals.weight||athlete.startWeight||'';
   var progressWeek=getCurrentProgrammeWeek();
@@ -353,4 +357,378 @@ function toggleWeightLog(){
   rows.forEach(function(r){r.style.display=expanded?'none':'';});
   if(expanded){btn.textContent=btn.getAttribute('data-show-label');btn.setAttribute('data-expanded','0');}
   else{btn.setAttribute('data-show-label',btn.textContent);btn.textContent='Show less';btn.setAttribute('data-expanded','1');}
+}
+
+// ── WEEKLY REVIEW ─────────────────────────────────────────────────────────────
+//
+// The first card on Progress. Every number is generated server-side by the
+// `performance-summary` action on /api/portal-data and rendered here as-is:
+// nothing is recalculated in the browser, nothing is read from localStorage,
+// and nothing is written back. The contract is documented in
+// docs/weekly-performance-summary.md.
+//
+// Caching is deliberately IN MEMORY only. A weekly summary is derived data
+// about the athlete's own body and training; persisting it to localStorage
+// would put a second, staler copy of it on the device with no way to revoke it,
+// and reloading the app should always get the current server answer.
+var _wrWeeks=null,_wrWeeksPromise=null,_wrIndex=null;
+var _wrCache={},_wrInflight={},_wrTracked={},_wrRequestSeq=0;
+
+function wrEl(id){return document.getElementById(id);}
+function wrBody(){return wrEl('wrBody');}
+
+// dd Mmm – dd Mmm, built from the server's own inclusive dates.
+function wrRangeLabel(startISO,endISO){
+  try{
+    var opts={day:'numeric',month:'short'};
+    return localDateFromISO(startISO).toLocaleDateString('en-AU',opts)
+      +' – '+localDateFromISO(endISO).toLocaleDateString('en-AU',opts);
+  }catch(e){return startISO+' – '+endISO;}
+}
+function wrNum(value,suffix){
+  if(value==null)return '—';
+  return String(value)+(suffix||'');
+}
+// A metric the server could not measure reads as "Not recorded", never as 0.
+function wrMetric(label,value,detail){
+  return '<div class="wr-metric"><span class="wr-metric-label">'+esc(label)+'</span>'
+    +'<strong class="wr-metric-value readout readout--compact">'+esc(value)+'</strong>'
+    +(detail?'<small class="wr-metric-detail">'+esc(detail)+'</small>':'')+'</div>';
+}
+function wrSection(title,inner,extraClass){
+  return '<div class="wr-section'+(extraClass?' '+extraClass:'')+'">'
+    +'<h4 class="wr-section-title">'+esc(title)+'</h4>'+inner+'</div>';
+}
+function wrEmptyLine(text){return '<p class="wr-empty">'+esc(text)+'</p>';}
+
+function wrSportLabel(sport){
+  return {running:'Running',cycling:'Cycling',swimming:'Swimming',strength:'Strength',other:'Other'}[sport]||sport;
+}
+function wrSourceLabel(source){
+  return {strava:'from Strava',portal_logs:'from your logs',unavailable:'no source available'}[source]||'';
+}
+
+// ── Programme weeks ──────────────────────────────────────────────────────────
+// The navigator needs the week list. programme-data already returns it for the
+// volume strip, so this reuses that action rather than adding another.
+function wrLoadWeeks(force){
+  if(force){_wrWeeks=null;_wrWeeksPromise=null;}
+  if(_wrWeeks)return Promise.resolve(_wrWeeks);
+  if(_wrWeeksPromise)return _wrWeeksPromise;
+  _wrWeeksPromise=portalRequest('programme-data').then(function(res){
+    var rows=(res&&res.programmeWeeks)||[];
+    _wrWeeks=rows.filter(function(w){return w&&w.id&&/^\d{4}-\d{2}-\d{2}/.test(String(w.startDate||''));})
+      .map(function(w){
+        var start=String(w.startDate).slice(0,10);
+        var end=localDateFromISO(start);end.setDate(end.getDate()+6);
+        return {id:w.id,weekNumber:w.weekNumber,weekLabel:w.weekLabel,startDate:start,endDate:localISO(end)};
+      })
+      .sort(function(a,b){return a.startDate.localeCompare(b.startDate);});
+    return _wrWeeks;
+  }).catch(function(error){_wrWeeksPromise=null;throw error;});
+  return _wrWeeksPromise;
+}
+
+// The week containing today, else the most recent week that has already begun.
+// A brand-new programme whose first week is still ahead falls back to that one.
+function wrCurrentIndex(weeks){
+  var today=localISO(new Date());
+  for(var i=0;i<weeks.length;i++){
+    if(today>=weeks[i].startDate&&today<=weeks[i].endDate)return i;
+  }
+  var started=-1;
+  for(var j=0;j<weeks.length;j++){if(weeks[j].startDate<=today)started=j;}
+  return started>=0?started:0;
+}
+// Navigation never reaches a week that has not started. A future week has no
+// facts in it, so offering it would only ever render an empty card.
+function wrIsFuture(week){
+  return !!week&&week.startDate>localISO(new Date());
+}
+
+// ── Fetch ────────────────────────────────────────────────────────────────────
+// One request per week per page session, and never two at once for the same
+// week. A retry clears the failed entry so it genuinely goes back to the server.
+function wrFetch(weekId,options){
+  options=options||{};
+  if(options.bypassCache){delete _wrCache[weekId];delete _wrInflight[weekId];}
+  if(_wrCache[weekId])return Promise.resolve(_wrCache[weekId]);
+  if(_wrInflight[weekId])return _wrInflight[weekId];
+  _wrInflight[weekId]=portalRequest('performance-summary',{period:'week',programmeWeekId:weekId})
+    .then(function(res){
+      var summary=res&&res.summary;
+      if(!summary)throw new Error('The weekly review came back empty.');
+      _wrCache[weekId]=summary;
+      delete _wrInflight[weekId];
+      return summary;
+    })
+    .catch(function(error){delete _wrInflight[weekId];throw error;});
+  return _wrInflight[weekId];
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function wrSetNav(week,index,weeks){
+  var label=wrEl('wrWeekLabel'),dates=wrEl('wrWeekDates'),marker=wrEl('wrWeekCurrent');
+  var prev=wrEl('wrPrevBtn'),next=wrEl('wrNextBtn');
+  // programmeWeekLabel() is the one place a week gets a name — it is what keeps
+  // week 0 reading as "Discovery Week" on every surface.
+  if(label)label.textContent=week?programmeWeekLabel(week.weekNumber):'Weekly review';
+  if(dates)dates.textContent=week?wrRangeLabel(week.startDate,week.endDate):'';
+  if(marker)marker.hidden=!(week&&index===wrCurrentIndex(weeks));
+  if(prev){
+    var hasPrev=index>0;
+    prev.disabled=!hasPrev;
+    prev.setAttribute('aria-disabled',hasPrev?'false':'true');
+  }
+  if(next){
+    var nextWeek=weeks[index+1];
+    var hasNext=!!nextWeek&&!wrIsFuture(nextWeek);
+    next.disabled=!hasNext;
+    next.setAttribute('aria-disabled',hasNext?'false':'true');
+    next.title=hasNext?'':'A week that has not started yet has nothing to review';
+  }
+}
+
+function wrRenderLoading(){
+  var body=wrBody();if(!body)return;
+  body.setAttribute('aria-busy','true');
+  // A skeleton, not the previous week's numbers under a new label.
+  body.innerHTML='<p class="wr-status" role="status">Loading this week’s review…</p>'
+    +'<div class="wr-skeleton" aria-hidden="true">'
+    +'<span></span><span></span><span></span><span></span></div>';
+}
+
+function wrRenderError(message){
+  var body=wrBody();if(!body)return;
+  body.setAttribute('aria-busy','false');
+  body.innerHTML='<div class="wr-error" role="alert">'
+    +'<strong>Weekly review unavailable</strong>'
+    +'<p>'+esc(message||'We could not load this week just now.')+'</p>'
+    +'<button type="button" class="wr-retry" onclick="weeklyReviewRetry()">Try again</button>'
+    +'</div>';
+}
+
+function wrTrainingSection(summary){
+  var t=summary.training;
+  var completion=t.completionPercent==null?'':' · '+t.completionPercent+'%';
+  if(!t.plannedSessions){
+    return wrSection('Sessions',wrEmptyLine('No sessions were scheduled for this week.'));
+  }
+  var rows=['running','cycling','swimming','strength'].map(function(type){
+    var entry=t.byType[type];
+    if(!entry||!entry.planned)return '';
+    return '<li><span>'+esc(wrSportLabel(type))+'</span>'
+      +'<b>'+entry.completed+' of '+entry.planned+'</b></li>';
+  }).join('');
+  var missed='';
+  if(t.missedSessions.length){
+    missed='<p class="wr-note">'+t.missedSessions.length+' past session'
+      +(t.missedSessions.length===1?'':'s')+' not logged: '
+      +t.missedSessions.slice(0,3).map(function(s){return esc(s.title);}).join(', ')
+      +(t.missedSessions.length>3?'…':'')+'.</p>';
+  }
+  return wrSection('Sessions',
+    '<div class="wr-headline"><strong class="readout">'+t.completedSessions+'</strong>'
+    +'<span>of '+t.plannedSessions+' completed'+esc(completion)+'</span></div>'
+    +(rows?'<ul class="wr-split">'+rows+'</ul>':'')+missed);
+}
+
+function wrEnduranceSection(summary){
+  var rows=['running','cycling','swimming'].map(function(sport){
+    var e=summary.endurance[sport];
+    if(!e)return '';
+    var nothingPlanned=e.plannedDistanceKm==null;
+    var nothingDone=!e.actualSessions&&e.actualDistanceKm==null;
+    if(nothingPlanned&&nothingDone)return '';
+    var planned=e.plannedDistanceKm==null?'No planned distance':e.plannedDistanceKm+' km planned';
+    var actual=e.actualDistanceKm!=null
+      ?e.actualDistanceKm+' km over '+e.actualSessions+' session'+(e.actualSessions===1?'':'s')
+      :(e.actualSource==='unavailable'?'Activity data unavailable':'Nothing recorded');
+    var detail=[actual];
+    if(e.actualDurationMinutes!=null)detail.push(e.actualDurationMinutes+' min');
+    var source=wrSourceLabel(e.actualSource);
+    return '<li><span class="wr-endurance-sport">'+esc(wrSportLabel(sport))+'</span>'
+      +'<b>'+esc(planned)+'</b>'
+      +'<small>'+esc(detail.join(' · '))+(source&&e.actualSessions?' · '+esc(source):'')+'</small></li>';
+  }).join('');
+  if(!rows)return wrSection('Distance',wrEmptyLine('No endurance work was planned or recorded.'));
+  return wrSection('Distance','<ul class="wr-endurance">'+rows+'</ul>');
+}
+
+function wrStrengthSection(summary){
+  var s=summary.strength;
+  if(!s.plannedSessions&&!s.workingSets){
+    return wrSection('Strength',wrEmptyLine('No strength work was planned or logged.'));
+  }
+  var volume=s.measurableVolumeKg==null?'Not measurable'
+    :s.measurableVolumeKg.toLocaleString('en-AU')+' kg';
+  var coverageNote='';
+  if(s.volumeCoverage&&s.volumeCoverage.excludedSets>0){
+    coverageNote='<p class="wr-note">'+s.volumeCoverage.measuredSets+' of '
+      +s.volumeCoverage.eligibleSets+' sets carried a load that could be measured.</p>';
+  }
+  var pbs='';
+  if(s.personalBestsStatus==='not_calculated'){
+    pbs='<p class="wr-note">Personal bests could not be checked for this week.</p>';
+  }else if(s.personalBests.length){
+    pbs='<ul class="wr-pbs">'+s.personalBests.map(function(pb){
+      var delta=pb.delta==null?'':' (+'+pb.delta+(pb.type==='reps'?' reps':' kg')+')';
+      return '<li><svg class="icon" aria-hidden="true"><use href="#i-trophy"/></svg>'
+        +'<span><b>'+esc(pb.exercise)+'</b> '+esc(wrPbTypeLabel(pb.type))+' '
+        +esc(String(pb.value))+' '+esc(pb.unit)+esc(delta)+'</span></li>';
+    }).join('')+'</ul>';
+  }
+  return wrSection('Strength',
+    '<div class="wr-metrics">'
+    +wrMetric('Sessions',s.completedSessions+' of '+s.plannedSessions)
+    +wrMetric('Working sets',wrNum(s.workingSets))
+    +wrMetric('Volume',volume)
+    +'</div>'+coverageNote+pbs);
+}
+function wrPbTypeLabel(type){
+  return {load:'load','reps':'reps',e1rm:'estimated 1RM',volume:'session volume'}[type]||type;
+}
+
+function wrRecoverySection(summary){
+  var r=summary.readiness,b=summary.bodyweight;
+  if(!r.daysLogged&&!b.entries){
+    return wrSection('Recovery',wrEmptyLine('No readiness entries were recorded.'));
+  }
+  var change='';
+  if(r.changeFromPreviousWeek!=null){
+    change=(r.changeFromPreviousWeek>0?'+':'')+r.changeFromPreviousWeek+' on last week';
+  }else if(r.average!=null){
+    change='No previous week to compare';
+  }
+  var weight='—',weightDetail='';
+  if(b.changeKg!=null){
+    weight=(b.changeKg>0?'+':'')+b.changeKg+' kg';
+    weightDetail=b.firstKg+' → '+b.lastKg+' kg';
+  }else if(b.entries===1){
+    weight=b.lastKg+' kg';weightDetail='One weigh-in, no change to show';
+  }else{
+    weight='Not recorded';
+  }
+  var components='';
+  if(r.daysLogged){
+    components='<ul class="wr-split wr-components">'
+      +[['Sleep',r.sleepAverage],['Energy',r.energyAverage],['Soreness',r.sorenessAverage],['Stress',r.stressAverage]]
+        .filter(function(pair){return pair[1]!=null;})
+        .map(function(pair){return '<li><span>'+esc(pair[0])+'</span><b>'+pair[1]+'</b></li>';}).join('')
+      +'</ul>';
+  }
+  return wrSection('Recovery',
+    '<div class="wr-metrics">'
+    +wrMetric('Readiness',r.average==null?'Not recorded':r.average+'/100',change)
+    +wrMetric('Days logged',wrNum(r.daysLogged))
+    +wrMetric('Bodyweight',weight,weightDetail)
+    +'</div>'+components);
+}
+
+function wrCheckInSection(summary){
+  var c=summary.checkIn;
+  var text=c.submitted?'Submitted.':'Not submitted for this week.';
+  return '<p class="wr-checkin"><svg class="icon" aria-hidden="true"><use href="#i-'
+    +(c.submitted?'check':'dot-ring')+'"/></svg>Weekly check-in: '+esc(text)+'</p>';
+}
+
+function wrAttentionSection(summary){
+  if(!summary.attention.length)return '';
+  return wrSection('Worth a look',
+    '<ul class="wr-attention">'+summary.attention.map(function(item){
+      // Severity is carried as a word as well as a colour — colour alone is
+      // never the signal.
+      return '<li class="wr-attention-'+esc(item.severity)+'">'
+        +'<svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>'
+        +'<span><b class="wr-severity">'+esc(item.severity==='high'?'Flagged'
+          :item.severity==='medium'?'Worth noting':'For the record')+'</b>'
+        +esc(item.message)+'</span></li>';
+    }).join('')+'</ul>','wr-section--attention');
+}
+
+function wrRenderSummary(summary){
+  var body=wrBody();if(!body)return;
+  body.setAttribute('aria-busy','false');
+  var partial='';
+  if(summary.dataQuality&&summary.dataQuality.partial){
+    partial='<p class="wr-partial" role="status">Some weekly data could not be loaded, '
+      +'so parts of this review are incomplete.</p>';
+  }
+  body.innerHTML=partial
+    +wrTrainingSection(summary)
+    +wrEnduranceSection(summary)
+    +wrStrengthSection(summary)
+    +wrRecoverySection(summary)
+    +wrAttentionSection(summary)
+    +wrCheckInSection(summary);
+}
+
+// ── Controller ───────────────────────────────────────────────────────────────
+function wrShow(index,options){
+  options=options||{};
+  if(!_wrWeeks||!_wrWeeks.length)return Promise.resolve();
+  var bounded=Math.max(0,Math.min(_wrWeeks.length-1,index));
+  _wrIndex=bounded;
+  var week=_wrWeeks[bounded];
+  wrSetNav(week,bounded,_wrWeeks);
+  // One open-event per selected week per page session.
+  if(!_wrTracked[week.id]){_wrTracked[week.id]=1;track('weekly_summary_opened');}
+  if(options.changed)track('weekly_summary_week_changed');
+
+  var cached=_wrCache[week.id];
+  if(cached&&!options.bypassCache){wrRenderSummary(cached);return Promise.resolve();}
+  wrRenderLoading();
+  // A late response for a week the athlete has already navigated away from must
+  // never paint over the week they are looking at now.
+  var seq=++_wrRequestSeq;
+  return wrFetch(week.id,options).then(function(summary){
+    if(seq!==_wrRequestSeq)return;
+    wrRenderSummary(summary);
+  }).catch(function(error){
+    if(seq!==_wrRequestSeq)return;
+    console.warn('Weekly review load failed',error);
+    wrRenderError(error&&error.message);
+  });
+}
+
+function weeklyReviewStep(direction){
+  if(_wrIndex==null||!_wrWeeks)return;
+  var target=_wrIndex+direction;
+  if(target<0||target>=_wrWeeks.length)return;
+  if(direction>0&&wrIsFuture(_wrWeeks[target]))return;
+  wrShow(target,{changed:true});
+}
+
+function weeklyReviewRetry(){
+  if(_wrIndex==null||!_wrWeeks){loadWeeklyReview({force:true});return;}
+  wrShow(_wrIndex,{bypassCache:true});
+}
+
+// Called when Progress opens. Deliberately NOT awaited by loadProgress() — a
+// slow summary must never hold up the weight trend or the photo card, and the
+// portal's own boot never waits on this at all.
+function loadWeeklyReview(options){
+  options=options||{};
+  var card=wrEl('weeklyReviewCard');
+  if(!card)return Promise.resolve();
+  if(_wrWeeks&&_wrIndex!=null&&!options.force){
+    return wrShow(_wrIndex,{});
+  }
+  wrRenderLoading();
+  return wrLoadWeeks(options.force).then(function(weeks){
+    if(!weeks.length){
+      wrSetNav(null,0,[]);
+      var body=wrBody();
+      if(body){
+        body.setAttribute('aria-busy','false');
+        body.innerHTML=wrEmptyLine('Your programme weeks will appear here once your coach has published them.');
+      }
+      return;
+    }
+    return wrShow(_wrIndex==null?wrCurrentIndex(weeks):_wrIndex,{});
+  }).catch(function(error){
+    console.warn('Weekly review weeks failed',error);
+    wrSetNav(null,0,[]);
+    wrRenderError('We could not reach your programme just now.');
+  });
 }

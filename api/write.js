@@ -8,6 +8,7 @@ import { insert, remove, select, upsert } from './_lib/supabase-rest.js';
 import { bearerToken, getRequestAthlete } from './_lib/auth.js';
 import { allowPortalRequest, safeError } from './_lib/http.js';
 import { dispatchCoachAction, isCoachAction, resolveCoachMode } from './_lib/coach-proxy.js';
+import { performanceSummary } from './_lib/performance-summary.js';
 import { syncBookingsForAthlete } from './bookings.js';
 import crypto from 'node:crypto';
 
@@ -1057,6 +1058,10 @@ async function dispatch(action, code, body) {
   if (action === 'body-logs') return bodyLogs(code);
   if (action === 'daily-log-dates') return dailyLogDates(code);
   if (action === 'nutrition-logs') return nutritionLogs(code);
+  // Weekly review. Orchestration and every metric rule live in
+  // _lib/performance-summary.js; this file only routes to it, the same way
+  // every other read here does.
+  if (action === 'performance-summary') return performanceSummary(code, body);
 
   const error = new Error('Unknown portal action');
   error.status = 400;

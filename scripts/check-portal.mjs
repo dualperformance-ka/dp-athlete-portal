@@ -113,12 +113,39 @@ if (!styles.includes('.save-state-pill.saved{opacity:0;pointer-events:none}')) {
 if (nutrition.includes('dp_vstrip_open') || !nutrition.includes('var open=!collapsible;')) {
   failures.push('Training volume should render collapsed by default');
 }
+// Progress hierarchy. The weekly review was deliberately promoted above the
+// photo card on 2026-09-23: the review is the reason an athlete opens Progress
+// mid-block, and the photo check-in is the weekly ritual underneath it. The
+// order below IS the decision — widen it rather than dropping a step.
+const weeklyReviewIndex = index.indexOf('id="weeklyReviewCard"');
 const progressPhotoIndex = index.indexOf('class="card progress-card progress-photo-card progress-photo-priority"');
 const progressBaselineIndex = index.indexOf('class="progress-baseline"');
 const progressTrendIndex = index.indexOf('class="card progress-card progress-trend-card"');
-if (progressPhotoIndex < 0 || progressBaselineIndex < 0 || progressTrendIndex < 0 ||
-    !(progressPhotoIndex < progressBaselineIndex && progressBaselineIndex < progressTrendIndex)) {
-  failures.push('Mobile Progress hierarchy must lead with current-week photos, then baseline and weight trend');
+if (weeklyReviewIndex < 0 || progressPhotoIndex < 0 || progressBaselineIndex < 0 || progressTrendIndex < 0 ||
+    !(weeklyReviewIndex < progressPhotoIndex && progressPhotoIndex < progressBaselineIndex
+      && progressBaselineIndex < progressTrendIndex)) {
+  failures.push('Mobile Progress hierarchy must lead with the weekly review, then current-week photos, baseline and weight trend');
+}
+// The review's own controls. A card that renders numbers with no way to change
+// week, retry a failure or announce a load is not the feature that was built.
+for (const id of ['wrPrevBtn', 'wrNextBtn', 'wrBody', 'wrWeekLabel']) {
+  if (!index.includes(`id="${id}"`)) failures.push(`Weekly review control is missing: ${id}`);
+}
+if (!index.includes('aria-label="Show the previous programme week"') ||
+    !index.includes('aria-label="Show the next programme week"')) {
+  failures.push('Weekly review week navigation needs accessible names');
+}
+{
+  const progress = readFileSync(join(publicDir, 'js', '07-progress.js'), 'utf8');
+  for (const marker of ["portalRequest('performance-summary'", 'weeklyReviewRetry', 'wrRenderLoading', 'wr-partial']) {
+    if (!progress.includes(marker)) failures.push(`Weekly review client behaviour is missing: ${marker}`);
+  }
+  // The summary is derived health and training data. It lives in memory for the
+  // page session and is re-fetched on reload; it must never be written to the
+  // device, where a stale copy would outlive the session with no way to revoke it.
+  if (/_wrCache[\s\S]{0,400}localStorage/.test(progress)) {
+    failures.push('The weekly review summary must not be persisted to localStorage');
+  }
 }
 for (const id of ['photoCurrentAction', 'photoAngleStatuses', 'photoModalProgressFill', 'photoNextBtn', 'photoHistoryDetails']) {
   if (!index.includes(`id="${id}"`)) failures.push(`Adaptive progress photo control is missing: ${id}`);
