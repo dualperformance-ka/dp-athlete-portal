@@ -48,6 +48,18 @@
   --readout-text:rgba(146,210,237,.82);
   --readout-soft:rgba(146,210,237,.08);
   --readout-line:rgba(146,210,237,.16);
+  /* ─── PLATES ─────────────────────────────────────────────────────────
+     A panel's fill is a plate — a slight gradient so the light still reads
+     as coming from above — not a flat token. These are the ONLY place the
+     plate colours are written. Daylight then flips them once, instead of
+     every panel carrying a hard-coded dark gradient of its own: that is
+     what left the Progress, Fuel, Goals, Guide, Contact and Check-in
+     panels near-black in daylight while their ink flipped to near-black
+     with them. */
+  --plate-0:linear-gradient(180deg,rgba(19,19,18,.76),rgba(13,12,12,.58));
+  --plate-1:linear-gradient(155deg,rgba(26,25,24,.92),rgba(13,12,12,.92));
+  --plate-2:linear-gradient(155deg,rgba(26,25,24,.98),rgba(13,12,12,.98));
+  --plate-glow:radial-gradient(circle at 100% 0%,rgba(146,210,237,.10),transparent 38%);
   /* Every overlay's backdrop. One value, both themes. */
   --scrim:rgba(0,0,0,.55);
   /* Visible outline for a CONTROL (tick, toggle). --border-* are deliberately
@@ -1601,6 +1613,17 @@ body{font-size:var(--font-md);line-height:1.55}
   --alert:#b42318;
   --done-text:#137a49;--watch-text:var(--amber-ink);--strava-text:#c73b00;
   --readout-text:var(--t-2);--readout-soft:var(--run-bg);--readout-line:var(--run-border);
+  /* Paper plates, lit from above: the feature panel is the brightest, the
+     ground the warmest. The accent glow becomes a soft shade instead. */
+  --plate-0:linear-gradient(180deg,#f2f0ea,#eae7e0);
+  --plate-1:linear-gradient(155deg,#f6f4ef,#edebe4);
+  --plate-2:linear-gradient(155deg,#fbfaf7,#f2f0ea);
+  --plate-glow:radial-gradient(circle at 100% 0%,rgba(27,26,24,.05),transparent 38%);
+  /* --readout DOES flip, unlike the other semantics. It is the live-number
+     colour and those numbers now sit on paper plates; baby blue on paper is
+     1.3:1. --readout-ink stays --g-0, so a readout-filled chip is still
+     light ink on the fill. */
+  --readout:var(--t-1);
   --control-line:rgba(27,26,24,.30);
   --toast-alert:#3b0d10;--toast-alert-ink:#ffe4e6;
   /* A PB field is a tinted input the athlete reads numbers off, so in daylight
@@ -1925,9 +1948,9 @@ body.focus-session-open{overflow:hidden}
   .tab{min-height:48px;padding-left:18px;padding-right:18px;transition:color .16s,background .16s}.tab:hover{color:var(--text);background:rgba(236,233,226,.025)}
   #tab-training.active,#tab-weekly.active{padding-top:34px}
   #tab-training .todaywrap{filter:drop-shadow(0 28px 55px rgba(0,0,0,.26))}
-  #tab-training .todaypanel{position:relative;overflow:hidden;border-color:rgba(146,210,237,.14);background:linear-gradient(155deg,rgba(26,25,24,.98),rgba(13,12,12,.98));box-shadow:inset 0 1px 0 rgba(236,233,226,.045),0 24px 60px rgba(0,0,0,.34)}
+  #tab-training .todaypanel{position:relative;overflow:hidden;border-color:var(--border);background:var(--plate-2);box-shadow:var(--edge-float)}
   #tab-training .todaypanel::before{content:"";position:absolute;left:26px;right:26px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(146,210,237,.7),transparent);opacity:.62}
-  #tab-weekly>#weeklyCalEl{position:relative;max-width:none;width:100%;padding:26px 28px 34px;border:1px solid rgba(236,233,226,.075);border-radius:var(--radius-xl);background:linear-gradient(180deg,rgba(19,19,18,.76),rgba(13,12,12,.58));box-shadow:inset 0 1px 0 rgba(236,233,226,.025),0 22px 60px rgba(0,0,0,.2)}
+  #tab-weekly>#weeklyCalEl{position:relative;max-width:none;width:100%;padding:26px 28px 34px;border:1px solid var(--border);border-radius:var(--radius-xl);background:var(--plate-0);box-shadow:var(--edge-float)}
   #tab-weekly>#weeklyCalEl .week-plan-title{margin-bottom:22px;color:var(--muted);font-size:var(--font-xs)}
   #tab-weekly>#weeklyCalEl .dg{opacity:1;margin-bottom:20px}
   #tab-weekly>#weeklyCalEl .dgh{padding-bottom:10px;margin-bottom:9px}
@@ -3064,7 +3087,11 @@ body.day-plan-open{overflow:hidden}
      legacy alias. Type indicator is the step-2 .session-mark shape plus the
      type colour on the leading edge; completion is the tick; a long press
      opens reschedule (08-training.js) and .is-holding is its affordance. */
-  .day-cell,.mobile-week-session{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;min-height:32px;padding:5px 8px;border:0;border-radius:var(--radius-sm);background:color-mix(in srgb,var(--t-1) 5.5%,transparent);box-shadow:inset 3px 0 0 var(--t-3);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .16s ease,box-shadow .16s ease,transform var(--dur-state) ease}
+  /* Three tracks for three children: type mark, copy, status marks. With two
+     declared, the marks wrapped to an implicit second row — the tick floated
+     under the name and the name was pushed into the `auto` track, reading
+     right-aligned. The copy takes the slack; the outer two size to content. */
+  .day-cell,.mobile-week-session{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;min-height:32px;padding:5px 8px;border:0;border-radius:var(--radius-sm);background:color-mix(in srgb,var(--t-1) 5.5%,transparent);box-shadow:inset 3px 0 0 var(--t-3);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .16s ease,box-shadow .16s ease,transform var(--dur-state) ease}
   .mobile-week-session:active{transform:scale(.985)}
   /* Long-press affordance: the leading edge fills while the finger is held,
      so holding visibly does something before the sheet opens. */
@@ -3175,7 +3202,7 @@ body.day-plan-open{overflow:hidden}
   body[data-active-tab="today"] .hero-shell{gap:0}
   body[data-active-tab="today"] .hero-main{
     padding:11px 13px 10px;border-radius:var(--radius-lg);
-    background:radial-gradient(circle at 100% 0%,rgba(146,210,237,.09),transparent 38%),linear-gradient(155deg,rgba(26,25,24,.96),rgba(13,12,12,.96));
+    background:var(--plate-glow),var(--plate-2);
   }
   body[data-active-tab="today"] .hi{display:block;font-family:var(--mono);font-size:var(--fs-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--t-3);margin-bottom:6px}
   body[data-active-tab="today"] .hero-name-row{align-items:center;margin-bottom:4px}
@@ -3199,8 +3226,8 @@ body.day-plan-open{overflow:hidden}
 
   body[data-active-tab="today"] #todayEl{display:block!important;max-width:none;margin:6px 0 0}
   body[data-active-tab="today"] #todayEl .todaypanel{
-    padding:10px;border:1px solid rgba(236,233,226,.92);border-radius:var(--radius-lg);
-    background:radial-gradient(circle at 100% 0%,rgba(146,210,237,.1),transparent 35%),linear-gradient(155deg,rgba(26,25,24,.98),rgba(13,12,12,.98));
+    padding:10px;border:1px solid var(--border);border-radius:var(--radius-lg);
+    background:var(--plate-glow),var(--plate-2);
     box-shadow:0 16px 38px rgba(0,0,0,.26),inset 0 1px 0 rgba(236,233,226,.08);
   }
   body[data-active-tab="today"] .today-mobile-heading{
@@ -3398,7 +3425,7 @@ body.day-plan-open{overflow:hidden}
 
   body[data-active-tab="checkin"] .ci-main{
     margin-top:10px;padding:14px;border:1px solid var(--border);border-radius:var(--radius-lg);
-    background:linear-gradient(155deg,rgba(26,25,24,.94),rgba(13,12,12,.94));
+    background:var(--plate-1);
     box-shadow:inset 0 1px 0 rgba(236,233,226,.04),0 16px 38px rgba(0,0,0,.2);
   }
   body[data-active-tab="checkin"] .ci-form-kicker{margin-bottom:10px;font-size:var(--font-xs);color:var(--run)}
@@ -3586,8 +3613,8 @@ body.day-plan-open{overflow:hidden}
 }
 #tab-progress .progress-card{
   position:relative;overflow:hidden;border-color:var(--border);
-  background:linear-gradient(155deg,rgba(26,25,24,.92),rgba(13,12,12,.92));
-  box-shadow:inset 0 1px 0 rgba(236,233,226,.035),0 16px 38px rgba(0,0,0,.18);
+  background:var(--plate-1);
+  box-shadow:var(--edge-lift);
 }
 #tab-progress .progress-card::before{
   content:"";position:absolute;left:18px;right:18px;top:0;height:1px;
@@ -3650,8 +3677,7 @@ html.outdoor-mode .weight-log-toggle{background:rgba(19,19,18,.035)}
   }
   body[data-active-tab="progress"] #tab-progress .progress-intro{
     margin:0 0 9px;padding:16px;border-radius:var(--radius-lg);
-    background:radial-gradient(circle at 100% 0%,rgba(146,210,237,.11),transparent 40%),
-      linear-gradient(155deg,rgba(26,25,24,.96),rgba(13,12,12,.96));
+    background:var(--plate-glow),var(--plate-2);
     box-shadow:inset 0 1px 0 rgba(236,233,226,.045),0 14px 34px rgba(0,0,0,.2);
   }
   body[data-active-tab="progress"] #tab-progress .page-kicker{margin-bottom:5px;font-size:var(--font-xs)}
@@ -3773,6 +3799,10 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   font-family:var(--body);font-size:var(--font-xs);font-weight:650;color:var(--muted);cursor:pointer;
 }
 .portal-signout .icon{width:14px;height:14px}
+/* Sign out closes Preferences, below the data controls and separated from
+   them, so it never reads as part of an export or deletion request. */
+.preferences-signout{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.preferences-signout .portal-signout{margin-top:0}
 .preference-icon,.summary-metric-icon{
   display:grid;place-items:center;flex:0 0 auto;border:1px solid var(--run-border);
   background:var(--run-bg);color:var(--run);
@@ -3820,7 +3850,7 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
   body:is([data-active-tab="nutrition"],[data-active-tab="goals"],[data-active-tab="handbook"],[data-active-tab="comms"]) .tab-content.active>.card,
   body:is([data-active-tab="nutrition"],[data-active-tab="goals"],[data-active-tab="handbook"],[data-active-tab="comms"]) .tab-content.active #nutContent>.card{
     margin-bottom:9px;padding:14px;border:1px solid var(--border);border-radius:var(--radius-lg);
-    background:linear-gradient(155deg,rgba(26,25,24,.92),rgba(13,12,12,.92));
+    background:var(--plate-1);
     box-shadow:inset 0 1px 0 rgba(236,233,226,.035),0 14px 32px rgba(0,0,0,.16);
   }
 
@@ -5122,10 +5152,8 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
    running volume and the raw weight log stay available without competing
    with the current-week decision. */
 .progress-photo-priority{
-  border-color:rgba(146,210,237,.2)!important;
-  background:
-    radial-gradient(circle at 100% 0%,rgba(146,210,237,.075),transparent 38%),
-    linear-gradient(155deg,rgba(26,25,24,.96),rgba(13,12,12,.94))!important;
+  border-color:var(--readout-line)!important;
+  background:var(--plate-glow),var(--plate-2)!important;
 }
 .photo-current-action{
   display:block;width:100%;padding:16px;border:1px solid rgba(146,210,237,.24);
