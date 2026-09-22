@@ -749,7 +749,8 @@ var REMINDER_OPTIONS=[
   {key:'checkins',icon:'clipboard',label:'Weekly check-ins',sub:'Sunday, until your review is in'},
   {key:'photos',icon:'camera',label:'Progress photos',sub:'Monday on photo weeks'},
   {key:'calls',icon:'chat',label:'Coaching calls',sub:'Morning of, then two hours before'},
-  {key:'coach',icon:'chat',label:'Programme changes',sub:'When we update your plan'}
+  {key:'coach',icon:'chat',label:'Programme changes',sub:'When we update your plan'},
+  {key:'weekly_review',icon:'clipboard',label:'Weekly review',sub:'7 pm Sunday, when your week is ready'}
 ];
 function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp_reminders_'+((athlete&&athlete.code)||'default'))||'{}');}catch(e){return{};}}
 function reminderStorageKey(){return'dp_reminders_'+((athlete&&athlete.code)||'default');}

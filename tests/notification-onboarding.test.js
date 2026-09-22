@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { resolvePrefs } from '../api/_lib/push-devices.js';
+import { MANAGED_CATEGORIES, resolvePrefs } from '../api/_lib/push-devices.js';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const nav = readFileSync(join(root, 'public', 'js', '03-nav-nudges.js'), 'utf8');
@@ -67,11 +67,23 @@ test('subscribing never overwrites stored prefs with an empty object', () => {
   assert.match(reminders, /if \(cleanPrefs\) row\.prefs = cleanPrefs;/);
 });
 
+// The literal list is deliberate rather than derived from MANAGED_CATEGORIES:
+// deriving it would make the assertion circular and a category silently
+// dropping out would still pass. EVERY_CATEGORY is checked against
+// MANAGED_CATEGORIES separately, so the two cannot drift apart either.
+// weekly_review joined the set on 2026-09-23.
+const EVERY_CATEGORY = {
+  sessions: true, logging: true, checkins: true, photos: true, calls: true,
+  coach: true, weekly_review: true,
+};
+
+test('the managed set and the shipped categories are the same list', () => {
+  assert.deepEqual(Object.keys(EVERY_CATEGORY).sort(), [...MANAGED_CATEGORIES].sort());
+});
+
 test('a managed athlete receives every category regardless of stored prefs', () => {
   const rows = [{ prefs: { sessions: true, checkins: false, photos: false, coach: false }, updated_at: '2026-08-19T00:00:00.000Z' }];
-  assert.deepEqual(resolvePrefs(rows, { managed: true }), {
-    sessions: true, logging: true, checkins: true, photos: true, calls: true, coach: true
-  });
+  assert.deepEqual(resolvePrefs(rows, { managed: true }), EVERY_CATEGORY);
 });
 
 test('an exempt athlete keeps the choice they last made', () => {
@@ -95,9 +107,7 @@ test('an athlete missing from the exemption lookup defaults to managed', () => {
   // with no row must not silently get nothing.
   assert.match(reminders, /select: 'code,notifications_managed'/);
   assert.match(reminders, /managed: rosterRow\.notifications_managed !== false/);
-  assert.deepEqual(resolvePrefs([], { managed: true }), {
-    sessions: true, logging: true, checkins: true, photos: true, calls: true, coach: true
-  });
+  assert.deepEqual(resolvePrefs([], { managed: true }), EVERY_CATEGORY);
 });
 
 test('new shell versions publish onboarding changes to installed PWAs', () => {

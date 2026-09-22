@@ -6,6 +6,14 @@ export const LOGGING_HOUR = 19;
 export const LOGGING_MINUTE = 30;
 export const QUIET_HOUR = 21;
 export const DAILY_PUSH_CAP = 3;
+// The weekly review lands on Sunday evening, while the week is still the one
+// the athlete is living in. `dow` is the index localNow() produces, so Sunday
+// is 0. 19:00 sits inside the waking window and ahead of the 19:30 logging
+// nudge, so the review is the first thing they see rather than a footnote to
+// "you still have a session open".
+export const WEEKLY_REVIEW_DOW = 0;
+export const WEEKLY_REVIEW_HOUR = 19;
+export const WEEKLY_REVIEW_MINUTE = 0;
 
 export function minuteMatches(now, hour, minute, windowMinutes = 2) {
   if (!now) return false;
@@ -121,6 +129,23 @@ export function buildCoachMessage(changes = [], iso = '', options = {}) {
     url: changes.find((row) => row?.detail?.date)?.detail?.date ? `/?tab=training&date=${changes.find((row) => row?.detail?.date).detail.date}` : '/',
     dedupeKey: `coach:${options.future ? 'future:' : ''}${newest}:${digest}`,
     push: !options.future,
+  };
+}
+
+// The notification deliberately carries NO figures. Computing the summary for
+// every athlete inside the cron would duplicate the whole metric layer on a
+// path that runs every minute, and any number baked in here could disagree with
+// the card by the time it is opened — the week is still open at 7pm Sunday, and
+// a late session would make the push a lie. It says the review is ready and
+// deep-links to it; the card is the single place the numbers are produced.
+export function buildWeeklyReviewMessage(iso = '', weekLabel = '') {
+  const label = String(weekLabel || '').trim();
+  return {
+    type: 'weekly_review',
+    title: label ? `${label} in review` : 'Your week in review',
+    body: 'Sessions, distance, strength and recovery for the week, in one place.',
+    url: '/?tab=progress',
+    dedupeKey: `weekly-review:${iso}`,
   };
 }
 
