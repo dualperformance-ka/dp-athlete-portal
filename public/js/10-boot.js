@@ -429,7 +429,10 @@ window.closeEnhancedModal = closeEnhancedModal;
     mintedAt = 0;
     btn.removeAttribute('href');
     btn.innerHTML = STRAVA_LOGO + ' ' + (DEBUG ? label.debug : label.friendly);
-    btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:transparent;color:rgba(255,255,255,.45);border-color:rgba(255,255,255,.18);box-shadow:none;text-decoration:none;cursor:pointer;';
+    // Tokens, not literals: an inline style beats every stylesheet rule, so a
+    // hard-coded white here stayed white on daylight paper and the chip went
+    // invisible. --t-3 and --control-line flip with the theme.
+    btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:transparent;color:var(--t-3);border-color:var(--control-line);box-shadow:none;text-decoration:none;cursor:pointer;';
     btn.title = reason;
     btn.setAttribute('aria-label', 'Strava: ' + reason);
   }
@@ -463,7 +466,7 @@ window.closeEnhancedModal = closeEnhancedModal;
     stopRefresh();
     btn.removeAttribute('href');
     btn.innerHTML = '<span class="btn-ic"><svg class="icon"><use href="#i-check"/></svg></span>Strava connected';
-    btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:rgba(74,222,128,.9);border-color:rgba(74,222,128,.35);box-shadow:none;text-decoration:none;pointer-events:none;';
+    btn.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:var(--done-text);border-color:color-mix(in srgb,var(--done) 35%,transparent);box-shadow:none;text-decoration:none;pointer-events:none;';
     btn.title = activitiesAvailable === false
       ? (warning === 'strava_access_denied'
           ? 'Strava is connected, but is refusing to share activities with this app. Your logs still work.'

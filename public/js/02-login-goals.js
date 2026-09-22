@@ -187,8 +187,11 @@ async function doLogin(code,prevalidatedRoster){
   // Coaches authenticate with an athlete access code; clients use email OTP.
   // Keep sign-out available to coaches inside Contact without exposing it in
   // the athlete experience.
+  var isCoachSession=localStorage.getItem('dp_auth_method')==='code';
   var coachLogout=document.getElementById('coachLogoutBtn');
-  if(coachLogout)coachLogout.style.display=localStorage.getItem('dp_auth_method')==='code'?'flex':'none';
+  if(coachLogout)coachLogout.style.display=isCoachSession?'flex':'none';
+  var prefsSignOut=document.getElementById('preferencesSignOut');
+  if(prefsSignOut)prefsSignOut.style.display=isCoachSession?'block':'none';
   requestPersistentPortalStorage();
   maybeShowEmailUpgradePrompt(roster);
   updatePendingQueueIndicator();

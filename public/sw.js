@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v220'; // v220: week 0 lookups accept both stored spellings, so a discovery week finds its plan and sessions
+const CACHE_NAME = 'dp-athlete-v221'; // v221: daylight plates are token-driven, week rows get their third grid track, sign-out moves into Preferences
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=174', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=175', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
-  '/js/02-login-goals.js?v=119',
+  '/js/02-login-goals.js?v=120',
   '/js/03-nav-nudges.js?v=123',
   '/js/04-checkin.js?v=104',
   '/js/05-handbook.js?v=89',
@@ -17,7 +17,7 @@ const APP_SHELL = [
   '/js/08-training.js?v=152',
   '/js/09-logging.js?v=127',
   '/accessibility.js?v=3',
-  '/js/10-boot.js?v=110',
+  '/js/10-boot.js?v=111',
   '/login.js?v=50', '/icons.css?v=4',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
