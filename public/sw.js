@@ -1,13 +1,13 @@
-const CACHE_NAME = 'dp-athlete-v225'; // v225: premium DP-blue field focus in both themes
+const CACHE_NAME = 'dp-athlete-v226'; // v226: one-screen mobile Home with fuel and Strava progress
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=178', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=179', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
   '/js/02-login-goals.js?v=120',
-  '/js/03-nav-nudges.js?v=124',
+  '/js/03-nav-nudges.js?v=125',
   '/js/04-checkin.js?v=104',
   '/js/05-handbook.js?v=89',
-  '/js/06-nutrition.js?v=106',
+  '/js/06-nutrition.js?v=107',
   '/js/07-progress.js?v=92',
   '/js/strava-match.js?v=8',
   '/js/08-training-interval-rest.js?v=1',

@@ -659,10 +659,11 @@ function setMobileNav(tab){
 }
 function syncTodayPlacement(){
   var today=document.getElementById('todayEl');
+  var fuel=document.getElementById('todayFuelTarget');
   var anchor=document.getElementById('todayHomeAnchor');
   var topShell=document.querySelector('.top-shell');
   var priority=document.querySelector('.top-shell-priority');
-  if(!today||!anchor||!topShell||!priority)return;
+  if(!today||!fuel||!anchor||!topShell||!priority)return;
   var mobile=!(window.matchMedia&&window.matchMedia('(min-width:900px)').matches);
   if(mobile&&document.body.getAttribute('data-active-tab')==='today'){
     // Instrument composition: the hero leads with TODAY'S SESSION, not the
@@ -679,8 +680,18 @@ function syncTodayPlacement(){
     }else if(today.parentNode!==topShell){
       topShell.insertBefore(today,priority);
     }
+    // Fuel is part of the opening dashboard, not a second page below it. It
+    // follows the collapsed reminder stack so two sessions and all five daily
+    // targets remain visible above the fixed navigation. Expanding "+ more"
+    // grows this same document normally, so the athlete can then scroll.
+    if(fuel.parentNode!==topShell||fuel.previousElementSibling!==priority){
+      topShell.insertBefore(fuel,priority.nextSibling);
+    }
   }else if(anchor.parentNode&&today.parentNode!==anchor.parentNode){
     anchor.parentNode.insertBefore(today,anchor.nextSibling);
+    anchor.parentNode.insertBefore(fuel,today.nextSibling);
+  }else if(anchor.parentNode&&fuel.parentNode!==anchor.parentNode){
+    anchor.parentNode.insertBefore(fuel,today.nextSibling);
   }
 }
 if(window.matchMedia){

@@ -118,6 +118,74 @@ test('1. code login renders the portal and today’s session', async ({ page }) 
   expect(await page.evaluate(async () => !!(await navigator.serviceWorker.ready).active)).toBe(true);
 });
 
+test('mobile Home keeps two sessions, Strava progress and every macro above the navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await codeLogin(page);
+  const emailPrompt = page.getByRole('button', { name: 'Dismiss email sign-in suggestion' });
+  if (await emailPrompt.isVisible()) await emailPrompt.click();
+  await expect.poll(() => page.evaluate(() => _nutLastLoad > 0)).toBe(true);
+  await page.evaluate(() => {
+    // Connected athletes keep a useful Strava readout even in a week where a
+    // coach distance target has not been published yet.
+    renderKmTracker({ target: null, completed: 12.5, source: 'strava' });
+    renderNavigationFuelTargets({
+      cal: { display: '2300', min: 2300 },
+      pro: { display: '160', min: 160 },
+      carb: { display: '275', min: 275 },
+      fat: { display: '70', min: 70 },
+      fibre: { display: '30', min: 30 },
+    });
+    const list = document.querySelector('#todayEl .todaylist');
+    if (list && list.firstElementChild) {
+      const second = list.firstElementChild.cloneNode(true);
+      second.querySelector('.todayname').textContent = 'Easy Run';
+      second.querySelector('.todaymeta').textContent = '30 min · Planned';
+      list.appendChild(second);
+    }
+    syncTodayPlacement();
+  });
+
+  const fuel = page.locator('#todayFuelTarget');
+  await expect(fuel).toBeVisible();
+  await expect(page.locator('#kmBar')).toBeVisible();
+  await expect(page.locator('#kmSrcStrava')).toBeVisible();
+  await expect(page.locator('#kmDoneVal')).toHaveText('12.5');
+  await expect(page.locator('#kmTargetSep')).toBeHidden();
+  await expect(page.locator('#todayEl .todayitem')).toHaveCount(2);
+  await expect(page.locator('#todayFuelTarget .fuel-target-grid > div')).toHaveCount(5);
+
+  const layout = await page.evaluate(() => {
+    const fuelCard = document.getElementById('todayFuelTarget');
+    const bottomNav = document.querySelector('.mobile-nav');
+    const readiness = document.getElementById('heroReadinessCard');
+    return {
+      fuelParent: fuelCard.parentElement.className,
+      fuelBottom: fuelCard.getBoundingClientRect().bottom,
+      navTop: bottomNav.getBoundingClientRect().top,
+      readinessHeight: readiness.getBoundingClientRect().height,
+      fuelOverflow: fuelCard.scrollWidth - fuelCard.clientWidth,
+    };
+  });
+  expect(layout.fuelParent).toContain('top-shell');
+  expect(layout.fuelBottom).toBeLessThanOrEqual(layout.navTop - 6);
+  expect(layout.readinessHeight).toBeLessThanOrEqual(34);
+  expect(layout.fuelOverflow).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: 'test-results/mobile-home-opening.png', fullPage: false });
+
+  await page.evaluate(() => applyOutdoorMode(false, false));
+  await page.waitForTimeout(350);
+  const darkFuelBottom = await fuel.evaluate(node => node.getBoundingClientRect().bottom);
+  const darkNavTop = await page.locator('.mobile-nav').evaluate(node => node.getBoundingClientRect().top);
+  expect(darkFuelBottom).toBeLessThanOrEqual(darkNavTop - 6);
+  await page.screenshot({ path: 'test-results/mobile-home-opening-dark.png', fullPage: false });
+
+  const collapsedHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+  await page.locator('#nudgeSummaryRow').click();
+  await expect(page.locator('#nudgeSummaryRow')).toHaveAttribute('aria-expanded', 'true');
+  const expandedHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+  expect(expandedHeight).toBeGreaterThan(collapsedHeight);
+});
+
 test('2. email OTP login lands on the same portal state', async ({ page }) => {
   await mockPortal(page);
   await page.goto('/index.html');

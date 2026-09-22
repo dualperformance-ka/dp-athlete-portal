@@ -1,28 +1,36 @@
 function renderKmTracker(kmData){
   var bar=document.getElementById('kmBar');
   if(!bar) return;
-  if(!kmData || kmData.target==null || isNaN(kmData.target) || Number(kmData.target)<=0){
+  var hasTarget=!!(kmData&&kmData.target!=null&&!isNaN(kmData.target)&&Number(kmData.target)>0);
+  var hasStravaProgress=!!(kmData&&kmData.source==='strava'&&kmData.completed!=null&&!isNaN(kmData.completed));
+  if(!hasTarget&&!hasStravaProgress){
     bar.style.display='none';
     return;
   }
-  var target=Number(kmData.target);
+  var target=hasTarget?Number(kmData.target):null;
   var done=Number(kmData.completed||0);
   if(isNaN(done)||done<0) done=0;
-  var pct=Math.min(100,Math.round(done/target*100));
+  var pct=hasTarget?Math.min(100,Math.round(done/target*100)):0;
   var fmt=function(n){return n.toFixed(1).replace(/\.0$/,'');};
-  document.getElementById('kmTargetVal').textContent=fmt(target);
+  var targetEl=document.getElementById('kmTargetVal');
+  var targetSep=document.getElementById('kmTargetSep');
+  if(targetEl){targetEl.textContent=hasTarget?fmt(target):'';targetEl.style.display=hasTarget?'':'none';}
+  if(targetSep) targetSep.style.display=hasTarget?'':'none';
   var doneEl=document.getElementById('kmDoneVal');
   if(doneEl) doneEl.textContent=fmt(done);
   var progress=document.getElementById('kmProgress');
   var progressFill=document.getElementById('kmProgressFill');
   if(progress){
     progress.setAttribute('aria-valuenow',String(done));
-    progress.setAttribute('aria-valuemax',String(target));
+    if(hasTarget) progress.setAttribute('aria-valuemax',String(target));
+    else progress.removeAttribute('aria-valuemax');
+    progress.setAttribute('aria-valuetext',hasTarget?(fmt(done)+' of '+fmt(target)+' kilometres'):(fmt(done)+' kilometres synced from Strava'));
   }
   if(progressFill) progressFill.style.width=pct+'%';
   var srcEl=document.getElementById('kmSrcStrava');
   if(srcEl) srcEl.style.display=(kmData.source==='strava')?'':'none';
-  bar.classList.toggle('km-hit',done>=target);
+  bar.classList.toggle('km-hit',hasTarget&&done>=target);
+  if(progress) progress.classList.toggle('metric-track-empty',!hasTarget);
   bar.style.display='';
 }
 // The retired Nutrition tab stacked five personalised macro numbers on top of
@@ -647,10 +655,14 @@ async function loadNutrition(){
     currentNutTargets=null;
     currentNutCoachNote='';
     renderNavigationFuelTargets(null);
+    var noPlanMetrics=volumeWeek&&volumeWeek.actualBySport&&volumeWeek.actualBySport.running;
     if(coachRunTarget&&volumeData.targetState!=='error'){
-      var noPlanMetrics=volumeWeek.actualBySport&&volumeWeek.actualBySport.running;
       currentWeekKmData={week:weekLabel,target:coachRunTarget.distanceTargetMetres/1000,
         completed:noPlanMetrics?noPlanMetrics.distanceMetres/1000:0,source:'strava',locked:true};
+      renderKmTracker(currentWeekKmData);
+    }else if(volumeData&&volumeData.hasActual&&noPlanMetrics){
+      currentWeekKmData={week:weekLabel,target:null,
+        completed:noPlanMetrics.distanceMetres/1000,source:'strava',locked:false};
       renderKmTracker(currentWeekKmData);
     }else document.getElementById('kmBar').style.display='none';
     // No nutrition row still leaves a planned-session km target for the week list.
@@ -742,7 +754,7 @@ async function loadNutrition(){
   // painted with both halves of what they show.
   renderNavigationFuelTargets(currentNutTargets);
 
-  if(kmTarget!=null){
+  if(kmTarget!=null||hasStrava){
     renderKmTracker({target:kmTarget,completed:kmCompleted,source:currentWeekKmData.source});
   }else{
     document.getElementById('kmBar').style.display='none';

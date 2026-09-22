@@ -16,8 +16,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=178" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=178'></noscript>
+<link rel="preload" as="style" href="/styles.css?v=179" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=179'></noscript>
 <link rel="stylesheet" href="/desktop.css?v=14">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
@@ -241,7 +241,7 @@
             <div id="kmBar" class="metric-cell" style="display:none">
               <span class="metric-head">
                 <span class="metric-label">Distance</span>
-                <span class="metric-val readout readout--compact"><span id="kmDoneVal">0</span><small class="readout-unit">/<span id="kmTargetVal">—</span> km</small></span>
+                <span class="metric-val readout readout--compact"><span id="kmDoneVal">0</span><small class="readout-unit"><span id="kmTargetSep">/</span><span id="kmTargetVal">—</span> km</small></span>
               </span>
               <span class="metric-track metric-bar" id="kmProgress" role="progressbar" aria-label="Weekly running volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="metric-bar-fill" id="kmProgressFill"></span></span>
               <span class="metric-note" id="kmSrcStrava" style="display:none"><svg width="9" height="9" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg> Strava</span>
@@ -1435,10 +1435,10 @@
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/01-core.js?v=128"></script>
 <script src="js/02-login-goals.js?v=120"></script>
-<script src="js/03-nav-nudges.js?v=124"></script>
+<script src="js/03-nav-nudges.js?v=125"></script>
 <script src="js/04-checkin.js?v=104"></script>
 <script src="js/05-handbook.js?v=89"></script>
-<script src="js/06-nutrition.js?v=106"></script>
+<script src="js/06-nutrition.js?v=107"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=92" hidden></span>
 <script type="module" src="js/strava-match.js?v=8"></script>
 <script src="js/08-training-interval-rest.js?v=1"></script>
