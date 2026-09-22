@@ -1,10 +1,10 @@
-const CACHE_NAME = 'dp-athlete-v222'; // v222: weekly review card leads the Progress tab, served by the performance-summary action
+const CACHE_NAME = 'dp-athlete-v223'; // v223: weekly review reminder, 7pm Sunday in each athlete local timezone
 const APP_SHELL = [
   '/index.html', '/styles.css?v=176', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
   '/js/02-login-goals.js?v=120',
-  '/js/03-nav-nudges.js?v=123',
+  '/js/03-nav-nudges.js?v=124',
   '/js/04-checkin.js?v=104',
   '/js/05-handbook.js?v=89',
   '/js/06-nutrition.js?v=106',

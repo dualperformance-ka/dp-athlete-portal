@@ -21,9 +21,22 @@ import { allowPortalRequest, safeError } from './_lib/http.js';
 import { clearInbox, dismissInboxNotification, listInbox, markInboxRead } from './_lib/notification-inbox.js';
 import { groupByAthlete, mergeLastSent, resolvePrefs, selectLiveDevices } from './_lib/push-devices.js';
 import {
-  DAILY_PUSH_CAP, MORNING_HOUR, MORNING_MINUTE, LOGGING_HOUR, LOGGING_MINUTE,
-  buildCallMessage, buildCoachMessage, buildLoggingMessage, buildMorningMessage,
-  isQuietTime, minuteMatches, partitionCoachChanges,
+  DAILY_PUSH_CAP,
+  LOGGING_HOUR,
+  LOGGING_MINUTE,
+  MORNING_HOUR,
+  MORNING_MINUTE,
+  WEEKLY_REVIEW_DOW,
+  WEEKLY_REVIEW_HOUR,
+  WEEKLY_REVIEW_MINUTE,
+  buildCallMessage,
+  buildCoachMessage,
+  buildLoggingMessage,
+  buildMorningMessage,
+  buildWeeklyReviewMessage,
+  isQuietTime,
+  minuteMatches,
+  partitionCoachChanges,
 } from './_lib/notification-rules.js';
 
 const DONE_STATUS = /^(done|completed?|complete|skipped|missed)$/i;
@@ -456,6 +469,12 @@ async function handleCronSend(req, res) {
     if (!now) { skippedZones++; continue; }
     const morning = minuteMatches(now, MORNING_HOUR, MORNING_MINUTE);
     const logging = minuteMatches(now, LOGGING_HOUR, LOGGING_MINUTE);
+    // Sunday 19:00 in the athlete's OWN zone. localNow() resolves through Intl
+    // with the stored timezone, so this stays 7pm across South Australia's
+    // October daylight-saving switch instead of drifting to 6pm like a fixed
+    // UTC schedule would.
+    const weeklyReview = now.dow === WEEKLY_REVIEW_DOW
+      && minuteMatches(now, WEEKLY_REVIEW_HOUR, WEEKLY_REVIEW_MINUTE);
     const quiet = isQuietTime(now);
     const due = await computeDue(zoneAthletes.map((a) => a.code), now);
 
@@ -484,6 +503,16 @@ async function handleCronSend(req, res) {
       }
       if (athlete.prefs.calls) {
         for (const call of athleteDue.callsSoon || []) messages.push({ ...buildCallMessage(call, now.iso), historyKey: 'calls' });
+      }
+      // Sent whether or not the week has anything in it. An athlete who logged
+      // nothing is the one most worth reaching, and the card states that
+      // plainly rather than scolding — so silence here would go quiet on
+      // exactly the people it should not.
+      if (weeklyReview && athlete.prefs.weekly_review) {
+        const message = buildWeeklyReviewMessage(now.iso);
+        if (message && lastSent.weeklyReview !== now.iso) {
+          messages.push({ ...message, historyKey: 'weeklyReview' });
+        }
       }
 
       // A coach edit is processed once it is two minutes old, so a save burst

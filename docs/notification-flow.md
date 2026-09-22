@@ -1,6 +1,6 @@
 # Athlete notification flow — redesign
 
-Status: proposal. Section 8 is already shipped.
+Status: proposal. Sections 4a and 8 are already shipped.
 Written 20 Aug 2026, against the live portal and Supabase data.
 
 ---
@@ -150,6 +150,42 @@ volume cut available, and it's free — they already fire in the same minute.
 
 **Cap: 3 pushes per athlete per day.** Above the cap everything rolls into the
 inbox and, if anything was dropped, one summary push the next morning.
+
+---
+
+## 4a. Shipped: weekly review (`weekly_review`)
+
+**Sunday 19:00 local, one push a week.** Shipped 23 Sep 2026.
+
+The weekly review card on Progress is a full account of the week — sessions
+planned and completed, distance planned against actual, strength volume, PBs,
+readiness and bodyweight (see `docs/weekly-performance-summary.md`). Nothing was
+pointing athletes at it, so it was only found by people who already went looking.
+
+Sunday evening is the slot because it is when athletes plan, and because the
+week is still the one they are living in rather than a closed chapter they have
+moved on from. It is deliberately 30 minutes ahead of the 19:30 logging nudge,
+so the review is the first thing they see rather than a footnote to *"you still
+have a session open"*.
+
+**The push carries no figures.** Computing the summary for every athlete inside
+a cron that runs every minute would duplicate the whole metric layer, and the
+week is still open at 7pm — a number baked into the push could be contradicted
+by the card minutes later if they train that evening. The notification says the
+review is ready and deep-links to `/?tab=progress`; the card is the only place
+the numbers are produced.
+
+**It is sent on an empty week too.** An athlete who logged nothing is the one
+most worth reaching, and the card states that plainly rather than scolding.
+Going quiet on an empty week would go quiet on exactly the people it should not,
+and would remove the only signal that they did not open it.
+
+Timing is resolved through `localNow(tz)`, so it is 7pm in the athlete's own
+zone and stays 7pm across South Australia's October daylight-saving switch. A
+fixed UTC schedule would drift an hour twice a year.
+
+Worst case Sunday: morning (05:30) + weekly review (19:00) + logging (19:30) —
+three pushes, exactly on the cap and not over it.
 
 ---
 
