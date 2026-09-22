@@ -151,6 +151,47 @@ test('every Strava mode has a rewrite pointing at the one function', () => {
   assert.equal(rewrites['/api/strava-disconnect'], '/api/strava?mode=disconnect');
 });
 
+// ── The queue drain ──────────────────────────────────────────────────────────
+
+// Both other drains are opportunistic: the post-ack one runs after the response
+// has been sent and can be frozen before it starts, and the read-path one only
+// fires for the athlete who opened the portal. Without a schedule, an athlete
+// who trains and never opens the app has no drain at all and their events sit
+// pending forever. This is the only guaranteed path, so it is wired here.
+test('the queue drain runs on a schedule', () => {
+  const crons = Object.fromEntries((vercelConfig.crons || []).map((c) => [c.path, c.schedule]));
+  assert.ok(crons['/api/strava?mode=drain'],
+    'vercel.json must schedule /api/strava?mode=drain — without it nothing clears the webhook queue');
+});
+
+test('the drain mode is routed before the default read', () => {
+  const handler = stravaApi.slice(stravaApi.indexOf('export default async function handler'));
+  const drain = handler.indexOf("mode === 'drain'");
+  const fallthrough = handler.indexOf('return handleRead(req, res)');
+  assert.ok(drain >= 0, 'handler must route ?mode=drain');
+  assert.ok(drain < fallthrough, 'the drain branch must come before the default read');
+});
+
+// An open drain endpoint lets anyone make us hammer Strava's API on demand.
+test('the drain refuses a caller without the cron secret', () => {
+  const drain = stravaApi.slice(stravaApi.indexOf('async function handleDrain'));
+  assert.match(drain, /secrets\.includes\(token\)/,
+    'handleDrain must check the bearer token against the configured secrets');
+  assert.match(drain, /401/, 'an unauthorised caller must get a 401');
+  assert.ok(drain.indexOf('secrets.includes(token)') < drain.indexOf('drainEvents('),
+    'the authorisation check must come before any work is done');
+});
+
+// Scoping the scheduled drain to one owner would recreate the bug it fixes.
+test('the scheduled drain is global, not athlete-scoped', () => {
+  const start = stravaApi.indexOf('async function handleDrain');
+  const end = stravaApi.indexOf('// ── Mode: disconnect');
+  assert.ok(start >= 0 && end > start, 'handleDrain must exist above the disconnect section');
+  const drain = stravaApi.slice(start, end);
+  assert.ok(!/ownerId/.test(drain),
+    'handleDrain must not pass ownerId — the whole point is to catch athletes who never open the portal');
+});
+
 // ── Front-end states ─────────────────────────────────────────────────────────
 
 // An athlete who linked before profile:read_all was required is fully working —
