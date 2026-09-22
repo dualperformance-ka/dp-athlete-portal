@@ -1,5 +1,5 @@
 /**
- * Strava integration — single serverless function, five modes.
+ * Strava integration — single serverless function, six modes.
  *
  *   GET  /api/strava                  athlete's cached activities
  *   GET  /api/strava-callback         OAuth callback      (→ ?mode=callback)
@@ -7,8 +7,9 @@
  *   POST /api/strava-webhook          Strava's events     (→ ?mode=webhook)
  *   POST /api/strava-disconnect       revoke + purge      (→ ?mode=disconnect)
  *   POST /api/strava?mode=attempt     connect-click telemetry
+ *   GET  /api/strava?mode=drain       scheduled queue drain (Vercel cron)
  *
- * All five live in one file because Vercel's Hobby plan caps a deployment at 12
+ * All six live in one file because Vercel's Hobby plan caps a deployment at 12
  * serverless functions and api/ is at 10. The rewrites in vercel.json give each
  * mode a real URL; the pattern matches api/bookings.js.
  *
@@ -35,6 +36,8 @@
  *   STRAVA_BACKFILL_DAYS            history pulled on connect (default 180)
  *   STRAVA_WEBHOOK_SUBSCRIPTION_ID  when set, events from other subscriptions
  *                                   are rejected
+ *   STRAVA_CRON_SECRET              bearer token for ?mode=drain; CRON_SECRET is
+ *                                   accepted too, which is what Vercel cron sends
  */
 import { getRequestAthlete } from './_lib/auth.js';
 import { createPortalSession, verifyPortalSession } from './_lib/legacy-session.js';
@@ -267,6 +270,7 @@ export default async function handler(req, res) {
   if (mode === 'webhook')    return handleWebhook(req, res);
   if (mode === 'disconnect') return handleDisconnect(req, res);
   if (mode === 'attempt')    return handleConnectAttempt(req, res);
+  if (mode === 'drain')      return handleDrain(req, res);
   return handleRead(req, res);
 }
 
@@ -530,6 +534,58 @@ async function handleWebhook(req, res) {
   } catch (error) {
     warn({ message: 'Strava post-ack drain failed', error: String(error.message || error).slice(0, 200) });
   }
+}
+
+// ── Mode: drain ──────────────────────────────────────────────────────────────
+
+// How long one scheduled drain keeps pulling batches, and how many events a
+// batch asks for. The budget sits under the function's own timeout so the run
+// always gets to return a summary rather than being cut off mid-batch.
+const DRAIN_BUDGET_MS = 20000;
+const DRAIN_BATCH = 25;
+
+/**
+ * The drain that always runs.
+ *
+ * The other two are opportunistic and neither is a guarantee. The post-ack
+ * drain in handleWebhook starts after the response has gone out, and the
+ * platform is free to freeze the function at that point — a queued event is
+ * then left at attempts 0 with no error, which is exactly what it looks like
+ * when nothing ever tried. The drain in handleRead only fires when that
+ * athlete opens the portal. An athlete who trains and does not open the app
+ * had no path at all, so their activities simply stopped arriving.
+ *
+ * Authorised the same way as handleCronSend in api/reminders.js: a bearer
+ * token matching STRAVA_CRON_SECRET or CRON_SECRET.
+ */
+async function handleDrain(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+
+  const secrets = [process.env.STRAVA_CRON_SECRET, process.env.CRON_SECRET].filter(Boolean);
+  if (!secrets.length) return res.status(503).json({ ok: false, error: 'Cron secret is not configured' });
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  if (!secrets.includes(token)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+
+  const startedAt = Date.now();
+  let processed = 0;
+  let failed = 0;
+  let rounds = 0;
+
+  // Keep pulling while the queue still fills a batch. One batch per tick would
+  // take a backlog that built up over days just as long to clear.
+  while (Date.now() - startedAt < DRAIN_BUDGET_MS) {
+    const result = await drainEvents({ limit: DRAIN_BATCH });
+    rounds += 1;
+    processed += result.processed;
+    failed += result.failed;
+    if (result.processed + result.failed < DRAIN_BATCH) break;
+  }
+
+  return res.status(200).json({ ok: true, processed, failed, rounds, ms: Date.now() - startedAt });
 }
 
 // ── Mode: disconnect ─────────────────────────────────────────────────────────
