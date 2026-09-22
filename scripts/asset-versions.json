@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 178,
-    "sha": "d5a527f91f8c"
+    "version": 179,
+    "sha": "cb9dfa9a3b3e"
   },
   "desktop.css": {
     "version": 14,
@@ -24,8 +24,8 @@
     "sha": "33a0bd667bde"
   },
   "js/03-nav-nudges.js": {
-    "version": 124,
-    "sha": "cb5b0c501ae9"
+    "version": 125,
+    "sha": "87066894cc69"
   },
   "js/04-checkin.js": {
     "version": 104,
@@ -36,8 +36,8 @@
     "sha": "d1ef64cd953c"
   },
   "js/06-nutrition.js": {
-    "version": 106,
-    "sha": "2a2e6dc51a66"
+    "version": 107,
+    "sha": "be64a36c3bc3"
   },
   "js/07-progress.js": {
     "version": 92,

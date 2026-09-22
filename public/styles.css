@@ -6573,3 +6573,59 @@ button.chip,a.chip,.chip[role="button"]{min-height:44px;padding-inline:var(--sp-
   .wr-nav{gap:6px}
   .wr-nav-label strong{font-size:var(--font-sm)}
 }
+
+/* ========================================================================== */
+/* MOBILE HOME · ONE-SCREEN OPENING                                           */
+/* Session, week output, the collapsed action stack and daily fuel form one   */
+/* composition above the fixed navigation. Expanding the action disclosure    */
+/* adds normal document height, so the extended state remains scrollable.      */
+/* ========================================================================== */
+@media(max-width:899px){
+  body[data-active-tab="today"] .top-shell>.fuel-target-card{
+    margin:8px 0 0;padding:10px 11px;border-color:transparent;
+    border-radius:var(--r-3);background:var(--g-1);box-shadow:var(--edge-plate)
+  }
+  body[data-active-tab="today"] .top-shell>.fuel-target-card .fuel-target-head{margin-bottom:7px}
+  body[data-active-tab="today"] .top-shell>.fuel-target-card .fuel-target-head span,
+  body[data-active-tab="today"] .top-shell>.fuel-target-card .fuel-target-head small{font-size:10px}
+  body[data-active-tab="today"] .top-shell>.fuel-target-card .fuel-target-grid{
+    grid-template-columns:repeat(5,minmax(0,1fr));gap:4px
+  }
+  body[data-active-tab="today"] .top-shell>.fuel-target-card .fuel-target-grid>div{
+    min-width:0;padding:7px 3px;text-align:center
+  }
+  body[data-active-tab="today"] .top-shell>.fuel-target-card .fuel-target-grid small{
+    margin-bottom:3px;font-size:9px;line-height:1;letter-spacing:-.02em;white-space:nowrap
+  }
+  body[data-active-tab="today"] .top-shell>.fuel-target-card .fuel-target-grid strong{
+    font-size:10px;line-height:1.1;letter-spacing:-.045em;white-space:nowrap;overflow-wrap:normal
+  }
+
+  /* Readiness is a peer of the Strava status, not a second miniature card. */
+  body[data-active-tab="today"] .hpills .readiness-chip{
+    min-height:28px;padding:3px 9px 3px 3px;gap:6px
+  }
+  body[data-active-tab="today"] .hpills .readiness-chip .hero-readiness-ring{
+    width:20px;height:20px;flex-basis:20px
+  }
+  body[data-active-tab="today"] .hpills .readiness-chip-text{
+    display:block;line-height:1
+  }
+  body[data-active-tab="today"] .hpills .readiness-chip-label{
+    display:block;font-size:10px;line-height:1;letter-spacing:.1em
+  }
+  body[data-active-tab="today"] .hpills .readiness-chip .hero-stat-note{display:none}
+
+  body[data-active-tab="today"] .hero-metric-grid{gap:6px}
+  body[data-active-tab="today"] .metric-cell{padding:8px 9px}
+  body[data-active-tab="today"] .metric-label{font-size:9px;letter-spacing:.08em}
+  body[data-active-tab="today"] .metric-val{font-size:15px}
+  body[data-active-tab="today"] .metric-val small{font-size:9px}
+
+  /* A second session is another compact instrument row, not another card. */
+  body[data-active-tab="today"] #todayEl .todaylist{gap:5px}
+  body[data-active-tab="today"] #todayEl .todayitem{padding:7px 8px}
+  body[data-active-tab="today"] #todayEl .today-action,
+  body[data-active-tab="today"] #todayEl .todaybtn,
+  body[data-active-tab="today"] #todayEl .opensession{min-height:38px;padding:7px 9px}
+}
