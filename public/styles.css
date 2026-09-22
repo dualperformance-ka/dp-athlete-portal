@@ -35,6 +35,13 @@
   --done:#22c55e;
   --pb-major:#2dd4bf;
   --alert:#ef8275;
+  /* Focus is an interaction accent, not body ink. Keep it DP blue in both
+     themes, then deepen only the daylight value so it stays crisp on paper. */
+  --focus-ring:#92d2ed;
+  --focus-ring-soft:rgba(146,210,237,.20);
+  --focus-surface:color-mix(in srgb,var(--g-well) 94%,var(--focus-ring));
+  --focus-ring-w:3px;
+  --focus-ring-gap:3px;
 
   /* ─── SEMANTIC INK · the readable text form of a semantic ────────────
      --done/--watch/--alert/--strava deliberately do NOT flip, because
@@ -1611,6 +1618,8 @@ body{font-size:var(--font-md);line-height:1.55}
   --strength:#43413c;--strength-bg:rgba(27,26,24,.05);--strength-border:rgba(27,26,24,.18);
   --swim:#2b7f93;
   --alert:#b42318;
+  --focus-ring:var(--run-deep);--focus-ring-soft:rgba(15,127,174,.14);
+  --focus-surface:color-mix(in srgb,var(--color-white) 97%,var(--focus-ring));
   --done-text:#137a49;--watch-text:var(--amber-ink);--strava-text:#c73b00;
   --readout-text:var(--t-2);--readout-soft:var(--run-bg);--readout-line:var(--run-border);
   /* Paper plates, lit from above: the feature panel is the brightest, the
@@ -6030,7 +6039,8 @@ textarea.field,.field--textarea,.why-textarea,.milestone-input,.calls-input,.coa
 .field:focus,.field:focus-visible,.stat-input:focus,.why-textarea:focus,.milestone-input:focus,
 .li:focus,.sin:focus,.rpe-in:focus,.calls-input:focus,.coach-note-input:focus,.email-input:focus,
 .run-field input:focus,.run-field select:focus,.run-field textarea:focus{
-  border-color:var(--t-2);background:var(--g-well);box-shadow:var(--edge-well),0 0 0 3px var(--hairline)
+  border-color:var(--focus-ring);background:var(--focus-surface);
+  box-shadow:var(--edge-well),0 0 0 2px var(--focus-ring),0 6px 18px var(--focus-ring-soft)
 }
 .field.is-error,.field[aria-invalid="true"],.stat-input[aria-invalid="true"],
 .why-textarea[aria-invalid="true"],.milestone-input[aria-invalid="true"],.li[aria-invalid="true"]{
@@ -6323,7 +6333,6 @@ body[data-active-tab="today"] .top-shell{display:block}
    a near-invisible 3px shadow on a dark well. Keyboard users had no
    visible focus on ANY text input in the product.
    One token, one ring, and enough specificity to survive. */
-:root{--focus-ring:var(--run);--focus-ring-w:3px;--focus-ring-gap:3px}
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -6337,15 +6346,17 @@ summary:focus-visible,
   outline-offset:var(--focus-ring-gap);
   border-radius:inherit
 }
-/* The field component's own focus treatment stays for pointer users;
-   the keyboard ring is added on top rather than replacing it, so the
-   border colour change is not the only signal. */
+/* Fields use the same accessible 2px ring for pointer and keyboard focus,
+   folded into the control edge so it reads as a lit instrument rather than
+   an extra selection rectangle. The soft lift is decorative; the solid ring
+   is the contrast-bearing focus indicator. */
 .field:focus-visible,.stat-input:focus-visible,.why-textarea:focus-visible,
 .milestone-input:focus-visible,.li:focus-visible,.sin:focus-visible,
 .rpe-in:focus-visible,.calls-input:focus-visible,.coach-note-input:focus-visible,
 .email-input:focus-visible,.run-field input:focus-visible,
 .run-field select:focus-visible,.run-field textarea:focus-visible{
-  outline:var(--focus-ring-w) solid var(--focus-ring);outline-offset:var(--focus-ring-gap)
+  outline:none;background:var(--focus-surface);
+  box-shadow:var(--edge-well),0 0 0 2px var(--focus-ring),0 6px 18px var(--focus-ring-soft)
 }
 /* A ring drawn outside an element clipped by an ancestor is not visible.
    These are the scroll and overflow containers that were cropping it. */
