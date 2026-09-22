@@ -45,6 +45,18 @@ test('fields and cards expose shared aliases',()=>{
   assert.match(styles,/\.card,\s*\.accordion-card/);
 });
 
+test('focused fields use one premium DP-blue illuminated edge in both themes',()=>{
+  assert.match(styles,/--focus-ring:#92d2ed/);
+  assert.match(styles,/--focus-surface:color-mix\(in srgb,var\(--g-well\) 94%,var\(--focus-ring\)\)/);
+  assert.match(styles,/\.outdoor-mode\{[^}]*--focus-ring:var\(--run-deep\)[^}]*--focus-surface:color-mix\(in srgb,var\(--color-white\) 97%,var\(--focus-ring\)\)/);
+  const start=styles.lastIndexOf('.field:focus-visible');
+  const focusedFields=styles.slice(start,styles.indexOf('\n}',start)+2);
+  assert.match(focusedFields,/outline:none/);
+  assert.match(focusedFields,/background:var\(--focus-surface\)/);
+  assert.match(focusedFields,/0 0 0 2px var\(--focus-ring\)/);
+  assert.match(focusedFields,/0 6px 18px var\(--focus-ring-soft\)/);
+});
+
 test('converted component classes have no daylight component overrides',()=>{
   const classes=[
     'calls-btn','calls-btn-primary','ci-btn-back','ci-btn-next','comms-btn',

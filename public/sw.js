@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v223'; // v223: weekly review reminder, 7pm Sunday in each athlete local timezone
+const CACHE_NAME = 'dp-athlete-v225'; // v225: premium DP-blue field focus in both themes
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=176', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=178', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
   '/js/02-login-goals.js?v=120',
