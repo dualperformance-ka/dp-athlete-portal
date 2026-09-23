@@ -11,6 +11,15 @@ export const DAILY_PUSH_CAP = 3;
 // is 0. 19:00 sits inside the waking window and ahead of the 19:30 logging
 // nudge, so the review is the first thing they see rather than a footnote to
 // "you still have a session open".
+// Every notification type any code path may write to athlete_notifications.
+// It must equal the athlete_notifications_type_check list in the newest
+// migration that defines it; tests/notification-type-constraint.test.js fails
+// the build if a new type is emitted without schema support (the weekly_review
+// reminder shipped once without it and would have failed at 7pm Sunday).
+export const NOTIFICATION_TYPES = Object.freeze([
+  'sessions', 'logging', 'checkins', 'photos', 'calls', 'coach', 'custom', 'weekly_review',
+]);
+
 export const WEEKLY_REVIEW_DOW = 0;
 export const WEEKLY_REVIEW_HOUR = 19;
 export const WEEKLY_REVIEW_MINUTE = 0;

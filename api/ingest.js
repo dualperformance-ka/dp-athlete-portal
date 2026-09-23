@@ -27,14 +27,20 @@ function send(res, status, payload) {
 // actually lost while the migration catches up.
 export const OPTIONAL_COLUMNS = ['exercise_name', 'programmed_exercise', 'muscle_group', 'is_swap', 'rep_mode'];
 
-export async function upsertTolerant(table, row, onConflict, write = upsert) {
+// The typed pain columns on daily_body_logs follow the same rule. They arrive
+// with 20260923090000_daily_body_pain_typed_columns.sql; until that has run in a
+// given environment the body log (weight, sleep, energy, ...) must still land,
+// and raw_payload keeps pain/painLocation/coachAlert for the backfill.
+export const BODY_OPTIONAL_COLUMNS = ['pain', 'pain_location', 'coach_alert'];
+
+export async function upsertTolerant(table, row, onConflict, write = upsert, optionalColumns = OPTIONAL_COLUMNS) {
   let attempt = { ...row };
-  for (let i = 0; i <= OPTIONAL_COLUMNS.length; i++) {
+  for (let i = 0; i <= optionalColumns.length; i++) {
     try {
       return await write(table, attempt, onConflict);
     } catch (error) {
       const message = String(error?.message || '');
-      const missing = OPTIONAL_COLUMNS.find(
+      const missing = optionalColumns.find(
         (column) => Object.hasOwn(attempt, column) && message.includes(`'${column}'`)
       );
       if (!missing) throw error;
@@ -158,13 +164,70 @@ function athleteName(payload) {
   return text(payload.athleteName, 180) || athleteCode(payload);
 }
 
+// Pain is a whole number 0-10. Anything else ("7/10", "", 12, an object) is
+// treated as not reported rather than guessed at, so a malformed value can
+// never raise or suppress a coach alert on its own.
+export function parsePainScore(value) {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value >= 0 && value <= 10 ? value : null;
+  }
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!/^\d{1,2}(\.0+)?$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  return n >= 0 && n <= 10 ? n : null;
+}
+
+function explicitBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const v = value.trim().toLowerCase();
+    if (v === 'true') return true;
+    if (v === 'false') return false;
+  }
+  return null;
+}
+
+// Typed projection of the pain fields the portal already sends inside the body
+// log. Mirrors the SQL backfill in 20260923090000 exactly: an explicit
+// coachAlert wins; without one, a valid pain score of 5+ raises the alert.
+export function projectBodyPain(payload = {}) {
+  const pain = parsePainScore(payload.pain);
+  const location = text(payload.painLocation, 200);
+  const explicit = explicitBoolean(payload.coachAlert);
+  return {
+    pain,
+    pain_location: location,
+    coach_alert: explicit !== null ? explicit : pain !== null && pain >= 5,
+  };
+}
+
+export function buildDailyBodyRow(payload) {
+  return {
+    athlete_code: athleteCode(payload),
+    athlete_name: athleteName(payload),
+    athlete_notion_id: text(payload.athleteId, 120),
+    log_date: date(payload.date) || new Date().toISOString().slice(0, 10),
+    submitted_at: submittedAt(payload),
+    weight: number(payload.weight),
+    sleep: number(payload.sleep),
+    energy: number(payload.energy),
+    soreness: number(payload.soreness),
+    stress: number(payload.stress),
+    notes: text(payload.notes, 2000),
+    ...projectBodyPain(payload),
+    raw_payload: payload,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 function weekKey(payload) {
   if (payload.weekKey) return text(payload.weekKey, 80);
   if (payload.weekEnding) return `week_ending_${date(payload.weekEnding) || text(payload.weekEnding, 40)}`;
   return payload.clientWriteId || null;
 }
 
-async function persistStructured(payload) {
+export async function persistStructured(payload, deps = {}) {
   const type = text(payload.type, 80);
   const code = athleteCode(payload);
   if (!code) return null;
@@ -237,21 +300,16 @@ async function persistStructured(payload) {
   }
 
   if (type === 'daily_body') {
-    return upsert('daily_body_logs', {
-      athlete_code: code,
-      athlete_name: athleteName(payload),
-      athlete_notion_id: text(payload.athleteId, 120),
-      log_date: date(payload.date) || new Date().toISOString().slice(0, 10),
-      submitted_at: submittedAt(payload),
-      weight: number(payload.weight),
-      sleep: number(payload.sleep),
-      energy: number(payload.energy),
-      soreness: number(payload.soreness),
-      stress: number(payload.stress),
-      notes: text(payload.notes, 2000),
-      raw_payload: payload,
-      updated_at: new Date().toISOString(),
-    }, 'athlete_code,log_date');
+    // pain / pain_location / coach_alert feed the coach Today queue. They are
+    // written as typed columns alongside the unchanged raw_payload, and dropped
+    // (not the whole log) if this environment has not had the migration yet.
+    return upsertTolerant(
+      'daily_body_logs',
+      buildDailyBodyRow(payload),
+      'athlete_code,log_date',
+      deps.upsert || upsert,
+      BODY_OPTIONAL_COLUMNS
+    );
   }
 
   if (type === 'daily_nutrition') {
