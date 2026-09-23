@@ -261,8 +261,8 @@ function buildMessages(dueForAthlete, prefs, allowed, coachChanges) {
   return messages;
 }
 
-async function saveInboxMessage(code, message, localDate) {
-  const rows = await upsert('athlete_notifications', {
+export async function saveInboxMessage(code, message, localDate, write = upsert) {
+  const rows = await write('athlete_notifications', {
     athlete_code: code,
     type: message.type,
     title: String(message.title || 'Dual Performance').slice(0, 120),
@@ -535,7 +535,16 @@ async function handleCronSend(req, res) {
       let pushCount = await pushedToday(athlete.code, now.iso);
       let delivered = false;
       for (const message of messages.filter(Boolean)) {
-        const row = await saveInboxMessage(athlete.code, message, now.iso);
+        // One message the inbox cannot store (a schema constraint, a transient
+        // PostgREST error) must not abort every athlete after this one in the
+        // zone. It is reported in `errors` and the loop carries on.
+        let row;
+        try {
+          row = await saveInboxMessage(athlete.code, message, now.iso);
+        } catch (error) {
+          errors.push({ athlete: athlete.code, type: message.type, stage: 'inbox', error: String(error?.message || error).slice(0, 300) });
+          continue;
+        }
         if (!row) continue;
         inboxed++;
         const mayPush = message.push !== false && !quiet && pushCount < DAILY_PUSH_CAP && vapidReady && athlete.devices.length;
