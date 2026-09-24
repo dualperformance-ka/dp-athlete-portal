@@ -1,10 +1,10 @@
-const CACHE_NAME = 'dp-athlete-v226'; // v226: one-screen mobile Home with fuel and Strava progress
+const CACHE_NAME = 'dp-athlete-v227'; // v227: coach-written messages stand out in the inbox
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=179', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=180', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
   '/js/02-login-goals.js?v=120',
-  '/js/03-nav-nudges.js?v=125',
+  '/js/03-nav-nudges.js?v=126',
   '/js/04-checkin.js?v=104',
   '/js/05-handbook.js?v=89',
   '/js/06-nutrition.js?v=107',

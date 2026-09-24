@@ -856,17 +856,45 @@ function notificationTime(value){
   var date=new Date(value);if(isNaN(date.getTime()))return'';
   return date.toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
 }
+// A message a coach wrote by hand (type 'custom', from the dashboard's Notify
+// tab or session feedback) is the most valuable thing in the inbox and the
+// rarest. It used to look exactly like the automatic reminders, so it gets its
+// own treatment: a "From your coach" label, a brand accent, pinned first while
+// unread, and a one-off glow the first time the athlete sees it. Automatic
+// reminders stay plain on purpose; that is what makes these stand out.
+function isCoachMessage(item){return !!item&&item.type==='custom';}
+function sortNotificationInbox(items){
+  return items.map(function(item,index){return{item:item,index:index};}).sort(function(a,b){
+    var ap=isCoachMessage(a.item)&&!a.item.read_at?0:1,bp=isCoachMessage(b.item)&&!b.item.read_at?0:1;
+    return ap-bp||a.index-b.index;
+  }).map(function(entry){return entry.item;});
+}
+var COACH_MESSAGE_SEEN_KEY='dp_coach_msg_seen';
+function coachMessagesSeen(){try{return JSON.parse(localStorage.getItem(COACH_MESSAGE_SEEN_KEY)||'[]')||[];}catch(e){return[];}}
+function markCoachMessagesSeen(ids){
+  if(!ids.length)return;
+  try{var seen=coachMessagesSeen();ids.forEach(function(id){if(seen.indexOf(id)<0)seen.push(id);});localStorage.setItem(COACH_MESSAGE_SEEN_KEY,JSON.stringify(seen.slice(-100)));}catch(e){}
+}
 function renderNotificationInbox(){
   var list=document.getElementById('notificationInboxList'),clearAll=document.getElementById('clearAllNotificationsBtn');if(!list)return;
   if(clearAll){clearAll.hidden=!_notificationInbox.length;clearAll.disabled=_notificationInboxMutating;}
   if(!_notificationInbox.length){list.innerHTML='<div class="notification-empty"><strong>You’re all caught up</strong><span>Programme changes and coaching reminders will stay here for 30 days.</span></div>';return;}
-  list.innerHTML=_notificationInbox.map(function(item){
-    var id=esc(item.id),title=esc(item.title);
-    return '<div class="notification-item'+(item.read_at?'':' is-unread')+'">'
+  var seen=coachMessagesSeen(),fresh=[];
+  list.innerHTML=sortNotificationInbox(_notificationInbox).map(function(item){
+    var id=esc(item.id),title=esc(item.title),coach=isCoachMessage(item);
+    var glow=coach&&!item.read_at&&seen.indexOf(String(item.id))<0;
+    if(glow)fresh.push(String(item.id));
+    var meta=coach?esc(notificationTime(item.created_at)):esc(notificationTime(item.created_at))+(item.pushed_at?' · Sent to your device':' · Inbox');
+    return '<div class="notification-item'+(item.read_at?'':' is-unread')+(coach?' is-coach':'')+(glow?' is-new':'')+'">'
       +'<button class="notification-item-open" type="button" onclick="openNotificationItem(\''+id+'\',decodeURIComponent(\''+encodeURIComponent(String(item.url||'/'))+'\'))">'
-      +'<span class="notification-item-dot"></span><span class="notification-item-copy"><strong>'+title+'</strong><span>'+esc(item.body)+'</span><small>'+esc(notificationTime(item.created_at))+(item.pushed_at?' · Sent to your device':' · Inbox')+'</small></span><b>›</b></button>'
+      +'<span class="notification-item-dot"></span><span class="notification-item-copy">'
+      +(coach?'<span class="notification-coach-tag"><span class="notification-coach-mark" aria-hidden="true">DP</span>From your coach</span>':'')
+      +'<strong>'+title+'</strong><span>'+esc(item.body)+'</span><small>'+meta+'</small></span><b>›</b></button>'
       +'<button class="notification-item-clear" type="button" onclick="clearNotification(\''+id+'\')" aria-label="Clear '+title+' notification"'+(_notificationInboxMutating?' disabled':'')+'>×</button></div>';
   }).join('');
+  // The glow is a one-off: only while the inbox is actually open.
+  var modal=document.getElementById('notificationInboxModal');
+  if(modal&&modal.classList.contains('open'))markCoachMessagesSeen(fresh);
 }
 function applyNotificationInboxResponse(data){
   _notificationInbox=Array.isArray(data.notifications)?data.notifications:[];
