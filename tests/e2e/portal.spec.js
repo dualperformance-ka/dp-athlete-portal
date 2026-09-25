@@ -109,6 +109,13 @@ async function codeLogin(page, options = {}) {
   return state;
 }
 
+// The exercise screen is its own full-screen view: the session opens on the
+// list, and the athlete taps the Up next card to start logging.
+async function openUpNext(page) {
+  await page.locator('.exc.is-up-next .exc-summary').click();
+  await expect(page.locator('#focusOverlay')).toHaveClass(/exercise-open/);
+}
+
 test('1. code login renders the portal and today’s session', async ({ page }) => {
   await codeLogin(page);
   await expect(page.getByText('Sign in with your email next time')).toBeVisible();
@@ -200,11 +207,13 @@ test('3. three strength sets submit and persist across reload', async ({ page })
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
   await codeLogin(page);
   await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await openUpNext(page);
   for (let set = 0; set < 3; set++) {
     await page.locator(`#w_0_0_${set}`).fill(String(40 + set * 5));
     await page.locator(`#r_0_0_${set}`).fill(String(10 - set));
   }
   await page.getByRole('button', { name: /On target/ }).click();
+  await page.getByRole('button', { name: 'Back to session' }).click();
   await page.locator('#focusFooterAction').click();
   await expect(page.locator('#strengthReviewTitle')).toHaveText('Review session');
   await expect(page.getByText('Adaptive coaching')).toBeVisible();
@@ -217,6 +226,8 @@ test('3. three strength sets submit and persist across reload', async ({ page })
   await page.reload();
   await expect(page.locator('#portalScreen')).toBeVisible();
   await page.getByRole('button', { name: /Open (completed )?Lower A/ }).click();
+  await page.locator('.exc[data-exercise-index="0"] .exc-summary').click();
+  await page.getByRole('button', { name: 'Edit sets' }).click();
   await expect(page.locator('#w_0_0_0')).toHaveValue('40');
   await expect(page.locator('#w_0_0_2')).toHaveValue('50');
 });
@@ -225,6 +236,7 @@ test('unlocking the next load gives brief encouragement without interrupting the
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
   await codeLogin(page);
   await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await openUpNext(page);
   await page.locator('#w_0_0_0').fill('40');
   await page.locator('#r_0_0_0').fill('12');
   await page.getByRole('button', { name: /On target/ }).click();
@@ -235,7 +247,11 @@ test('unlocking the next load gives brief encouragement without interrupting the
 
   await expect(page.locator('#toast')).toContainText(/Nice work.*unlocked for next session/);
   await expect(page.locator('.exc').first()).toHaveClass(/ns-unlock-celebrate/);
-  await expect(page.getByText(/Next session: Increase to/)).toBeVisible();
+  // The finished exercise collapses into one result card with one next step.
+  await page.locator('#r_0_0_2').blur();
+  const result = page.locator('.exc.is-focused .exl-result');
+  await expect(result).toBeVisible();
+  await expect(result.locator('.exl-next-action')).toHaveText(/Increase to/);
   await expect(page.locator('#focusOverlay')).toHaveClass(/open/);
 });
 
@@ -243,9 +259,11 @@ test('a locally saved workout awaits submission and does not count as complete',
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
   await codeLogin(page);
   await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await openUpNext(page);
   await page.locator('#w_0_0_0').fill('40');
   await page.locator('#r_0_0_0').fill('10');
   await page.getByRole('button', { name: /On target/ }).click();
+  await page.getByRole('button', { name: 'Back to session' }).click();
   await page.getByRole('button', { name: 'Close session' }).click();
   await page.evaluate(() => renderTodaySection());
 
@@ -264,18 +282,25 @@ test('focused strength flow shows coach context, live progress, calm stats and t
   await page.getByRole('button', { name: 'Open Lower A' }).click();
 
   await expect(page.getByText('Your coach adjusted this session')).toBeVisible();
-  await expect(page.locator('#focusOverlayMeta')).toHaveText('0 of 2 exercises');
-  await expect(page.locator('#focusOverlayTime')).toContainText('min remaining');
-  await expect(page.getByRole('button', { name: 'Stats' }).first()).toBeVisible();
+  await expect(page.locator('#focusOverlayMeta')).toHaveText('0 of 2');
+  await expect(page.locator('#focusOverlayTime')).toContainText('min left');
+  await openUpNext(page);
+  // Stats moved into the details sheet, one tap from the Best tile.
+  await page.locator('.exc.is-focused .exl-best').click();
+  await expect(page.locator('#exlSheet_0_0').getByRole('button', { name: 'Stats' })).toBeVisible();
+  await page.locator('#exlSheet_0_0').getByRole('button', { name: 'Close details' }).click();
 
   for (let set = 0; set < 3; set++) {
     await page.locator(`#w_0_0_${set}`).fill('40');
     await page.locator(`#r_0_0_${set}`).fill('10');
   }
   await page.getByRole('button', { name: /On target/ }).click();
+  await page.locator('#r_0_0_2').blur();
 
-  await expect(page.getByRole('button', { name: /Up next.*Leg Curl/ })).toBeVisible();
-  await expect(page.locator('#focusOverlayMeta')).toHaveText('1 of 2 exercises');
+  await expect(page.locator('.exc.is-focused .exl-log')).toHaveText(/Finish exercise/i);
+  await page.locator('.exc.is-focused .exl-log').click();
+  await expect(page.locator('.exc.is-up-next')).toContainText('Leg Curl');
+  await expect(page.locator('#focusOverlayMeta')).toHaveText('1 of 2');
   await expect(page.getByRole('button', { name: 'Review & submit' }).last()).toBeVisible();
 });
 
@@ -287,18 +312,28 @@ test('first-set calibration reads as effort and quality, never as a failure test
 
   // The prompt calibrates against the prescribed effort, with no failure copy
   // anywhere on the athlete's screen.
-  await expect(page.getByText('Calibrate the first working set')).toBeVisible();
+  // One line on the list; the full calibration text is one tap away.
+  await expect(page.getByText('First work set calibrates the load. Stop with 2 reps left.')).toBeVisible();
+  await page.getByRole('button', { name: 'How calibration works' }).click();
+  await expect(page.locator('#exlCal_0').getByText('Calibrate the first working set').first()).toBeVisible();
   const body = await page.locator('body').innerText();
   expect(body).not.toMatch(/technical failure/i);
   expect(body).not.toMatch(/0 RIR/);
   expect(body).toMatch(/two more clean reps/);
+  await page.locator('#exlCal_0').getByRole('button', { name: 'Close details' }).click();
+  await openUpNext(page);
 
-  // The recommendation is one card with four labelled parts.
+  // Target first; the full recommendation (target, next session, why) sits
+  // behind the Why tile.
   const card = page.locator('.exc').first();
-  await expect(card.getByText('Today’s target')).toBeVisible();
-  await expect(card.getByText('Next session')).toBeVisible();
-  await expect(card.getByText('Why')).toBeVisible();
-  await card.screenshot({ path: 'test-results/strength-card-mobile.png' });
+  await expect(card.locator('.exl-target')).toContainText('Today’s target · per work set');
+  await card.getByRole('button', { name: 'Why this load' }).click();
+  const sheet = page.locator('#exlSheet_0_0');
+  await expect(sheet.getByText('Today’s target')).toBeVisible();
+  await expect(sheet.getByText('Next session')).toBeVisible();
+  await expect(sheet.getByText('Why', { exact: true })).toBeVisible();
+  await sheet.getByRole('button', { name: 'Close details' }).click();
+  await page.screenshot({ path: 'test-results/strength-card-mobile.png' });
 
   await page.locator('#w_0_0_0').fill('40');
   await page.locator('#r_0_0_0').fill('10');
@@ -316,7 +351,6 @@ test('first-set calibration reads as effort and quality, never as a failure test
   await expect(page.locator('#w_0_0_0')).toHaveValue('40');
   await expect(page.locator('#r_0_0_1')).toHaveAttribute('placeholder', '8');
   await page.screenshot({ path: 'test-results/strength-calibration-mobile.png', fullPage: false });
-  await card.screenshot({ path: 'test-results/strength-card-rated-mobile.png' });
 });
 
 test('a manual live load increase resets only remaining targets on mobile', async ({ page }) => {
@@ -335,6 +369,7 @@ test('a manual live load increase resets only remaining targets on mobile', asyn
     };
   });
   await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await openUpNext(page);
 
   await page.locator('#w_0_0_0').fill('63');
   await page.locator('#r_0_0_0').fill('19');
@@ -342,9 +377,10 @@ test('a manual live load increase resets only remaining targets on mobile', asyn
   await page.locator('#w_0_0_1').fill('68');
 
   const card = page.locator('.exc').first();
-  await expect(card.getByText('Load Increased', { exact: true })).toBeVisible();
-  await expect(card.getByText('Aim for 15 clean reps', { exact: true })).toBeVisible();
-  await expect(card.getByText(/Maintain approximately 2 reps in reserve/)).toBeVisible();
+  const target = card.locator('.exl-target');
+  await expect(target.getByText('Load Increased', { exact: true })).toBeVisible();
+  await expect(target.getByText('Aim for 15 clean reps', { exact: true })).toBeVisible();
+  await expect(target.getByText(/Maintain approximately 2 reps in reserve/)).toBeVisible();
   await expect(card).not.toContainText('Beat Last Week');
   await expect(page.locator('#r_0_0_0')).toHaveValue('19');
   await expect(page.locator('#w_0_0_0')).toHaveValue('63');
@@ -372,6 +408,7 @@ test('a manual live load decrease is kept and updates remaining targets on mobil
     };
   });
   await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await openUpNext(page);
 
   await page.locator('#w_0_0_0').fill('68');
   await page.locator('#r_0_0_0').fill('18');
@@ -379,9 +416,10 @@ test('a manual live load decrease is kept and updates remaining targets on mobil
   await page.locator('#w_0_0_1').fill('63');
 
   const card = page.locator('.exc').first();
-  await expect(card.getByText('Load Reduced', { exact: true })).toBeVisible();
-  await expect(card.getByText('Aim for at least 15 clean reps', { exact: true })).toBeVisible();
-  await expect(card.getByText(/Maintain approximately 2 reps in reserve/)).toBeVisible();
+  const target = card.locator('.exl-target');
+  await expect(target.getByText('Load Reduced', { exact: true })).toBeVisible();
+  await expect(target.getByText('Aim for at least 15 clean reps', { exact: true })).toBeVisible();
+  await expect(target.getByText(/Maintain approximately 2 reps in reserve/)).toBeVisible();
   await expect(page.locator('#w_0_0_1')).toHaveValue('63');
   await expect(page.locator('#r_0_0_1')).toHaveAttribute('placeholder', '15');
   await expect(page.locator('#w_0_0_2')).toHaveAttribute('placeholder', '63');
@@ -395,6 +433,7 @@ test('a technique or niggle answer never earns more load', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
   await codeLogin(page);
   await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await openUpNext(page);
   await page.locator('#w_0_0_0').fill('40');
   await page.locator('#r_0_0_0').fill('10');
   await page.getByRole('button', { name: /Technique/ }).click();

@@ -1488,14 +1488,12 @@ function refreshStrengthFeedback(i,splitKey){
     var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
     if(card){
       card.setAttribute('data-ns-action',rec.action);card.setAttribute('data-ns-tone',rec.tone);
-      var chip=card.querySelector('.ns-chip');if(chip) chip.outerHTML=_nsChip(rec);
       var blk=card.querySelector('.ns-block');if(blk) blk.outerHTML=_nsBody(rec);
+      _exlPaint(card,{i:i,ei:ei,ex:ex,resolvedEx:resolvedEx,rec:rec,live:live,pres:rec.prescription||strengthPrescriptionFor(ex,resolvedEx),history:history,prevEffort:prevEffort,current:currentEffort,warm:parseInt(ex.warmupSets,10)||0,work:parseInt(ex.workingSets||ex.sets,10)||0,next:null});
       applyStrengthLiveTargets(card,ex,live);
       maybeCelebrateStrengthProgression(card,rec.live);
       refreshStrengthExerciseState(card);
     }
-    var lastEl=document.getElementById('prev_'+i+'_'+ei);
-    if(lastEl){lastEl.className='prev-effort'+(prevEffort?' has-last':'');lastEl.innerHTML=prevEffort?('LAST: '+esc(formatSetSummary(getWorkingSlice(ex,prevEffort),resolvedEx))):('TARGET: '+esc(ex.repRange||ex.reps));}
   });
   refreshMuscleCoverage(i,splitKey);
 }
@@ -1654,8 +1652,9 @@ function repaintOverload(i,ei){
   card.setAttribute('data-ns-action',rec.action);card.setAttribute('data-ns-tone',rec.tone);
   var liveUnlocked=!!(rec.live&&rec.live.unlocked);card.setAttribute('data-ns-live-unlocked',liveUnlocked?'true':'false');
   if(liveUnlocked)card.setAttribute('data-ns-unlock-celebrated','true');
-  var chip=card.querySelector('.ns-chip');if(chip) chip.outerHTML=_nsChip(rec);
   var blk=card.querySelector('.ns-block');if(blk) blk.outerHTML=_nsBody(rec);
+  _exlPaint(card,{i:i,ei:ei,ex:ex,resolvedEx:resolvedEx,rec:rec,live:live,pres:rec.prescription||strengthPrescriptionFor(ex,resolvedEx),history:history,prevEffort:prevEffort,current:currentEffort,warm:parseInt(ex.warmupSets,10)||0,work:parseInt(ex.workingSets||ex.sets,10)||0,next:null});
+  var nameEl=card.querySelector('.exl-name');if(nameEl) nameEl.textContent=resolvedEx;
   applyStrengthLiveTargets(card,ex,live);
   refreshStrengthExerciseState(card);
   var nSets=parseInt(ex.sets)||2;
@@ -1900,7 +1899,7 @@ function _nsBody(rec){
   if(rec.target&&rec.target.length){
     t='<div class="ns-target"><div class="ns-tl">Per working set</div><div class="ns-tgrid">'+rec.target.map(function(v,ix){
       return '<div class="ns-trep"><div class="ns-tn">'+v+'</div><div class="ns-ts">Work '+(ix+1)+'</div></div>';}).join('')+'</div>'+
-      (rec.warmupSets?'<div class="ns-warmup-map">Warm-up row is separate · working sets '+(rec.warmupSets+1)+'–'+(rec.warmupSets+rec.target.length)+' decide progression.</div>':'')+'</div>';
+      (rec.warmupSets?'<div class="ns-warmup-map">Warm-up '+(rec.warmupSets>1?'rows are':'row is')+' separate · '+_exlWorkSetsLabel(rec.target.length).toLowerCase()+' decide'+(rec.target.length>1?'':'s')+' progression.</div>':'')+'</div>';
   } else if(rec.targetNote){
     // Before a load is known the note explains how to choose one, so it is
     // labelled as such rather than repeating "Target" above the same words.
@@ -1915,9 +1914,10 @@ function _nsBody(rec){
   var reason=rec.reason?'<div class="ns-reason"><span class="ns-ri ov-node-ic"><svg class="icon"><use href="#i-'+ri+'"/></svg></span><span><span class="ns-tl">Why</span>'+esc(rec.reason)+' '+_nsConfidenceHtml(rec)+'</span></div>':'';
   var today=_nsTodayTarget(rec);
   var todayLine=today?'<div class="ns-today"><span class="ns-tl">Today’s target</span><strong>'+esc(today)+'</strong></div>':'';
-  // Live result: what has actually been logged so far, and any target beaten.
-  var beaten=(rec.live&&rec.live.beaten)?'<div class="ns-beaten" role="status">'+esc(rec.live.beaten.label)+'</div>':'';
-  var live=rec.live?'<div class="ns-live-wrap"><div class="ns-live'+(rec.live.ahead?' ahead':'')+'"><span class="ns-live-k">Live result</span><span>'+esc(rec.live.msg)+'</span></div>'+beaten+
+  // Live result: what has actually been logged so far, compared one way only —
+  // total work reps against last session. The per-set "target beaten" line
+  // measured something different and read as a contradiction beside it.
+  var live=rec.live?'<div class="ns-live-wrap"><div class="ns-live'+(rec.live.ahead?' ahead':'')+'"><span class="ns-live-k">Live result</span><span>'+esc(rec.live.msg)+'</span></div>'+
     (rec.live.prompt?'<div class="ns-live-prompt ns-t-'+(rec.live.nextTone||'blue')+'"><svg class="icon"><use href="#i-arrow-right"/></svg><span>'+esc(rec.live.prompt)+'</span></div>':'')+'</div>':'';
   var approx=(rec.approx&&rec.weightKg!=null)?'<div class="ns-approx">'+(rec.assisted?'Estimated change — pick the nearest assistance setting your machine actually has.':'Estimated step — pick the nearest weight your equipment actually has.')+'</div>':'';
   var flag=rec.coachReview?'<div class="ns-approx ns-coach-review">Worth a message to your coach before the next session.</div>':'';
@@ -1936,6 +1936,387 @@ function _nsStateIcon(state){
   if(state==='done') return '<div class="ns-ic done"><svg class="icon"><use href="#i-check"/></svg></div>';
   if(state==='prog') return '<div class="ns-ic prog"></div>';
   return '<div class="ns-ic todo"></div>';
+}
+// ---------------------------------------------------------------------------
+// Target-first logger (Direction A). Presentation only: every input keeps its
+// id, every tick still goes through togSet(), and drafts are still read from
+// the DOM by persistGymDraft. These helpers only decide what the athlete sees.
+// ---------------------------------------------------------------------------
+var _exlIcon={
+  swap:'<svg class="exl-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  clock:'<svg class="exl-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9.5V13l2.5 1.5M10 3h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  info:'<svg class="exl-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5.5M12 7.6v.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  tick:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+};
+// One wording for which rows decide progression, numbered by work set so a
+// warm-up row never shifts the count ("work sets 1–2", never "sets 3–4").
+function _exlWorkSetsLabel(n){n=parseInt(n,10)||0;return n<=1?'Work set 1':'Work sets 1–'+n;}
+function _exlFmtSeconds(sec){sec=Math.max(0,parseInt(sec,10)||0);var m=Math.floor(sec/60),x=sec%60;return m+':'+(x<10?'0':'')+x;}
+function _exlMetaLine(ex,warm,work){
+  var parts=[];
+  if(warm)parts.push(warm+' warm-up');
+  parts.push((work||parseInt(ex.sets,10)||0)+' work');
+  var rest=parseInt(ex.rest,10);if(!isNaN(rest)&&rest>0)parts.push(rest+'s rest');
+  return parts.join(' · ');
+}
+function _exlRepText(pres,ex){
+  if(!pres)return {value:String(ex.repRange||ex.reps||''),unit:'reps'};
+  if(pres.repMode==='exact')return {value:String(pres.exactReps),unit:'reps'};
+  if(pres.repMode==='seconds')return {value:String(pres.repFloor),unit:'sec'};
+  if(pres.repMode==='distance')return {value:'As written',unit:''};
+  return {value:pres.repFloor===pres.repCeiling?String(pres.repFloor):pres.repFloor+'–'+pres.repCeiling,unit:'reps'};
+}
+// The effort sentence comes from the prescription, never a hard-coded RPE.
+function _exlEffortHtml(pres){
+  if(!pres||pres.targetRir==null)return 'Stop with <strong>about 2 reps left in the tank</strong>';
+  if(pres.targetRir<=0)return 'Work at <strong>the effort your coach set</strong>';
+  return 'Stop with <strong>'+pres.targetRir+' rep'+(pres.targetRir===1?'':'s')+' left in the tank</strong> (RPE '+esc(_nsTrim(pres.targetRpe))+')';
+}
+function _exlSetText(set){
+  if(!set)return '';
+  var w=setVal(set.weight),r=setVal(set.reps);
+  if(r===''&&(setVal(set.repsLeft)!==''||setVal(set.repsRight)!==''))r=(setVal(set.repsLeft)||'-')+'/'+(setVal(set.repsRight)||'-');
+  if(w===''&&r==='')return '';
+  return (w!==''?w:'—')+' × '+(r!==''?r:'—');
+}
+// LAST cell: load and reps as two spans so a tight row can stack them.
+function _exlLastHtml(set){
+  var text=_exlSetText(set);if(!text)return '—';
+  var cut=text.indexOf(' × ');
+  return '<span class="slast-w">'+esc(text.slice(0,cut))+'</span><span class="slast-r">'+esc(text.slice(cut))+'</span>';
+}
+function _exlWorkingReps(ex,sets){
+  return getWorkingSlice(ex,sets||[]).map(_effReps).filter(function(v){return v!=null&&v!==Infinity;});
+}
+function _exlTopLoad(ex,sets,assisted){
+  var loads=getWorkingSlice(ex,sets||[]).map(function(s){return parseFloat(s.weight);}).filter(function(v){return !isNaN(v)&&v>0;});
+  if(!loads.length)return null;
+  return assisted?Math.min.apply(null,loads):Math.max.apply(null,loads);
+}
+// The next-step line under the progress bar. It restates the engine's own
+// double-progression rule (every required work set at the top of the range),
+// and falls back to the engine's action wherever that rule is not the one in
+// play. It never invents a rule of its own.
+function _exlRuleText(rec,pres){
+  if(!rec)return '';
+  if(rec.liveLoadChange)return rec.action||'';
+  var other=/^(calibrate|reduce_load|technique_check|coach_review|coach_target|mode_deferred|change_unconfirmed|change_provisional|incomplete)$/;
+  var ranged=pres&&pres.repMode!=='exact'&&pres.repMode!=='seconds'&&pres.repMode!=='distance'&&pres.loadMode!=='bodyweight'&&pres.repCeiling&&pres.repFloor!==pres.repCeiling;
+  if(ranged&&!other.test(String(rec.decision||''))){
+    var n=parseInt(pres.workingSets,10)||0;
+    var which=n===2?'both work sets':(n===1?'your work set':'all '+n+' work sets');
+    return 'Hit '+pres.repCeiling+' on '+which+' to '+(pres.assisted?'drop assistance':'go up');
+  }
+  return rec.action||'';
+}
+var _EXL_STAGES=['','One more rep','One more set','Load unlocked','Increase next'];
+function _exlStage(ctx){
+  var rec=ctx.rec,pres=ctx.pres;
+  if(!rec||rec.liveLoadChange||!pres)return 0;
+  var reps=_exlWorkingReps(ctx.ex,ctx.current);
+  var m=reps.length?_nsMilestone(reps,pres.repCeiling,pres.workingSets):rec.milestone;
+  return m&&m.stage?m.stage:0;
+}
+function _exlTargetHtml(ctx){
+  var rec=ctx.rec||{},pres=ctx.pres,live=ctx.live,assisted=!!rec.assisted;
+  var reps=_exlRepText(pres,ctx.ex);
+  if(rec.liveLoadChange&&live&&live.loadDecision)reps={value:String(live.loadDecision.repTarget),unit:'reps'};
+  var load=rec.weightKg!=null
+    ?'<span class="exl-big">'+esc(_nsBare(rec.weightKg))+'</span><span class="exl-unit">'+(assisted?'kg assist':'kg')+'</span><span class="exl-x">×</span>'
+    :'';
+  var stage=_exlStage(ctx),bar='';
+  for(var s=1;s<=4;s++)bar+='<i class="'+(s<=stage?'on':'')+'"></i>';
+  var stageName=stage?(stage===4&&assisted?'Less assist next':_EXL_STAGES[stage]):(rec.status||'');
+  var sentence=rec.liveLoadChange&&live&&live.prompt?esc(live.prompt):_exlEffortHtml(pres);
+  var prompt=(!rec.liveLoadChange&&live&&live.prompt&&!ctx.complete)?'<div class="exl-prompt">'+esc(live.prompt)+'</div>':'';
+  return '<div class="exl-target ns-t-'+esc(rec.tone||'blue')+'" data-stage="'+stage+'">'+
+    '<div class="exl-label">'+(rec.liveLoadChange?'Current target':'Today’s target')+' · per work set</div>'+
+    '<div class="exl-line">'+load+'<span class="exl-big">'+esc(reps.value)+'</span>'+(reps.unit||rec.weightKg==null?'<span class="exl-unit">'+esc(reps.unit)+(rec.weightKg==null?(reps.unit?' · ':'')+'pick your load':'')+'</span>':'')+'</div>'+
+    '<div class="exl-effort">'+sentence+'</div>'+prompt+
+    '<div class="exl-bar" role="img" aria-label="Progression stage '+stage+' of 4">'+bar+'</div>'+
+    '<div class="exl-bar-foot"><span class="exl-stage">'+esc(stageName)+'</span><span class="exl-rule">'+esc(_exlRuleText(rec,pres))+'</span></div>'+
+  '</div>';
+}
+// Next-time direction is measured against the load just lifted, never against
+// the engine's tone: a hold is amber whatever the reason behind it.
+function _exlDirection(nextKg,liftedKg,assisted,decision){
+  if(nextKg==null){
+    if(/^(increase_load|change_provisional|increase_reps)$/.test(String(decision||'')))return 'up';
+    if(/reduce/.test(String(decision||'')))return 'down';
+    return 'none';
+  }
+  if(liftedKg==null)return 'none';
+  var diff=Math.round((nextKg-liftedKg)*100)/100;
+  if(Math.abs(diff)<0.05)return decision==='increase_reps'?'up':'hold';
+  var up=assisted?diff<0:diff>0;
+  return up?'up':'down';
+}
+var _EXL_SYM={up:'↑',hold:'=',down:'↓',none:''};
+function _exlBadgeHtml(ctx){
+  var assisted=!!(ctx.rec&&ctx.rec.assisted);
+  var basis=ctx.complete&&ctx.next?ctx.next:ctx.rec;
+  var lifted=ctx.complete?_exlTopLoad(ctx.ex,ctx.current,assisted):_exlTopLoad(ctx.ex,ctx.prevEffort,assisted);
+  var kg=basis?basis.weightKg:null;
+  // Colour and symbol mean "next time", so they only appear once the exercise
+  // is done. Before that the chip is a plain, neutral target.
+  var dir=ctx.complete?_exlDirection(kg,lifted,assisted,basis&&basis.decision):'none';
+  var text=kg==null?(dir==='up'?'Next step':'Base'):_nsBare(kg);
+  var words={up:'up to',hold:'hold at',down:'down to',none:''}[dir];
+  var label=(ctx.complete?'Next time: ':'Today: ')+(words?words+' ':'')+(kg==null?text:text+(assisted?'kg assist':'kg'));
+  return '<span class="exl-badge is-'+dir+'" data-dir="'+dir+'" aria-label="'+esc(label)+'">'+(_EXL_SYM[dir]?'<b aria-hidden="true">'+_EXL_SYM[dir]+'</b>':'')+'<span>'+esc(text)+'</span></span>';
+}
+function _exlUpNextHtml(ctx){
+  var rec=ctx.rec||{},reps=_exlRepText(ctx.pres,ctx.ex),last=_exlSetText(getWorkingSlice(ctx.ex,ctx.prevEffort||[])[0]);
+  var rpe=ctx.pres&&ctx.pres.targetRir>0?' · RPE '+esc(_nsTrim(ctx.pres.targetRpe)):'';
+  return '<span class="exl-up">'+
+    '<span class="exl-up-meta">'+esc(_exlMetaLine(ctx.ex,ctx.warm,ctx.work))+'</span>'+
+    (last?'<span class="exl-up-last">Last '+esc(last)+'</span>':'')+
+    '<span class="exl-up-line">'+(rec.weightKg!=null?'<span class="exl-big">'+esc(_nsBare(rec.weightKg))+'</span><span class="exl-unit">'+(rec.assisted?'kg assist':'kg')+'</span><span class="exl-x">×</span>':'')+'<span class="exl-big">'+esc(reps.value)+'</span><span class="exl-unit">'+esc(reps.unit)+rpe+'</span></span>'+
+    '<span class="exl-up-start">Start</span>'+
+  '</span>';
+}
+// Finished state: one card. Work sets, one comparison with last session, one
+// next-session instruction. It replaces the live result, target-beaten,
+// next-session and start-at blocks that used to repeat each other.
+function _exlResultHtml(ctx){
+  if(!ctx.complete)return '<div class="exl-result" hidden></div>';
+  var ex=ctx.ex,assisted=!!(ctx.rec&&ctx.rec.assisted),work=getWorkingSlice(ex,ctx.current||[]);
+  var reps=_exlWorkingReps(ex,ctx.current),total=reps.reduce(function(a,b){return a+b;},0);
+  var prevReps=_exlWorkingReps(ex,ctx.prevEffort),prevTotal=prevReps.reduce(function(a,b){return a+b;},0);
+  var nowLoad=_exlTopLoad(ex,ctx.current,assisted),prevLoad=_exlTopLoad(ex,ctx.prevEffort,assisted);
+  var cmp;
+  if(!prevReps.length)cmp='first time logged';
+  else if(nowLoad!=null&&prevLoad!=null&&Math.abs(nowLoad-prevLoad)>=0.05)cmp=((assisted?nowLoad<prevLoad:nowLoad>prevLoad)?'heavier':'lighter')+' than last session';
+  else if(total>prevTotal)cmp='beat last session by '+(total-prevTotal);
+  else if(total===prevTotal)cmp='level with last session';
+  else cmp=(prevTotal-total)+' short of last session';
+  var next=ctx.next||ctx.rec||{};
+  var reasonText=String(next.reason||''),firstSentence=reasonText.match(/^.*?\.(?=\s|$)/),rule=firstSentence?firstSentence[0]:reasonText;
+  var sets=work.map(function(set,ix){return '<li><span>Work '+(ix+1)+'</span><strong>'+esc(_exlSetText(set))+'</strong></li>';}).join('');
+  return '<div class="exl-result">'+
+    '<div class="exl-label">Work sets done</div><ul class="exl-result-sets">'+sets+'</ul>'+
+    '<div class="exl-result-line">'+total+' work reps · '+esc(cmp)+'</div>'+
+    '<div class="exl-next"><div class="exl-label">Next session</div><div class="exl-next-action">'+esc(next.action||'')+'</div>'+(rule?'<div class="exl-next-rule">'+esc(rule)+'</div>':'')+'</div>'+
+    '<button type="button" class="exl-edit" onclick="toggleExlEdit(this)" aria-expanded="false">Edit sets</button>'+
+  '</div>';
+}
+function _exlBestHtml(ctx){
+  var points=(ctx.rec&&ctx.rec.history)||[],assisted=!!(ctx.rec&&ctx.rec.assisted),best=null;
+  points.forEach(function(p){
+    if(p.loadKg==null)return;
+    if(!best||(assisted?p.loadKg<best.loadKg:p.loadKg>best.loadKg)||(p.loadKg===best.loadKg&&p.totalReps>best.totalReps))best=p;
+  });
+  var when=best&&best.date?_nsHistoryDate(best.date):'';
+  return '<button type="button" class="exl-tile exl-best" onclick="openExlSheet('+ctx.i+','+ctx.ei+',\'stats\')">'+
+    '<span class="exl-label">Best'+(when?' · '+esc(when):'')+'</span>'+
+    '<strong>'+(best?esc(_nsBare(best.loadKg)+(assisted?'kg assist':'kg'))+' · '+best.totalReps+' reps':'No sessions yet')+'</strong></button>';
+}
+function _exlTilesHtml(ctx){
+  return '<div class="exl-tiles">'+_exlBestHtml(ctx)+
+    '<button type="button" class="exl-tile exl-why-tile" onclick="openExlSheet('+ctx.i+','+ctx.ei+',\'why\')"><strong>Why this load</strong><span aria-hidden="true">›</span></button></div>';
+}
+function _exlDockHtml(ctx){
+  var rest=parseInt(ctx.ex.rest,10);
+  return '<div class="exl-dock">'+
+    (!isNaN(rest)&&rest>0?'<button type="button" class="exl-rest" id="rtd_'+ctx.i+'_'+ctx.ei+'" data-rest="'+rest+'" onclick="toggleExlRest('+ctx.i+','+ctx.ei+')" aria-label="Start rest timer, '+rest+' seconds">'+_exlIcon.clock+'<span>'+_exlFmtSeconds(rest)+'</span></button>':'')+
+    '<button type="button" class="exl-log" id="exlLog_'+ctx.i+'_'+ctx.ei+'" onpointerdown="exlArmLog('+ctx.i+','+ctx.ei+')" onclick="exlLogCurrent('+ctx.i+','+ctx.ei+')">Log set</button>'+
+    '<div class="exl-dock-note" aria-live="polite"></div>'+
+  '</div>';
+}
+// Repaint the parts of one exercise that depend on the recommendation. Called
+// on every keystroke (via refreshStrengthFeedback) and after a swap.
+function _exlPaint(card,ctx){
+  if(!card||!ctx)return;
+  ctx.complete=strengthExerciseIsComplete(card);
+  if(ctx.complete&&!ctx.next)ctx.next=_nsRecommendation(ctx.ex,ctx.current,ctx.resolvedEx,ctx.history);
+  var swap=function(sel,html){var el=card.querySelector(sel);if(el)el.outerHTML=html;};
+  swap('.exl-target',_exlTargetHtml(ctx));
+  swap('.exl-badge',_exlBadgeHtml(ctx));
+  swap('.exl-result',_exlResultHtml(ctx));
+  swap('.exl-best',_exlBestHtml(ctx));
+  var up=card.querySelector('.exl-up');if(up)up.outerHTML=_exlUpNextHtml(ctx);
+  var prev=ctx.prevEffort||[];
+  card.querySelectorAll('.setrow,.setrow-single').forEach(function(row,ix){
+    var last=row.querySelector('.slast');if(last)last.innerHTML=_exlLastHtml(prev[ix]);
+  });
+}
+function _exlCtxFor(i,ei,card){
+  var s=sessions[i];if(!s)return null;
+  var ex=getSplit(splitKeyForSession(s,'Upper A'))[ei];if(!ex)return null;
+  var resolvedEx=exPicks[ex.exercise]||ex.exercise;
+  var prevEffort=getExercisePreviousEffort(s.id,resolvedEx),history=getExerciseHistory(s.id,resolvedEx);
+  var current=collectExerciseSets(i,ei,true);
+  var rec=_nsRecommendation(ex,prevEffort,resolvedEx,history);
+  var live=_nsLiveProgress(ex,current,rec,resolvedEx,history,prevEffort);
+  rec=_nsApplyLiveLoadRecommendation(rec,live);rec.live=live;
+  return {i:i,ei:ei,ex:ex,resolvedEx:resolvedEx,rec:rec,live:live,pres:rec.prescription||strengthPrescriptionFor(ex,resolvedEx),history:history,prevEffort:prevEffort,current:current,
+    warm:parseInt(ex.warmupSets,10)||0,work:parseInt(ex.workingSets||ex.sets,10)||0,next:null};
+}
+// Row states and the dock label follow the first row that is not ticked.
+function _exlRowLabel(row){
+  var n=row&&row.querySelector('.snum');return n?n.textContent.trim():'set';
+}
+function _exlCurrentRow(card){
+  var rows=card?card.querySelectorAll('.setrow,.setrow-single'):[];
+  for(var x=0;x<rows.length;x++){var t=rows[x].querySelector('.st');if(!t||!t.classList.contains('on'))return rows[x];}
+  return null;
+}
+function _exlRefreshRows(card){
+  if(!card||!card.classList.contains('exl'))return;
+  var current=_exlCurrentRow(card);
+  card.querySelectorAll('.setrow,.setrow-single').forEach(function(row){
+    var t=row.querySelector('.st'),done=!!(t&&t.classList.contains('on'));
+    row.classList.toggle('is-done',done);row.classList.toggle('is-current',row===current);
+  });
+  var btn=card.querySelector('.exl-log');
+  if(btn){
+    var label=current?_exlRowLabel(current).replace(/^WORK\b/i,'Work set').replace(/^BONUS\b/i,'Bonus set'):'';
+    btn.textContent=current?'Log '+label:'Finish exercise';
+    btn.setAttribute('data-finish',current?'false':'true');
+  }
+  card.classList.toggle('exl-finished',!current&&strengthExerciseIsComplete(card));
+}
+// Tapping the dock straight after typing blurs the reps box first, and its
+// change event can auto-tick that same row. The row is therefore chosen at
+// pointerdown, before the blur, so one tap never logs two sets.
+var _exlArmed=null;
+function exlArmLog(i,ei){
+  var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
+  var row=_exlCurrentRow(card);
+  _exlArmed={key:i+'_'+ei,row:row?row.id:null,finish:!row,at:Date.now()};
+}
+function exlLogCurrent(i,ei){
+  var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');if(!card)return;
+  var armed=_exlArmed&&_exlArmed.key===i+'_'+ei&&Date.now()-_exlArmed.at<2000?_exlArmed:null;_exlArmed=null;
+  var row=armed?(armed.row?document.getElementById(armed.row):null):_exlCurrentRow(card);
+  if(armed&&armed.finish){closeExlExercise();return;}
+  if(!row){if(!_exlCurrentRow(card))closeExlExercise();return;}
+  var tick=row.querySelector('.st');
+  if(tick&&tick.classList.contains('on'))return;
+  // The kg box shows today's target as a hint. Logging without typing over it
+  // means "I lifted the target", so the hint becomes the value — the same as
+  // typing it by hand, and nothing else about the saved set changes.
+  var w=row.querySelector('input[id^="w_"]');
+  if(w&&String(w.value||'').trim()===''&&/^\d+(\.\d+)?$/.test(String(w.placeholder||''))){
+    w.value=w.placeholder;
+    var key=card.getAttribute('data-split-key')||'Upper A';
+    draftGym(i,key);
+  }
+  var parts=String(row.id||'').split('_');
+  togSet(i,ei,parseInt(parts[parts.length-1],10));
+}
+function _exlFlashSaved(card){
+  if(!card||typeof card.querySelector!=='function')return;
+  var note=card.querySelector('.exl-dock-note');if(!note)return;
+  note.textContent='Saved on this device · sends to your coaches when you submit';
+  note.classList.add('show');
+  clearTimeout(note._t);note._t=setTimeout(function(){note.classList.remove('show');},2600);
+}
+function toggleExlRest(i,ei){
+  if(typeof _rest!=='undefined'&&_rest.key===i+'_'+ei&&_rest.deadline){skipRest(i,ei);return;}
+  if(typeof restTimerEnabled==='function'&&!restTimerEnabled()){if(typeof showToast==='function')showToast('Rest timer is off · turn it on in Log your sets');return;}
+  startRest(i,ei,restExerciseName(i,ei));
+}
+// Mirrors the running rest countdown into the dock button (09-logging owns the timer).
+function _exlSyncRest(i,ei,left){
+  var el=document.getElementById('rtd_'+i+'_'+ei);if(!el)return;
+  var span=el.querySelector('span'),running=left!=null;
+  if(span)span.textContent=_exlFmtSeconds(running?left:el.getAttribute('data-rest'));
+  el.classList.toggle('is-running',running);
+  el.setAttribute('aria-label',running?'Stop rest timer':'Start rest timer, '+el.getAttribute('data-rest')+' seconds');
+}
+function toggleExlEdit(button){
+  var card=button&&button.closest?button.closest('.exc'):null;if(!card)return;
+  var open=card.classList.toggle('exl-show-sets');button.setAttribute('aria-expanded',open?'true':'false');
+  button.textContent=open?'Hide sets':'Edit sets';
+}
+// Bottom sheet holding everything that left the main view. It lives inside the
+// card so the ids it contains (stats, swap pills) keep repainting in place.
+var _exlSheetReturn=null;
+function openExlSheet(i,ei,section){
+  var sheet=document.getElementById('exlSheet_'+i+'_'+ei);if(!sheet)return;
+  _exlShowSheet(sheet,section);
+}
+function openExlInfo(i){var sheet=document.getElementById('exlCal_'+i);if(sheet)_exlShowSheet(sheet);}
+function _exlShowSheet(sheet,section){
+  _exlSheetReturn=document.activeElement;
+  sheet.hidden=false;void sheet.offsetHeight;sheet.classList.add('open');
+  document.body.classList.add('exl-sheet-open');
+  var target=section?sheet.querySelector('[data-exl-section="'+section+'"]'):null;
+  var body=sheet.querySelector('.exl-sheet-body');
+  if(body)body.scrollTop=target?Math.max(0,target.offsetTop-body.offsetTop-8):0;
+  var close=sheet.querySelector('.exl-sheet-close');if(close)setTimeout(function(){close.focus();},60);
+}
+function closeExlSheet(el){
+  var sheet=el&&el.closest?el.closest('.exl-sheet'):document.querySelector('.exl-sheet.open');
+  if(!sheet)return false;
+  sheet.classList.remove('open');sheet.hidden=true;
+  if(!document.querySelector('.exl-sheet.open'))document.body.classList.remove('exl-sheet-open');
+  var back=_exlSheetReturn;_exlSheetReturn=null;
+  if(back&&typeof back.focus==='function')setTimeout(function(){back.focus();},30);
+  return true;
+}
+function _exlSheetHtml(id,title,body){
+  return '<div class="exl-sheet" id="'+id+'" hidden><div class="exl-sheet-backdrop" onclick="closeExlSheet(this)"></div>'+
+    '<div class="exl-sheet-panel" role="dialog" aria-modal="true" aria-label="'+esc(title)+'"><div class="exl-sheet-head"><strong>'+esc(title)+'</strong><button type="button" class="exl-sheet-close" onclick="closeExlSheet(this)" aria-label="Close details">&times;</button></div>'+
+    '<div class="exl-sheet-body">'+body+'</div></div></div>';
+}
+// Full-screen exercise view inside the focused-session overlay. The card is
+// never moved or rebuilt, so every input id stays where draft-saving reads it.
+var _exlListScroll=0;
+function _exlOverlayOf(card){return card&&card.closest?card.closest('.focus-overlay'):null;}
+function openExlExercise(card){
+  var ov=_exlOverlayOf(card);if(!ov)return false;
+  var scroll=document.getElementById('focusOverlayScroll');
+  if(!ov.classList.contains('exercise-open'))_exlListScroll=scroll?scroll.scrollTop:0;
+  ov.querySelectorAll('.exc.is-focused').forEach(function(c){if(c!==card)c.classList.remove('is-focused','open');});
+  card.classList.add('open','is-focused');
+  ov.classList.add('exercise-open');
+  var summary=card.querySelector('.exc-summary');if(summary)summary.setAttribute('aria-expanded','true');
+  _exlRefreshRows(card);
+  if(scroll)scroll.scrollTop=0;
+  var head=card.querySelector('.exl-name');if(head){head.setAttribute('tabindex','-1');setTimeout(function(){head.focus({preventScroll:true});},60);}
+  if(typeof refreshFocusedSessionChrome==='function'){var si=parseInt(card.getAttribute('data-session-index'),10);if(!isNaN(si))refreshFocusedSessionChrome(si);}
+  return true;
+}
+function closeExlExercise(){
+  var ov=document.getElementById('focusOverlay');
+  if(!ov||!ov.classList.contains('exercise-open'))return false;
+  closeExlSheet();
+  var card=ov.querySelector('.exc.is-focused');
+  ov.classList.remove('exercise-open');
+  if(card){card.classList.remove('is-focused','open');var s=card.querySelector('.exc-summary');if(s){s.setAttribute('aria-expanded','false');}}
+  var scroll=document.getElementById('focusOverlayScroll');if(scroll)scroll.scrollTop=_exlListScroll;
+  if(card){var si=parseInt(card.getAttribute('data-session-index'),10);if(!isNaN(si)){_exlRefreshList(si);if(typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(si);}}
+  if(card){var sm=card.querySelector('.exc-summary');if(sm)setTimeout(function(){sm.focus({preventScroll:true});},40);}
+  return true;
+}
+// Session list: the next unstarted exercise becomes the "Up next" card, done
+// exercises collapse to one compact row each, and the rest follow. Order is
+// visual only (CSS order), so the DOM and every id stay in programme order.
+function _exlRefreshList(i){
+  var list=document.querySelector('.exlist[data-session-index="'+i+'"]');if(!list)return;
+  var cards=Array.prototype.slice.call(list.querySelectorAll('.exc'));
+  var up=null,done=0,rest=0;
+  cards.forEach(function(card){
+    var complete=card.classList.contains('exercise-complete');
+    if(complete)done++;
+    else if(!up&&!card.classList.contains('has-entry'))up=card;
+  });
+  if(!up)cards.some(function(card){if(!card.classList.contains('exercise-complete')){up=card;return true;}return false;});
+  cards.forEach(function(card){
+    card.classList.toggle('is-up-next',card===up);
+    if(card!==up&&!card.classList.contains('exercise-complete'))rest++;
+  });
+  var label=function(key,text,show){
+    var el=list.querySelector('.exlist-label[data-exl-label="'+key+'"]');
+    if(!el){el=document.createElement('div');el.className='exlist-label';el.setAttribute('data-exl-label',key);list.insertBefore(el,list.firstChild);}
+    el.hidden=!show;el.innerHTML=text;
+  };
+  var upIndex=up?cards.indexOf(up)+1:0;
+  label('up','Up next · '+upIndex+' of '+cards.length,!!up);
+  label('done','<span>Done · '+done+'</span><span>Next time</span>',done>0);
+  label('rest','Still to do · '+rest,rest>0);
 }
 function strengthExerciseHasData(card){
   if(!card) return false;
@@ -2026,7 +2407,9 @@ function refreshStrengthExerciseState(card){
   var pill=card.querySelector('.exc-entry-pill');
   if(pill){pill.textContent=complete?'Done':'In progress';}
   if(!complete){var prompt=card.querySelector('.next-exercise-prompt');if(prompt)prompt.remove();}
+  _exlRefreshRows(card);
   var sessionIndex=parseInt(card.getAttribute('data-session-index'),10);
+  if(!isNaN(sessionIndex))_exlRefreshList(sessionIndex);
   if(!isNaN(sessionIndex)&&typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(sessionIndex);
 }
 function refreshStrengthExerciseStates(i){
@@ -2035,6 +2418,8 @@ function refreshStrengthExerciseStates(i){
 function toggleExc(el){
   var c=el&&el.closest?el.closest('.exc'):null;
   if(!c) return;
+  // Inside the focused session an exercise is its own full-screen view.
+  if(_exlOverlayOf(c)){if(c.classList.contains('is-focused'))closeExlExercise();else openExlExercise(c);return;}
   var open=c.classList.toggle('open');
   if(el&&el.setAttribute) el.setAttribute('aria-expanded',open?'true':'false');
   refreshStrengthExerciseState(c);
@@ -2282,17 +2667,19 @@ function buildBody(s,i,type){
 
     var splitKey=splitKeyForSession(s,'Upper A');
     var exercises=getSplit(splitKey),sl2=logs[s.id]||{},gymSubmitted=isSessionLogged(s.id),sessionRpeRequired=strengthLogRequiresRpe(sl2,gymSubmitted),sessionEffortRequired=strengthLogRequiresEffort(sl2,gymSubmitted,s.date);
-    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:var(--font-xs);display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:var(--font-xs);font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
+    h+='<div class="gym-date-field" style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:var(--font-xs);display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:var(--font-xs);font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="gym_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
     h+=strengthCoachChangesHtml(s);
     if(exercises.length){
       var restTimerOn=typeof restTimerEnabled==='function'?restTimerEnabled():true;
       var strengthRpeOn=typeof strengthRpeEnabled==='function'?strengthRpeEnabled():true;
       h+='<div class="strength-log-heading"><div class="ltitle">Log your sets</div><div class="strength-log-prefs"><button type="button" class="rest-pref-toggle'+(strengthRpeOn?' is-on':'')+'" data-strength-rpe-toggle aria-pressed="'+(strengthRpeOn?'true':'false')+'" onclick="toggleStrengthRpePreference()"><span class="rest-pref-dot"></span><span>RPE</span><strong class="rest-pref-state">'+(strengthRpeOn?'On':'Off')+'</strong></button><button type="button" class="rest-pref-toggle'+(restTimerOn?' is-on':'')+'" data-rest-timer-toggle aria-pressed="'+(restTimerOn?'true':'false')+'" onclick="toggleRestTimerPreference()"><span class="rest-pref-dot"></span><span>Rest timer</span><strong class="rest-pref-state">'+(restTimerOn?'On':'Off')+'</strong></button></div></div>';
-      h+='<div class="strength-effort-note"><span>SET 1</span><div><strong>Calibrate the first working set</strong><small>Work at the effort your coach set — stop when you could complete about two more clean reps unless they wrote otherwise. Tell us how it finished and we’ll adjust today’s remaining sets and carry a confirmed change into your next workout.</small></div></div>';
+      // One line on the list; the full explanation is one tap away in a sheet.
+      h+='<div class="strength-effort-note exl-cal"><span>SET 1</span><div><strong>First work set calibrates the load. Stop with 2 reps left.</strong></div><button type="button" class="exl-info" onclick="openExlInfo('+i+')" aria-label="How calibration works">'+_exlIcon.info+'</button></div>';
+      h+=_exlSheetHtml('exlCal_'+i,'Calibrate the first working set','<div class="exl-sec"><div class="exl-sec-t">Calibrate the first working set</div><p class="exl-sheet-p">Work at the effort your coach set — stop when you could complete about two more clean reps unless they wrote otherwise. Tell us how it finished and we’ll adjust today’s remaining sets and carry a confirmed change into your next workout.</p></div>');
       if(isFemaleSplit(splitKey)){
         h+='<div class="female-priority-note"><span class="female-priority-note-badge">Priority</span><div><strong>Short on time?</strong><span>Complete the priority exercises first to cover the session’s main muscle groups. Keep going through the full session whenever time allows.</span></div></div>';
       }
-      h+='<div class="exlist">';
+      h+='<div class="exlist" data-session-index="'+i+'">';
       exercises.forEach(function(ex,ei){
         var isTimeCrunchPriority=isFemalePriorityExercise(splitKey,ex.exercise);
         var resolvedEx=exPicks[ex.exercise]||ex.exercise;
@@ -2339,39 +2726,87 @@ function buildBody(s,i,type){
         var _nsSummary=(_nsTopW!=null?_nsBare(_nsTopW)+(isAssisted?'kg assist × ':'kg × '):'')+_nsParts.join(' · ');
         var _nsStateCls=exerciseIsComplete?' ns-logged':(hasExerciseData?' ns-inprogress':' ns-t-'+_ov.tone);
         var _nsLiveUnlocked=!!(_ov.live&&_ov.live.unlocked);
-        h+='<div class="exc'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-session-id="'+esc(s.id)+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-rest-seconds="'+(parseInt(ex.rest,10)||0)+'" data-rpe-required="'+(sessionRpeRequired?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'" data-ns-live-unlocked="'+(_nsLiveUnlocked?'true':'false')+'" data-ns-unlock-celebrated="'+(_nsLiveUnlocked?'true':'false')+'">';
-        h+='<button type="button" class="exc-summary" onclick="toggleExc(this)" aria-expanded="'+((ei===0&&!exerciseIsComplete)?'true':'false')+'">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn-row"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>'+(isTimeCrunchPriority?'<span class="female-priority-badge">Priority</span>':'')+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div></div>'+_nsChip(_ov)+'<div class="exc-chev">▾</div></button>';
-        h+='<div class="exc-body">'+_nsBody(_ov);
-        h+='<div class="exh">';
-        h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">';
-        h+='<div style="min-width:0;flex:1">';
-        h+='<div class="exm">'+esc(ex.sets)+' sets'+(ex.rest?' · '+formatRest(ex.rest):'')+'</div>';
-        if(ex.prescriptionLine) h+='<div class="exnotes exnotes-rx">'+esc(ex.prescriptionLine)+'</div>';
-        if(ex.notes) h+='<div class="exnotes">'+esc(ex.notes)+'</div>';
+        var _exlWarm=parseInt(ex.warmupSets,10)||0,_exlWork=parseInt(ex.workingSets,10)||Math.max(1,sets-_exlWarm);
+        var _exlCtx={i:i,ei:ei,ex:ex,resolvedEx:resolvedEx,rec:_ov,live:_ovLive,pres:_ovPres,history:_ovHistory,prevEffort:prevEffort,current:savedEx,complete:exerciseIsComplete,warm:_exlWarm,work:_exlWork,
+          next:exerciseIsComplete?_nsRecommendation(ex,savedEx,resolvedEx,_ovHistory):null};
+        h+='<div class="exc exl'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-session-id="'+esc(s.id)+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-rest-seconds="'+(parseInt(ex.rest,10)||0)+'" data-rpe-required="'+(sessionRpeRequired?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'" data-ns-live-unlocked="'+(_nsLiveUnlocked?'true':'false')+'" data-ns-unlock-celebrated="'+(_nsLiveUnlocked?'true':'false')+'">';
+        h+='<button type="button" class="exc-summary" onclick="toggleExc(this)" aria-expanded="'+((ei===0&&!exerciseIsComplete)?'true':'false')+'">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn-row"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>'+(isTimeCrunchPriority?'<span class="female-priority-badge">Priority</span>':'')+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div>'+_exlUpNextHtml(_exlCtx)+'</div>'+_exlBadgeHtml(_exlCtx)+'<div class="exc-chev">▾</div></button>';
+        h+='<div class="exc-body"><div class="exl-view">';
+        // Swap options are worked out first: the Swap pill in the title row only
+        // appears when there is something to swap to.
+        var swapOptions=(typeof getExerciseSwapOptions==='function')?getExerciseSwapOptions(ex):{priority:[ex.exercise].concat(ex.alts||[]),groups:[],patternLabel:''};
+        var swapPriority=swapOptions.priority||[];
+        var swapGroups=swapOptions.groups||[];
+        var hasSwaps=swapPriority.length>1||swapGroups.length;
+        h+='<div class="exl-head"><div class="exl-head-main"><div class="exl-name">'+esc(resolvedEx)+'</div><div class="exl-meta">'+esc(_exlMetaLine(ex,_exlWarm,_exlWork))+'</div></div>'+(hasSwaps?'<button type="button" class="exl-swap" onclick="openExlSheet('+i+','+ei+',\'swap\')">'+_exlIcon.swap+'Swap</button>':'')+'</div>';
+        h+=_exlResultHtml(_exlCtx);
+        h+=_exlTargetHtml(_exlCtx);
+        h+='<div class="exl-table">';
+        var isSingleLeg=usesLeftRightReps(resolvedEx,ex);
+        var warmupSets=parseInt(ex.warmupSets,10)||0;
+        var _exlKgHead=isAssisted?'Assist':'kg';
+        if(isSingleLeg){
+          h+='<div class="exl-slbls is-single" aria-hidden="true"><span>Set</span><span>Last</span><span>'+_exlKgHead+'</span><span>Left</span><span>Right</span><span class="slbl-tick">✓</span></div>';
+          h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
+	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var rowTag=isExtra?('Bonus '+bonusSet):(isWarmup?('WU '+(si+1)):('Work '+displaySet));var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set" aria-label="Remove bonus set">×</button>':'';
+	            var effortRequired=sessionEffortRequired&&si===warmupSets;
+	            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+rowTag+'</div><div class="slast" aria-label="Last session">'+_exlLastHtml(prevSet)+'</div>';
+	            h+='<input type="number" inputmode="decimal" class="sin" id="w_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' load')+'" placeholder="'+esc(_nsRowLoadPlaceholder(_ov,ex,si,prevSet))+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" inputmode="numeric" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' left reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet,'left'))+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" inputmode="numeric" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' right reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet,'right'))+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
+	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,true,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres);}
+	          }
+	        }else{
+	          h+='<div class="exl-slbls" aria-hidden="true"><span>Set</span><span>Last</span><span>'+_exlKgHead+'</span><span>Reps</span><span class="slbl-rpe">RPE</span><span class="slbl-tick">✓</span></div>';
+	          h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
+	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var rowTag=isExtra?('Bonus '+bonusSet):(isWarmup?('WU '+(si+1)):('Work '+displaySet));var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set" aria-label="Remove bonus set">×</button>':'';
+	            var effortRequired=sessionEffortRequired&&si===warmupSets;
+	            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+rowTag+'</div><div class="slast" aria-label="Last session">'+_exlLastHtml(prevSet)+'</div>';
+	            h+='<input type="number" inputmode="decimal" class="sin" id="w_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' load')+'" placeholder="'+esc(_nsRowLoadPlaceholder(_ov,ex,si,prevSet))+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" inputmode="numeric" class="sin" id="r_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet))+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<input type="number" inputmode="decimal" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' RPE out of 10')+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
+	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
+	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,false,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres);}
+	          }
+	        }
         h+='</div>';
-        h+='<div id="exstat_'+i+'_'+ei+'" class="exercise-stats">';
-          h+='<div class="exercise-stats-primary">';
-          if(!isAssisted&&stored.load) h+='<div class="ex-stat ex-stat-pb"><svg class="icon"><use href="#i-trophy"/></svg> PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
-          h+='<button type="button" class="exercise-stats-toggle" aria-expanded="false" onclick="toggleExerciseStats(this)">Stats</button></div>';
-          h+='<div class="exercise-stats-details" hidden>';
-          if(!isAssisted&&!isSingleLeg&&stored.volume) h+='<div class="ex-stat ex-stat-vol-pb"><svg class="icon"><use href="#i-trophy"/></svg> Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
-          if(!isAssisted&&stored.e1rm) h+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
-          if(!isAssisted&&!isSingleLeg) h+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol'+(isVolPB?' pb':'')+'">'+(isVolPB?'<svg class="icon"><use href="#i-trophy"/></svg> ':'')+'Vol '+Math.round(initVol).toLocaleString()+'kg</div>';
-          h+=strengthHistorySparklineHtml(_ovHistory,isAssisted);
-          h+='</div></div>';
         h+='</div>';
-        h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center">';
-        if(prevEffort){var prevStr=formatSetSummary(prevEffort,resolvedEx);h+='<div id="prev_'+i+'_'+ei+'" class="prev-effort has-last">LAST: '+esc(prevStr)+'</div>';}
-        else{h+='<div id="prev_'+i+'_'+ei+'" class="prev-effort">TARGET: '+esc(ex.repRange||ex.reps)+'</div>';}
-        h+='</div></div>';
+        h+=_exlTilesHtml(_exlCtx);
+	        h+='<button class="addset" onclick="addSet('+i+','+ei+',\'—\',\''+esc(splitKey)+'\')">+ Add bonus set</button>';
+        var _restSec=parseInt(ex.rest,10);
+        if(!isNaN(_restSec)&&_restSec>0) h+='<div class="rest-timer" id="rest_'+i+'_'+ei+'" data-rest="'+_restSec+'" style="display:none"><div><div class="rt-label">Rest</div><div class="rt-count readout readout--compact" id="rtc_'+i+'_'+ei+'">0:00</div></div><div class="rt-wrap metric-bar"><div class="rt-fill metric-bar-fill" id="rtf_'+i+'_'+ei+'"></div></div><button class="rt-skip" onclick="skipRest('+i+','+ei+')">Skip</button></div>';
+        h+='</div>';
+        h+=_exlDockHtml(_exlCtx);
+        // Everything that left the main view, one tap away. Nothing is removed.
+        var sheet='<section class="exl-sec" data-exl-section="why"><div class="exl-sec-t">Why this load</div>'+_nsBody(_ov)+'</section>';
+        var guide='';
+        if(ex.prescriptionLine) guide+='<div class="exnotes exnotes-rx">'+esc(ex.prescriptionLine)+'</div>';
+        if(ex.notes) guide+='<div class="exnotes">'+esc(ex.notes)+'</div>';
+        if(warmupSets){
+          guide+='<div class="working-set-note"><span>WU</span><div><strong>Warm-up first</strong><small>Keep the warm-up controlled. '+_exlWorkSetsLabel(_exlWork)+' determine today’s progression.</small></div></div>';
+        }
+        if(guide) sheet+='<section class="exl-sec" data-exl-section="guide"><div class="exl-sec-t">Coach notes &amp; warm-up</div>'+guide+'</section>';
+        sheet+='<section class="exl-sec" data-exl-section="stats"><div class="exl-sec-t">Records &amp; stats</div><div class="exh">';
+        sheet+='<div class="exm">'+esc(ex.sets)+' sets'+(ex.rest?' · '+formatRest(ex.rest):'')+'</div>';
+        sheet+='<div id="exstat_'+i+'_'+ei+'" class="exercise-stats">';
+          sheet+='<div class="exercise-stats-primary">';
+          if(!isAssisted&&stored.load) sheet+='<div class="ex-stat ex-stat-pb"><svg class="icon"><use href="#i-trophy"/></svg> Best load '+esc(pbRound1(pbNum(stored.load.weight)))+'kg'+(stored.load.reps?' × '+esc(stored.load.reps):'')+'</div>';
+          sheet+='<button type="button" class="exercise-stats-toggle" aria-expanded="false" onclick="toggleExerciseStats(this)">Stats</button></div>';
+          sheet+='<div class="exercise-stats-details" hidden>';
+          if(!isAssisted&&!isSingleLeg&&stored.volume) sheet+='<div class="ex-stat ex-stat-vol-pb"><svg class="icon"><use href="#i-trophy"/></svg> Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
+          if(!isAssisted&&stored.e1rm) sheet+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
+          if(!isAssisted&&!isSingleLeg) sheet+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol'+(isVolPB?' pb':'')+'">'+(isVolPB?'<svg class="icon"><use href="#i-trophy"/></svg> ':'')+'Vol '+Math.round(initVol).toLocaleString()+'kg</div>';
+          sheet+=strengthHistorySparklineHtml(_ovHistory,isAssisted);
+          sheet+='</div></div>';
+        sheet+='</div></section>';
         // Swap picker. The programmed exercise and the coach's alts stay on top
         // as the priority row; the wider same-muscle bank sits one tap away
         // behind "More options", grouped by equipment so a busy or under-kitted
         // gym never costs the athlete the muscle group the slot was written for.
-        var swapOptions=(typeof getExerciseSwapOptions==='function')?getExerciseSwapOptions(ex):{priority:[ex.exercise].concat(ex.alts||[]),groups:[],patternLabel:''};
-        var swapPriority=swapOptions.priority||[];
-        var swapGroups=swapOptions.groups||[];
-        if(swapPriority.length>1||swapGroups.length){
+        if(hasSwaps){
           var exNameSafe=ex.exercise.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           var pickPill=function(opt,extraCls){
             var safeOpt=opt.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -2380,69 +2815,36 @@ function buildBody(s,i,type){
           // Is the athlete currently on something outside the coach's shortlist?
           var offProgramme=swapPriority.every(function(opt){return opt!==resolvedEx;});
           var swapPanelId='swaps_'+i+'_'+ei;
+          sheet+='<section class="exl-sec" data-exl-section="swap"><div class="exl-sec-t">Swap exercise</div>';
           // Overload needs repetition to read. An athlete on a different
           // variation every week never builds the history the engine compares
           // against, so their numbers look flat however hard they train — say
           // so here, where the swap is about to happen, rather than never.
           var churn=(typeof variationChurn==='function')?variationChurn(logs,ex.exercise):null;
           if(churn&&churn.churning){
-            h+='<div class="swap-churn-note"><span class="swap-churn-badge">Heads up</span><div><strong>'+churn.distinct+' different variations in your last '+churn.sessions+' sessions here.</strong><span>Progress is measured against your own history, so it needs you to repeat a movement. Pick one and stay on it for about four weeks before switching again.</span></div></div>';
+            sheet+='<div class="swap-churn-note"><span class="swap-churn-badge">Heads up</span><div><strong>'+churn.distinct+' different variations in your last '+churn.sessions+' sessions here.</strong><span>Progress is measured against your own history, so it needs you to repeat a movement. Pick one and stay on it for about four weeks before switching again.</span></div></div>';
           }
-          h+='<div class="ex-picker-label">Swap exercise</div>';
-          h+='<div class="ex-picker">';
-          swapPriority.forEach(function(opt){h+=pickPill(opt,'');});
+          sheet+='<div class="ex-picker-label">Swap exercise</div>';
+          sheet+='<div class="ex-picker">';
+          swapPriority.forEach(function(opt){sheet+=pickPill(opt,'');});
           if(swapGroups.length){
-            h+='<button type="button" class="ex-pill ex-pill-more'+(offProgramme?' is-swapped':'')+'" aria-expanded="'+(offProgramme?'true':'false')+'" aria-controls="'+swapPanelId+'" onclick="toggleSwapPanel(this,\''+swapPanelId+'\')"><span class="ex-more-caret">▾</span>More options</button>';
+            sheet+='<button type="button" class="ex-pill ex-pill-more'+(offProgramme?' is-swapped':'')+'" aria-expanded="'+(offProgramme?'true':'false')+'" aria-controls="'+swapPanelId+'" onclick="toggleSwapPanel(this,\''+swapPanelId+'\')"><span class="ex-more-caret">▾</span>More options</button>';
           }
-          h+='</div>';
+          sheet+='</div>';
           if(swapGroups.length){
-            h+='<div class="ex-swaps'+(offProgramme?' open':'')+'" id="'+swapPanelId+'"'+(offProgramme?'':' hidden')+'>';
-            h+='<div class="ex-swaps-note"><strong>'+esc(swapOptions.patternLabel)+'</strong><span>Every option below trains the same muscle group as the programmed exercise — pick whatever you can get on. Stick to the sets, reps and effort as written.</span></div>';
+            sheet+='<div class="ex-swaps'+(offProgramme?' open':'')+'" id="'+swapPanelId+'"'+(offProgramme?'':' hidden')+'>';
+            sheet+='<div class="ex-swaps-note"><strong>'+esc(swapOptions.patternLabel)+'</strong><span>Every option below trains the same muscle group as the programmed exercise — pick whatever you can get on. Stick to the sets, reps and effort as written.</span></div>';
             swapGroups.forEach(function(group){
-              h+='<div class="ex-swap-group"><div class="ex-swap-group-label">'+esc(group.label)+'</div><div class="ex-swap-pills">';
-              group.options.forEach(function(opt){h+=pickPill(opt,' ex-pill-alt');});
-              h+='</div></div>';
+              sheet+='<div class="ex-swap-group"><div class="ex-swap-group-label">'+esc(group.label)+'</div><div class="ex-swap-pills">';
+              group.options.forEach(function(opt){sheet+=pickPill(opt,' ex-pill-alt');});
+              sheet+='</div></div>';
             });
-            h+='</div>';
+            sheet+='</div>';
           }
+          sheet+='</section>';
         }
-        var isSingleLeg=usesLeftRightReps(resolvedEx,ex);
-        var warmupSets=parseInt(ex.warmupSets,10)||0;
-        if(warmupSets){
-          h+='<div class="working-set-note"><span>WU</span><div><strong>Warm-up first</strong><small>Keep the warm-up controlled. Working sets 1–'+(parseInt(ex.workingSets,10)||Math.max(1,sets-warmupSets))+' determine today’s progression.</small></div></div>';
-        }
-        if(isSingleLeg){
-          h+='<div class="slbls-single"><div class="slbl"></div><div class="slbl">'+(isAssisted?'Assist kg':'kg')+'</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
-          h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
-	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set">×</button>':'';
-	            var effortRequired=sessionEffortRequired&&si===warmupSets;
-	            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
-	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' load')+'" placeholder="'+esc(_nsRowLoadPlaceholder(_ov,ex,si,prevSet))+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' left reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet,'left'))+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' right reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet,'right'))+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
-	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
-	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,true,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres);}
-	          }
-	        }else{
-	          h+='<div class="slbls"><div class="slbl"></div><div class="slbl">'+(isAssisted?'Assist kg':'kg')+'</div><div class="slbl">reps</div><div class="slbl">RPE</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div></div>';
-	          h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
-	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set">×</button>':'';
-	            var effortRequired=sessionEffortRequired&&si===warmupSets;
-	            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+displaySet+'</div>';
-	            h+='<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' load')+'" placeholder="'+esc(_nsRowLoadPlaceholder(_ov,ex,si,prevSet))+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet))+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<input type="number" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' RPE out of 10')+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
-	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
-	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,false,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres);}
-	          }
-	        }
-        h+='</div>';
-        var _restSec=parseInt(ex.rest,10);
-        if(!isNaN(_restSec)&&_restSec>0) h+='<div class="rest-timer" id="rest_'+i+'_'+ei+'" data-rest="'+_restSec+'" style="display:none"><div><div class="rt-label">Rest</div><div class="rt-count readout readout--compact" id="rtc_'+i+'_'+ei+'">0:00</div></div><div class="rt-wrap metric-bar"><div class="rt-fill metric-bar-fill" id="rtf_'+i+'_'+ei+'"></div></div><button class="rt-skip" onclick="skipRest('+i+','+ei+')">Skip</button></div>';
-	        h+='<button class="addset" onclick="addSet('+i+','+ei+',\'—\',\''+esc(splitKey)+'\')">+ Add bonus set</button>';
-        if(isBarbell){var topW=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight);if(!isNaN(w)&&w>topW)topW=w;});if(!topW&&prevEffort){prevEffort.forEach(function(p){var w=parseFloat(p.weight);if(!isNaN(w)&&w>topW)topW=w;});}h+='<div class="plate-calc" id="plate_'+i+'_'+ei+'">'+platesHtml(topW)+'</div>';}
+        if(isBarbell){var topW=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight);if(!isNaN(w)&&w>topW)topW=w;});if(!topW&&prevEffort){prevEffort.forEach(function(p){var w=parseFloat(p.weight);if(!isNaN(w)&&w>topW)topW=w;});}sheet+='<section class="exl-sec" data-exl-section="plates"><div class="exl-sec-t">Plates</div><div class="plate-calc" id="plate_'+i+'_'+ei+'">'+platesHtml(topW)+'</div></section>';}
+        h+=_exlSheetHtml('exlSheet_'+i+'_'+ei,resolvedEx+' details',sheet);
         h+='</div>';
         h+='</div>';
       });
@@ -2452,6 +2854,7 @@ function buildBody(s,i,type){
       // session was for?" while there is still time to act on the answer.
       h+='<div class="muscle-coverage" id="mcov_'+i+'"></div>';
       setTimeout(function(idx,key){return function(){refreshMuscleCoverage(idx,key);};}(i,splitKey),0);
+      setTimeout(function(idx){return function(){refreshStrengthExerciseStates(idx);};}(i),0);
     }
     var sl2notes=(logs[s.id]&&logs[s.id].__notes)||'';
     h+='<div class="run-field run-input-full" style="margin-top:12px;margin-bottom:8px"><label>Session notes <span style="font-family:var(--mono);font-size:var(--font-xs);font-weight:400;color:var(--dim)">(PRs, wins, niggles, anything worth logging)</span></label><textarea id="gn_'+i+'" class="li" placeholder="e.g. Hit a new squat PR, left knee felt a bit off on lunges..." oninput="draftGym('+i+',\''+esc(splitKey)+'\')" style="min-height:70px;resize:vertical;font-size:var(--font-sm)">'+esc(sl2notes)+'</textarea></div>';
@@ -2557,8 +2960,11 @@ function focusedSessionSubmitState(i,progress){
 function refreshFocusedSessionChrome(i){
   if(focusedSessionIndex!==i)return;
   var progress=strengthSessionProgress(i),meta=document.getElementById('focusOverlayMeta'),time=document.getElementById('focusOverlayTime'),fill=document.getElementById('focusProgressFill');
-  if(meta)meta.textContent=progress.totalExercises?(progress.doneExercises+' of '+progress.totalExercises+' exercises'):'';
-  if(time)time.textContent=progress.minutes?(progress.minutes+' min remaining'):(progress.totalExercises?'Session sets complete':'');
+  if(meta)meta.textContent=progress.totalExercises?(progress.doneExercises+' of '+progress.totalExercises):'';
+  if(time)time.textContent=progress.minutes?(progress.minutes+' min left'):(progress.totalExercises?'Sets complete':'');
+  var ov=document.getElementById('focusOverlay'),closeBtn=document.getElementById('focusCloseButton');
+  if(closeBtn)closeBtn.setAttribute('aria-label',ov&&ov.classList.contains('exercise-open')?'Back to session':'Close session');
+  var nameEl=document.getElementById('focusOverlayName');if(nameEl)nameEl.setAttribute('data-progress',meta?meta.textContent:'');
   if(fill)fill.style.width=(progress.totalSets?Math.round(progress.doneSets/progress.totalSets*100):0)+'%';
   var state=focusedSessionSubmitState(i,progress),title=document.getElementById('focusFooterTitle'),detail=document.getElementById('focusFooterDetail'),action=document.getElementById('focusFooterAction');
   if(title)title.textContent=state.title;if(detail)detail.textContent=state.detail;
@@ -2577,7 +2983,7 @@ function ensureFocusOverlay(){
   var ov=document.getElementById('focusOverlay');
   if(ov)return ov;
   ov=document.createElement('div');ov.id='focusOverlay';ov.className='focus-overlay';
-  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" onclick="closeFocusedSession()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong><div class="focus-progress" aria-hidden="true"><i id="focusProgressFill"></i></div></div><div class="focus-overlay-meta"><strong id="focusOverlayMeta"></strong><small id="focusOverlayTime"></small></div></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><div class="focus-footer-state"><strong id="focusFooterTitle">Session in progress</strong><small id="focusFooterDetail">Your entries save as you go.</small></div><button class="focus-done-btn" id="focusFooterAction" data-submit="false" onclick="handleFocusedSessionAction()">Back to plan</button></div>';
+  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" id="focusCloseButton" onclick="focusOverlayClose()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong><div class="focus-progress" aria-hidden="true"><i id="focusProgressFill"></i></div></div><div class="focus-overlay-meta"><strong id="focusOverlayMeta"></strong><small id="focusOverlayTime"></small></div></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><div class="focus-footer-state"><strong id="focusFooterTitle">Session in progress</strong><small id="focusFooterDetail">Your entries save as you go.</small></div><button class="focus-done-btn" id="focusFooterAction" data-submit="false" onclick="handleFocusedSessionAction()">Back to plan</button><div class="exl-key" aria-label="Next time key: arrow up means the load goes up, equals means hold, arrow down means it comes down"><span><b class="is-up">↑</b> up</span><span><b class="is-hold">=</b> hold</span><span><b class="is-down">↓</b> down</span></div></div>';
   document.body.appendChild(ov);
   return ov;
 }
@@ -2609,12 +3015,16 @@ function startFocusedSession(i){
   card.classList.add('in-focus-overlay');
   var nameEl=document.getElementById('focusOverlayName');if(nameEl)nameEl.textContent=(sessions[i]&&sessions[i].name)||'Workout';
   document.body.classList.add('focus-session-open');
-  void ov.offsetHeight;ov.classList.add('open');scroll.scrollTop=0;refreshFocusedSessionChrome(i);
+  void ov.offsetHeight;ov.classList.add('open');scroll.scrollTop=0;_exlRefreshList(i);refreshFocusedSessionChrome(i);
 }
 function openMobileWeekSession(i,trigger){
   focusedSessionReturnFocus=trigger||document.activeElement;startFocusedSession(i);
 }
+// The overlay's close button steps back one level: exercise view -> session
+// list -> closed.
+function focusOverlayClose(){if(closeExlExercise())return;closeFocusedSession();}
 function closeFocusedSession(){
+  closeExlExercise();
   var returnFocus=focusedSessionReturnFocus;
   // Flush before anything is torn down. A generated card is REMOVED below, and
   // a debounced draft firing afterwards would overwrite the session with empty
@@ -2632,7 +3042,7 @@ function closeFocusedSession(){
   document.body.classList.remove('focus-session-open');focusedSessionIndex=null;focusedSessionGenerated=false;focusedSessionReturnFocus=null;
   if(returnFocus&&typeof returnFocus.focus==='function')setTimeout(function(){returnFocus.focus();},180);
 }
-document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(focusedSessionIndex!=null)closeFocusedSession();else if(dayPlanDateISO)closeDayPlan();});
+document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(closeExlSheet())return;if(focusedSessionIndex!=null)focusOverlayClose();else if(dayPlanDateISO)closeDayPlan();});
 function togS(i){var el=document.getElementById('scb_'+i);if(!el) return;
   var open=el.classList.toggle('open');
   var toggle=document.getElementById('scht_'+i);
@@ -2704,6 +3114,9 @@ function settleStrengthExerciseCompletion(card){
   if(!card)return;
   refreshStrengthExerciseState(card);
   if(!strengthExerciseIsComplete(card))return;
+  // In the full-screen view the finished exercise stays on screen as its result
+  // card; the dock's Finish button returns to the list and its Up next card.
+  if(card.classList&&card.classList.contains('is-focused'))return;
   setTimeout(function(){
     if(!card||!strengthExerciseIsComplete(card))return;
     card.classList.remove('open');refreshStrengthExerciseState(card);showNextStrengthExercisePrompt(card);
@@ -2741,6 +3154,7 @@ function togSet(i,ei,si){
     draftGym(i,splitKey);
     if(on)settleStrengthExerciseCompletion(card);else refreshStrengthExerciseState(card);
   }
+  if(on&&card)_exlFlashSaved(card);
   if(on){
     var exerciseName=card&&typeof card.querySelector==='function'?card.querySelector('.exn'):null;
     startRest(i,ei,exerciseName?exerciseName.textContent.trim():'');

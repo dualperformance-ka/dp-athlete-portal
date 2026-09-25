@@ -6640,3 +6640,257 @@ button.chip,a.chip,.chip[role="button"]{min-height:44px;padding-inline:var(--sp-
   body[data-active-tab="today"] #todayEl .todaybtn,
   body[data-active-tab="today"] #todayEl .opensession{min-height:38px;padding:7px 9px}
 }
+
+/* ═══ TARGET-FIRST LOGGER (Direction A) ═════════════════════════════════
+   Presentation only. The exercise opens as its own full-screen view inside
+   the focused session; everything needed mid-set fits one phone screen.
+   Accent is the readout blue; green only for done/up, amber for hold, pink
+   for down. Type: Anton for names and big numbers, Barlow Semi Condensed for
+   body, DM Mono for labels and numerals. */
+:root{
+  --exl-display:'Anton','Barlow Condensed',var(--display);
+  --exl-body:'Barlow Semi Condensed',var(--body);
+  --exl-mono:'DM Mono',var(--mono);
+  --exl-accent:var(--readout);
+  --exl-accent-soft:var(--readout-soft);
+  --exl-accent-line:var(--readout-line);
+  --dir-up:var(--done);--dir-up-text:var(--done-text);
+  --dir-hold:var(--watch);--dir-hold-text:var(--watch-text);
+  --dir-down:#e5678a;--dir-down-text:#f29ab4;
+}
+.exl-ic{width:16px;height:16px;flex-shrink:0}
+
+/* ── Full-screen exercise view inside the session overlay ── */
+.focus-overlay .exc.exl:not(.is-focused) .exc-body{display:none}
+.focus-overlay .exc.exl .exc-chev{display:none}
+.focus-overlay.exercise-open .focus-overlay-foot{display:none}
+/* The focused card takes over the overlay's own scroll area in place: the
+   rest of the session is hidden, never moved, so no input changes parent. */
+.focus-overlay.exercise-open .focus-overlay-scroll{padding:12px 0 0}
+.focus-overlay.exercise-open .scb>:not(.exlist){display:none!important}
+.focus-overlay.exercise-open .exlist>:not(.is-focused){display:none!important}
+.focus-overlay.exercise-open .sc,.focus-overlay.exercise-open .scb,.focus-overlay.exercise-open .exlist{overflow:visible}
+.focus-overlay.exercise-open .exc.exl.is-focused{margin:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}
+.focus-overlay.exercise-open .exc.exl.is-focused>.exc-summary{display:none}
+.focus-overlay .exc.exl.is-focused .exc-body{display:flex;flex-direction:column;padding:0;animation:exlSlideIn var(--dur-sheet) cubic-bezier(.2,.8,.2,1)}
+@keyframes exlSlideIn{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.focus-overlay .exc.exl.is-focused .exc-body{animation:none}}
+.focus-overlay .exc.exl.is-focused .exl-view{padding:0 16px 12px;flex:1 0 auto}
+/* A flex chain from the scroll area down to the view pins the dock to the
+   bottom of the screen even when the exercise is shorter than the screen. */
+.focus-overlay.exercise-open .focus-overlay-scroll,.focus-overlay.exercise-open .focus-overlay-scroll>.sc,.focus-overlay.exercise-open .scb,.focus-overlay.exercise-open .exlist,.focus-overlay.exercise-open .exc.exl.is-focused{display:flex;flex-direction:column}
+.focus-overlay.exercise-open .focus-overlay-scroll>.sc,.focus-overlay.exercise-open .scb,.focus-overlay.exercise-open .exlist,.focus-overlay.exercise-open .exc.exl.is-focused,.focus-overlay.exercise-open .exc.exl.is-focused .exc-body{flex:1 0 auto}
+.focus-overlay.exercise-open .exc.exl.is-focused .exc-body{display:flex;flex-direction:column}
+.focus-overlay .exc.exl.is-focused .exl-dock{position:sticky;bottom:0;z-index:3;margin:0}
+@media(min-width:700px){.focus-overlay .exc.exl.is-focused .exc-body{max-width:560px;margin:0 auto}}
+
+/* Session header: the name reads as the title on the list, and compacts to
+   one mono line with the exercise count inside an exercise. */
+.focus-overlay .focus-overlay-title small{display:none}
+.focus-overlay .focus-overlay-title strong{font-family:var(--exl-display);font-weight:400;font-size:1.375rem;letter-spacing:.01em;line-height:1.1}
+.focus-overlay .focus-overlay-meta strong,.focus-overlay .focus-overlay-meta small{display:inline;font-family:var(--exl-mono);font-size:var(--fs-label);font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.focus-overlay .focus-overlay-meta strong::after{content:' · '}
+.focus-overlay .focus-progress{height:4px;margin-top:8px}
+.focus-overlay .focus-progress i{background:var(--exl-accent)}
+.focus-overlay.exercise-open .focus-overlay-title strong{font-family:var(--exl-mono);font-size:var(--fs-label);font-weight:500;letter-spacing:.14em;color:var(--muted)}
+.focus-overlay.exercise-open .focus-overlay-title strong::after{content:' · ' attr(data-progress)}
+.focus-overlay.exercise-open .focus-overlay-meta strong{display:none}
+
+/* ── Title row ── */
+.exl-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.exl-head-main{min-width:0}
+.exl-name{font-family:var(--exl-display);font-size:1.75rem;line-height:1.02;text-transform:uppercase;letter-spacing:.01em;color:var(--text);outline:none}
+.exl-meta{margin-top:3px;font-family:var(--exl-mono);font-size:var(--fs-data);color:var(--muted)}
+.exl-swap{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 16px;border-radius:var(--r-pill);border:1px solid var(--border-mid);background:var(--surface);color:var(--text);font-family:var(--exl-body);font-size:var(--fs-3);font-weight:600;cursor:pointer}
+
+/* ── Target card ── */
+.exl-target{border:1px solid var(--exl-accent);border-radius:var(--r-4);padding:14px 16px 12px;background:var(--surface);margin-bottom:12px}
+.exl-label{font-family:var(--exl-mono);font-size:var(--fs-label);font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.exl-target>.exl-label{color:var(--readout-text)}
+.exl-line{display:flex;align-items:baseline;flex-wrap:nowrap;column-gap:7px;margin:4px 0 6px;white-space:nowrap;min-width:0}
+.exl-big{font-family:var(--exl-display);font-size:clamp(2rem,10.5vw,2.875rem);line-height:1;color:var(--text);letter-spacing:.005em;font-variant-numeric:tabular-nums}
+.exl-big-word{font-size:2rem;text-transform:uppercase}
+.exl-unit{font-family:var(--exl-body);font-size:clamp(.8125rem,3.6vw,var(--fs-2-sm));font-weight:600;color:var(--muted)}
+.exl-x{font-family:var(--exl-body);font-size:var(--fs-2);color:var(--t-4)}
+.exl-effort{font-family:var(--exl-body);font-size:var(--fs-3);color:var(--text);line-height:1.35}
+.exl-effort strong{font-weight:700}
+.exl-prompt{margin-top:6px;font-family:var(--exl-body);font-size:var(--fs-3);color:var(--readout-text);line-height:1.35}
+.exl-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:12px}
+.exl-bar i{display:block;height:5px;border-radius:var(--r-pill);background:var(--g-3)}
+.exl-bar i.on{background:var(--exl-accent)}
+.exl-bar-foot{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-top:7px;font-family:var(--exl-body);font-size:var(--fs-data);color:var(--muted);line-height:1.25}
+.exl-stage{flex-shrink:0}
+.exl-rule{text-align:right;min-width:0}
+
+/* ── Set table ── */
+.exl-table{margin-bottom:10px}
+.exl-slbls,.exc.exl .setrow,.exc.exl .setrow-single{display:grid;grid-template-columns:54px minmax(0,1fr) 56px 52px 44px 44px;column-gap:6px;align-items:center}
+.exc.exl .setrow-single,.exl-slbls.is-single{grid-template-columns:54px minmax(0,1fr) 58px 50px 50px 46px}
+html.strength-rpe-off .exl-slbls:not(.is-single),html.strength-rpe-off .exc.exl .setrow{grid-template-columns:52px minmax(0,1fr) 58px 56px 44px}
+html.strength-rpe-off .exl-slbls .slbl-rpe{display:none}
+.exc.exl .setrow.extra,.exc.exl .setrow-single.extra{grid-template-columns:54px minmax(0,1fr) 62px 60px 46px 46px 24px}
+html.strength-rpe-off .exc.exl .setrow.extra{grid-template-columns:58px minmax(0,1fr) 66px 66px 46px 24px}
+.exc.exl .setrow-single.extra{grid-template-columns:54px minmax(0,1fr) 56px 46px 46px 46px 24px}
+.exl-slbls{padding:0 6px 4px;font-family:var(--exl-mono);font-size:var(--fs-label);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.exl-slbls .slbl-tick{text-align:center}
+.exc.exl .exsets{display:grid;gap:4px;padding:0}
+.exc.exl .setrow,.exc.exl .setrow-single{min-height:52px;padding:3px 6px;border:1px solid transparent;border-radius:var(--r-3)}
+.exc.exl .snum{text-align:left;font-family:var(--exl-mono);font-size:var(--fs-data);letter-spacing:.02em;text-transform:uppercase;color:var(--text);white-space:nowrap}
+.exc.exl .slast{min-width:0;font-family:var(--exl-mono);font-size:var(--fs-label);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* With the RPE column showing, LAST stacks load over reps rather than clip. */
+html:not(.strength-rpe-off) .exc.exl .setrow .slast{display:flex;flex-direction:column;line-height:1.2}
+html:not(.strength-rpe-off) .exc.exl .setrow .snum{font-size:var(--fs-label);letter-spacing:0}
+.exc.exl .sin,.exc.exl .rpe-in{height:44px;min-height:44px;padding:0 2px;border-radius:var(--r-2);font-family:var(--exl-mono);font-size:1rem;text-align:center}
+.exc.exl .rpe-in{font-size:var(--fs-3)}
+.exc.exl input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.exc.exl input[type=number]::-webkit-inner-spin-button,.exc.exl input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.exc.exl .setrow.is-current .sin[id^="w_"]::placeholder,.exc.exl .setrow-single.is-current .sin[id^="w_"]::placeholder{color:var(--text);-webkit-text-fill-color:var(--text)}
+.exc.exl .sin[id^="w_"]::placeholder{color:var(--t-2);-webkit-text-fill-color:var(--t-2);opacity:1}
+.exc.exl .sin[id^="r"]::placeholder{color:var(--t-4);-webkit-text-fill-color:var(--t-4);opacity:1}
+.exc.exl .st{width:44px;height:44px;border-radius:var(--r-pill);color:var(--t-3)}
+.exc.exl .st svg{opacity:1;width:16px;height:16px;stroke:currentColor}
+.exc.exl .st.on{background:var(--dir-up)!important;border-color:var(--dir-up)!important;color:var(--readout-ink)}
+.exc.exl .setrow.is-done,.exc.exl .setrow-single.is-done{opacity:.62}
+.exc.exl .setrow.is-done .snum,.exc.exl .setrow-single.is-done .snum{color:var(--muted)}
+.exc.exl .setrow.is-current,.exc.exl .setrow-single.is-current{background:var(--exl-accent-soft);border-color:var(--exl-accent)}
+.exc.exl .setrow.is-current .snum,.exc.exl .setrow-single.is-current .snum{color:var(--readout-text);font-weight:500}
+.exc.exl .setrow.is-current .st:not(.on),.exc.exl .setrow-single.is-current .st:not(.on){border:2px solid var(--exl-accent)!important;color:var(--exl-accent);background:transparent!important}
+.exc.exl .setrow.is-current .sin[id^="r"],.exc.exl .setrow-single.is-current .sin[id^="r"]{border-color:var(--exl-accent)}
+.exc.exl .set-effort{margin:4px 0 2px}
+.exc.exl .set-effort-options{grid-template-columns:1fr 1fr;gap:4px}
+.exc.exl .set-effort-options button{min-height:44px;padding:6px 10px;text-align:left}
+.exc.exl .set-effort-options button small{margin-top:1px}
+.exc.exl .addset{width:100%;margin:0 0 4px;min-height:44px}
+
+/* ── Tiles ── */
+.exl-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.exl-tile{display:flex;flex-direction:column;justify-content:center;gap:3px;min-height:56px;padding:8px 14px;border:1px solid var(--border-mid);border-radius:var(--r-3);background:var(--surface);color:var(--text);font-family:var(--exl-body);text-align:left;cursor:pointer}
+.exl-tile strong{font-size:var(--fs-2-sm);font-weight:700}
+.exl-why-tile{flex-direction:row;align-items:center;justify-content:space-between}
+.exl-why-tile span{font-size:var(--fs-2);color:var(--muted)}
+
+/* ── Dock ── */
+.exl-dock{position:relative;flex:0 0 auto;display:flex;gap:10px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--bg)}
+.exc.exl:not(.is-focused) .exl-dock{position:sticky;bottom:0;margin:0 -14px -12px;z-index:2}
+.exl-rest{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:100px;min-height:52px;padding:0 14px;border:1px solid var(--border-mid);border-radius:var(--r-3);background:var(--surface);color:var(--text);font-family:var(--exl-mono);font-size:var(--fs-2-sm);cursor:pointer;font-variant-numeric:tabular-nums}
+.exl-rest.is-running{border-color:var(--exl-accent);color:var(--readout-text)}
+.exl-log{flex:1;min-height:52px;border:0;border-radius:var(--r-3);background:var(--exl-accent);color:var(--readout-ink);font-family:var(--exl-display);font-size:1.375rem;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
+.exl-log[data-finish="true"]{background:var(--dir-up);color:var(--readout-ink)}
+.exl-dock-note{position:absolute;left:16px;right:16px;bottom:100%;margin-bottom:8px;padding:8px 12px;border-radius:var(--r-2);background:var(--toast-surface);color:var(--t-1);font-family:var(--exl-body);font-size:var(--fs-3);text-align:center;opacity:0;transform:translateY(6px);pointer-events:none;transition:opacity var(--dur-reveal),transform var(--dur-reveal)}
+.exl-dock-note.show{opacity:1;transform:none}
+.exc.exl .rest-timer{display:none!important}
+
+/* ── Finished state: one result card ── */
+.exl-result{border:1px solid var(--ok-border);border-radius:var(--r-4);padding:16px 18px;background:var(--surface);margin-bottom:14px}
+.exl-result[hidden]{display:none}
+.exl-result-sets{list-style:none;margin:8px 0 10px;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.exl-result-sets li{display:flex;gap:8px;align-items:baseline;padding:6px 10px;border-radius:var(--r-2);background:var(--g-well);font-family:var(--exl-mono);font-size:var(--fs-data)}
+.exl-result-sets li span{color:var(--muted)}
+.exl-result-line{font-family:var(--exl-body);font-size:var(--fs-2-sm);font-weight:600;color:var(--dir-up-text)}
+.exl-next{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.exl-next-action{margin-top:4px;font-family:var(--exl-display);font-size:1.75rem;line-height:1.05;text-transform:uppercase;color:var(--text)}
+.exl-next-rule{margin-top:6px;font-family:var(--exl-body);font-size:var(--fs-3);color:var(--muted);line-height:1.35}
+.exl-edit{margin-top:12px;min-height:44px;padding:0 14px;border:1px solid var(--border-mid);border-radius:var(--r-pill);background:transparent;color:var(--text);font-family:var(--exl-body);font-size:var(--fs-3);font-weight:600;cursor:pointer}
+.exc.exl.exl-finished .exl-target{display:none}
+.exc.exl.exl-finished:not(.exl-show-sets) .exl-table{display:none}
+
+/* ── Next-time badge: symbol plus colour, never colour alone ── */
+.exl-badge{flex-shrink:0;display:inline-flex;align-items:center;gap:6px;min-width:76px;justify-content:center;padding:6px 10px;border-radius:var(--r-2);border:1px solid var(--border-mid);font-family:var(--exl-mono);font-size:var(--fs-3);font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
+.exl-badge b{font-weight:500}
+.exl-badge.is-up{color:var(--dir-up-text);border-color:color-mix(in srgb,var(--dir-up) 45%,transparent);background:color-mix(in srgb,var(--dir-up) 12%,transparent)}
+.exl-badge.is-hold{color:var(--dir-hold-text);border-color:color-mix(in srgb,var(--dir-hold) 45%,transparent);background:color-mix(in srgb,var(--dir-hold) 12%,transparent)}
+.exl-badge.is-down{color:var(--dir-down-text);border-color:color-mix(in srgb,var(--dir-down) 45%,transparent);background:color-mix(in srgb,var(--dir-down) 12%,transparent)}
+.exl-key{grid-column:1/-1;display:flex;justify-content:flex-end;gap:12px;font-family:var(--exl-mono);font-size:var(--fs-label);color:var(--muted)}
+.exl-key b{font-weight:500}.exl-key .is-up{color:var(--dir-up-text)}.exl-key .is-hold{color:var(--dir-hold-text)}.exl-key .is-down{color:var(--dir-down-text)}
+
+/* ── Session list ── */
+.exlist[data-session-index]{display:flex;flex-direction:column;gap:0}
+.exlist-label{order:1;display:flex;justify-content:space-between;padding:14px 4px 8px;font-family:var(--exl-mono);font-size:var(--fs-label);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.exlist-label[hidden]{display:none}
+.exlist-label[data-exl-label="up"]{order:1;color:var(--readout-text)}
+.exlist .exc.exl.is-up-next{order:2}
+.exlist-label[data-exl-label="done"]{order:3}
+.exlist .exc.exl.exercise-complete{order:4}
+.exlist-label[data-exl-label="rest"]{order:5}
+.exlist .exc.exl{order:6}
+.exlist .exc.exl{margin-bottom:6px;border-radius:var(--r-3);border-left-width:1px;border-left-color:var(--border);box-shadow:none}
+.exlist .exc.exl.exercise-complete:not(.open),.exlist .exc.exl.has-entry:not(.open){box-shadow:none}
+.exlist .exc.exl .exc-summary{min-height:56px;gap:12px}
+.exlist .exc.exl .exn{font-family:var(--exl-body);font-weight:700;font-size:var(--fs-2-sm);letter-spacing:.01em}
+.exlist .exc.exl .ns-sub{font-family:var(--exl-mono)}
+.exlist .exc.exl.exercise-complete .ns-tag{display:none}
+.exlist .exc.exl.exercise-complete .ns-ic.done{background:transparent;color:var(--dir-up);font-size:var(--fs-3)}
+.exlist .exc.exl.exercise-complete:not(.open){background:var(--surface);border-color:var(--border)}
+.exlist .exc.exl.exercise-complete .ns-sum{color:var(--muted)}
+.exl-up{display:none}
+.exlist .exc.exl.is-up-next{border:1px solid var(--exl-accent);border-radius:var(--r-4);background:var(--surface)}
+.exlist .exc.exl.is-up-next .exc-summary{flex-wrap:wrap;align-items:flex-start;padding:16px 18px 18px}
+.exlist .exc.exl.is-up-next .ns-ic,.exlist .exc.exl.is-up-next .ns-sub,.exlist .exc.exl.is-up-next .exl-badge,.exlist .exc.exl.is-up-next .exc-chev{display:none}
+.exlist .exc.exl.is-up-next .exn{font-family:var(--exl-display);font-weight:400;font-size:1.75rem;line-height:1.05}
+.exlist .exc.exl.is-up-next .exl-up{display:grid;grid-template-columns:1fr auto;gap:6px 10px;margin-top:4px}
+.exl-up-meta{font-family:var(--exl-mono);font-size:var(--fs-data);color:var(--muted)}
+.exl-up-last{justify-self:end;align-self:start;padding:5px 9px;border-radius:var(--r-2);background:var(--g-well);font-family:var(--exl-mono);font-size:var(--fs-data);color:var(--muted);white-space:nowrap}
+.exl-up-line{grid-column:1/-1;display:flex;align-items:baseline;flex-wrap:wrap;column-gap:8px}
+.exl-up-line .exl-big{font-size:clamp(2rem,10vw,2.75rem)}
+.exl-up-start{grid-column:1/-1;display:flex;align-items:center;justify-content:center;min-height:52px;margin-top:8px;border-radius:var(--r-3);background:var(--exl-accent);color:var(--readout-ink);font-family:var(--exl-display);font-size:1.375rem;letter-spacing:.04em;text-transform:uppercase}
+.strength-effort-note.exl-cal{display:flex;align-items:center;gap:10px}
+.strength-effort-note.exl-cal>div{flex:1;min-width:0}
+.exl-info{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin:-8px -8px -8px 0;border:0;background:transparent;color:var(--muted);cursor:pointer}
+
+/* ── Bottom sheet ── */
+.exl-sheet{position:fixed;inset:0;z-index:320;display:flex;align-items:flex-end;justify-content:center}
+.exl-sheet[hidden]{display:none}
+.exl-sheet-backdrop{position:absolute;inset:0;background:var(--scrim);opacity:0;transition:opacity var(--dur-sheet)}
+.exl-sheet.open .exl-sheet-backdrop{opacity:1}
+.exl-sheet-panel{position:relative;width:100%;max-width:560px;max-height:86vh;display:flex;flex-direction:column;border-radius:var(--r-4) var(--r-4) 0 0;background:var(--bg);box-shadow:var(--edge-float);transform:translateY(24px);opacity:0;transition:transform var(--dur-sheet),opacity var(--dur-sheet)}
+.exl-sheet.open .exl-sheet-panel{transform:none;opacity:1}
+.exl-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 12px 8px 18px;border-bottom:1px solid var(--border)}
+.exl-sheet-head strong{font-family:var(--exl-display);font-weight:400;font-size:1.25rem;text-transform:uppercase;letter-spacing:.01em}
+.exl-sheet-close{width:44px;height:44px;border:0;border-radius:var(--r-pill);background:var(--surface);color:var(--text);font-size:1.5rem;cursor:pointer}
+.exl-sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 18px calc(18px + env(safe-area-inset-bottom))}
+.exl-sec{padding:12px 0;border-bottom:1px solid var(--border)}
+.exl-sec:last-child{border-bottom:0}
+.exl-sec-t{margin-bottom:8px;font-family:var(--exl-mono);font-size:var(--fs-label);letter-spacing:.14em;text-transform:uppercase;color:var(--readout-text)}
+.exl-sheet-p{margin:0;font-family:var(--exl-body);font-size:var(--fs-2-sm);line-height:1.45;color:var(--text)}
+.exl-sheet .exh{padding:0}
+body.exl-sheet-open{overflow:hidden}
+@media(prefers-reduced-motion:reduce){.exl-sheet-panel,.exl-sheet-backdrop{transition:none}}
+
+/* Narrow phones (320–360): the table keeps 44px targets by tightening columns. */
+@media(max-width:360px){
+  .exl-slbls,.exc.exl .setrow{grid-template-columns:50px minmax(0,1fr) 52px 48px 44px 44px;column-gap:4px}
+  html.strength-rpe-off .exl-slbls:not(.is-single),html.strength-rpe-off .exc.exl .setrow{grid-template-columns:48px minmax(0,1fr) 60px 58px 44px}
+  .exc.exl .setrow-single,.exl-slbls.is-single{grid-template-columns:44px minmax(0,1fr) 50px 44px 44px 44px;column-gap:4px}
+  .exc.exl .setrow,.exc.exl .setrow-single{padding:5px 4px}
+  .exl-slbls{padding:0 4px 6px}
+  .exc.exl .snum,.exc.exl .slast{font-size:var(--fs-label);letter-spacing:0}
+  .exl-name{font-size:1.5rem}
+}
+/* Short or narrow phones: the same content, packed tighter. Inputs and ticks
+   stay at 44px; only padding and the display type give way. */
+@media(max-width:360px),(max-height:780px){
+  .exc.exl .setrow,.exc.exl .setrow-single{min-height:46px;padding-top:1px;padding-bottom:1px}
+  .exc.exl .exsets{gap:2px}
+  .exl-target{padding:11px 14px 10px;margin-bottom:10px}
+  .exl-line{margin:2px 0 4px}
+  .exl-bar{margin-top:9px}
+  .exl-head{margin-bottom:8px}
+  .exl-tile{min-height:50px;padding:6px 12px}
+  .exl-tiles{margin-bottom:8px}
+  .focus-overlay.exercise-open .focus-overlay-scroll{padding-top:10px}
+}
+
+/* Session list inside the overlay, packed so more of the workout shows at
+   once: the header stacks (long session names stay readable), the session
+   date collapses to one row, and done exercises are one line each. */
+.focus-overlay:not(.exercise-open) .focus-overlay-bar{grid-template-columns:40px minmax(0,1fr);row-gap:2px}
+.focus-overlay:not(.exercise-open) .focus-overlay-meta{grid-column:2;text-align:left}
+.focus-overlay.exercise-open .focus-overlay-title strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.focus-overlay .gym-date-field{display:flex;align-items:center;gap:10px;padding:4px 6px 4px 12px!important;margin-bottom:8px!important}
+.focus-overlay .gym-date-field label{margin:0!important;flex-shrink:0;white-space:nowrap}
+.focus-overlay .gym-date-field label>span:last-child{display:none}
+.focus-overlay .gym-date-field input{flex:1;min-width:0;min-height:44px;margin:0}
+.focus-overlay .strength-log-heading{margin-bottom:6px}
+.exlist .exc.exl.exercise-complete .exc-summary{min-height:52px;padding-top:8px;padding-bottom:8px}
+.exlist .exc.exl.exercise-complete .exn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exlist .exc.exl.exercise-complete .exn-row{min-width:0}
