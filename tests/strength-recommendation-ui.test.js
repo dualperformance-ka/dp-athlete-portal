@@ -131,7 +131,12 @@ test('the card separates today’s target, the live result, next session and why
   assert.match(html, /Today’s target/);
   assert.match(html, /30kg × 8–12 @ 2 reps in reserve/);
   assert.match(html, /Live result/);
-  assert.match(html, /Target beaten by 2 reps/);
+  // One comparison only: total work reps against last session. The per-set
+  // "target beaten" line measured something else and read as a contradiction
+  // beside it ("6 more to beat last session" next to "Target beaten by 1").
+  assert.match(html, /29 reps · 2 up on last session/);
+  assert.doesNotMatch(html, /Target beaten/);
+  assert.doesNotMatch(html, /ns-beaten/);
   assert.match(html, /Next session/);
   assert.match(html, /Why/);
   assert.match(html, /ns-conf-confirmed">Confirmed history/);

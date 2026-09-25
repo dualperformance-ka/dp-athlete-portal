@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dp-athlete-v227'; // v227: coach-written messages stand out in the inbox
+const CACHE_NAME = 'dp-athlete-v228'; // v228: target-first exercise logger
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=180', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=181', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
-  '/js/02-login-goals.js?v=120',
+  '/js/02-login-goals.js?v=121',
   '/js/03-nav-nudges.js?v=126',
   '/js/04-checkin.js?v=104',
   '/js/05-handbook.js?v=89',
@@ -14,8 +14,8 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
-  '/js/08-training.js?v=152',
-  '/js/09-logging.js?v=127',
+  '/js/08-training.js?v=153',
+  '/js/09-logging.js?v=128',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=111',
   '/login.js?v=50', '/icons.css?v=4',

@@ -381,7 +381,7 @@ function refreshExerciseStat(i,ei,resolvedEx,ex){
   var stored=pbComputeStored(resolvedEx,s.id);
   var isSingleLeg=usesLeftRightReps(resolvedEx,ex);
   var sh='';
-  if(stored.load) sh+='<div class="ex-stat ex-stat-pb"><svg class="icon"><use href="#i-trophy"/></svg> PB '+esc(pbRound1(pbNum(stored.load.weight)))+'kg</div>';
+  if(stored.load) sh+='<div class="ex-stat ex-stat-pb"><svg class="icon"><use href="#i-trophy"/></svg> Best load '+esc(pbRound1(pbNum(stored.load.weight)))+'kg'+(stored.load.reps?' × '+esc(stored.load.reps):'')+'</div>';
   if(!isSingleLeg&&stored.volume) sh+='<div class="ex-stat ex-stat-vol-pb"><svg class="icon"><use href="#i-trophy"/></svg> Vol PB '+esc(Math.round(stored.volume.value).toLocaleString())+'kg</div>';
   if(stored.e1rm) sh+='<div class="ex-stat ex-stat-e1rm">e1RM '+esc(pbRound1(stored.e1rm.value))+'kg</div>';
   if(!isSingleLeg) sh+='<div id="vol_'+i+'_'+ei+'" class="ex-stat ex-stat-vol">Vol 0kg</div>';
@@ -393,12 +393,20 @@ function syncStrengthRepMode(i,ei,ex,resolvedEx,splitKey){
   var hasLeftRight=!!container.querySelector('input[id^="rL_"]');
   var labels=container.previousElementSibling;
   var loadLabel=_isAssistedExercise(resolvedEx)?'Assist kg':'kg';
+  // The target-first logger's header is SET | LAST | KG | REPS | RPE | ✓.
+  var exlHeader=!!(labels&&labels.classList&&labels.classList.contains('exl-slbls'));
   if(wantsLeftRight===hasLeftRight){
-    var loadHeading=labels&&labels.querySelectorAll('.slbl')[1];
-    if(loadHeading)loadHeading.textContent=loadLabel;
+    var loadHeading=labels&&(exlHeader?labels.children[2]:labels.querySelectorAll('.slbl')[1]);
+    if(loadHeading)loadHeading.textContent=exlHeader?(_isAssistedExercise(resolvedEx)?'Assist':'kg'):loadLabel;
     return;
   }
-  if(labels){
+  if(labels&&exlHeader){
+    var exlLoad=_isAssistedExercise(resolvedEx)?'Assist':'kg';
+    labels.className='exl-slbls'+(wantsLeftRight?' is-single':'');
+    labels.innerHTML=wantsLeftRight
+      ?'<span>Set</span><span>Last</span><span>'+exlLoad+'</span><span>Left</span><span>Right</span><span class="slbl-tick">✓</span>'
+      :'<span>Set</span><span>Last</span><span>'+exlLoad+'</span><span>Reps</span><span class="slbl-rpe">RPE</span><span class="slbl-tick">✓</span>';
+  }else if(labels){
     labels.className=wantsLeftRight?'slbls-single':'slbls';
     labels.innerHTML=wantsLeftRight
       ?'<div class="slbl"></div><div class="slbl">'+loadLabel+'</div><div class="slbl">Left</div><div class="slbl">Right</div><div class="slbl slbl-tick"><svg class="icon"><use href="#i-check"/></svg></div>'
@@ -415,8 +423,8 @@ function syncStrengthRepMode(i,ei,ex,resolvedEx,splitKey){
       var reps=row.querySelector('input[id^="r_"]'),rpe=row.querySelector('input[id^="rpe_"]');
       var shared=reps?reps.value:'';
       if(rpe&&rpe.value)row.setAttribute('data-bilateral-rpe',rpe.value);
-      var left=document.createElement('input');left.type='number';left.className='sin';left.id='rL_'+i+'_'+ei+'_'+si;left.placeholder='L';left.min='0';left.value=shared;wire(left,true);
-      var right=document.createElement('input');right.type='number';right.className='sin';right.id='rR_'+i+'_'+ei+'_'+si;right.placeholder='R';right.min='0';right.value=shared;wire(right,true);
+      var left=document.createElement('input');left.type='number';left.inputMode='numeric';left.className='sin';left.id='rL_'+i+'_'+ei+'_'+si;left.placeholder='L';left.min='0';left.value=shared;wire(left,true);
+      var right=document.createElement('input');right.type='number';right.inputMode='numeric';right.className='sin';right.id='rR_'+i+'_'+ei+'_'+si;right.placeholder='R';right.min='0';right.value=shared;wire(right,true);
       if(reps)reps.remove();if(rpe)rpe.remove();
       row.insertBefore(left,tick);row.insertBefore(right,tick);
       row.classList.remove('setrow');row.classList.add('setrow-single');
@@ -425,7 +433,7 @@ function syncStrengthRepMode(i,ei,ex,resolvedEx,splitKey){
       var leftValue=leftInput?leftInput.value:'',rightValue=rightInput?rightInput.value:'';
       var leftNum=parseFloat(leftValue),rightNum=parseFloat(rightValue);
       var combined=!isNaN(leftNum)&&!isNaN(rightNum)?String(Math.min(leftNum,rightNum)):(leftValue||rightValue);
-      var repsInput=document.createElement('input');repsInput.type='number';repsInput.className='sin';repsInput.id='r_'+i+'_'+ei+'_'+si;repsInput.placeholder='—';repsInput.min='0';repsInput.value=combined;wire(repsInput,true);
+      var repsInput=document.createElement('input');repsInput.type='number';repsInput.inputMode='numeric';repsInput.className='sin';repsInput.id='r_'+i+'_'+ei+'_'+si;repsInput.placeholder='—';repsInput.min='0';repsInput.value=combined;wire(repsInput,true);
       var rpeInput=document.createElement('input');rpeInput.type='number';rpeInput.className='rpe-in';rpeInput.id='rpe_'+i+'_'+ei+'_'+si;rpeInput.placeholder='—';rpeInput.min='1';rpeInput.max='10';rpeInput.step='0.5';rpeInput.value=row.getAttribute('data-bilateral-rpe')||'';wire(rpeInput,true);
       if(leftInput)leftInput.remove();if(rightInput)rightInput.remove();
       row.insertBefore(repsInput,tick);row.insertBefore(rpeInput,tick);
