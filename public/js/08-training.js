@@ -2115,11 +2115,13 @@ function _exlTilesHtml(ctx){
   return '<div class="exl-tiles">'+_exlBestHtml(ctx)+
     '<button type="button" class="exl-tile exl-why-tile" onclick="openExlSheet('+ctx.i+','+ctx.ei+',\'why\')"><strong>Why this load</strong><span aria-hidden="true">›</span></button></div>';
 }
+// There is no Log button: finishing a row (typing its reps, or tapping its tick)
+// logs it, and Review & submit at the end sends the session to the coaches.
+// The dock keeps the rest timer and the "Set saved" note.
 function _exlDockHtml(ctx){
-  var rest=parseInt(ctx.ex.rest,10);
-  return '<div class="exl-dock">'+
-    (!isNaN(rest)&&rest>0?'<button type="button" class="exl-rest" id="rtd_'+ctx.i+'_'+ctx.ei+'" data-rest="'+rest+'" onclick="toggleExlRest('+ctx.i+','+ctx.ei+')" aria-label="Start rest timer, '+rest+' seconds">'+_exlIcon.clock+'<span>'+_exlFmtSeconds(rest)+'</span></button>':'')+
-    '<button type="button" class="exl-log" id="exlLog_'+ctx.i+'_'+ctx.ei+'" onpointerdown="exlArmLog('+ctx.i+','+ctx.ei+')" onclick="exlLogCurrent('+ctx.i+','+ctx.ei+')">Log set</button>'+
+  var rest=parseInt(ctx.ex.rest,10),hasRest=!isNaN(rest)&&rest>0;
+  return '<div class="exl-dock'+(hasRest?'':' exl-dock-empty')+'">'+
+    (hasRest?'<button type="button" class="exl-rest" id="rtd_'+ctx.i+'_'+ctx.ei+'" data-rest="'+rest+'" onclick="toggleExlRest('+ctx.i+','+ctx.ei+')" aria-label="Start rest timer, '+rest+' seconds">'+_exlIcon.clock+'<span>'+_exlFmtSeconds(rest)+'</span></button>':'')+
     '<div class="exl-dock-note" aria-live="polite"></div>'+
   '</div>';
 }
@@ -2152,10 +2154,7 @@ function _exlCtxFor(i,ei,card){
   return {i:i,ei:ei,ex:ex,resolvedEx:resolvedEx,rec:rec,live:live,pres:rec.prescription||strengthPrescriptionFor(ex,resolvedEx),history:history,prevEffort:prevEffort,current:current,
     warm:parseInt(ex.warmupSets,10)||0,work:parseInt(ex.workingSets||ex.sets,10)||0,next:null};
 }
-// Row states and the dock label follow the first row that is not ticked.
-function _exlRowLabel(row){
-  var n=row&&row.querySelector('.snum');return n?n.textContent.trim():'set';
-}
+// Row states follow the first row that is not ticked.
 function _exlCurrentRow(card){
   var rows=card?card.querySelectorAll('.setrow,.setrow-single'):[];
   for(var x=0;x<rows.length;x++){var t=rows[x].querySelector('.st');if(!t||!t.classList.contains('on'))return rows[x];}
@@ -2168,37 +2167,23 @@ function _exlRefreshRows(card){
     var t=row.querySelector('.st'),done=!!(t&&t.classList.contains('on'));
     row.classList.toggle('is-done',done);row.classList.toggle('is-current',row===current);
   });
-  var btn=card.querySelector('.exl-log');
-  if(btn){
-    var label=current?_exlRowLabel(current).replace(/^WORK\b/i,'Work set').replace(/^BONUS\b/i,'Bonus set'):'';
-    btn.textContent=current?'Log '+label:'Done · close';
-    btn.setAttribute('data-finish',current?'false':'true');
-  }
   card.classList.toggle('exl-finished',!current&&strengthExerciseIsComplete(card));
 }
-// Tapping the dock straight after typing blurs the reps box first, and its
-// change event can auto-tick that same row. The row is therefore chosen at
-// pointerdown, before the blur, so one tap never logs two sets.
-var _exlArmed=null;
-function exlArmLog(i,ei){
-  var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
-  var row=_exlCurrentRow(card);
-  _exlArmed={key:i+'_'+ei,row:row?row.id:null,finish:!row,at:Date.now()};
+// Tapping a row's tick straight after typing blurs the reps box first, and its
+// change event can auto-tick that same row before the click lands. The row's
+// state is therefore read at pointerdown, before the blur: if it was open then,
+// the tap means "log it", so a row the blur has just ticked stays ticked
+// instead of being toggled straight back off.
+var _exlTickArmed=null;
+function armSetTick(i,ei,si){
+  var btn=document.getElementById('st_'+i+'_'+ei+'_'+si);
+  _exlTickArmed={key:i+'_'+ei+'_'+si,wasOn:!!(btn&&btn.classList.contains('on')),at:Date.now()};
 }
-function exlLogCurrent(i,ei){
-  var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');if(!card)return;
-  var armed=_exlArmed&&_exlArmed.key===i+'_'+ei&&Date.now()-_exlArmed.at<2000?_exlArmed:null;_exlArmed=null;
-  var row=armed?(armed.row?document.getElementById(armed.row):null):_exlCurrentRow(card);
-  if(armed&&armed.finish){closeExlCard(card);return;}
-  if(!row){if(!_exlCurrentRow(card))closeExlCard(card);return;}
-  var tick=row.querySelector('.st');
-  if(tick&&tick.classList.contains('on'))return;
-  // The kg box shows today's target as a hint. Logging without typing over it
-  // means "I lifted the target", so the hint becomes the value — the same as
-  // typing it by hand, and nothing else about the saved set changes.
-  _exlAdoptLoadHint(i,ei,row);
-  var parts=String(row.id||'').split('_');
-  togSet(i,ei,parseInt(parts[parts.length-1],10));
+function tapSetTick(i,ei,si){
+  var key=i+'_'+ei+'_'+si,armed=_exlTickArmed&&_exlTickArmed.key===key&&Date.now()-_exlTickArmed.at<2000?_exlTickArmed:null;_exlTickArmed=null;
+  var btn=document.getElementById('st_'+key);if(!btn)return;
+  if(armed&&!armed.wasOn&&btn.classList.contains('on'))return;
+  togSet(i,ei,si);
 }
 function _exlFlashSaved(card){
   if(!card||typeof card.querySelector!=='function')return;
@@ -2261,7 +2246,7 @@ function _exlSheetHtml(id,title,body){
 // visible around it. One open at a time; tapping it again closes it. The card
 // is never moved or rebuilt, so every input id stays where drafts are read.
 function _exlScroller(card){return card&&card.closest?card.closest('.focus-overlay-scroll'):null;}
-// While an exercise is open its Log dock stands in for the session footer;
+// While an exercise is open its dock (rest timer) stands in for the session footer;
 // Review & submit is back the moment no exercise is open.
 function _exlSyncOverlay(){
   var ov=document.getElementById('focusOverlay');if(!ov||typeof ov.querySelector!=='function')return;
@@ -2768,7 +2753,7 @@ function buildBody(s,i,type){
 	            h+='<input type="number" inputmode="decimal" class="sin" id="w_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' load')+'" placeholder="'+esc(_nsRowLoadPlaceholder(_ov,ex,si,prevSet))+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" inputmode="numeric" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' left reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet,'left'))+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" inputmode="numeric" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' right reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet,'right'))+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
+	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onpointerdown="armSetTick('+i+','+ei+','+si+')" onclick="tapSetTick('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
 	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,true,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres);}
 	          }
@@ -2781,7 +2766,7 @@ function buildBody(s,i,type){
 	            h+='<input type="number" inputmode="decimal" class="sin" id="w_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' load')+'" placeholder="'+esc(_nsRowLoadPlaceholder(_ov,ex,si,prevSet))+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" inputmode="numeric" class="sin" id="r_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet))+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" inputmode="decimal" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' RPE out of 10')+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
-	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onclick="togSet('+i+','+ei+','+si+')">';
+	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onpointerdown="armSetTick('+i+','+ei+','+si+')" onclick="tapSetTick('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
 	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,false,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres);}
 	          }
@@ -3188,6 +3173,9 @@ function openNextStrengthExercise(button){
 function togSet(i,ei,si){
   var btn=document.getElementById('st_'+i+'_'+ei+'_'+si);if(!btn) return;
   var on=!btn.classList.contains('on'),row=document.getElementById('sr_'+i+'_'+ei+'_'+si);
+  // Ticking without typing over the kg hint means "I lifted the target": the
+  // hint becomes the value, exactly as if it had been typed.
+  if(on&&row&&row.closest&&row.closest('.exc.exl'))_exlAdoptLoadHint(i,ei,row);
   if(on&&row&&row.getAttribute('data-effort-required')==='true'&&!row.getAttribute('data-effort')){var panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(panel){panel.classList.add('is-prompting','needs-attention');panel.scrollIntoView({behavior:'smooth',block:'nearest'});}if(typeof showToast==='function')showToast('Calibrate the first working set before continuing');return;}
   btn.classList.toggle('on',on);btn.setAttribute('aria-pressed',on?'true':'false');btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';
   var card=btn.closest('.exc');

@@ -6756,8 +6756,8 @@ html:not(.strength-rpe-off) .exc.exl .setrow .snum{font-size:var(--fs-label);let
 .exc.exl.open .exl-dock{position:sticky;bottom:0;margin:0 -8px -8px;z-index:3;border-radius:0 0 var(--r-3) var(--r-3)}
 .exl-rest{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:100px;min-height:52px;padding:0 14px;border:1px solid var(--border-mid);border-radius:var(--r-3);background:var(--surface);color:var(--text);font-family:var(--exl-mono);font-size:var(--fs-2-sm);cursor:pointer;font-variant-numeric:tabular-nums}
 .exl-rest.is-running{border-color:var(--exl-accent);color:var(--readout-text)}
-.exl-log{flex:1;min-height:52px;border:0;border-radius:var(--r-3);background:var(--exl-accent);color:var(--readout-ink);font-family:var(--exl-display);font-size:1.375rem;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
-.exl-log[data-finish="true"]{background:var(--dir-up);color:var(--readout-ink)}
+.exl-dock .exl-rest{flex:1}
+.exl-dock-empty{padding:0 16px calc(env(safe-area-inset-bottom));border-top:0;min-height:0}
 .exl-dock-note{position:absolute;left:16px;right:16px;bottom:100%;margin-bottom:8px;padding:8px 12px;border-radius:var(--r-2);background:var(--toast-surface);color:var(--t-1);font-family:var(--exl-body);font-size:var(--fs-3);text-align:center;opacity:0;transform:translateY(6px);pointer-events:none;transition:opacity var(--dur-reveal),transform var(--dur-reveal)}
 .exl-dock-note.show{opacity:1;transform:none}
 .exc.exl .rest-timer{display:none!important}

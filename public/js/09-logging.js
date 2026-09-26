@@ -244,14 +244,14 @@ function addSet(i,ei,rep,splitKey){
       +'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="'+draft+'" onchange="'+complete+'" />'
       +'<input type="number" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" placeholder="L" min="0" oninput="'+draft+'" onchange="'+complete+'" />'
       +'<input type="number" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" placeholder="R" min="0" oninput="'+draft+'" onchange="'+complete+'" />'
-      +'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark bonus set '+bonus+' complete" aria-pressed="false" onclick="togSet('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;
+      +'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark bonus set '+bonus+' complete" aria-pressed="false" onpointerdown="armSetTick('+i+','+ei+','+si+')" onclick="tapSetTick('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;
   }else{
     row.className='setrow extra';row.id='sr_'+i+'_'+ei+'_'+si;
     row.innerHTML='<div class="snum" aria-label="Bonus set '+bonus+'">B'+bonus+'</div>'
       +'<input type="number" class="sin" id="w_'+i+'_'+ei+'_'+si+'" placeholder="—" min="0" step="0.5" oninput="'+draft+'" onchange="'+complete+'" />'
       +'<input type="number" class="sin" id="r_'+i+'_'+ei+'_'+si+'" placeholder="'+rep+'" min="0" oninput="'+draft+'" onchange="'+complete+'" />'
       +'<input type="number" class="rpe-in" id="rpe_'+i+'_'+ei+'_'+si+'" placeholder="—" min="1" max="10" step="0.5" oninput="'+draft+'" onchange="'+complete+'" />'
-      +'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark bonus set '+bonus+' complete" aria-pressed="false" onclick="togSet('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;
+      +'<button class="st" id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark bonus set '+bonus+' complete" aria-pressed="false" onpointerdown="armSetTick('+i+','+ei+','+si+')" onclick="tapSetTick('+i+','+ei+','+si+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delBtn;
   }
   c.appendChild(row);
 }

@@ -104,11 +104,13 @@ for (const { rpe, ...size } of fits) {
     const clipped = await card.evaluate((node) => [...node.querySelectorAll('.slast, .sin, .rpe-in')]
       .filter(el => el.offsetParent && el.scrollWidth > el.clientWidth + 1).map(el => el.id || el.textContent));
     expect(clipped).toEqual([]);
-    await expect(card.locator('.exl-log')).toHaveText(/Log WU 1/i);
+    // No Log button: finishing a row logs it. The dock only holds the rest timer.
+    await expect(page.locator('.exl-log')).toHaveCount(0);
+    await expect(card.locator('.exl-dock .exl-rest')).toBeVisible();
 
     // Everything needed mid-set is on screen without scrolling: the exercise
     // row, the target card, every set row and both tiles sit between the
-    // header and the Log dock. Only "+ Add bonus set" may be below.
+    // header and the dock. Only "+ Add bonus set" may be below.
     const fit = await card.evaluate((node) => {
       const box = (sel) => { const el = node.querySelector(sel); return el ? el.getBoundingClientRect() : null; };
       const rows = node.querySelectorAll('.setrow');
@@ -135,46 +137,51 @@ for (const { rpe, ...size } of fits) {
   });
 }
 
-test('the dock logs the current row, advances, and the done exercise closes itself', async ({ page }) => {
+test('ticking a row logs it, advances, and the done exercise closes itself', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
   const errors = await login(page, [row, dips], rowHistory);
   const card = page.locator('.exc[data-exercise-index="0"]');
   await expect(card).toHaveClass(/\bopen\b/);
-  const dock = card.locator('.exl-log');
+  await expect(page.locator('.exl-log')).toHaveCount(0);
 
+  // Type, then tap the tick straight away. The tap blurs the reps box, whose
+  // change event can already tick the row; the tap must not untick it again.
   await page.locator('#w_0_0_0').fill('23.6');
   await page.locator('#r_0_0_0').fill('10');
-  await dock.click();
+  await page.locator('#st_0_0_0').click();
+  await expect(page.locator('#st_0_0_0')).toHaveClass(/\bon\b/);
+  await page.waitForTimeout(400);
   await expect(page.locator('#st_0_0_0')).toHaveClass(/\bon\b/);
   await expect(card.locator('.exl-dock-note')).toContainText('Set saved');
-  await expect(dock).toHaveText(/Log WU 2/i);
   await expect(page.locator('#sr_0_0_1')).toHaveClass(/is-current/);
 
   await page.locator('#w_0_0_1').fill('33.6');
   await page.locator('#r_0_0_1').fill('8');
-  await dock.click();
-  await expect(dock).toHaveText(/Log Work set 1/i);
+  await page.locator('#st_0_0_1').click();
+  await expect(page.locator('#st_0_0_1')).toHaveClass(/\bon\b/);
+  await expect(page.locator('#sr_0_0_2')).toHaveClass(/is-current/);
 
-  // Work set 1: kg left as the target hint. Logging it records the target.
+  // Work set 1: kg left as the target hint. Ticking it records the target.
   await page.locator('#r_0_0_2').fill('12');
-  await dock.click();
+  await page.locator('#st_0_0_2').click();
   await expect(page.getByRole('button', { name: /On target/ })).toBeVisible();
   await page.getByRole('button', { name: /On target/ }).click();
-  if (!(await page.locator('#st_0_0_2').evaluate(el => el.classList.contains('on')))) await dock.click();
+  if (!(await page.locator('#st_0_0_2').evaluate(el => el.classList.contains('on')))) await page.locator('#st_0_0_2').click();
+  await expect(page.locator('#st_0_0_2')).toHaveClass(/\bon\b/);
   await expect(page.locator('#w_0_0_2')).toHaveValue('38.6');
-  await expect(dock).toHaveText(/Log Work set 2/i);
 
   // Last set: no finish or submit step. The exercise closes itself, the
   // next one is up, and nothing is sent until Review & submit at the end.
   await page.locator('#r_0_0_3').fill('11');
-  await dock.click();
+  await page.locator('#st_0_0_3').click();
   await expect(card).not.toHaveClass(/\bopen\b/);
+  await expect(page.locator('#w_0_0_3')).toHaveValue('38.6');
   await expect(card.locator('.exl-badge')).toBeVisible();
   await expect(page.locator('.exc.is-up-next')).toContainText('Machine Dips');
   await expect(page.locator('.exc.is-up-next')).toBeInViewport();
 
-  // Reopening a done exercise shows its one result card.
+  // Reopening a done exercise shows its one result card; tapping it closes it.
   await card.locator('.exc-summary').click();
   const result = card.locator('.exl-result');
   await expect(result).toBeVisible();
@@ -182,12 +189,25 @@ test('the dock logs the current row, advances, and the done exercise closes itse
   await expect(result.locator('.exl-next-action')).not.toBeEmpty();
   await expect(card.locator('.exl-target')).toBeHidden();
   await page.screenshot({ path: 'test-results/exercise-logger-finished.png' });
-  await expect(dock).toHaveText(/Done · close/i);
-  await dock.click();
+  await card.locator('.exc-summary').click();
   await expect(card).not.toHaveClass(/\bopen\b/);
   await expect(page.locator('.exlist-label[data-exl-label="done"]')).toContainText('Done · 1');
   await expect(page.locator('#focusFooterTitle')).toHaveText('Draft saved on this device');
   await page.screenshot({ path: 'test-results/exercise-logger-list.png' });
+  expect(errors).toEqual([]);
+});
+
+test('a ticked row can still be unticked on purpose', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+  const errors = await login(page, [row, dips], rowHistory);
+  await page.locator('#w_0_0_0').fill('23.6');
+  await page.locator('#r_0_0_0').fill('10');
+  await page.locator('#st_0_0_0').click();
+  await expect(page.locator('#st_0_0_0')).toHaveClass(/\bon\b/);
+  await page.waitForTimeout(2200); // well past the blur guard
+  await page.locator('#st_0_0_0').click();
+  await expect(page.locator('#st_0_0_0')).not.toHaveClass(/\bon\b/);
   expect(errors).toEqual([]);
 });
 
@@ -250,7 +270,7 @@ test('the accordion opens one exercise at a time in place, and the sheet holds w
   await expect(last).toHaveClass(/\bopen\b/);
   await expect(first).not.toHaveClass(/\bopen\b/);
   await expect(page.locator('.exc.exl.open')).toHaveCount(1);
-  await expect(last.locator('.exl-log')).toBeInViewport();
+  await expect(last.locator('.exl-dock')).toBeInViewport();
 
   await last.getByRole('button', { name: 'Why this load' }).click();
   const sheet = page.locator('#exlSheet_0_4');
