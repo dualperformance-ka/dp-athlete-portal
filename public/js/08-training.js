@@ -2196,12 +2196,7 @@ function exlLogCurrent(i,ei){
   // The kg box shows today's target as a hint. Logging without typing over it
   // means "I lifted the target", so the hint becomes the value — the same as
   // typing it by hand, and nothing else about the saved set changes.
-  var w=row.querySelector('input[id^="w_"]');
-  if(w&&String(w.value||'').trim()===''&&/^\d+(\.\d+)?$/.test(String(w.placeholder||''))){
-    w.value=w.placeholder;
-    var key=card.getAttribute('data-split-key')||'Upper A';
-    draftGym(i,key);
-  }
+  _exlAdoptLoadHint(i,ei,row);
   var parts=String(row.id||'').split('_');
   togSet(i,ei,parseInt(parts[parts.length-1],10));
 }
@@ -2237,6 +2232,7 @@ function openExlSheet(i,ei,section){
   var sheet=document.getElementById('exlSheet_'+i+'_'+ei);if(!sheet)return;
   _exlShowSheet(sheet,section);
 }
+function openExlSwap(i,ei){var sheet=document.getElementById('exlSwap_'+i+'_'+ei);if(sheet)_exlShowSheet(sheet);}
 function openExlInfo(i){var sheet=document.getElementById('exlCal_'+i);if(sheet)_exlShowSheet(sheet);}
 function _exlShowSheet(sheet,section){
   _exlSheetReturn=document.activeElement;
@@ -2750,7 +2746,13 @@ function buildBody(s,i,type){
         var swapPriority=swapOptions.priority||[];
         var swapGroups=swapOptions.groups||[];
         var hasSwaps=swapPriority.length>1||swapGroups.length;
-        h+='<div class="exl-head"><div class="exl-head-main"><div class="exl-name">'+esc(resolvedEx)+'</div><div class="exl-meta">'+esc(_exlMetaLine(ex,_exlWarm,_exlWork))+'</div></div>'+(hasSwaps?'<button type="button" class="exl-swap" onclick="openExlSheet('+i+','+ei+',\'swap\')">'+_exlIcon.swap+'Swap</button>':'')+'</div>';
+        h+='<div class="exl-head"><div class="exl-head-main"><div class="exl-name">'+esc(resolvedEx)+'</div><div class="exl-meta">'+esc(_exlMetaLine(ex,_exlWarm,_exlWork))+'</div></div>'+(hasSwaps?'<button type="button" class="exl-swap" onclick="openExlSwap('+i+','+ei+')" aria-label="Swap exercise">'+_exlIcon.swap+'Swap</button>':'')+'</div>';
+        // RPE and rest-timer switches, small, under Swap. Same data hooks as the
+        // session-level ones, so every copy stays in sync when either is tapped.
+        h+='<div class="exl-prefs">'+
+          '<button type="button" class="rest-pref-toggle exl-pref'+(strengthRpeOn?' is-on':'')+'" data-strength-rpe-toggle aria-pressed="'+(strengthRpeOn?'true':'false')+'" aria-label="RPE logging" onclick="toggleStrengthRpePreference()"><span class="rest-pref-dot"></span><span>RPE</span><strong class="rest-pref-state">'+(strengthRpeOn?'On':'Off')+'</strong></button>'+
+          '<button type="button" class="rest-pref-toggle exl-pref'+(restTimerOn?' is-on':'')+'" data-rest-timer-toggle aria-pressed="'+(restTimerOn?'true':'false')+'" aria-label="Rest timer" onclick="toggleRestTimerPreference()"><span class="rest-pref-dot"></span><span>Timer</span><strong class="rest-pref-state">'+(restTimerOn?'On':'Off')+'</strong></button>'+
+          '</div>';
         h+=_exlResultHtml(_exlCtx);
         h+=_exlTargetHtml(_exlCtx);
         h+='<div class="exl-table">';
@@ -2822,38 +2824,39 @@ function buildBody(s,i,type){
           var exNameSafe=ex.exercise.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           var pickPill=function(opt,extraCls){
             var safeOpt=opt.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-            return '<button type="button" class="ex-pill'+(extraCls||'')+(opt===resolvedEx?' active':'')+'" onclick="pickEx(\''+exNameSafe+'\',\''+safeOpt+'\')" data-pg="'+safeKey+'" data-pv="'+esc(opt)+'">'+esc(opt)+'</button>';
+            return '<button type="button" class="ex-pill'+(extraCls||'')+(opt===resolvedEx?' active':'')+'" onclick="pickEx(\''+exNameSafe+'\',\''+safeOpt+'\');closeExlSheet(this)" data-pg="'+safeKey+'" data-pv="'+esc(opt)+'">'+esc(opt)+'</button>';
           };
           // Is the athlete currently on something outside the coach's shortlist?
           var offProgramme=swapPriority.every(function(opt){return opt!==resolvedEx;});
           var swapPanelId='swaps_'+i+'_'+ei;
-          sheet+='<section class="exl-sec" data-exl-section="swap"><div class="exl-sec-t">Swap exercise</div>';
+          var swapSheet='<section class="exl-sec" data-exl-section="swap">';
           // Overload needs repetition to read. An athlete on a different
           // variation every week never builds the history the engine compares
           // against, so their numbers look flat however hard they train — say
           // so here, where the swap is about to happen, rather than never.
           var churn=(typeof variationChurn==='function')?variationChurn(logs,ex.exercise):null;
           if(churn&&churn.churning){
-            sheet+='<div class="swap-churn-note"><span class="swap-churn-badge">Heads up</span><div><strong>'+churn.distinct+' different variations in your last '+churn.sessions+' sessions here.</strong><span>Progress is measured against your own history, so it needs you to repeat a movement. Pick one and stay on it for about four weeks before switching again.</span></div></div>';
+            swapSheet+='<div class="swap-churn-note"><span class="swap-churn-badge">Heads up</span><div><strong>'+churn.distinct+' different variations in your last '+churn.sessions+' sessions here.</strong><span>Progress is measured against your own history, so it needs you to repeat a movement. Pick one and stay on it for about four weeks before switching again.</span></div></div>';
           }
-          sheet+='<div class="ex-picker-label">Swap exercise</div>';
-          sheet+='<div class="ex-picker">';
-          swapPriority.forEach(function(opt){sheet+=pickPill(opt,'');});
+          swapSheet+='<div class="ex-picker-label">Swap exercise</div>';
+          swapSheet+='<div class="ex-picker">';
+          swapPriority.forEach(function(opt){swapSheet+=pickPill(opt,'');});
           if(swapGroups.length){
-            sheet+='<button type="button" class="ex-pill ex-pill-more'+(offProgramme?' is-swapped':'')+'" aria-expanded="'+(offProgramme?'true':'false')+'" aria-controls="'+swapPanelId+'" onclick="toggleSwapPanel(this,\''+swapPanelId+'\')"><span class="ex-more-caret">▾</span>More options</button>';
+            swapSheet+='<button type="button" class="ex-pill ex-pill-more'+(offProgramme?' is-swapped':'')+'" aria-expanded="'+(offProgramme?'true':'false')+'" aria-controls="'+swapPanelId+'" onclick="toggleSwapPanel(this,\''+swapPanelId+'\')"><span class="ex-more-caret">▾</span>More options</button>';
           }
-          sheet+='</div>';
+          swapSheet+='</div>';
           if(swapGroups.length){
-            sheet+='<div class="ex-swaps'+(offProgramme?' open':'')+'" id="'+swapPanelId+'"'+(offProgramme?'':' hidden')+'>';
-            sheet+='<div class="ex-swaps-note"><strong>'+esc(swapOptions.patternLabel)+'</strong><span>Every option below trains the same muscle group as the programmed exercise — pick whatever you can get on. Stick to the sets, reps and effort as written.</span></div>';
+            swapSheet+='<div class="ex-swaps'+(offProgramme?' open':'')+'" id="'+swapPanelId+'"'+(offProgramme?'':' hidden')+'>';
+            swapSheet+='<div class="ex-swaps-note"><strong>'+esc(swapOptions.patternLabel)+'</strong><span>Every option below trains the same muscle group as the programmed exercise — pick whatever you can get on. Stick to the sets, reps and effort as written.</span></div>';
             swapGroups.forEach(function(group){
-              sheet+='<div class="ex-swap-group"><div class="ex-swap-group-label">'+esc(group.label)+'</div><div class="ex-swap-pills">';
-              group.options.forEach(function(opt){sheet+=pickPill(opt,' ex-pill-alt');});
-              sheet+='</div></div>';
+              swapSheet+='<div class="ex-swap-group"><div class="ex-swap-group-label">'+esc(group.label)+'</div><div class="ex-swap-pills">';
+              group.options.forEach(function(opt){swapSheet+=pickPill(opt,' ex-pill-alt');});
+              swapSheet+='</div></div>';
             });
-            sheet+='</div>';
+            swapSheet+='</div>';
           }
-          sheet+='</section>';
+          swapSheet+='</section>';
+          h+=_exlSheetHtml('exlSwap_'+i+'_'+ei,'Swap exercise',swapSheet);
         }
         if(isBarbell){var topW=0;(savedEx||[]).forEach(function(sv){var w=parseFloat(sv.weight);if(!isNaN(w)&&w>topW)topW=w;});if(!topW&&prevEffort){prevEffort.forEach(function(p){var w=parseFloat(p.weight);if(!isNaN(w)&&w>topW)topW=w;});}sheet+='<section class="exl-sec" data-exl-section="plates"><div class="exl-sec-t">Plates</div><div class="plate-calc" id="plate_'+i+'_'+ei+'">'+platesHtml(topW)+'</div></section>';}
         h+=_exlSheetHtml('exlSheet_'+i+'_'+ei,resolvedEx+' details',sheet);
@@ -3108,10 +3111,44 @@ function promptStrengthCalibration(i,ei,si){
 }
 function draftStrengthSet(i,ei,si,splitKey){
   draftGym(i,splitKey);promptStrengthCalibration(i,ei,si);
+  _exlScheduleAutoTick(i,ei,si);
+}
+// A row ticks itself once its reps are in and the athlete pauses typing, so
+// there is nothing to press between sets. The pause keeps "1" of "12" from
+// ticking early; leaving the box (change) still ticks at once.
+var _exlAutoTimers={},EXL_AUTO_TICK_MS=1100;
+function _exlScheduleAutoTick(i,ei,si){
+  var key=i+'_'+ei+'_'+si,row=document.getElementById('sr_'+key);
+  if(!row||typeof row.closest!=='function'||!row.closest('.exc.exl'))return;
+  if(_exlAutoTimers[key])clearTimeout(_exlAutoTimers[key]);
+  _exlAutoTimers[key]=setTimeout(function(){delete _exlAutoTimers[key];_exlAutoTick(i,ei,si);},EXL_AUTO_TICK_MS);
+}
+function _exlRowHasReps(row){
+  var r=row.querySelector('input[id^="r_"]'),l=row.querySelector('input[id^="rL_"]'),rr=row.querySelector('input[id^="rR_"]');
+  if(r)return String(r.value||'').trim()!=='';
+  return !!(l&&rr&&String(l.value||'').trim()!==''&&String(rr.value||'').trim()!=='');
+}
+// The kg box shows today's target as a hint. Reps typed against an untouched
+// hint mean "I lifted the target", so the hint becomes the value — exactly
+// what typing it would save.
+function _exlAdoptLoadHint(i,ei,row){
+  var w=row&&row.querySelector('input[id^="w_"]');
+  if(!w||String(w.value||'').trim()!==''||!/^\d+(\.\d+)?$/.test(String(w.placeholder||'')))return false;
+  w.value=w.placeholder;
+  var card=row.closest('.exc');draftGym(i,(card&&card.getAttribute('data-split-key'))||'Upper A');
+  return true;
+}
+function _exlAutoTick(i,ei,si){
+  var row=document.getElementById('sr_'+i+'_'+ei+'_'+si),btn=document.getElementById('st_'+i+'_'+ei+'_'+si);
+  if(!row||!btn||btn.classList.contains('on')||!_exlRowHasReps(row))return;
+  _exlAdoptLoadHint(i,ei,row);
+  autoCompleteStrengthSet(i,ei,si);
 }
 function autoCompleteStrengthSet(i,ei,si){
   var row=document.getElementById('sr_'+i+'_'+ei+'_'+si),btn=document.getElementById('st_'+i+'_'+ei+'_'+si);
   if(!row||!btn)return;
+  var pending=_exlAutoTimers[i+'_'+ei+'_'+si];if(pending){clearTimeout(pending);delete _exlAutoTimers[i+'_'+ei+'_'+si];}
+  if(row.closest&&row.closest('.exc.exl')&&!btn.classList.contains('on')&&_exlRowHasReps(row))_exlAdoptLoadHint(i,ei,row);
   if(promptStrengthCalibration(i,ei,si))return;
   if(!strengthSetHasRequiredInputs(row))return;
   if(!btn.classList.contains('on')){togSet(i,ei,si);return;}

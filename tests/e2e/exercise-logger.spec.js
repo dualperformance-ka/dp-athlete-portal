@@ -119,7 +119,7 @@ for (const { rpe, ...size } of fits) {
         tiles: box('.exl-tiles').bottom, dock: box('.exl-dock').bottom, dockTop: box('.exl-dock').top,
         wide: document.documentElement.scrollWidth - window.innerWidth,
         small: [...node.querySelectorAll('.exl-view input, .exl-view button, .exl-dock button')]
-          .filter(el => el.offsetParent && !el.closest('.set-effort') && !el.classList.contains('del-set'))
+          .filter(el => el.offsetParent && !el.closest('.set-effort') && !el.classList.contains('del-set') && !el.classList.contains('exl-pref') /* 26px pill, 44px touch area via ::after */)
           .map(el => ({ id: el.id || el.className, h: Math.round(el.getBoundingClientRect().height) }))
           .filter(item => item.h < 44),
       };
@@ -270,15 +270,78 @@ test('swapping from the sheet repaints the title, target and table in place', as
   await page.setViewportSize({ width: 390, height: 844 });
   const errors = await login(page, [{ ...pec, alts: ['Cable fly', 'Chest fly machine'] }], null);
   await page.locator('#w_0_0_1').fill('40');
-  await page.getByRole('button', { name: 'Swap' }).click();
-  const sheet = page.locator('#exlSheet_0_0');
-  await expect(sheet.locator('[data-exl-section="swap"]')).toBeVisible();
+  // Swap goes straight to the options, and picking one closes the sheet.
+  await page.getByRole('button', { name: 'Swap exercise' }).click();
+  const sheet = page.locator('#exlSwap_0_0');
+  await expect(sheet.getByRole('button', { name: 'Cable fly', exact: true })).toBeVisible();
+  await expect(sheet).not.toContainText('Why this load');
   await sheet.getByRole('button', { name: 'Cable fly', exact: true }).click();
-  await sheet.getByRole('button', { name: 'Close details' }).click();
+  await expect(sheet).toBeHidden();
   const card = page.locator('.exc.open');
   await expect(card.locator('.exn')).toHaveText('Cable fly');
   await expect(card.locator('.exl-slbls')).toBeVisible();
   await expect(card.locator('.exl-target')).toBeVisible();
   await expect(card.locator('.snum')).toHaveText(['WU 1', 'Work 1', 'Work 2']);
+  expect(errors).toEqual([]);
+});
+
+test('a row ticks itself once reps are in, with no button pressed', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+  const errors = await login(page, [row, dips], rowHistory);
+  // WU 1: kg left as the hint, reps typed. The row ticks and records the hint.
+  await page.locator('#r_0_0_0').fill('12');
+  await expect(page.locator('#st_0_0_0')).toHaveClass(/\bon\b/, { timeout: 3000 });
+  await expect(page.locator('#w_0_0_0')).toHaveValue('13.6');
+  await expect(page.locator('#sr_0_0_1')).toHaveClass(/is-current/);
+
+  // Typing "1" then "2" in quick succession never ticks at "1".
+  await page.locator('#r_0_0_1').pressSequentially('12', { delay: 250 });
+  await page.waitForTimeout(1500);
+  await expect(page.locator('#st_0_0_1')).toHaveClass(/\bon\b/);
+  await expect(page.locator('#r_0_0_1')).toHaveValue('12');
+
+  // First work set: reps in, then the effort answer ticks it. Still no Log press.
+  await page.locator('#r_0_0_2').fill('11');
+  await expect(page.getByRole('button', { name: /On target/ })).toBeVisible({ timeout: 3000 });
+  await expect(page.locator('#st_0_0_2')).not.toHaveClass(/\bon\b/);
+  await page.getByRole('button', { name: /On target/ }).click();
+  await expect(page.locator('#st_0_0_2')).toHaveClass(/\bon\b/);
+  await expect(page.locator('#w_0_0_2')).toHaveValue('38.6');
+
+  // Last set: the exercise closes itself and the next one is up.
+  await page.locator('#r_0_0_3').fill('10');
+  await expect(page.locator('.exc[data-exercise-index="0"]')).not.toHaveClass(/\bopen\b/, { timeout: 3000 });
+  await expect(page.locator('.exc.is-up-next')).toContainText('Machine Dips');
+  expect(errors).toEqual([]);
+});
+
+test('RPE and rest timer switches sit in the open exercise and stay in sync', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'true'));
+  const errors = await login(page, [row, dips], rowHistory);
+  const card = page.locator('.exc[data-exercise-index="0"]');
+  const rpe = card.getByRole('button', { name: 'RPE logging', exact: true });
+  const timer = card.getByRole('button', { name: 'Rest timer', exact: true });
+  await expect(rpe).toBeVisible();
+  await expect(timer).toBeVisible();
+  await expect(rpe).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#rpe_0_0_0')).toBeVisible();
+
+  await rpe.click();
+  await expect(rpe).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#rpe_0_0_0')).toBeHidden();
+  await expect(page.locator('.exc[data-exercise-index="1"] [data-strength-rpe-toggle]')).toHaveAttribute('aria-pressed', 'false');
+  expect(await page.evaluate(() => localStorage.getItem('dp_strength_rpe_enabled'))).toBe('false');
+
+  await timer.click();
+  await expect(timer).toHaveAttribute('aria-pressed', 'false');
+  // The switches sit under Swap, above the target card.
+  const order = await card.evaluate(node => {
+    const y = sel => node.querySelector(sel).getBoundingClientRect().top;
+    return { swap: y('.exl-swap'), prefs: y('.exl-prefs'), target: y('.exl-target') };
+  });
+  expect(order.prefs).toBeGreaterThan(order.swap);
+  expect(order.target).toBeGreaterThan(order.prefs);
   expect(errors).toEqual([]);
 });
