@@ -465,10 +465,6 @@ function stravaMatchHtml(session,i,context){
   if(!isSessionLogged(session.id))return '';
   return '<div class="strava-match-attribution '+(context||'')+'">'+stravaLogoSvg()+'<span class="strava-match-copy"><strong><span>'+distance+' km</span><span aria-hidden="true">·</span><span>'+minutes+' min</span></strong><small>'+runLabel+' synced from Strava</small></span><button type="button" aria-label="Remove this Strava match" onclick="event.stopPropagation();rejectStravaMatch('+i+')">Not '+(runCount===1?'this run':'these runs')+'</button></div>';
 }
-function stravaFeedbackFormHtml(session,i){
-  var entry=logs[session.id]||{},saved=!!entry.__stravaFeedbackAt,queued=!!entry.__stravaFeedbackQueued;
-  return '<div class="strava-feedback"><div class="run-log-title">Finish your session check-in</div><div class="strava-feedback-intro">Strava has the run. Add your RPE and confirm whether you had any pain or niggles to complete it.</div><div class="strava-feedback-grid"><div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="srpe_'+i+'" placeholder="1–10" value="'+esc(entry.rpe||'')+'" /></div><div class="run-field"><label>Pain or niggle?</label><select id="spain_'+i+'" class="li"><option value="" disabled'+(!entry.pain?' selected':'')+'>Select...</option><option value="no"'+(entry.pain==='no'?' selected':'')+'>No pain or niggles</option><option value="yes"'+(entry.pain==='yes'?' selected':'')+'>Yes — flag it</option></select></div></div><div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="snotes_'+i+'" class="li" placeholder="Anything your coaches should know...">'+esc(entry.notes||'')+'</textarea></div><button class="savebtn'+(saved?' saved':(queued?' is-sending':''))+'" id="sfb_'+i+'" onclick="saveStravaFeedback('+i+')">'+(saved?'Feedback saved ✓':(queued?'Retry feedback sync':'Complete session'))+'</button></div>';
-}
 function stravaLogPayload(session,activity,entry){
   var sum=stravaActivitySummary(activity),pain=entry&&entry.pain||'no',matchMeta=entry&&entry.__stravaMatch||{},matchReasons=matchMeta.reasons||[],activityIds=(matchMeta.activityKeys||activity.source_activity_ids||[stravaMatchActivityKey(activity)]).map(String);
   return {clientWriteId:stravaClientWriteId(activity),name:athlete.name+' — '+session.name+' — '+session.date,session:session.name,type:'Run',sessionCategory:'Run',distanceKm:sum.distance,durationMin:sum.duration,pace:sum.pace,rpe:entry&&entry.rpe||'',painFlag:pain==='yes',exerciseLog:'Matched from '+activityIds.length+' Strava run'+(activityIds.length===1?'':'s')+' | Distance: '+sum.distance+'km | Moving time: '+sum.duration+'min | Pace: '+sum.pace+(entry&&entry.rpe?' | RPE: '+entry.rpe+'/10':'')+(pain==='yes'?' | PAIN FLAGGED':''),notes:entry&&entry.notes||'',stravaActivityId:stravaMatchActivityKey(activity),stravaActivityIds:activityIds,stravaMatchReasons:matchReasons,ranAbovePrescription:matchReasons.indexOf('ran_above_prescription')>=0,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:session.date,submittedAt:entry&&entry.__submittedAt||new Date().toISOString()};
@@ -486,14 +482,21 @@ async function completeStravaMatch(session,i,match){
     stampSessionSubmitted(session.id);
   }finally{delete _stravaAutoCompleting[session.id];}
 }
+// The run check-in answers with chip groups whose values live in hidden
+// inputs, so a missing answer is flagged and focused on its group.
+function _stravaFeedbackFlag(groupId){
+  var group=document.getElementById(groupId);if(!group)return;
+  group.setAttribute('aria-invalid','true');
+  var first=typeof group.querySelector==='function'?group.querySelector('button'):null;if(first&&typeof first.focus==='function')first.focus();
+}
 async function saveStravaFeedback(i){
   var session=sessions[i];if(!session)return;
   var entry=logs[session.id]||{},meta=entry.__stravaMatch,match=getStravaSessionMatch(session),activity=(match&&match.activity)||(meta&&meta.activity);if(!activity)return;
   var rpeInput=document.getElementById('srpe_'+i),rpe=Number((rpeInput||{}).value);
-  if(!Number.isFinite(rpe)||rpe<1||rpe>10){if(rpeInput){rpeInput.focus();rpeInput.setAttribute('aria-invalid','true');}showToast('Add an RPE from 1 to 10 to finish this session');return;}
+  if(!Number.isFinite(rpe)||rpe<1||rpe>10){if(rpeInput){rpeInput.focus();rpeInput.setAttribute('aria-invalid','true');}_stravaFeedbackFlag('srpeg_'+i);showToast('Add an RPE from 1 to 10 to finish this session');return;}
   if(rpeInput)rpeInput.removeAttribute('aria-invalid');
   var painInput=document.getElementById('spain_'+i),pain=(painInput||{}).value||'';
-  if(pain!=='no'&&pain!=='yes'){if(painInput){painInput.focus();painInput.setAttribute('aria-invalid','true');}showToast('Confirm whether you had any pain or niggles');return;}
+  if(pain!=='no'&&pain!=='yes'){if(painInput){painInput.focus();painInput.setAttribute('aria-invalid','true');}_stravaFeedbackFlag('spaing_'+i);showToast('Confirm whether you had any pain or niggles');return;}
   if(painInput)painInput.removeAttribute('aria-invalid');
   var btn=document.getElementById('sfb_'+i);if(btn)setButtonBusy(btn,true);
   entry.rpe=String((rpeInput||{}).value||'');
@@ -523,6 +526,7 @@ function paintStravaMatches(){
 }
 async function refreshStravaSessionMatches(){
   var strava=null;try{strava=window._stravaLoadPromise?await window._stravaLoadPromise:null;}catch(e){}
+  window._stravaConnectedNow=!!(strava&&strava.connected);
   if(!strava||!strava.connected||strava.activitiesAvailable===false||!window.matchActivityToSession){stravaSessionMatches={};paintStravaMatches();return;}
   var activities=strava.activities||[],runs=(allSessions||[]).filter(function(s){return getType(s)==='run'&&s.date;}),claimed=new Set(),nextMatches={};
   runs.forEach(function(s){

@@ -585,7 +585,10 @@ function buildCard(s,i){
   h+='</button></div>';
   if(marked) h+='<div class="sc-nudge" id="nudge_'+i+'">Marked — tap to open &amp; log your data</div>';
   h+='<div class="scb" id="scb_'+i+'">';
-  if(type==='run'&&typeof stravaMatchHtml==='function')h+=stravaMatchHtml(s,i,'session');
+  // A logged Strava run shows its result as the hero inside the body, so the
+  // attribution strip would repeat it. Suggestions and "match removed" stay.
+  var _heroShown=type==='run'&&logs[s.id]&&logs[s.id].__stravaMatch&&isSessionLogged(s.id);
+  if(type==='run'&&typeof stravaMatchHtml==='function'&&!_heroShown)h+=stravaMatchHtml(s,i,'session');
   h+=buildBody(s,i,type)+'</div></div>';
   return h;
 }
@@ -679,6 +682,8 @@ function inferRpeMeta(meta,sessionTitle){
   var intensity=String(meta.intensity||'').toLowerCase();
   var type=String(meta.type||'').toLowerCase();
   var haystack=title+' '+intensity+' '+type;
+  // "City-Bay 12K · Sub-49 attempt" is a race even without the word.
+  if(/\battempt\b|time trial|parkrun|\bsub-?\d/.test(title))haystack+=' race';
   var order=['recovery','interval','track','speed','sprint','threshold','tempo','fartlek','hill','race','long','steady','easy'];
   var pick=null;
   for(var oi=0;oi<order.length;oi++){
@@ -943,7 +948,7 @@ function renderTodaySection(){
           var _tRows=[];
           if(_todayOv.distance_km) _tRows.push({label:'Total',val:_todayOv.distance_km+'km',accent:false});
           if(_todayOv.warm_up) _tRows.push({label:'Warm up',val:_todayOv.warm_up,accent:false});
-          var _tMain=(_todayOv.intervals||'')+(_todayOv.working_pace?' @ '+_todayOv.working_pace+'/km':'');
+          var _tMain=runMainSetText(_todayOv.intervals,_todayOv.working_pace);
           if(_tMain) _tRows.push({label:'Main set',val:_tMain,accent:true});
           if(_todayOv.rest) _tRows.push({label:'Rest',val:_todayOv.rest,accent:false});
           if(_todayOv.cool_down) _tRows.push({label:'Cool down',val:_todayOv.cool_down,accent:false});
@@ -2526,12 +2531,14 @@ function buildBody(s,i,type){
       fartlek:{label:'Fartlek',color:'#d97706',bg:'#fef3c7'}
     };
     var zHaystack=(sessionTitle+' '+(meta&&meta.intensity||'')+' '+(meta&&meta.type||'')+' '+(meta&&meta.tags||'')).toLowerCase();
+    if(/\battempt\b|time trial|parkrun|\bsub-?\d/.test(String(sessionTitle).toLowerCase()))zHaystack+=' race';
     var zOrder=['recovery','interval','track','speed','sprint','threshold','tempo','fartlek','hill','race','long','steady','easy'];
     var zKey=null;
     for(var zi=0;zi<zOrder.length;zi++){if(zHaystack.indexOf(zOrder[zi])>=0){zKey=zOrder[zi];break;}}
     var zone=zKey?zoneMap[zKey]:{label:'Aerobic',color:'#0284c7',bg:'#e0f2fe'};
 
     h+='<div class="run-details">';
+    var _runCardStart=h.length;
 
     // ── Unified session card ──────────────────────────────────────────────────
     h+='<div class="run-prescription-card" style="background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015)), var(--surface);border:1px solid var(--border-mid);border-radius:var(--radius-md);overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)">';
@@ -2556,7 +2563,7 @@ function buildBody(s,i,type){
       var _ovRows=[];
       if(_ov.distance_km) _ovRows.push({label:'Total',val:_ov.distance_km+'km',accent:false});
       if(_ov.warm_up) _ovRows.push({label:'Warm up',val:_ov.warm_up,accent:false});
-      var _mainSet=(_ov.intervals||'')+(_ov.working_pace?' @ '+_ov.working_pace+'/km':'');
+      var _mainSet=runMainSetText(_ov.intervals,_ov.working_pace);
       if(_mainSet) _ovRows.push({label:'Main set',val:_mainSet,accent:true});
       if(_ov.rest) _ovRows.push({label:'Rest',val:_ov.rest,accent:false});
       if(_ov.cool_down) _ovRows.push({label:'Cool down',val:_ov.cool_down,accent:false});
@@ -2621,41 +2628,54 @@ function buildBody(s,i,type){
     h+='</div>';
 
     h+='</div></div>'; // end body + card
-    h+='<div class="run-log">';
-    if(sl.__stravaMatch&&hasSaved&&typeof stravaFeedbackFormHtml==='function'){
-      h+=stravaFeedbackFormHtml(s,i);
-      h+='</div></div>';
-      return h;
+    // ── Pages ──────────────────────────────────────────────────────────────
+    // The prescription card above is "the plan". What leads depends on where
+    // the athlete is: after a Strava-matched run the result and the two-tap
+    // check-in lead; after a hand-logged run the saved log leads; before a run
+    // the plan leads and logging sits on the second page.
+    var planHtml=h.slice(_runCardStart);h=h.slice(0,_runCardStart);
+    var _runMatch=typeof getStravaSessionMatch==='function'?getStravaSessionMatch(s):null;
+    var _runActivity=(_runMatch&&_runMatch.activity)||(sl.__stravaMatch&&sl.__stravaMatch.activity)||null;
+    var pages;
+    if(sl.__stravaMatch&&hasSaved&&_runActivity&&typeof runStravaHeroHtml==='function'){
+      pages=[
+        {key:'result',label:'Result',hint:'Swipe for splits and the plan',html:runStravaHeroHtml(s,i,_runActivity)+runCheckinHtml(s,i)},
+        {key:'detail',label:'Splits + plan',html:runSplitsHtml(_runActivity)+planHtml}
+      ];
+    }else{
+      var savedHtml='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">'+
+        '<div class="saved-label"><svg class="icon"><use href="#i-check"/></svg>Session submitted to your coaches</div>'+
+        '<div class="saved-grid">'+
+        '<div class="saved-item"><div class="saved-item-label">Distance</div><div class="saved-item-value" id="saved_run_'+i+'_distance">'+esc(sl.distance?sl.distance+'km':'-')+'</div></div>'+
+        '<div class="saved-item"><div class="saved-item-label">Duration</div><div class="saved-item-value" id="saved_run_'+i+'_duration">'+esc(sl.duration?sl.duration+'min':'-')+'</div></div>'+
+        '<div class="saved-item"><div class="saved-item-label">Avg Pace</div><div class="saved-item-value" id="saved_run_'+i+'_pace">'+esc(sl.pace||'-')+'</div></div>'+
+        '<div class="saved-item"><div class="saved-item-label">RPE</div><div class="saved-item-value" id="saved_run_'+i+'_rpe">'+esc(sl.rpe?sl.rpe+'/10':'-')+'</div></div>'+
+        '</div>'+
+        '<div class="saved-feeling" id="saved_run_'+i+'_feel" style="display:'+(sl.feel?'block':'none')+';">'+esc(stripFeelGlyph(sl.feel)||'')+'</div>'+
+        '<div class="saved-notes" id="saved_run_'+i+'_notes" style="display:'+(sl.notes?'block':'none')+';">'+esc(sl.notes||'')+'</div>'+
+        '<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>'+
+        '</div>';
+      var formHtml='<div id="run_form_'+i+'" style="display:'+(hasSaved?'none':'block')+';">'+
+        '<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:var(--font-xs);display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:var(--font-xs);font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="run_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>'+
+        '<div class="run-log-title">Log your session</div><div class="run-inputs">'+
+        '<div class="run-field"><label>Distance (km)</label><input type="number" step="0.1" id="rd_'+i+'" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>'+
+        '<div class="run-field"><label>Duration (min)</label><input type="number" step="1" id="rdur_'+i+'" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>'+
+        '<div class="run-field"><label>Avg Pace (min/km)</label><input type="text" id="rp_'+i+'" placeholder="6:00" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>'+
+        '<div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="rr_'+i+'" placeholder="..." value="'+esc(sl.rpe||'')+'" oninput="draftRun('+i+')" /></div>'+
+        '</div>'+
+        '<div class="run-field run-input-full" style="margin-bottom:8px"><label>How did it feel?</label><select id="rf_'+i+'" class="li" onchange="draftRun('+i+')"><option value="">Select feeling...</option>'+
+        ['Awful','Struggling','Average','Feeling Strong','Crushing It'].map(function(f){return '<option'+(stripFeelGlyph(sl.feel)===f?' selected':'')+'>'+esc(f)+'</option>';}).join('')+
+        '</select></div>'+
+        '<div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="rn_'+i+'" class="li" placeholder="Any additional thoughts..." oninput="draftRun('+i+')">'+esc(sl.notes||'')+'</textarea></div>'+
+        '<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save Session</button>'+
+        '</div>';
+      if(isSessionLogged(s.id)){setTimeout(function(idx){showRunSaved(idx);}(i),0);}
+      pages=hasSaved
+        ?[{key:'result',label:'Result',hint:'Swipe for the plan',html:'<div class="run-log">'+savedHtml+formHtml+'</div>'},{key:'plan',label:'The plan',html:planHtml}]
+        :[{key:'plan',label:'The session',hint:'Swipe to log it',html:planHtml},{key:'log',label:'Log it',html:'<div class="run-log">'+(typeof runLogPageHtml==='function'?runLogPageHtml(s,i,savedHtml+formHtml):savedHtml+formHtml)+'</div>'}];
     }
-    h+='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">';
-    h+='<div class="saved-label"><svg class="icon"><use href="#i-check"/></svg>Session submitted to your coaches</div>';
-    h+='<div class="saved-grid">';
-    h+='<div class="saved-item"><div class="saved-item-label">Distance</div><div class="saved-item-value" id="saved_run_'+i+'_distance">'+esc(sl.distance?sl.distance+'km':'-')+'</div></div>';
-    h+='<div class="saved-item"><div class="saved-item-label">Duration</div><div class="saved-item-value" id="saved_run_'+i+'_duration">'+esc(sl.duration?sl.duration+'min':'-')+'</div></div>';
-    h+='<div class="saved-item"><div class="saved-item-label">Avg Pace</div><div class="saved-item-value" id="saved_run_'+i+'_pace">'+esc(sl.pace||'-')+'</div></div>';
-    h+='<div class="saved-item"><div class="saved-item-label">RPE</div><div class="saved-item-value" id="saved_run_'+i+'_rpe">'+esc(sl.rpe?sl.rpe+'/10':'-')+'</div></div>';
-    h+='</div>';
-    h+='<div class="saved-feeling" id="saved_run_'+i+'_feel" style="display:'+(sl.feel?'block':'none')+';">'+esc(stripFeelGlyph(sl.feel)||'')+'</div>';
-    h+='<div class="saved-notes" id="saved_run_'+i+'_notes" style="display:'+(sl.notes?'block':'none')+';">'+esc(sl.notes||'')+'</div>';
-    h+='<button class="savebtn" style="margin-top:10px" onclick="editRun('+i+')">Edit Session</button>';
-    h+='</div>';
-    h+='<div id="run_form_'+i+'" style="display:'+(hasSaved?'none':'block')+';">';
-    h+='<div style="background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px"><label style="color:#ffaa00;font-weight:600;font-size:var(--font-xs);display:flex;align-items:center;gap:6px;margin-bottom:6px"><span><svg class="icon icon-sm icon-dim"><use href="#i-calendar"/></svg></span> Session Date <span style="font-size:var(--font-xs);font-weight:400;color:rgba(255,170,0,.6);font-family:var(--mono)">— change if you did this on a different day</span></label><input type="date" class="li" id="run_date_'+i+'" value="'+esc(s.date||'')+'" style="border-color:rgba(255,170,0,.4);width:100%;box-sizing:border-box" /></div>';
-    h+='<div class="run-log-title">Log your session</div><div class="run-inputs">';
-    h+='<div class="run-field"><label>Distance (km)</label><input type="number" step="0.1" id="rd_'+i+'" placeholder="0.0" value="'+esc(sl.distance||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="run-field"><label>Duration (min)</label><input type="number" step="1" id="rdur_'+i+'" placeholder="30" value="'+esc(sl.duration||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="run-field"><label>Avg Pace (min/km)</label><input type="text" id="rp_'+i+'" placeholder="6:00" value="'+esc(sl.pace||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='<div class="run-field"><label>RPE /10</label><input type="number" min="1" max="10" id="rr_'+i+'" placeholder="..." value="'+esc(sl.rpe||'')+'" oninput="draftRun('+i+')" /></div>';
-    h+='</div>';
-    h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>How did it feel?</label><select id="rf_'+i+'" class="li" onchange="draftRun('+i+')"><option value="">Select feeling...</option>';
-    ['Awful','Struggling','Average','Feeling Strong','Crushing It'].forEach(function(f){h+='<option'+(stripFeelGlyph(sl.feel)===f?' selected':'')+'>'+esc(f)+'</option>';});
-    h+='</select></div>';
-    h+='<div class="run-field run-input-full" style="margin-bottom:8px"><label>Notes (Optional)</label><textarea id="rn_'+i+'" class="li" placeholder="Any additional thoughts..." oninput="draftRun('+i+')">'+esc(sl.notes||'')+'</textarea></div>';
-    h+='<button class="savebtn" id="sb_'+i+'" onclick="saveRun('+i+')">Save Session</button>';
-    if(isSessionLogged(s.id)){setTimeout(function(idx){showRunSaved(idx);}(i),0);}
-    h+='</div>';
-    h+='</div>';
-    h+='</div>';
+    h+=runPagerHtml(i,pages);
+    h+='</div>'; // end run-details
   }else if(type==='strength'){
 
     var splitKey=splitKeyForSession(s,'Upper A');
@@ -2951,6 +2971,9 @@ function strengthSessionProgress(i){
 }
 function focusedSessionSubmitState(i,progress){
   var session=sessions[i]||{},entry=logs[session.id]||{},submitted=!!entry.__submittedAt;
+  // Runs have their own states: a Strava run reaches the coaches as soon as it
+  // matches, but it is not finished until the athlete adds RPE and pain.
+  if(getType(session)==='run'&&typeof runFocusState==='function')return runFocusState(session,i);
   var changed=!!(submitted&&entry.__submittedSig&&gymLogSignature(entry)!==entry.__submittedSig);
   if(changed)return {title:'Changes saved as a draft',detail:'Review the update before sending it.',action:'Review update',submit:true};
   if(submitted)return {title:'Sent to your coaches',detail:'This session is fully submitted.',action:'Back to plan',submit:false};
@@ -2971,6 +2994,14 @@ function refreshFocusedSessionChrome(i){
 function handleFocusedSessionAction(){
   if(focusedSessionIndex==null)return;
   var button=document.getElementById('focusFooterAction');
+  var runSession=sessions[focusedSessionIndex];
+  if(runSession&&getType(runSession)==='run'&&button&&button.getAttribute('data-submit')==='true'){
+    // The check-in is on the first page; bring it into view before saving so
+    // a missing answer is flagged where the athlete can see it.
+    if(typeof runPagerGo==='function')runPagerGo(focusedSessionIndex,0);
+    saveStravaFeedback(focusedSessionIndex);
+    return;
+  }
   if(button&&button.getAttribute('data-submit')==='true'){
     var card=document.getElementById('sc_'+focusedSessionIndex),first=card&&card.querySelector('.exc'),splitKey=first&&first.getAttribute('data-split-key');
     if(splitKey){openStrengthSubmitReview(focusedSessionIndex,splitKey);return;}
@@ -3011,9 +3042,18 @@ function startFocusedSession(i){
     scroll.appendChild(card);
   }
   card.classList.add('in-focus-overlay');
+  ov.classList.toggle('is-run',!!(sessions[i]&&getType(sessions[i])==='run'));
   var nameEl=document.getElementById('focusOverlayName');if(nameEl)nameEl.textContent=(sessions[i]&&sessions[i].name)||'Workout';
   document.body.classList.add('focus-session-open');
   void ov.offsetHeight;ov.classList.add('open');scroll.scrollTop=0;_exlRefreshList(i);_exlOpenUpNext(i);refreshFocusedSessionChrome(i);
+}
+// "Check now" on the before-run page: when Strava has since matched, rebuild
+// the open run in place so the result and check-in appear without reopening.
+function rebuildFocusedRun(i){
+  var s=sessions[i],body=document.getElementById('scb_'+i);if(!s||!body||getType(s)!=='run')return;
+  var heroShown=logs[s.id]&&logs[s.id].__stravaMatch&&isSessionLogged(s.id);
+  body.innerHTML=(typeof stravaMatchHtml==='function'&&!heroShown?stravaMatchHtml(s,i,'session'):'')+buildBody(s,i,'run');
+  refreshFocusedSessionChrome(i);
 }
 function openMobileWeekSession(i,trigger){
   focusedSessionReturnFocus=trigger||document.activeElement;startFocusedSession(i);

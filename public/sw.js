@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v231'; // v231: no Log set button; ticking a row logs it and never unticks on blur
+const CACHE_NAME = 'dp-athlete-v232'; // v232: run sessions open as swipeable pages; Strava result + check-in lead
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=184', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=185', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
   '/js/02-login-goals.js?v=121',
@@ -14,8 +14,9 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
-  '/js/08-training.js?v=156',
-  '/js/09-logging.js?v=129',
+  '/js/08-training-run.js?v=1',
+  '/js/08-training.js?v=157',
+  '/js/09-logging.js?v=130',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=111',
   '/login.js?v=50', '/icons.css?v=4',
