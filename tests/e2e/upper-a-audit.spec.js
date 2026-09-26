@@ -77,21 +77,21 @@ async function openSession(page, rpe) {
 // Measures the open exercise: is everything needed mid-set above the dock,
 // with nothing clipped and no sideways scroll?
 function measure(page) {
-  return page.locator('.exc.is-focused').evaluate((node) => {
+  return page.locator('.exc.exl.open').evaluate((node) => {
     const box = (sel) => { const el = node.querySelector(sel); return el ? el.getBoundingClientRect() : null; };
     const rows = [...node.querySelectorAll('.setrow,.setrow-single')];
     const dockTop = box('.exl-dock').top;
     return {
-      name: node.querySelector('.exl-name').textContent,
+      name: node.querySelector('.exn').textContent,
       rows: rows.length,
-      scrollTop: document.getElementById('focusOverlayScroll').scrollTop,
-      headTop: Math.round(box('.exl-head').top),
+      // The exercise's own row must be visible below the session header.
+      headTop: Math.round(node.querySelector('.exc-summary').getBoundingClientRect().top - document.getElementById('focusOverlayScroll').getBoundingClientRect().top),
       lastRowBottom: Math.round(rows[rows.length - 1].getBoundingClientRect().bottom),
       tilesBottom: Math.round(box('.exl-tiles').bottom),
       dockTop: Math.round(dockTop),
       dockBottom: Math.round(box('.exl-dock').bottom),
       spare: Math.round(dockTop - box('.exl-tiles').bottom),
-      wide: document.documentElement.scrollWidth - window.innerWidth,
+      wide: Math.max(document.documentElement.scrollWidth - window.innerWidth, (() => { const sc = document.getElementById('focusOverlayScroll'); return sc.scrollWidth - sc.clientWidth; })()),
       clipped: [...node.querySelectorAll('.slast, .sin, .rpe-in, .exl-line, .exl-name, .snum')]
         .filter(el => el.offsetParent && el.scrollWidth > el.clientWidth + 1).map(el => `${el.id || el.className} ${el.scrollWidth}>${el.clientWidth} ${el.textContent}`),
       small: [...node.querySelectorAll('.exl-view input, .exl-view button, .exl-dock button')]
@@ -115,18 +115,18 @@ for (const size of sizes) {
     const errors = await openSession(page, size.rpe);
     const report = [];
     for (let ei = 0; ei < upperA.length; ei++) {
-      await page.locator(`.exc[data-exercise-index="${ei}"] .exc-summary`).click();
-      await expect(page.locator('#focusOverlay')).toHaveClass(/exercise-open/);
+      const card = page.locator(`.exc[data-exercise-index="${ei}"]`);
+      if (!(await card.evaluate(el => el.classList.contains('open')))) await card.locator('.exc-summary').click();
+      await expect(card).toHaveClass(/\bopen\b/);
       const m = await measure(page);
       report.push(m);
-      expect.soft(m.scrollTop, `${m.name}: opened scrolled`).toBe(0);
+      expect.soft(m.headTop, `${m.name}: exercise row under the header`).toBeGreaterThanOrEqual(0);
       expect.soft(m.lastRowBottom, `${m.name}: last set row behind the dock`).toBeLessThanOrEqual(m.dockTop);
       expect.soft(m.tilesBottom, `${m.name}: tiles behind the dock`).toBeLessThanOrEqual(m.dockTop);
       expect.soft(m.dockBottom, `${m.name}: dock off screen`).toBeLessThanOrEqual(size.height + 1);
       expect.soft(m.wide, `${m.name}: sideways scroll`).toBeLessThanOrEqual(0);
       expect.soft(m.clipped, `${m.name}: clipped text`).toEqual([]);
       expect.soft(m.small, `${m.name}: tap targets under 44px`).toEqual([]);
-      await page.getByRole('button', { name: 'Back to session' }).click();
     }
     console.log(`AUDIT ${size.name} ${size.width}x${size.height} rpe=${size.rpe}\n` + report.map(r => `  ${r.name.padEnd(24)} rows=${r.rows} spare=${r.spare}px lastRow=${r.lastRowBottom} tiles=${r.tilesBottom} dockTop=${r.dockTop}`).join('\n'));
     await page.screenshot({ path: `test-results/upper-a-list-${size.width}x${size.height}.png` });
@@ -142,10 +142,12 @@ test('the whole Upper A session logs through the dock and saves exactly what was
   const pickerFit = [];
   for (let ei = 0; ei < upperA.length; ei++) {
     // Always start from the Up next card, the way an athlete moves through.
+    // The first is already open; after that it is one tap.
     const up = page.locator('.exc.is-up-next');
     await expect(up).toHaveAttribute('data-exercise-index', String(ei));
-    await up.locator('.exc-summary').click();
-    const card = page.locator('.exc.is-focused');
+    if (!(await up.evaluate(el => el.classList.contains('open')))) await up.locator('.exc-summary').click();
+    const card = page.locator(`.exc[data-exercise-index="${ei}"]`);
+    await expect(card).toHaveClass(/\bopen\b/);
     const dock = card.locator('.exl-log');
     const rows = card.locator('.setrow,.setrow-single');
     const count = await rows.count();
@@ -169,18 +171,20 @@ test('the whole Upper A session logs through the dock and saves exactly what was
       if (await picker.count() && await picker.isVisible()) {
         const withPicker = await measure(page);
         pickerFit.push(`${withPicker.name} spare=${withPicker.dockTop - withPicker.lastRowBottom}`);
+        expect.soft(withPicker.lastRowBottom, `${withPicker.name}: last set hidden while the effort question is open`).toBeLessThanOrEqual(withPicker.dockTop);
+        expect.soft(withPicker.wide, `${withPicker.name}: sideways scroll with the effort question open`).toBeLessThanOrEqual(0);
+        expect.soft(withPicker.clipped, `${withPicker.name}: clipped with the effort question open`).toEqual([]);
         await picker.getByRole('button', { name: /On target/ }).click();
       }
       if (!(await page.locator(`#st_0_${ei}_${si}`).evaluate(el => el.classList.contains('on')))) await dock.click();
       await expect(page.locator(`#st_0_${ei}_${si}`)).toHaveClass(/\bon\b/);
+      // The exercise being logged never moves: it stays open in the Up next slot.
+      if (si < count - 1) await expect(card).toHaveClass(/is-up-next/);
       typed[ei].push({ weight: await page.locator(`#w_0_${ei}_${si}`).inputValue(), reps: String(reps) });
     }
-    await expect(dock).toHaveText(/Finish exercise/i);
-    await expect(card.locator('.exl-result')).toBeVisible();
-    await expect(card.locator('.exl-next-action')).not.toBeEmpty();
-    await dock.click();
-    await expect(page.locator('#focusOverlay')).not.toHaveClass(/exercise-open/);
-    await expect(page.locator(`.exc[data-exercise-index="${ei}"]`)).toHaveClass(/exercise-complete/);
+    // No finish or submit step: the done exercise closes itself.
+    await expect(card).not.toHaveClass(/\bopen\b/);
+    await expect(card).toHaveClass(/exercise-complete/);
     await expect(page.locator(`.exc[data-exercise-index="${ei}"] .exl-badge`)).not.toHaveAttribute('data-dir', 'none');
   }
   console.log('PICKER (last row vs dock, px, 390x844)\n  ' + pickerFit.join('\n  '));

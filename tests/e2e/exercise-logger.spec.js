@@ -91,13 +91,10 @@ for (const { rpe, ...size } of fits) {
     await page.addInitScript((on) => localStorage.setItem('dp_strength_rpe_enabled', on ? 'true' : 'false'), rpe);
     const errors = await login(page, [row, dips], rowHistory);
 
-    // The list leads with the Up next card; nothing is expanded inline.
-    const up = page.locator('.exc.is-up-next');
-    await expect(up).toContainText('Low Machine Row');
-    await expect(up.locator('.exl-up-start')).toBeVisible();
-    await up.locator('.exc-summary').click();
-
-    const card = page.locator('.exc.is-focused');
+    // The session opens with the next exercise already expanded in the list.
+    const card = page.locator('.exc.is-up-next');
+    await expect(card).toContainText('Low Machine Row');
+    await expect(card).toHaveClass(/\bopen\b/);
     await expect(card.locator('.exl-target')).toContainText('Today’s target · per work set');
     await expect(card.locator('.exl-target')).toContainText('Stop with 2 reps left in the tank (RPE 8)');
     await expect(card.locator('.exl-rule')).toHaveText('Hit 12 on both work sets to go up');
@@ -109,16 +106,15 @@ for (const { rpe, ...size } of fits) {
     expect(clipped).toEqual([]);
     await expect(card.locator('.exl-log')).toHaveText(/Log WU 1/i);
 
-    // Everything needed mid-set is on screen without scrolling: the title,
-    // the target card, every set row and both tiles sit above the dock, and
-    // the dock sits inside the viewport. Only "+ Add bonus set" may be below.
+    // Everything needed mid-set is on screen without scrolling: the exercise
+    // row, the target card, every set row and both tiles sit between the
+    // header and the Log dock. Only "+ Add bonus set" may be below.
     const fit = await card.evaluate((node) => {
       const box = (sel) => { const el = node.querySelector(sel); return el ? el.getBoundingClientRect() : null; };
       const rows = node.querySelectorAll('.setrow');
       const scroll = document.getElementById('focusOverlayScroll');
       return {
-        scrollTop: scroll.scrollTop,
-        head: box('.exl-head').top,
+        head: node.querySelector('.exc-summary').getBoundingClientRect().top - scroll.getBoundingClientRect().top,
         lastRow: rows[rows.length - 1].getBoundingClientRect().bottom,
         tiles: box('.exl-tiles').bottom, dock: box('.exl-dock').bottom, dockTop: box('.exl-dock').top,
         wide: document.documentElement.scrollWidth - window.innerWidth,
@@ -128,8 +124,7 @@ for (const { rpe, ...size } of fits) {
           .filter(item => item.h < 44),
       };
     });
-    expect(fit.scrollTop).toBe(0);
-    expect(fit.head).toBeGreaterThanOrEqual(0);
+    expect(fit.head, 'exercise row hidden under the header').toBeGreaterThanOrEqual(0);
     expect(fit.lastRow, 'last set row hidden behind the dock').toBeLessThanOrEqual(fit.dockTop);
     expect(fit.tiles, 'tiles hidden behind the dock').toBeLessThanOrEqual(fit.dockTop);
     expect(fit.dock).toBeLessThanOrEqual(size.height + 1);
@@ -140,19 +135,19 @@ for (const { rpe, ...size } of fits) {
   });
 }
 
-test('the dock logs the current row, advances, and finishes into one result card', async ({ page }) => {
+test('the dock logs the current row, advances, and the done exercise closes itself', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
   const errors = await login(page, [row, dips], rowHistory);
-  await page.locator('.exc.is-up-next .exc-summary').click();
-  const card = page.locator('.exc.is-focused');
+  const card = page.locator('.exc[data-exercise-index="0"]');
+  await expect(card).toHaveClass(/\bopen\b/);
   const dock = card.locator('.exl-log');
 
   await page.locator('#w_0_0_0').fill('23.6');
   await page.locator('#r_0_0_0').fill('10');
   await dock.click();
   await expect(page.locator('#st_0_0_0')).toHaveClass(/\bon\b/);
-  await expect(card.locator('.exl-dock-note')).toContainText('sends to your coaches when you submit');
+  await expect(card.locator('.exl-dock-note')).toContainText('Set saved');
   await expect(dock).toHaveText(/Log WU 2/i);
   await expect(page.locator('#sr_0_0_1')).toHaveClass(/is-current/);
 
@@ -170,21 +165,26 @@ test('the dock logs the current row, advances, and finishes into one result card
   await expect(page.locator('#w_0_0_2')).toHaveValue('38.6');
   await expect(dock).toHaveText(/Log Work set 2/i);
 
+  // Last set: no finish or submit step. The exercise closes itself, the
+  // next one is up, and nothing is sent until Review & submit at the end.
   await page.locator('#r_0_0_3').fill('11');
   await dock.click();
-  await expect(dock).toHaveText(/Finish exercise/i);
+  await expect(card).not.toHaveClass(/\bopen\b/);
+  await expect(card.locator('.exl-badge')).toBeVisible();
+  await expect(page.locator('.exc.is-up-next')).toContainText('Machine Dips');
+  await expect(page.locator('.exc.is-up-next')).toBeInViewport();
 
+  // Reopening a done exercise shows its one result card.
+  await card.locator('.exc-summary').click();
   const result = card.locator('.exl-result');
   await expect(result).toBeVisible();
   await expect(result).toContainText('23 work reps · beat last session by 5');
   await expect(result.locator('.exl-next-action')).not.toBeEmpty();
   await expect(card.locator('.exl-target')).toBeHidden();
   await page.screenshot({ path: 'test-results/exercise-logger-finished.png' });
-
-  // Finish returns to the list at the same place, with the next exercise up.
+  await expect(dock).toHaveText(/Done · close/i);
   await dock.click();
-  await expect(page.locator('#focusOverlay')).not.toHaveClass(/exercise-open/);
-  await expect(page.locator('.exc.is-up-next')).toContainText('Machine Dips');
+  await expect(card).not.toHaveClass(/\bopen\b/);
   await expect(page.locator('.exlist-label[data-exl-label="done"]')).toContainText('Done · 1');
   await expect(page.locator('#focusFooterTitle')).toHaveText('Draft saved on this device');
   await page.screenshot({ path: 'test-results/exercise-logger-list.png' });
@@ -225,34 +225,34 @@ test('typed kg and reps survive closing the app until logged', async ({ page }) 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
   const errors = await login(page, [row], rowHistory);
-  await page.locator('.exc.is-up-next .exc-summary').click();
   await page.locator('#w_0_0_0').fill('25');
   await page.locator('#r_0_0_0').fill('9');
   await page.waitForTimeout(400);
   await page.reload();
   await expect(page.locator('#portalScreen')).toBeVisible();
   await page.getByRole('button', { name: /Open .*Upper A/ }).click();
-  await page.locator('.exc[data-exercise-index="0"] .exc-summary').click();
   await expect(page.locator('#w_0_0_0')).toHaveValue('25');
   await expect(page.locator('#r_0_0_0')).toHaveValue('9');
   expect(errors).toEqual([]);
 });
 
-test('back returns to the list at the same scroll position, and the sheet holds what moved', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 600 });
+test('the accordion opens one exercise at a time in place, and the sheet holds what moved', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
   const many = [row, dips, pec, { ...dips, exercise: 'Lat Pulldown' }, { ...dips, exercise: 'Cable Curl' }];
   const errors = await login(page, many, rowHistory);
-  const scroll = page.locator('#focusOverlayScroll');
-  const target = page.locator('.exc[data-exercise-index="4"] .exc-summary');
-  await target.scrollIntoViewIfNeeded();
-  const before = await scroll.evaluate(el => el.scrollTop);
-  expect(before).toBeGreaterThan(0);
-  await target.click();
-  expect(await scroll.evaluate(el => el.scrollTop)).toBe(0);
-  await expect(page.locator('#focusOverlay')).toHaveClass(/exercise-open/);
+  const first = page.locator('.exc[data-exercise-index="0"]');
+  const last = page.locator('.exc[data-exercise-index="4"]');
+  await expect(first).toHaveClass(/\bopen\b/);
 
-  await page.getByRole('button', { name: 'Why this load' }).click();
+  // Jumping straight to another exercise closes the first; nothing to back out of.
+  await last.locator('.exc-summary').click();
+  await expect(last).toHaveClass(/\bopen\b/);
+  await expect(first).not.toHaveClass(/\bopen\b/);
+  await expect(page.locator('.exc.exl.open')).toHaveCount(1);
+  await expect(last.locator('.exl-log')).toBeInViewport();
+
+  await last.getByRole('button', { name: 'Why this load' }).click();
   const sheet = page.locator('#exlSheet_0_4');
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText('Next session');
@@ -260,24 +260,23 @@ test('back returns to the list at the same scroll position, and the sheet holds 
   await sheet.getByRole('button', { name: 'Close details' }).click();
   await expect(sheet).toBeHidden();
 
-  await page.getByRole('button', { name: 'Back to session' }).click();
-  await expect(page.locator('#focusOverlay')).not.toHaveClass(/exercise-open/);
-  expect(await scroll.evaluate(el => el.scrollTop)).toBe(before);
+  // Tapping the open exercise's row closes it again.
+  await last.locator('.exc-summary').click();
+  await expect(page.locator('.exc.exl.open')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
 test('swapping from the sheet repaints the title, target and table in place', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const errors = await login(page, [{ ...pec, alts: ['Cable fly', 'Chest fly machine'] }], null);
-  await page.locator('.exc.is-up-next .exc-summary').click();
   await page.locator('#w_0_0_1').fill('40');
   await page.getByRole('button', { name: 'Swap' }).click();
   const sheet = page.locator('#exlSheet_0_0');
   await expect(sheet.locator('[data-exl-section="swap"]')).toBeVisible();
   await sheet.getByRole('button', { name: 'Cable fly', exact: true }).click();
   await sheet.getByRole('button', { name: 'Close details' }).click();
-  const card = page.locator('.exc.is-focused');
-  await expect(card.locator('.exl-name')).toHaveText('Cable fly');
+  const card = page.locator('.exc.open');
+  await expect(card.locator('.exn')).toHaveText('Cable fly');
   await expect(card.locator('.exl-slbls')).toBeVisible();
   await expect(card.locator('.exl-target')).toBeVisible();
   await expect(card.locator('.snum')).toHaveText(['WU 1', 'Work 1', 'Work 2']);

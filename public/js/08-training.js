@@ -2171,7 +2171,7 @@ function _exlRefreshRows(card){
   var btn=card.querySelector('.exl-log');
   if(btn){
     var label=current?_exlRowLabel(current).replace(/^WORK\b/i,'Work set').replace(/^BONUS\b/i,'Bonus set'):'';
-    btn.textContent=current?'Log '+label:'Finish exercise';
+    btn.textContent=current?'Log '+label:'Done · close';
     btn.setAttribute('data-finish',current?'false':'true');
   }
   card.classList.toggle('exl-finished',!current&&strengthExerciseIsComplete(card));
@@ -2189,8 +2189,8 @@ function exlLogCurrent(i,ei){
   var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');if(!card)return;
   var armed=_exlArmed&&_exlArmed.key===i+'_'+ei&&Date.now()-_exlArmed.at<2000?_exlArmed:null;_exlArmed=null;
   var row=armed?(armed.row?document.getElementById(armed.row):null):_exlCurrentRow(card);
-  if(armed&&armed.finish){closeExlExercise();return;}
-  if(!row){if(!_exlCurrentRow(card))closeExlExercise();return;}
+  if(armed&&armed.finish){closeExlCard(card);return;}
+  if(!row){if(!_exlCurrentRow(card))closeExlCard(card);return;}
   var tick=row.querySelector('.st');
   if(tick&&tick.classList.contains('on'))return;
   // The kg box shows today's target as a hint. Logging without typing over it
@@ -2208,7 +2208,7 @@ function exlLogCurrent(i,ei){
 function _exlFlashSaved(card){
   if(!card||typeof card.querySelector!=='function')return;
   var note=card.querySelector('.exl-dock-note');if(!note)return;
-  note.textContent='Saved on this device · sends to your coaches when you submit';
+  note.textContent='Set saved';
   note.classList.add('show');
   clearTimeout(note._t);note._t=setTimeout(function(){note.classList.remove('show');},2600);
 }
@@ -2261,48 +2261,60 @@ function _exlSheetHtml(id,title,body){
     '<div class="exl-sheet-panel" role="dialog" aria-modal="true" aria-label="'+esc(title)+'"><div class="exl-sheet-head"><strong>'+esc(title)+'</strong><button type="button" class="exl-sheet-close" onclick="closeExlSheet(this)" aria-label="Close details">&times;</button></div>'+
     '<div class="exl-sheet-body">'+body+'</div></div></div>';
 }
-// Full-screen exercise view inside the focused-session overlay. The card is
-// never moved or rebuilt, so every input id stays where draft-saving reads it.
-var _exlListScroll=0;
-function _exlOverlayOf(card){return card&&card.closest?card.closest('.focus-overlay'):null;}
-function openExlExercise(card){
-  var ov=_exlOverlayOf(card);if(!ov)return false;
-  var scroll=document.getElementById('focusOverlayScroll');
-  if(!ov.classList.contains('exercise-open'))_exlListScroll=scroll?scroll.scrollTop:0;
-  ov.querySelectorAll('.exc.is-focused').forEach(function(c){if(c!==card)c.classList.remove('is-focused','open');});
-  card.classList.add('open','is-focused');
-  ov.classList.add('exercise-open');
-  var summary=card.querySelector('.exc-summary');if(summary)summary.setAttribute('aria-expanded','true');
-  _exlRefreshRows(card);
-  if(scroll)scroll.scrollTop=0;
-  var head=card.querySelector('.exl-name');if(head){head.setAttribute('tabindex','-1');setTimeout(function(){head.focus({preventScroll:true});},60);}
-  if(typeof refreshFocusedSessionChrome==='function'){var si=parseInt(card.getAttribute('data-session-index'),10);if(!isNaN(si))refreshFocusedSessionChrome(si);}
-  return true;
+// Accordion: an exercise opens in place inside the list and the others stay
+// visible around it. One open at a time; tapping it again closes it. The card
+// is never moved or rebuilt, so every input id stays where drafts are read.
+function _exlScroller(card){return card&&card.closest?card.closest('.focus-overlay-scroll'):null;}
+// While an exercise is open its Log dock stands in for the session footer;
+// Review & submit is back the moment no exercise is open.
+function _exlSyncOverlay(){
+  var ov=document.getElementById('focusOverlay');if(!ov||typeof ov.querySelector!=='function')return;
+  ov.classList.toggle('has-open-exercise',!!ov.querySelector('.exc.exl.open'));
 }
-function closeExlExercise(){
-  var ov=document.getElementById('focusOverlay');
-  if(!ov||!ov.classList.contains('exercise-open'))return false;
+function openExlCard(card){
+  if(!card)return;
+  var list=card.closest?card.closest('.exlist'):null;
+  if(list)list.querySelectorAll('.exc.exl.open').forEach(function(other){if(other!==card)closeExlCard(other,true);});
+  card.classList.add('open');
+  var summary=card.querySelector('.exc-summary');if(summary)summary.setAttribute('aria-expanded','true');
+  _exlSyncOverlay();
+  refreshStrengthExerciseState(card);
+  // Bring the whole exercise into view: its row at the top, the dock below.
+  var scroller=_exlScroller(card);
+  if(scroller){var top=card.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop-8;scroller.scrollTop=Math.max(0,top);}
+  else if(card.scrollIntoView)card.scrollIntoView({block:'start'});
+}
+function closeExlCard(card,quiet){
+  if(!card)return;
   closeExlSheet();
-  var card=ov.querySelector('.exc.is-focused');
-  ov.classList.remove('exercise-open');
-  if(card){card.classList.remove('is-focused','open');var s=card.querySelector('.exc-summary');if(s){s.setAttribute('aria-expanded','false');}}
-  var scroll=document.getElementById('focusOverlayScroll');if(scroll)scroll.scrollTop=_exlListScroll;
-  if(card){var si=parseInt(card.getAttribute('data-session-index'),10);if(!isNaN(si)){_exlRefreshList(si);if(typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(si);}}
-  if(card){var sm=card.querySelector('.exc-summary');if(sm)setTimeout(function(){sm.focus({preventScroll:true});},40);}
-  return true;
+  card.classList.remove('open');
+  var summary=card.querySelector('.exc-summary');if(summary)summary.setAttribute('aria-expanded','false');
+  _exlSyncOverlay();
+  if(!quiet){
+    refreshStrengthExerciseState(card);
+    var si=parseInt(card.getAttribute('data-session-index'),10);
+    var up=!isNaN(si)?document.querySelector('.exlist[data-session-index="'+si+'"] .exc.is-up-next'):null;
+    var scroller=_exlScroller(card);
+    if(up&&scroller){var top=up.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop-40;scroller.scrollTop=Math.max(0,top);}
+  }
 }
 // Session list: the next unstarted exercise becomes the "Up next" card, done
 // exercises collapse to one compact row each, and the rest follow. Order is
 // visual only (CSS order), so the DOM and every id stay in programme order.
+// Entering a session lands on the next exercise, already open and ready to log.
+function _exlOpenUpNext(i){
+  var list=document.querySelector('.exlist[data-session-index="'+i+'"]');if(!list)return;
+  list.querySelectorAll('.exc.exl.open').forEach(function(card){closeExlCard(card,true);});
+  var up=list.querySelector('.exc.is-up-next');if(up&&!up.classList.contains('exercise-complete'))openExlCard(up);
+}
 function _exlRefreshList(i){
   var list=document.querySelector('.exlist[data-session-index="'+i+'"]');if(!list)return;
   var cards=Array.prototype.slice.call(list.querySelectorAll('.exc'));
+  // The exercise being logged holds the Up next slot, so it never moves under
+  // the athlete's thumb; otherwise it is the first unfinished one in order.
   var up=null,done=0,rest=0;
-  cards.forEach(function(card){
-    var complete=card.classList.contains('exercise-complete');
-    if(complete)done++;
-    else if(!up&&!card.classList.contains('has-entry'))up=card;
-  });
+  cards.forEach(function(card){if(card.classList.contains('exercise-complete'))done++;});
+  cards.some(function(card){if(card.classList.contains('open')&&!card.classList.contains('exercise-complete')){up=card;return true;}return false;});
   if(!up)cards.some(function(card){if(!card.classList.contains('exercise-complete')){up=card;return true;}return false;});
   cards.forEach(function(card){
     card.classList.toggle('is-up-next',card===up);
@@ -2419,7 +2431,7 @@ function toggleExc(el){
   var c=el&&el.closest?el.closest('.exc'):null;
   if(!c) return;
   // Inside the focused session an exercise is its own full-screen view.
-  if(_exlOverlayOf(c)){if(c.classList.contains('is-focused'))closeExlExercise();else openExlExercise(c);return;}
+  if(c.classList.contains('exl')){if(c.classList.contains('open'))closeExlCard(c);else openExlCard(c);return;}
   var open=c.classList.toggle('open');
   if(el&&el.setAttribute) el.setAttribute('aria-expanded',open?'true':'false');
   refreshStrengthExerciseState(c);
@@ -2962,8 +2974,6 @@ function refreshFocusedSessionChrome(i){
   var progress=strengthSessionProgress(i),meta=document.getElementById('focusOverlayMeta'),time=document.getElementById('focusOverlayTime'),fill=document.getElementById('focusProgressFill');
   if(meta)meta.textContent=progress.totalExercises?(progress.doneExercises+' of '+progress.totalExercises):'';
   if(time)time.textContent=progress.minutes?(progress.minutes+' min left'):(progress.totalExercises?'Sets complete':'');
-  var ov=document.getElementById('focusOverlay'),closeBtn=document.getElementById('focusCloseButton');
-  if(closeBtn)closeBtn.setAttribute('aria-label',ov&&ov.classList.contains('exercise-open')?'Back to session':'Close session');
   var nameEl=document.getElementById('focusOverlayName');if(nameEl)nameEl.setAttribute('data-progress',meta?meta.textContent:'');
   if(fill)fill.style.width=(progress.totalSets?Math.round(progress.doneSets/progress.totalSets*100):0)+'%';
   var state=focusedSessionSubmitState(i,progress),title=document.getElementById('focusFooterTitle'),detail=document.getElementById('focusFooterDetail'),action=document.getElementById('focusFooterAction');
@@ -2983,7 +2993,7 @@ function ensureFocusOverlay(){
   var ov=document.getElementById('focusOverlay');
   if(ov)return ov;
   ov=document.createElement('div');ov.id='focusOverlay';ov.className='focus-overlay';
-  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" id="focusCloseButton" onclick="focusOverlayClose()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong><div class="focus-progress" aria-hidden="true"><i id="focusProgressFill"></i></div></div><div class="focus-overlay-meta"><strong id="focusOverlayMeta"></strong><small id="focusOverlayTime"></small></div></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><div class="focus-footer-state"><strong id="focusFooterTitle">Session in progress</strong><small id="focusFooterDetail">Your entries save as you go.</small></div><button class="focus-done-btn" id="focusFooterAction" data-submit="false" onclick="handleFocusedSessionAction()">Back to plan</button><div class="exl-key" aria-label="Next time key: arrow up means the load goes up, equals means hold, arrow down means it comes down"><span><b class="is-up">↑</b> up</span><span><b class="is-hold">=</b> hold</span><span><b class="is-down">↓</b> down</span></div></div>';
+  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" onclick="closeFocusedSession()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong><div class="focus-progress" aria-hidden="true"><i id="focusProgressFill"></i></div></div><div class="focus-overlay-meta"><strong id="focusOverlayMeta"></strong><small id="focusOverlayTime"></small></div></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><div class="focus-footer-state"><strong id="focusFooterTitle">Session in progress</strong><small id="focusFooterDetail">Your entries save as you go.</small></div><button class="focus-done-btn" id="focusFooterAction" data-submit="false" onclick="handleFocusedSessionAction()">Back to plan</button><div class="exl-key" aria-label="Next time key: arrow up means the load goes up, equals means hold, arrow down means it comes down"><span><b class="is-up">↑</b> up</span><span><b class="is-hold">=</b> hold</span><span><b class="is-down">↓</b> down</span></div></div>';
   document.body.appendChild(ov);
   return ov;
 }
@@ -3015,16 +3025,13 @@ function startFocusedSession(i){
   card.classList.add('in-focus-overlay');
   var nameEl=document.getElementById('focusOverlayName');if(nameEl)nameEl.textContent=(sessions[i]&&sessions[i].name)||'Workout';
   document.body.classList.add('focus-session-open');
-  void ov.offsetHeight;ov.classList.add('open');scroll.scrollTop=0;_exlRefreshList(i);refreshFocusedSessionChrome(i);
+  void ov.offsetHeight;ov.classList.add('open');scroll.scrollTop=0;_exlRefreshList(i);_exlOpenUpNext(i);refreshFocusedSessionChrome(i);
 }
 function openMobileWeekSession(i,trigger){
   focusedSessionReturnFocus=trigger||document.activeElement;startFocusedSession(i);
 }
-// The overlay's close button steps back one level: exercise view -> session
-// list -> closed.
-function focusOverlayClose(){if(closeExlExercise())return;closeFocusedSession();}
 function closeFocusedSession(){
-  closeExlExercise();
+  closeExlSheet();
   var returnFocus=focusedSessionReturnFocus;
   // Flush before anything is torn down. A generated card is REMOVED below, and
   // a debounced draft firing afterwards would overwrite the session with empty
@@ -3038,11 +3045,11 @@ function closeFocusedSession(){
       else if(ph&&ph.parentNode){ph.parentNode.insertBefore(card,ph);ph.parentNode.removeChild(ph);}
     }
   }
-  var ov=document.getElementById('focusOverlay');if(ov)ov.classList.remove('open');
+  var ov=document.getElementById('focusOverlay');if(ov)ov.classList.remove('open','has-open-exercise');
   document.body.classList.remove('focus-session-open');focusedSessionIndex=null;focusedSessionGenerated=false;focusedSessionReturnFocus=null;
   if(returnFocus&&typeof returnFocus.focus==='function')setTimeout(function(){returnFocus.focus();},180);
 }
-document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(closeExlSheet())return;if(focusedSessionIndex!=null)focusOverlayClose();else if(dayPlanDateISO)closeDayPlan();});
+document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(closeExlSheet())return;if(focusedSessionIndex!=null)closeFocusedSession();else if(dayPlanDateISO)closeDayPlan();});
 function togS(i){var el=document.getElementById('scb_'+i);if(!el) return;
   var open=el.classList.toggle('open');
   var toggle=document.getElementById('scht_'+i);
@@ -3114,12 +3121,10 @@ function settleStrengthExerciseCompletion(card){
   if(!card)return;
   refreshStrengthExerciseState(card);
   if(!strengthExerciseIsComplete(card))return;
-  // In the full-screen view the finished exercise stays on screen as its result
-  // card; the dock's Finish button returns to the list and its Up next card.
-  if(card.classList&&card.classList.contains('is-focused'))return;
   setTimeout(function(){
     if(!card||!strengthExerciseIsComplete(card))return;
     card.classList.remove('open');refreshStrengthExerciseState(card);showNextStrengthExercisePrompt(card);
+    if(card.classList.contains('exl'))closeExlCard(card);else _exlSyncOverlay();
   },320);
 }
 function showNextStrengthExercisePrompt(card){
