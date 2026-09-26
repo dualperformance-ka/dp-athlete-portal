@@ -109,11 +109,12 @@ async function codeLogin(page, options = {}) {
   return state;
 }
 
-// The exercise screen is its own full-screen view: the session opens on the
-// list, and the athlete taps the Up next card to start logging.
+// Exercises are an accordion: the session opens with the next exercise
+// already expanded. This only taps it when it is not open yet.
 async function openUpNext(page) {
-  await page.locator('.exc.is-up-next .exc-summary').click();
-  await expect(page.locator('#focusOverlay')).toHaveClass(/exercise-open/);
+  const up = page.locator('.exc.is-up-next');
+  if (!(await up.evaluate(el => el.classList.contains('open')))) await up.locator('.exc-summary').click();
+  await expect(up).toHaveClass(/\bopen\b/);
 }
 
 test('1. code login renders the portal and today’s session', async ({ page }) => {
@@ -213,7 +214,6 @@ test('3. three strength sets submit and persist across reload', async ({ page })
     await page.locator(`#r_0_0_${set}`).fill(String(10 - set));
   }
   await page.getByRole('button', { name: /On target/ }).click();
-  await page.getByRole('button', { name: 'Back to session' }).click();
   await page.locator('#focusFooterAction').click();
   await expect(page.locator('#strengthReviewTitle')).toHaveText('Review session');
   await expect(page.getByText('Adaptive coaching')).toBeVisible();
@@ -247,9 +247,13 @@ test('unlocking the next load gives brief encouragement without interrupting the
 
   await expect(page.locator('#toast')).toContainText(/Nice work.*unlocked for next session/);
   await expect(page.locator('.exc').first()).toHaveClass(/ns-unlock-celebrate/);
-  // The finished exercise collapses into one result card with one next step.
+  // The finished exercise closes itself; reopening it shows one result card
+  // with one next step.
   await page.locator('#r_0_0_2').blur();
-  const result = page.locator('.exc.is-focused .exl-result');
+  const done = page.locator('.exc[data-exercise-index="0"]');
+  await expect(done).not.toHaveClass(/\bopen\b/);
+  await done.locator('.exc-summary').click();
+  const result = done.locator('.exl-result');
   await expect(result).toBeVisible();
   await expect(result.locator('.exl-next-action')).toHaveText(/Increase to/);
   await expect(page.locator('#focusOverlay')).toHaveClass(/open/);
@@ -263,7 +267,6 @@ test('a locally saved workout awaits submission and does not count as complete',
   await page.locator('#w_0_0_0').fill('40');
   await page.locator('#r_0_0_0').fill('10');
   await page.getByRole('button', { name: /On target/ }).click();
-  await page.getByRole('button', { name: 'Back to session' }).click();
   await page.getByRole('button', { name: 'Close session' }).click();
   await page.evaluate(() => renderTodaySection());
 
@@ -286,7 +289,7 @@ test('focused strength flow shows coach context, live progress, calm stats and t
   await expect(page.locator('#focusOverlayTime')).toContainText('min left');
   await openUpNext(page);
   // Stats moved into the details sheet, one tap from the Best tile.
-  await page.locator('.exc.is-focused .exl-best').click();
+  await page.locator('.exc.open .exl-best').click();
   await expect(page.locator('#exlSheet_0_0').getByRole('button', { name: 'Stats' })).toBeVisible();
   await page.locator('#exlSheet_0_0').getByRole('button', { name: 'Close details' }).click();
 
@@ -297,8 +300,8 @@ test('focused strength flow shows coach context, live progress, calm stats and t
   await page.getByRole('button', { name: /On target/ }).click();
   await page.locator('#r_0_0_2').blur();
 
-  await expect(page.locator('.exc.is-focused .exl-log')).toHaveText(/Finish exercise/i);
-  await page.locator('.exc.is-focused .exl-log').click();
+  // No finish step: the done exercise closes itself and the next is up.
+  await expect(page.locator('.exc[data-exercise-index="0"]')).not.toHaveClass(/\bopen\b/);
   await expect(page.locator('.exc.is-up-next')).toContainText('Leg Curl');
   await expect(page.locator('#focusOverlayMeta')).toHaveText('1 of 2');
   await expect(page.getByRole('button', { name: 'Review & submit' }).last()).toBeVisible();
