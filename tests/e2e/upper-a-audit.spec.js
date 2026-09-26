@@ -4,7 +4,7 @@ import { upperA, upperAHistory } from './fixtures-upper-a.mjs';
 // Audit against the real session that prompted the redesign: Upper A (2 days
 // / wk), 12 exercises, with the athlete's actual recent history. Every
 // exercise must fit one phone screen mid-set, and the whole session must log
-// through the dock and land in the saved draft exactly as typed.
+// by ticking rows and land in the saved draft exactly as typed.
 
 function localISO(date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Adelaide', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
@@ -149,7 +149,6 @@ test('the whole Upper A session logs by typing alone and saves exactly what was 
     if (!(await up.evaluate(el => el.classList.contains('open')))) await up.locator('.exc-summary').click();
     const card = page.locator(`.exc[data-exercise-index="${ei}"]`);
     await expect(card).toHaveClass(/\bopen\b/);
-    const dock = card.locator('.exl-log');
     const rows = card.locator('.setrow,.setrow-single');
     const count = await rows.count();
     typed[ei] = [];
