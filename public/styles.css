@@ -6908,3 +6908,17 @@ body.exl-sheet-open{overflow:hidden}
   .exlist .exc.exl.open .exc-sum-main{padding-right:86px}
   .exlist .exc.exl.open .exl-swap{padding:0 12px}
 }
+/* RPE / rest-timer switches inside the open exercise: small, right-aligned
+   under Swap. The pill is 28px to look quiet; ::after extends its touch area
+   to 44px so it is still easy to hit mid-set. */
+.exl-prefs{display:flex;justify-content:flex-end;gap:14px;margin:-2px 2px 4px}
+.exl-pref.rest-pref-toggle{position:relative;min-height:24px;padding:2px 9px;gap:5px;font-size:var(--fs-label);letter-spacing:.04em}
+.exl-pref.rest-pref-toggle strong{font-size:var(--fs-label)}
+.exl-pref.rest-pref-toggle .rest-pref-dot{width:6px;height:6px}
+.exl-pref.rest-pref-toggle::after{content:'';position:absolute;left:-6px;right:-6px;top:-9px;bottom:-9px}
+/* The session-level copies are superseded by the ones in each exercise. */
+.focus-overlay .strength-log-heading{display:none}
+.exlist .exc.exl.open .exl-prefs+.exl-result,.exlist .exc.exl.open .exl-prefs+.exl-result+.exl-target,.exlist .exc.exl.open .exl-prefs+.exl-result[hidden]+.exl-target{margin-top:0}
+.exlist .exc.exl.open .exl-target{padding-top:11px;padding-bottom:10px}
+.exlist .exc.exl.open .exl-bar{margin-top:9px}
+.exl-sheet [data-exl-section="swap"] .ex-picker-label{display:none}

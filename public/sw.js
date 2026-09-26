@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v229'; // v229: exercises open in place (accordion), no finish step
+const CACHE_NAME = 'dp-athlete-v230'; // v230: sets tick themselves, swap sheet, RPE/timer switches in the exercise
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=182', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=183', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
   '/js/02-login-goals.js?v=121',
@@ -14,7 +14,7 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
-  '/js/08-training.js?v=154',
+  '/js/08-training.js?v=155',
   '/js/09-logging.js?v=128',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=111',

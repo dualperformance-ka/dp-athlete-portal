@@ -95,7 +95,7 @@ function measure(page) {
       clipped: [...node.querySelectorAll('.slast, .sin, .rpe-in, .exl-line, .exl-name, .snum')]
         .filter(el => el.offsetParent && el.scrollWidth > el.clientWidth + 1).map(el => `${el.id || el.className} ${el.scrollWidth}>${el.clientWidth} ${el.textContent}`),
       small: [...node.querySelectorAll('.exl-view input, .exl-view button, .exl-dock button')]
-        .filter(el => el.offsetParent && !el.closest('.set-effort') && !el.classList.contains('del-set'))
+        .filter(el => el.offsetParent && !el.closest('.set-effort') && !el.classList.contains('del-set') && !el.classList.contains('exl-pref') /* 26px pill, 44px touch area via ::after */)
         .filter(el => el.getBoundingClientRect().height < 44).map(el => el.id || el.className),
     };
   });
@@ -118,6 +118,7 @@ for (const size of sizes) {
       const card = page.locator(`.exc[data-exercise-index="${ei}"]`);
       if (!(await card.evaluate(el => el.classList.contains('open')))) await card.locator('.exc-summary').click();
       await expect(card).toHaveClass(/\bopen\b/);
+      await page.waitForTimeout(300); // let open/tick transitions settle; measure what the athlete sees
       const m = await measure(page);
       report.push(m);
       expect.soft(m.headTop, `${m.name}: exercise row under the header`).toBeGreaterThanOrEqual(0);
@@ -134,7 +135,7 @@ for (const size of sizes) {
   });
 }
 
-test('the whole Upper A session logs through the dock and saves exactly what was typed', async ({ page }) => {
+test('the whole Upper A session logs by typing alone and saves exactly what was typed', async ({ page }) => {
   test.setTimeout(120000); // twelve exercises, every set, one tap at a time
   await page.setViewportSize({ width: 390, height: 844 });
   const errors = await openSession(page, true);
@@ -166,8 +167,11 @@ test('the whole Upper A session logs through the dock and saves exactly what was
       }
       // No kg typed when the box shows a numeric target: logging uses it.
       if (!/^\d+(\.\d+)?$/.test(String(kgHint))) await page.locator(`#w_0_${ei}_${si}`).fill('20');
-      await dock.click();
+      // Nothing is pressed: the row ticks itself once reps are in and typing
+      // pauses. The first work set asks its effort question first.
       const picker = page.locator(`#effort_0_${ei}_${si}`);
+      const tick = page.locator(`#st_0_${ei}_${si}`);
+      await expect.poll(async () => (await tick.evaluate(el => el.classList.contains('on'))) || ((await picker.count()) > 0 && await picker.isVisible()), { timeout: 4000 }).toBe(true);
       if (await picker.count() && await picker.isVisible()) {
         const withPicker = await measure(page);
         pickerFit.push(`${withPicker.name} spare=${withPicker.dockTop - withPicker.lastRowBottom}`);
@@ -176,8 +180,7 @@ test('the whole Upper A session logs through the dock and saves exactly what was
         expect.soft(withPicker.clipped, `${withPicker.name}: clipped with the effort question open`).toEqual([]);
         await picker.getByRole('button', { name: /On target/ }).click();
       }
-      if (!(await page.locator(`#st_0_${ei}_${si}`).evaluate(el => el.classList.contains('on')))) await dock.click();
-      await expect(page.locator(`#st_0_${ei}_${si}`)).toHaveClass(/\bon\b/);
+      await expect(tick).toHaveClass(/\bon\b/);
       // The exercise being logged never moves: it stays open in the Up next slot.
       if (si < count - 1) await expect(card).toHaveClass(/is-up-next/);
       typed[ei].push({ weight: await page.locator(`#w_0_${ei}_${si}`).inputValue(), reps: String(reps) });
