@@ -1176,26 +1176,34 @@ export async function performanceSummary(code, body = {}, deps = {}) {
     order: 'planned_date.asc',
     limit: '200',
   });
-  let planned = Array.isArray(plannedRows) ? plannedRows : [];
+  const planned = Array.isArray(plannedRows) ? [...plannedRows] : [];
 
-  // Historic rows predate programme_week_id. Fall back to the week's own date
-  // range — never to a client-supplied label — and only for rows the identifier
-  // could not reach.
-  if (!planned.length) {
-    const byDate = await selectRows('planned_sessions', {
-      athlete_code: `eq.${code}`,
-      publish_state: 'eq.published',
-      programme_week_id: 'is.null',
-      and: `(planned_date.gte.${startDate},planned_date.lte.${endDate})`,
-      select: 'id,notion_page_id,title,planned_date,session_type,status,library_id,distance_km,week_label,prescription_mode',
-      order: 'planned_date.asc',
-      limit: '200',
-    }).catch((error) => {
-      console.warn('[performance-summary] legacy planned-session fallback failed:', error && error.message);
-      return [];
-    });
-    planned = Array.isArray(byDate) ? byDate : [];
-  }
+  // Rows with no programme_week_id belong to the week by date: historic rows
+  // that predate the column, and sessions a coach scheduled from the
+  // dashboard's Planning tab. A week can hold both kinds at once, so the dated
+  // rows are always read and merged — never only when the linked set is empty,
+  // which hid every unlinked lift in a week with one linked run. The range is
+  // the week's own dates, never a client-supplied label; rows are de-duplicated
+  // by id so nothing is counted twice.
+  const byDate = await selectRows('planned_sessions', {
+    athlete_code: `eq.${code}`,
+    publish_state: 'eq.published',
+    programme_week_id: 'is.null',
+    and: `(planned_date.gte.${startDate},planned_date.lte.${endDate})`,
+    select: 'id,notion_page_id,title,planned_date,session_type,status,library_id,distance_km,week_label,prescription_mode',
+    order: 'planned_date.asc',
+    limit: '200',
+  }).catch((error) => {
+    console.warn('[performance-summary] unlinked planned-session read failed:', error && error.message);
+    return [];
+  });
+  const seenPlannedIds = new Set(planned.map((row) => String(row.id)));
+  (Array.isArray(byDate) ? byDate : []).forEach((row) => {
+    if (!row || seenPlannedIds.has(String(row.id))) return;
+    seenPlannedIds.add(String(row.id));
+    planned.push(row);
+  });
+  planned.sort((a, b) => String(a.planned_date || '').localeCompare(String(b.planned_date || '')));
 
   // ── Optional sources. Each one degrades on its own.
   const missingSources = [];
@@ -1222,6 +1230,20 @@ export async function performanceSummary(code, body = {}, deps = {}) {
     planned.map(sessionKeyFor).map((key) => String(key == null ? '' : key)).filter((key) => /^[A-Za-z0-9-]+$/.test(key)),
   )];
 
+  // The browser writes session_logs.session_key as `session_<CODE>_<key>`
+  // (js/09-logging.js), which is how every production row is stored. Ask for
+  // both spellings and normalise back to the bare key that aggregateTraining
+  // matches on. The code comes from the signed session and is checked before it
+  // is placed inside in().
+  const loggedKeyPrefix = /^[A-Za-z0-9_-]+$/.test(String(code)) ? `session_${code}_` : null;
+  const sessionLogKeys = loggedKeyPrefix
+    ? plannedKeys.flatMap((key) => [key, `${loggedKeyPrefix}${key}`])
+    : plannedKeys;
+  const bareSessionKey = (value) => {
+    const key = String(value || '');
+    return loggedKeyPrefix && key.startsWith(loggedKeyPrefix) ? key.slice(loggedKeyPrefix.length) : key;
+  };
+
   const [
     loggedRows,
     trainingLogRows,
@@ -1241,9 +1263,9 @@ export async function performanceSummary(code, body = {}, deps = {}) {
     plannedKeys.length
       ? optional('session_logs', selectRows('session_logs', {
         athlete_code: `eq.${code}`,
-        session_key: `in.(${plannedKeys.join(',')})`,
+        session_key: `in.(${sessionLogKeys.join(',')})`,
         select: 'session_key',
-        limit: String(Math.max(plannedKeys.length, 50)),
+        limit: String(Math.max(sessionLogKeys.length, 50)),
       }), null)
       : Promise.resolve([]),
     optional('training_session_logs', selectTolerant('training_session_logs', {
@@ -1332,7 +1354,7 @@ export async function performanceSummary(code, body = {}, deps = {}) {
   });
 
   const loggedKeys = new Set(
-    (Array.isArray(loggedRows) ? loggedRows : []).map((row) => String(row.session_key || '')).filter(Boolean),
+    (Array.isArray(loggedRows) ? loggedRows : []).map((row) => bareSessionKey(row.session_key)).filter(Boolean),
   );
 
   const gymKeys = BASE_GYM_KEYS.concat(

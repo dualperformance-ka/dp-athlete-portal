@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -339,8 +339,85 @@ test('completion is read by this week\'s keys, not by scanning the whole log', a
   const params = new URLSearchParams(logs.split('?')[1]);
   // Bounded by the week's own keys, so a long history can never truncate the
   // read and quietly under-report the headline number.
-  assert.equal(params.get('session_key'), 'in.(k1,k2)');
-  assert.ok(Number(params.get('limit')) >= 2);
+  // Each key is asked for in both spellings: the bare key and the
+  // session_<CODE>_<key> form the browser actually writes.
+  assert.equal(params.get('session_key'), 'in.(k1,session_KARL_k1,k2,session_KARL_k2)');
+  assert.equal(params.get('athlete_code'), 'eq.KARL');
+  assert.ok(Number(params.get('limit')) >= 4);
+});
+
+// ── Regression, Sep 2026 (Nathan Chung, week 3) ─────────────────────────────
+// The programme week linked only the runs; the lifts were scheduled from the
+// coaches dashboard Planning tab with no programme_week_id. And the portal
+// writes session_logs.session_key as `session_<CODE>_<key>` (js/09-logging.js),
+// which is how every production row is stored. The card read 0/2 sessions,
+// Strength 0/0, and listed a logged run as missed.
+// Drive the real handler with the clock pinned, so "today" (which decides what
+// counts as missed) does not depend on the day the suite runs.
+async function performanceSummaryFor(res, todayISO) {
+  mock.timers.enable({ apis: ['Date'], now: new Date(`${todayISO}T02:00:00Z`) });
+  try {
+    await handler(
+      request({ action: 'performance-summary', period: 'week', programmeWeekId: WEEK_ID }, { token: createPortalSession('KARL') }),
+      res,
+    );
+  } finally {
+    mock.timers.reset();
+  }
+}
+
+const RUN = '44444444-4444-4444-8444-444444444444';
+const LIFT_DONE = '55555555-5555-4555-8555-555555555555';
+const LIFT_TODAY = '66666666-6666-4666-8666-666666666666';
+const MIXED_TABLES = {
+  ...TABLES,
+  planned_sessions: (params) => (params.get('programme_week_id') === 'is.null'
+    ? [
+      { id: LIFT_DONE, notion_page_id: null, title: 'Upper C (3 days / wk)', planned_date: '2026-09-24', session_type: 'Strength', status: 'Planned', library_id: null, distance_km: null, week_label: null, prescription_mode: 'legacy' },
+      { id: LIFT_TODAY, notion_page_id: null, title: 'Upper B (3 days / wk)', planned_date: '2026-09-26', session_type: 'Strength', status: 'Planned', library_id: null, distance_km: null, week_label: null, prescription_mode: 'legacy' },
+    ]
+    : [
+      { id: RUN, notion_page_id: null, title: 'Threshold Cruise — 4 x 3 min', planned_date: '2026-09-23', session_type: 'Threshold', status: 'Planned', library_id: null, distance_km: null, week_label: 'Week 8', prescription_mode: 'legacy' },
+    ]),
+  session_logs: (params) => {
+    const wanted = new Set(String(params.get('session_key') || '').replace(/^in\.\(|\)$/g, '').split(','));
+    return [`session_KARL_${RUN}`, `session_KARL_${LIFT_DONE}`, 'session_OTHER_x']
+      .filter((key) => wanted.has(key))
+      .map((session_key) => ({ session_key }));
+  },
+};
+
+test('a week mixing linked and unlinked sessions counts both, and prefixed log keys complete them', async () => {
+  const { res, state } = mockResponse();
+  await withFetch(mockFetch(MIXED_TABLES), () => performanceSummaryFor(res, '2026-09-26'));
+  assert.equal(state.statusCode, 200);
+  const training = state.payload.summary.training;
+  assert.equal(training.plannedSessions, 3, 'the unlinked lifts are part of the week');
+  assert.equal(training.completedSessions, 2, 'session_<CODE>_<key> rows complete their sessions');
+  assert.deepEqual(training.missedSessions, [], 'a logged run is never listed as missed; today is not missed yet');
+});
+
+test('a session linked to the week and also dated in it is counted once', async () => {
+  const { res, state } = mockResponse();
+  const dup = { id: RUN, notion_page_id: null, title: 'Threshold Cruise — 4 x 3 min', planned_date: '2026-09-23', session_type: 'Threshold', status: 'Planned', library_id: null, distance_km: null, week_label: 'Week 8', prescription_mode: 'legacy' };
+  await withFetch(mockFetch({ ...MIXED_TABLES, planned_sessions: () => [dup] }), () => performanceSummaryFor(res, '2026-09-26'));
+  assert.equal(state.statusCode, 200);
+  assert.equal(state.payload.summary.training.plannedSessions, 1);
+  assert.equal(state.payload.summary.training.completedSessions, 1);
+});
+
+test('the unlinked-session read failing still returns the linked week', async () => {
+  const { res, state } = mockResponse();
+  const tables = {
+    ...MIXED_TABLES,
+  };
+  const base = mockFetch(tables);
+  const failing = async (url) => (/\/planned_sessions\?/.test(String(url)) && /programme_week_id=is\.null/.test(String(url))
+    ? { ok: false, status: 500, async text() { return JSON.stringify({ message: 'internal detail' }); } }
+    : base(url));
+  await withFetch(failing, () => performanceSummaryFor(res, '2026-09-26'));
+  assert.equal(state.statusCode, 200);
+  assert.equal(state.payload.summary.training.plannedSessions, 1);
 });
 
 test('a week with no planned sessions does not read the log at all', async () => {
