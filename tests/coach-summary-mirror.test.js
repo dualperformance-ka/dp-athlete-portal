@@ -12,7 +12,7 @@ import test from 'node:test';
 // into the dashboard file, update SHARED_RULES_SHA256 in BOTH repos
 // (here and dp-coaches-dashboard tests/coach-weekly-summary.test.js), and ship
 // both. Otherwise the athlete card and the coach card silently disagree.
-const SHARED_RULES_SHA256 = 'd7ac7726980e156b023b846fa6fba5ac8a08c6bce7120781a0adb4692f253ee1';
+const SHARED_RULES_SHA256 = 'ef01b219c9d6be434294505379ff7513d9f7d42a0d61fbdca757a41700900b18';
 
 test('the weekly-summary rules shared with the coaches dashboard are unchanged', () => {
   const source = readFileSync(new URL('../api/_lib/performance-summary.js', import.meta.url), 'utf8');

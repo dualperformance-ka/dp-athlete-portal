@@ -12,6 +12,7 @@ import {
   buildSummary,
   classifySession,
   dailyReadiness,
+  dedupeEnduranceLogs,
   detectPersonalBests,
   isUuid,
   performanceSummary,
@@ -19,6 +20,7 @@ import {
   programmeWeekLabel,
   safeKm,
   sanitise,
+  sportForLogRow,
   titleKmFromName,
   volumeForRow,
   weekRangeFromStart,
@@ -647,6 +649,69 @@ test('without Strava the confirmed portal logs are used and the source says so',
   assert.equal(summary.endurance.running.actualSource, 'portal_logs');
   assert.equal(summary.endurance.running.actualDistanceKm, 9.5);
   assert.ok(summary.dataQuality.missingSources.includes('strava_activities'));
+});
+
+// Regression, Sep 2026 (Thomas Trinh, week 12). Portal logs are classified by
+// what the athlete logged (session_category), not by substrings of the free-text
+// name: "Easy 6km + Strides" contains "ride" and was counted as cycling. And a
+// run confirmed from Strava and also entered by hand is one run, not two.
+const THOMAS_WEEK_LOGS = [
+  { session_name: 'Recovery Shakeout', session_category: 'Run', session_date: '2026-09-22', distance_km: 6, duration_min: 37.3, raw_sets: null, client_write_id: 'strava_20278627767' },
+  { session_name: 'Easy 6km + Strides', session_category: 'Run', session_date: '2026-09-23', distance_km: 5.1, duration_min: 31.2, raw_sets: null, client_write_id: 'strava_20293888820' },
+  { session_name: 'Easy 6km + Strides', session_category: 'Run', session_date: '2026-09-23', distance_km: 5, duration_min: 30, raw_sets: null, client_write_id: 'cw_1790159745951_6dheo1c17ig' },
+];
+
+test('a run named with "strides" is running, and a run logged twice counts once', async () => {
+  const tables = {
+    ...BASE_TABLES,
+    planned_sessions: [planned({ notion_page_id: 'k' })],
+    training_session_logs: THOMAS_WEEK_LOGS,
+  };
+  const { summary } = await performanceSummary(
+    'KARL', { period: 'week', programmeWeekId: WEEK_ID },
+    summaryDeps(tables, new Set(['strava_activities'])),
+  );
+  assert.equal(summary.endurance.running.actualSessions, 2);
+  assert.equal(summary.endurance.running.actualDistanceKm, 11.1, 'the Strava-confirmed 5.1 km row wins over the typed 5 km');
+  assert.equal(summary.endurance.running.actualDurationMinutes, 69);
+  assert.ok(!summary.endurance.cycling || !summary.endurance.cycling.actualSessions, 'no phantom cycling');
+});
+
+test('log classification trusts the category, then whole words in the name', () => {
+  assert.equal(sportForLogRow({ session_category: 'Run', session_name: 'Easy 6km + Strides' }), 'running');
+  assert.equal(sportForLogRow({ session_category: 'Running', session_name: 'Strides Reintro — 8km' }), 'running');
+  assert.equal(sportForLogRow({ session_category: 'Strength', session_name: 'Upper A' }), null);
+  assert.equal(sportForLogRow({ session_category: 'Ride', session_name: 'Zone 2' }), 'cycling');
+  assert.equal(sportForLogRow({ session_category: 'Discovery', session_name: 'Bike commute' }), 'cycling');
+  assert.equal(sportForLogRow({ session_category: 'Discovery', session_name: 'Easy ride' }), 'cycling');
+  assert.equal(sportForLogRow({ session_category: 'Discovery', session_name: 'Pool swim' }), 'swimming');
+  assert.equal(sportForLogRow({ session_category: 'Discovery', session_name: 'Train As You Normally Would' }), 'running');
+  // No category and no sport word: unknown, as before (it used to read as cycling).
+  assert.equal(sportForLogRow({ session_category: '', session_name: 'Easy 6km + Strides' }), null);
+  assert.equal(sportForLogRow({ session_category: '', session_name: 'Easy Run' }), 'running');
+  assert.equal(sportForLogRow({ session_category: '', session_name: '' }), null);
+});
+
+test('duplicate endurance logs collapse to one per day, sport and session name', () => {
+  const kept = dedupeEnduranceLogs(THOMAS_WEEK_LOGS);
+  assert.equal(kept.length, 2);
+  assert.equal(kept.find((r) => r.session_date === '2026-09-23').distance_km, 5.1);
+  // Two differently named sessions on one day are two sessions (a double day).
+  const doubleDay = dedupeEnduranceLogs([
+    { session_name: 'AM Easy', session_category: 'Run', session_date: '2026-09-22', distance_km: 6 },
+    { session_name: 'PM Easy', session_category: 'Run', session_date: '2026-09-22', distance_km: 5 },
+  ]);
+  assert.equal(doubleDay.length, 2);
+  // Unnamed rows are never merged: there is nothing to say they are the same.
+  assert.equal(dedupeEnduranceLogs([
+    { session_name: '', session_category: 'Run', session_date: '2026-09-22', distance_km: 6 },
+    { session_name: '', session_category: 'Run', session_date: '2026-09-22', distance_km: 5 },
+  ]).length, 2);
+  // Without a Strava row, the one with a distance wins over a blank one.
+  assert.equal(dedupeEnduranceLogs([
+    { session_name: 'Easy 7km', session_category: 'Run', session_date: '2026-08-02', distance_km: null },
+    { session_name: 'Easy 7km', session_category: 'Run', session_date: '2026-08-02', distance_km: 7.27 },
+  ])[0].distance_km, 7.27);
 });
 
 // ── 25 & 26. Partial data ────────────────────────────────────────────────────
