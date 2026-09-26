@@ -6922,3 +6922,82 @@ body.exl-sheet-open{overflow:hidden}
 .exlist .exc.exl.open .exl-target{padding-top:11px;padding-bottom:10px}
 .exlist .exc.exl.open .exl-bar{margin-top:9px}
 .exl-sheet [data-exl-section="swap"] .ex-picker-label{display:none}
+
+/* ── Run session pages (js/08-training-run.js) ─────────────────────────────
+   Outside the session overlay the pages stack; inside it they scroll sideways
+   one screen at a time, with tabs for anyone who does not swipe. */
+.run-tabs,.run-page-hint{display:none}
+.run-page+.run-page{margin-top:16px}
+.run-page{display:flex;flex-direction:column;gap:12px}
+.focus-overlay.is-run .exl-key,.focus-overlay.is-run .run-checkin-send,.focus-overlay.is-run .run-prescription-title,.focus-overlay.is-run .focus-progress,.focus-overlay.is-run .focus-overlay-meta{display:none}
+.focus-overlay .focus-overlay-meta strong:empty::after{content:none}
+.focus-overlay.is-run .focus-done-btn[data-submit="true"]{background:var(--readout);color:var(--readout-ink)}
+.focus-overlay.is-run .focus-overlay-scroll{overflow:hidden;padding:0;display:flex;flex-direction:column}
+.focus-overlay.is-run .focus-overlay-scroll>.sc{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.focus-overlay.is-run .focus-overlay-scroll .scb{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.focus-overlay.is-run .scb>.strava-match-suggestion,.focus-overlay.is-run .scb>.strava-match-removed{margin:10px 16px 0}
+.focus-overlay.is-run .run-details,.focus-overlay.is-run .run-pager{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.focus-overlay.is-run .run-details{padding:0}
+.focus-overlay.is-run .run-tabs{flex:0 0 auto;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);padding:0 8px;border-bottom:1px solid var(--border)}
+.run-tab{display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:0 6px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--dim);font:500 var(--font-xs) var(--mono);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.run-tab.is-current{color:var(--text);border-bottom-color:var(--readout)}
+.run-tab-n{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:9px;background:var(--surface3);color:var(--muted);font-size:11px}
+.run-tab.is-current .run-tab-n{background:var(--readout);color:var(--readout-ink)}
+.focus-overlay.is-run .run-pages{flex:1 1 auto;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.focus-overlay.is-run .run-pages::-webkit-scrollbar{display:none}
+.focus-overlay.is-run .run-page{flex:0 0 100%;min-width:0;box-sizing:border-box;padding:14px 16px 16px;overflow-y:auto;overscroll-behavior-y:contain;scroll-snap-align:start;scroll-snap-stop:always}
+.focus-overlay.is-run .run-page+.run-page{margin-top:0}
+.focus-overlay.is-run .run-page-hint{display:block;margin-top:auto;padding-top:4px;text-align:right;font:500 var(--font-xs) var(--mono);color:var(--dim)}
+@media (prefers-reduced-motion:reduce){.focus-overlay.is-run .run-pages{scroll-behavior:auto}}
+
+.run-hero{display:flex;flex-direction:column;gap:10px;padding:12px 16px 14px;border:1px solid color-mix(in srgb,var(--strava) 38%,transparent);border-radius:var(--radius-lg);background:var(--surface)}
+.run-hero-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.run-hero-source{display:inline-flex;align-items:center;gap:7px;font:500 var(--font-xs) var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--strava-text)}
+.run-hero-reject{min-height:44px;padding:0 12px;border:1px solid var(--border-mid);border-radius:var(--radius-md);background:transparent;color:var(--muted);font:500 var(--font-xs) var(--mono);cursor:pointer}
+.run-hero-main{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px;row-gap:2px}
+.run-hero-label{flex-basis:100%;font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.run-hero-number{font-family:var(--exl-display);font-size:68px;font-weight:400;line-height:1;color:var(--text);font-variant-numeric:tabular-nums}
+.run-hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.run-hero-stat{display:flex;flex-direction:column;gap:2px;min-width:0}
+.run-hero-stat span{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.run-hero-stat strong{font-size:var(--font-lg);color:var(--text);white-space:nowrap}
+.run-hero-link{align-self:flex-start;display:inline-flex;align-items:center;min-height:44px;color:var(--strava-text);font:500 var(--font-xs) var(--mono);text-decoration:none}
+
+.run-checkin{display:flex;flex-direction:column;gap:12px;padding:14px 16px;border:1px solid var(--readout-line);border-radius:var(--radius-lg);background:var(--surface)}
+.run-checkin-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.run-checkin-head strong{white-space:nowrap;font-family:var(--exl-display);font-size:20px;font-weight:400;letter-spacing:.02em;text-transform:uppercase;color:var(--text)}
+.run-checkin-head span{font:500 var(--font-xs) var(--mono);color:var(--muted);text-align:right}
+.run-chips{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.run-pains{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.run-chip,.run-pain{min-height:44px;border:1px solid var(--border-mid);border-radius:var(--radius-md);background:var(--bg);color:var(--text);cursor:pointer}
+.run-chip{font:500 var(--font-md) var(--mono)}
+.run-pain{font:600 var(--font-md) var(--exl-body)}
+.run-chip.is-on{border-color:var(--readout);background:var(--readout);color:var(--readout-ink)}
+.run-pain.is-on{border-color:var(--readout);background:var(--readout-soft)}
+.run-chips[aria-invalid="true"] .run-chip,.run-pains[aria-invalid="true"] .run-pain{border-color:var(--dir-down)}
+.run-note summary,.run-manual summary{display:flex;align-items:center;min-height:44px;cursor:pointer;color:var(--muted);font-weight:600}
+.run-note textarea{width:100%;box-sizing:border-box;margin-top:4px}
+
+.run-splits{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}
+.run-section-label{display:flex;flex-wrap:wrap;justify-content:space-between;column-gap:12px;row-gap:2px;font:500 var(--font-xs) var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--readout-text)}
+.run-section-label b{font-weight:500;white-space:nowrap}
+.run-section-label span{color:var(--dim);letter-spacing:.02em;text-transform:none}
+.run-split-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.run-split{display:grid;grid-template-columns:62px 52px minmax(0,1fr);align-items:center;gap:8px;min-height:28px}
+.run-split-n{font:500 var(--font-xs) var(--mono);color:var(--dim)}
+.run-split strong{font-variant-numeric:tabular-nums;color:var(--text)}
+.run-split-bar{height:6px;border-radius:3px;background:var(--surface3);overflow:hidden}
+.run-split-bar i{display:block;height:100%;border-radius:inherit;background:var(--strava)}
+.run-route{width:100%;height:auto;margin-top:4px;border-radius:var(--radius-md);background:var(--bg)}
+.run-route path{fill:none;stroke:var(--strava);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.run-empty{margin:0;color:var(--dim);font-size:var(--font-sm)}
+
+.run-waiting{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:16px;border:1px dashed color-mix(in srgb,var(--strava) 55%,transparent);border-radius:var(--radius-lg);background:color-mix(in srgb,var(--strava) 5%,transparent)}
+.run-waiting strong{font-family:var(--exl-display);font-size:22px;font-weight:400;letter-spacing:.02em;text-transform:uppercase;color:var(--text)}
+.run-waiting p{margin:0;color:var(--muted);line-height:1.45}
+.run-waiting-check{min-height:44px;padding:0 16px;border:1px solid color-mix(in srgb,var(--strava) 55%,transparent);border-radius:var(--radius-md);background:transparent;color:var(--strava-text);font:500 var(--font-xs) var(--mono);cursor:pointer}
+.run-manual{border:1px solid var(--border);border-radius:var(--radius-lg);padding:4px 16px;background:var(--surface)}
+.run-manual[open]{padding-bottom:14px}
+.run-log-intro{color:var(--muted);margin-bottom:10px}
+.run-page>.run-log{margin-top:0;padding-top:0;border-top:0}
+.run-page>.run-log{display:flex;flex-direction:column;gap:12px}
