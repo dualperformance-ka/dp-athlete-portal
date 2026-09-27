@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 186,
-    "sha": "cdc5681fdbe1"
+    "version": 187,
+    "sha": "fea4cea97c49"
   },
   "desktop.css": {
     "version": 14,
@@ -36,8 +36,8 @@
     "sha": "d1ef64cd953c"
   },
   "js/06-nutrition.js": {
-    "version": 107,
-    "sha": "be64a36c3bc3"
+    "version": 108,
+    "sha": "e17c88e8cc1b"
   },
   "js/07-progress.js": {
     "version": 93,

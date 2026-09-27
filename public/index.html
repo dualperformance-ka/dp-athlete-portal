@@ -16,8 +16,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@700&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@700&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" as="style" href="/styles.css?v=186" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel='stylesheet' href='/styles.css?v=186'></noscript>
+<link rel="preload" as="style" href="/styles.css?v=187" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel='stylesheet' href='/styles.css?v=187'></noscript>
 <link rel="stylesheet" href="/desktop.css?v=14">
 <link rel="stylesheet" href="/icons.css?v=4">
 <!-- Error monitoring. Absolute CDN URL, async, and never required for boot:
@@ -1271,6 +1271,7 @@
       <div class="profile-menu-head"><div><div class="profile-menu-kicker">Profile</div><div class="profile-menu-title" id="profileMenuTitle">Your portal</div></div><button class="profile-menu-close" onclick="toggleProfileMenu(false)" aria-label="Close profile">×</button></div>
       <div class="profile-menu-list">
         <button onclick="switchTab('goals')"><svg class="icon"><use href="#i-target"/></svg><span><strong>Goals</strong><small>Your programme direction</small></span></button>
+        <button onclick="openNutritionPage()"><svg class="icon"><use href="#i-utensils"/></svg><span><strong>Nutrition</strong><small>Your macros, week by week</small></span></button>
         <button onclick="switchTab('handbook')"><svg class="icon"><use href="#i-book"/></svg><span><strong>Guide</strong><small>Training, fuel, and portal help</small></span></button>
         <button onclick="openPreferences()"><svg class="icon"><use href="#i-gear"/></svg><span><strong>Preferences</strong><small>Coaching reminders</small></span></button>
         <button id="themeToggle" onclick="toggleOutdoorMode()" aria-pressed="false"><svg class="icon"><use href="#i-sparkle"/></svg><span><strong>Theme</strong><small class="theme-toggle-label">Switch to outdoor mode</small></span></button>
@@ -1342,6 +1343,23 @@
     <div class="ql-modal-inner summary-modal-inner">
       <div class="ql-modal-header"><div><div class="ql-modal-title" id="weeklySummaryTitle">This week</div><div class="modal-subtitle">A quick coaching snapshot.</div></div><button class="ql-modal-close" onclick="closeWeeklySummary()" aria-label="Close weekly summary">×</button></div>
       <div class="ql-modal-body" id="weeklySummaryBody"></div>
+    </div>
+  </div>
+
+  <div class="ql-modal" id="nutritionModal" role="dialog" aria-modal="true" aria-labelledby="nutritionTitle" onclick="if(event.target===this)closeNutritionPage()">
+    <div class="ql-modal-inner nutrition-page-inner">
+      <div class="ql-modal-header"><div><div class="ql-modal-title" id="nutritionTitle">Nutrition</div><div class="modal-subtitle">Your macro targets and what you logged, week by week.</div></div><button class="ql-modal-close" onclick="closeNutritionPage()" aria-label="Close nutrition">×</button></div>
+      <div class="ql-modal-body nutrition-page-body">
+        <div class="wr-nav">
+          <button type="button" class="wr-nav-btn" id="nhPrevBtn" onclick="nutritionStep(-1)" aria-label="Show the previous week's nutrition"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+          <div class="wr-nav-label">
+            <strong id="nhWeekLabel">Nutrition</strong>
+            <small><span id="nhWeekMarker" class="wr-current-marker" hidden>This week</span><span id="nhWeekDates"></span></small>
+          </div>
+          <button type="button" class="wr-nav-btn" id="nhNextBtn" onclick="nutritionStep(1)" aria-label="Show the next week's nutrition"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
+        </div>
+        <div class="wr-body" id="nutritionBody" aria-live="polite" aria-busy="false"></div>
+      </div>
     </div>
   </div>
 
@@ -1438,7 +1456,7 @@
 <script src="js/03-nav-nudges.js?v=127"></script>
 <script src="js/04-checkin.js?v=104"></script>
 <script src="js/05-handbook.js?v=89"></script>
-<script src="js/06-nutrition.js?v=107"></script>
+<script src="js/06-nutrition.js?v=108"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=93" hidden></span>
 <script type="module" src="js/strava-match.js?v=8"></script>
 <script src="js/08-training-interval-rest.js?v=1"></script>

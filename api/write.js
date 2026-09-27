@@ -617,6 +617,30 @@ export async function nutritionLogs(code, selectRows = select) {
   return { rows: Array.isArray(rows) ? rows : [] };
 }
 
+// The Nutrition page: every week's macro targets plus the numbers the athlete
+// logged, so past and upcoming weeks can be browsed side by side. Numeric
+// columns only from the logs: notes run to several hundred words each and the
+// page never shows them, so they are not sent.
+export async function nutritionHistory(code, selectRows = select) {
+  const [plans, logs] = await Promise.all([
+    selectRows('nutrition_plans', {
+      athlete_code: `eq.${code}`,
+      select: 'week_label,calories,protein,carbs,fats,fibre,notes,updated_at',
+      limit: '200',
+    }),
+    selectRows('daily_nutrition_logs', {
+      athlete_code: `eq.${code}`,
+      select: 'log_date,calories,protein,carbs,fat,fibre',
+      order: 'log_date.desc',
+      limit: '400',
+    }),
+  ]);
+  return {
+    plans: Array.isArray(plans) ? plans : [],
+    logs: Array.isArray(logs) ? logs : [],
+  };
+}
+
 // Which days the server has ACTUALLY received a body or nutrition log for.
 //
 // The quick-log dock used to tick from a local storage key written before the
@@ -1058,6 +1082,7 @@ async function dispatch(action, code, body) {
   if (action === 'body-logs') return bodyLogs(code);
   if (action === 'daily-log-dates') return dailyLogDates(code);
   if (action === 'nutrition-logs') return nutritionLogs(code);
+  if (action === 'nutrition-history') return nutritionHistory(code);
   // Weekly review. Orchestration and every metric rule live in
   // _lib/performance-summary.js; this file only routes to it, the same way
   // every other read here does.
