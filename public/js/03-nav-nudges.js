@@ -757,11 +757,14 @@ function rescheduleSession(i,date,options){
 var REMINDER_OPTIONS=[
   {key:'sessions',icon:'calendar',label:"Today's training",sub:'5:30 am when you have a planned session'},
   {key:'logging',icon:'check',label:'Session not logged',sub:'7:30 pm when today’s training is still open'},
-  {key:'checkins',icon:'clipboard',label:'Weekly check-ins',sub:'Sunday, until your review is in'},
+  {key:'checkins',icon:'clipboard',label:'Weekly check-ins',sub:'Sunday, then midday Monday if it is still open'},
   {key:'photos',icon:'camera',label:'Progress photos',sub:'Monday on photo weeks'},
   {key:'calls',icon:'chat',label:'Coaching calls',sub:'Morning of, then two hours before'},
-  {key:'coach',icon:'chat',label:'Programme changes',sub:'When we update your plan'},
-  {key:'weekly_review',icon:'clipboard',label:'Weekly review',sub:'7 am Monday, last week in review'}
+  {key:'coach',icon:'chat',label:'Programme changes',sub:'When we update your plan, and when next week goes live'},
+  {key:'weekly_review',icon:'clipboard',label:'Weekly review',sub:'7 am Monday, last week in review'},
+  {key:'strava',icon:'run',label:'Strava synced',sub:'When a run, ride or swim lands from Strava'},
+  {key:'readiness',icon:'pulse',label:'Body check',sub:'10 am if today’s check is not logged'},
+  {key:'fuel',icon:'utensils',label:'Fuel log',sub:'8:30 pm if nothing is logged against your macros'}
 ];
 function getReminderPreferences(){try{return JSON.parse(localStorage.getItem('dp_reminders_'+((athlete&&athlete.code)||'default'))||'{}');}catch(e){return{};}}
 function reminderStorageKey(){return'dp_reminders_'+((athlete&&athlete.code)||'default');}

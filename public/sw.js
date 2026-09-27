@@ -1,10 +1,10 @@
-const CACHE_NAME = 'dp-athlete-v235'; // v235: weekly review opens on last finished week; push moves to Monday 7am
+const CACHE_NAME = 'dp-athlete-v236'; // v236: Strava, body-check and fuel pushes; log deep links; weekly review of last week
 const APP_SHELL = [
   '/index.html', '/styles.css?v=187', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
-  '/js/02-login-goals.js?v=121',
-  '/js/03-nav-nudges.js?v=128',
+  '/js/02-login-goals.js?v=122',
+  '/js/03-nav-nudges.js?v=129',
   '/js/04-checkin.js?v=104',
   '/js/05-handbook.js?v=89',
   '/js/06-nutrition.js?v=108',
