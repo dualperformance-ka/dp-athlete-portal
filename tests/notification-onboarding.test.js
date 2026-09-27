@@ -71,10 +71,11 @@ test('subscribing never overwrites stored prefs with an empty object', () => {
 // deriving it would make the assertion circular and a category silently
 // dropping out would still pass. EVERY_CATEGORY is checked against
 // MANAGED_CATEGORIES separately, so the two cannot drift apart either.
-// weekly_review joined the set on 2026-09-23.
+// weekly_review joined the set on 2026-09-23; strava, readiness and fuel on
+// 2026-09-28.
 const EVERY_CATEGORY = {
   sessions: true, logging: true, checkins: true, photos: true, calls: true,
-  coach: true, weekly_review: true,
+  coach: true, weekly_review: true, strava: true, readiness: true, fuel: true,
 };
 
 test('the managed set and the shipped categories are the same list', () => {

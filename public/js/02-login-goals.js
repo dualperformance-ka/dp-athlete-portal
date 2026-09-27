@@ -236,6 +236,10 @@ async function doLogin(code,prevalidatedRoster){
         switchTab(deepTab);
         if((deepTab==='week'||deepTab==='weekly')&&/^\d{4}-\d{2}-\d{2}$/.test(deepDate||'')&&typeof openDayPlanDate==='function')openDayPlanDate(deepDate);
       },80);
+    }else if(deepTab==='log'){
+      // The body-check and fuel nudges open the Log sheet on their own tab.
+      var deepLog=deepParams.get('log');
+      setTimeout(function(){if(typeof openLogSheet==='function')openLogSheet(['session','body','fuel'].indexOf(deepLog)>=0?deepLog:undefined);},80);
     }
   });
   // A persisted week paints immediately. Refresh it without clearing the

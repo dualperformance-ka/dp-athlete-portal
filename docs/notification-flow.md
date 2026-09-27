@@ -189,6 +189,34 @@ three pushes, exactly on the cap and not over it.
 
 ---
 
+## 4b. Shipped 28 Sep 2026: tiered cap, held messages and five new pushes
+
+**The cap is for automated reminders only.** It is 5 a day and counts only
+`sessions`, `logging`, `checkins`, `photos`, `strava`, `readiness` and `fuel`.
+A coach's own message (`custom`), a programme change (`coach`), a call reminder
+(`calls`) and the weekly review are never held back by it. The old flat cap of
+three blocked 16 waking-hours pushes in the 30 days before this change, mostly
+programme changes and evening log nudges.
+
+**Quiet hours hold coach messages instead of dropping them.** A message sent
+between 21:00 and 05:30 waits in the inbox and the cron pushes it when quiet
+hours end, unless the athlete already opened or cleared it (12-hour window).
+Programme changes already behaved this way.
+
+| Push | Type | When | Only if |
+| --- | --- | --- | --- |
+| Strava synced | `strava` | within minutes of the sync | a run, ride, swim, walk or row, started in the last 18h; once per activity |
+| Body check | `readiness` | 10:00 | today's body check is not logged |
+| Fuel log | `fuel` | 20:30 | the athlete has macros set and nothing logged today |
+| Check-in still open | `checkins` | Monday 12:00 | no check-in submitted in the last 7 days |
+| Next week is live | `coach` | 2 min after the coach saves | sessions published 8 to 14 days out |
+
+Sessions published more than 14 days out still land in the inbox only, as
+"Programme published". The body-check and fuel pushes deep-link into the Log
+sheet on their own tab (`/?tab=log&log=body|fuel`).
+
+---
+
 ## 5. New: session not logged (`logging`)
 
 The highest-value one for coaching, because it directly feeds the compliance

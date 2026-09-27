@@ -21,7 +21,19 @@ import { allowPortalRequest, safeError } from './_lib/http.js';
 import { clearInbox, dismissInboxNotification, listInbox, markInboxRead } from './_lib/notification-inbox.js';
 import { groupByAthlete, mergeLastSent, resolvePrefs, selectLiveDevices } from './_lib/push-devices.js';
 import {
+  CAP_EXEMPT_TYPES,
+  CHECKIN_OVERDUE_DOW,
+  CHECKIN_OVERDUE_HOUR,
+  CHECKIN_OVERDUE_MINUTE,
   DAILY_PUSH_CAP,
+  FUEL_HOUR,
+  FUEL_MINUTE,
+  HELD_MESSAGE_HOURS,
+  READINESS_HOUR,
+  READINESS_MINUTE,
+  STRAVA_FRESH_HOURS,
+  STRAVA_PUSH_SPORTS,
+  isCapExempt,
   LOGGING_HOUR,
   LOGGING_MINUTE,
   MORNING_HOUR,
@@ -30,7 +42,12 @@ import {
   WEEKLY_REVIEW_HOUR,
   WEEKLY_REVIEW_MINUTE,
   buildCallMessage,
+  buildCheckinOverdueMessage,
   buildCoachMessage,
+  buildFuelMessage,
+  buildNextWeekMessage,
+  buildReadinessMessage,
+  buildStravaMessage,
   buildLoggingMessage,
   buildMorningMessage,
   buildWeeklyReviewMessage,
@@ -103,12 +120,14 @@ function inList(values) {
 }
 
 // For each athlete code, work out which reminder types are due on this local day.
-async function computeDue(codes, { iso, dow, tz = DEFAULT_TZ }) {
+async function computeDue(codes, { iso, dow, hour, minute, tz = DEFAULT_TZ }) {
   const due = {};
   codes.forEach((c) => { due[c] = {
     iso, sessions: [], unlogged: [], checkin: false, photos: false, coach: [],
     callsToday: [], callsSoon: [], noCallBooked: false,
+    readiness: false, fuel: false, checkinOverdue: false, strava: [], heldMessages: [],
   }; });
+  const now = { iso, dow, hour, minute };
   const list = inList(codes);
 
   // 1. Training sessions planned today (local) and not already completed.
@@ -195,8 +214,91 @@ async function computeDue(codes, { iso, dow, tz = DEFAULT_TZ }) {
   }
   if (dow === 0) codes.forEach((code) => { due[code].noCallBooked = !hasUpcoming.has(code); });
 
+  // Each of these reads only runs in its own minute, so the every-minute cron
+  // does not pay for them the rest of the day.
+  await addDailyNudges(due, codes, now, list);
+  await addStravaSynced(due, codes, now, list);
+  if (!isQuietTime(now)) await addHeldMessages(due, list);
+
   return due;
 }
+
+// 7. Readiness (10:00, today's body check missing), fuel (20:30, on macros
+// with nothing logged today) and an overdue check-in (Monday 12:00).
+async function addDailyNudges(due, codes, now, list, read = select) {
+  if (minuteMatches(now, READINESS_HOUR, READINESS_MINUTE)) {
+    const rows = await read('daily_body_logs', {
+      athlete_code: list, log_date: `eq.${now.iso}`, select: 'athlete_code', limit: '1000',
+    });
+    const logged = new Set((rows || []).map((row) => String(row.athlete_code).toUpperCase()));
+    codes.forEach((code) => { due[code].readiness = !logged.has(code); });
+  }
+  if (minuteMatches(now, FUEL_HOUR, FUEL_MINUTE)) {
+    const [plans, logs] = await Promise.all([
+      read('nutrition_plans', {
+        athlete_code: list, calories: 'not.is.null', select: 'athlete_code', limit: '2000',
+      }),
+      read('daily_nutrition_logs', {
+        athlete_code: list, log_date: `eq.${now.iso}`, select: 'athlete_code', limit: '1000',
+      }),
+    ]);
+    const onMacros = new Set((plans || []).map((row) => String(row.athlete_code).toUpperCase()));
+    const logged = new Set((logs || []).map((row) => String(row.athlete_code).toUpperCase()));
+    codes.forEach((code) => { due[code].fuel = onMacros.has(code) && !logged.has(code); });
+  }
+  if (now.dow === CHECKIN_OVERDUE_DOW && minuteMatches(now, CHECKIN_OVERDUE_HOUR, CHECKIN_OVERDUE_MINUTE)) {
+    const since = new Date(Date.now() - 7 * 864e5).toISOString();
+    const rows = await read('weekly_checkins', {
+      athlete_code: list, submitted_at: `gte.${since}`, select: 'athlete_code',
+    });
+    const submitted = new Set((rows || []).map((row) => String(row.athlete_code).toUpperCase()));
+    codes.forEach((code) => { due[code].checkinOverdue = !submitted.has(code); });
+  }
+}
+
+// 8. Strava activities synced in the last 45 minutes. Each activity is
+// announced at most once (its dedupe key is the Strava id). An activity that
+// started long ago, from a backfill or a first connect, is never announced.
+async function addStravaSynced(due, codes, now, list, read = select, nowMs = Date.now()) {
+  const rows = await read('strava_activities', {
+    athlete_code: list,
+    synced_at: `gte.${new Date(nowMs - 45 * 60000).toISOString()}`,
+    select: 'strava_activity_id,athlete_code,start_date_local,sport_type,distance_m,moving_time_s,elapsed_time_s',
+    limit: '200',
+  });
+  // start_date_local is the athlete's wall-clock time stored with a +00 label,
+  // so it is compared against the athlete's wall clock, not against UTC.
+  const wallNow = Date.parse(`${now.iso}T${String(now.hour).padStart(2, '0')}:${String(now.minute).padStart(2, '0')}:00Z`);
+  for (const row of rows || []) {
+    const target = due[String(row.athlete_code || '').toUpperCase()];
+    if (!target || !STRAVA_PUSH_SPORTS.includes(String(row.sport_type || ''))) continue;
+    const started = Date.parse(String(row.start_date_local || '').slice(0, 19) + 'Z');
+    if (!Number.isFinite(started) || !Number.isFinite(wallNow)) continue;
+    if (wallNow - started > STRAVA_FRESH_HOURS * 3600000 || started - wallNow > 3600000) continue;
+    target.strava.push(row);
+  }
+}
+
+// 9. A coach's personal message that arrived in quiet hours is pushed once they
+// end, unless the athlete already opened or cleared it.
+async function addHeldMessages(due, list, read = select, nowMs = Date.now()) {
+  const rows = await read('athlete_notifications', {
+    athlete_code: list,
+    type: 'eq.custom',
+    pushed_at: 'is.null',
+    read_at: 'is.null',
+    dismissed_at: 'is.null',
+    created_at: `gte.${new Date(nowMs - HELD_MESSAGE_HOURS * 3600000).toISOString()}`,
+    select: 'id,athlete_code,type,title,body,url,pushed_at,dismissed_at',
+    limit: '200',
+  });
+  for (const row of rows || []) {
+    const target = due[String(row.athlete_code || '').toUpperCase()];
+    if (target) target.heldMessages.push(row);
+  }
+}
+
+export const _test = { addDailyNudges, addStravaSynced, addHeldMessages };
 
 // "Tue 14 Jul" from a YYYY-MM-DD planned date (locale-independent).
 function formatChangeDate(iso) {
@@ -274,9 +376,12 @@ export async function saveInboxMessage(code, message, localDate, write = upsert)
   return Array.isArray(rows) ? rows[0] : null;
 }
 
+// Counts only the pushes the cap governs. Coach messages, programme changes,
+// call reminders and the weekly review never use up an athlete's allowance.
 async function pushedToday(code, iso) {
   const rows = await select('athlete_notifications', {
     athlete_code: `eq.${code}`, local_date: `eq.${iso}`, pushed_at: 'not.is.null',
+    type: `not.in.(${CAP_EXEMPT_TYPES.join(',')})`,
     select: 'id', limit: String(DAILY_PUSH_CAP + 1),
   });
   return Array.isArray(rows) ? rows.length : 0;
@@ -307,7 +412,7 @@ async function pushInboxMessage(athlete, row, message) {
     return { reached: false, sent: 0, alreadyPushed: !!row?.pushed_at, dismissed: !!row?.dismissed_at };
   }
   const payload = JSON.stringify({
-    title: message.title, body: message.body, tag: `dp-${message.type}`,
+    title: message.title, body: message.body, tag: message.tag || `dp-${message.type}`,
     url: withNotificationId(message.url || '/', row.id), notificationId: row.id,
   });
   let reached = false;
@@ -413,6 +518,9 @@ async function handleDueCheck(req, res, identity) {
   const due = await computeDue([code], localNow(tz));
   const d = due[code];
   d.coach = [...new Set((d.coach || []).map((c) => c.source))];
+  // Server-side delivery bookkeeping, not something the portal renders.
+  delete d.strava;
+  delete d.heldMessages;
   const inbox = await listInbox(code);
   return send(res, 200, { ok: true, timezone: tz, due: d, ...inbox });
 }
@@ -515,6 +623,22 @@ async function handleCronSend(req, res) {
         }
       }
 
+      if (athleteDue.readiness && athlete.prefs.readiness && lastSent.readiness !== now.iso) {
+        messages.push({ ...buildReadinessMessage(now.iso), historyKey: 'readiness' });
+      }
+      if (athleteDue.fuel && athlete.prefs.fuel && lastSent.fuel !== now.iso) {
+        messages.push({ ...buildFuelMessage(now.iso), historyKey: 'fuel' });
+      }
+      if (athleteDue.checkinOverdue && athlete.prefs.checkins && lastSent.checkinOverdue !== now.iso) {
+        messages.push({ ...buildCheckinOverdueMessage(now.iso), historyKey: 'checkinOverdue' });
+      }
+      if (athlete.prefs.strava) {
+        for (const activity of athleteDue.strava || []) {
+          const message = buildStravaMessage(activity);
+          if (message) messages.push({ ...message, tag: `dp-strava-${activity.strava_activity_id}`, historyKey: null });
+        }
+      }
+
       // A coach edit is processed once it is two minutes old, so a save burst
       // becomes one useful batch. Only the next seven days can spend a push;
       // future block publication remains durable in the inbox.
@@ -527,8 +651,10 @@ async function handleCronSend(req, res) {
       if (athlete.prefs.coach && coachChanges.length) {
         const partitioned = partitionCoachChanges(coachChanges, now.iso);
         const near = buildCoachMessage([...partitioned.near, ...partitioned.undated], now.iso);
+        const nextWeek = buildNextWeekMessage(partitioned.nextWeek, now.iso);
         const future = buildCoachMessage(partitioned.future, now.iso, { future: true });
         if (near) messages.push({ ...near, historyKey: 'coach', historyValue: new Date(newest).toISOString() });
+        if (nextWeek) messages.push({ ...nextWeek, historyKey: 'coach', historyValue: new Date(newest).toISOString() });
         if (future) messages.push({ ...future, historyKey: null, push: false });
       }
 
@@ -547,14 +673,28 @@ async function handleCronSend(req, res) {
         }
         if (!row) continue;
         inboxed++;
-        const mayPush = message.push !== false && !quiet && pushCount < DAILY_PUSH_CAP && vapidReady && athlete.devices.length;
+        const exempt = isCapExempt(message.type);
+        const mayPush = message.push !== false && !quiet && (exempt || pushCount < DAILY_PUSH_CAP) && vapidReady && athlete.devices.length;
         if (!mayPush) { suppressed++; continue; }
         const result = await pushInboxMessage(athlete, row, message);
         sent += result.sent || 0;
         removed += result.removed || 0;
         if (result.reached) {
-          pushCount++; notified++; delivered = true;
+          if (!exempt) pushCount++;
+          notified++; delivered = true;
           if (message.historyKey) lastSent[message.historyKey] = message.historyValue || now.iso;
+        }
+      }
+      // Coach messages held through quiet hours go out now. The row already
+      // exists, so it is pushed as-is rather than written again.
+      if (!quiet && vapidReady && athlete.devices.length) {
+        for (const held of athleteDue.heldMessages || []) {
+          const result = await pushInboxMessage(athlete, held, {
+            type: 'custom', title: held.title, body: held.body, url: held.url || '/', tag: `dp-coach-msg-${held.id}`,
+          });
+          sent += result.sent || 0;
+          removed += result.removed || 0;
+          if (result.reached) { notified++; }
         }
       }
       errors.push(...athlete.errors);

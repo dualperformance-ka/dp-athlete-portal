@@ -100,3 +100,24 @@ test('coaching deep link survives login', async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-active-tab', 'coaching');
   await expect(page.locator('#tab-calls')).toBeVisible();
 });
+
+// The body-check and fuel nudges deep-link straight into the Log sheet.
+for (const tab of ['fuel', 'body']) {
+  test(`a ${tab} nudge opens the Log sheet on its tab`, async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await openPortal(page, { width:393, height:852, deepTab:`log&log=${tab}` });
+    await expect(page.locator('#logSheet')).toHaveClass(/open/);
+    const selected = tab === 'fuel' ? '#qlDockNut' : '#qlDockBody';
+    await expect(page.locator(selected)).toHaveAttribute('aria-selected', 'true');
+    expect(errors).toEqual([]);
+  });
+}
+
+test('an unknown log tab still opens the sheet without an error', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await openPortal(page, { width:393, height:852, deepTab:'log&log=nonsense' });
+  await expect(page.locator('#logSheet')).toHaveClass(/open/);
+  expect(errors).toEqual([]);
+});

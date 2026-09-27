@@ -17,7 +17,7 @@
 import webpush from 'web-push';
 import crypto from 'node:crypto';
 import { select, upsert, patch, supabaseRequest, tablePath } from './_lib/supabase-rest.js';
-import { DAILY_PUSH_CAP, isQuietTime } from './_lib/notification-rules.js';
+import { isQuietTime } from './_lib/notification-rules.js';
 import { selectLiveDevices } from './_lib/push-devices.js';
 
 const MAX_TITLE = 80;
@@ -135,11 +135,10 @@ export default async function handler(req, res) {
         await supabaseRequest(tablePath('push_subscriptions', { id: `eq.${stale.id}` }), { method: 'DELETE' }).catch(() => {});
         removed++;
       }
-      const pushed = await select('athlete_notifications', {
-        athlete_code: `eq.${athleteCode}`, local_date: `eq.${localDate}`, pushed_at: 'not.is.null',
-        select: 'id', limit: String(DAILY_PUSH_CAP + 1),
-      });
-      if (!vapidReady || isQuietTime(now) || (pushed || []).length >= DAILY_PUSH_CAP) continue;
+      // A coach's own message is never held back by the daily cap. In quiet
+      // hours it waits in the inbox, and the reminder cron pushes it when they
+      // end (api/reminders.js, held messages).
+      if (!vapidReady || isQuietTime(now)) continue;
       let athleteReached = false;
       for (const sub of keep) {
         try {
