@@ -10,6 +10,7 @@ import { bootPortal, localISO, monday } from './harness.mjs';
 const CURRENT_ID = '0f30b419-62ad-4bef-80e2-35eb71eb8ccb';
 const PREVIOUS_ID = '11111111-2222-4333-8444-555555555555';
 const NEXT_ID = '22222222-3333-4444-8555-666666666666';
+const FUTURE_ID = '33333333-4444-4555-8666-777777777777';
 
 function weekStarts() {
   const thisMonday = monday();
@@ -18,7 +19,10 @@ function weekStarts() {
     date.setDate(thisMonday.getDate() + offsetWeeks * 7);
     return localISO(date);
   };
-  return { previous: iso(-1), current: iso(0), next: iso(1) };
+  // The review opens on the last FINISHED week, so `current` here is the week
+  // it opens on (last week), `next` is the week in progress and `future` has
+  // not started.
+  return { previous: iso(-2), current: iso(-1), next: iso(0), future: iso(1) };
 }
 
 function programmeWeeks() {
@@ -26,15 +30,17 @@ function programmeWeeks() {
   return [
     { id: PREVIOUS_ID, programmeId: 'prog', weekNumber: 7, weekLabel: 'Week 7', startDate: starts.previous },
     { id: CURRENT_ID, programmeId: 'prog', weekNumber: 8, weekLabel: 'Week 8', startDate: starts.current },
-    // Deliberately in the future: the next control must refuse to reach it.
     { id: NEXT_ID, programmeId: 'prog', weekNumber: 9, weekLabel: 'Week 9', startDate: starts.next },
+    // Deliberately in the future: the next control must refuse to reach it.
+    { id: FUTURE_ID, programmeId: 'prog', weekNumber: 10, weekLabel: 'Week 10', startDate: starts.future },
   ];
 }
 
 function summaryFor(id, over = {}) {
   const starts = weekStarts();
   const byId = {
-    [CURRENT_ID]: { weekNumber: 8, label: 'Week 8', startDate: starts.current, state: 'current' },
+    [CURRENT_ID]: { weekNumber: 8, label: 'Week 8', startDate: starts.current, state: 'past' },
+    [NEXT_ID]: { weekNumber: 9, label: 'Week 9', startDate: starts.next, state: 'current' },
     [PREVIOUS_ID]: { weekNumber: 7, label: 'Week 7', startDate: starts.previous, state: 'past' },
   };
   const week = byId[id] || byId[CURRENT_ID];
@@ -154,14 +160,15 @@ const body = (page) => page.locator('#wrBody');
 
 // ── Loads on Progress ────────────────────────────────────────────────────────
 
-test('opening Progress loads the current weekly review', async ({ page }) => {
+test('opening Progress loads last week\'s review, not the week in progress', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   const requested = [];
   await bootPortal(page, { onPortalAction: reviewStubs({ onRequest: (id) => requested.push(id) }) });
   await openProgress(page);
 
+  // Last week, finished, not the half-empty week in progress.
   await expect(page.locator('#wrWeekLabel')).toHaveText('Week 8');
-  await expect(page.locator('#wrWeekCurrent')).toBeVisible();
+  await expect(page.locator('#wrWeekCurrent')).toHaveText('Last week');
   await expect(body(page)).toContainText('of 6 completed');
   await expect(body(page)).toContainText('5 240 kg', { useInnerText: true }).catch(async () => {
     // en-AU groups with a space in some builds and a comma in others.
@@ -218,16 +225,23 @@ test('navigation into a week that has not started is disabled', async ({ page })
   await bootPortal(page, { onPortalAction: reviewStubs({ onRequest: (id) => requested.push(id) }) });
   await openProgress(page);
 
+  // It opens on last week; the week in progress is one step forward.
   const next = page.locator('#wrNextBtn');
+  await expect(next).toBeEnabled();
+  await next.click();
+  await expect(page.locator('#wrWeekLabel')).toHaveText('Week 9');
+  await expect(page.locator('#wrWeekCurrent')).toHaveText('Current week');
   await expect(next).toBeDisabled();
   await expect(next).toHaveAttribute('aria-disabled', 'true');
   // Even driven directly, the controller refuses.
   await page.evaluate(() => weeklyReviewStep(1));
   await page.waitForTimeout(300);
-  await expect(page.locator('#wrWeekLabel')).toHaveText('Week 8');
-  expect(requested).toEqual([CURRENT_ID]);
+  await expect(page.locator('#wrWeekLabel')).toHaveText('Week 9');
+  expect(requested).toEqual([CURRENT_ID, NEXT_ID]);
 
   // And the first week has nothing before it.
+  await page.locator('#wrPrevBtn').click();
+  await expect(page.locator('#wrWeekLabel')).toHaveText('Week 8');
   await page.locator('#wrPrevBtn').click();
   await expect(page.locator('#wrWeekLabel')).toHaveText('Week 7');
   await expect(page.locator('#wrPrevBtn')).toBeDisabled();
@@ -384,16 +398,21 @@ test('an athlete with no programme weeks still gets this week reviewed, by date'
   await openProgress(page);
   await expect(body(page)).toContainText('of 6 completed');
   await expect(body(page)).not.toContainText('published');
-  await expect(page.locator('#wrWeekCurrent')).toBeVisible();
+  await expect(page.locator('#wrWeekCurrent')).toHaveText('Last week');
   expect(bodies.length).toBe(1);
   expect(bodies[0].programmeWeekId).toBeUndefined();
   expect(bodies[0].weekStart).toBe(weekStarts().current);
-  // Earlier calendar weeks are reachable; the future is not.
+  // Earlier calendar weeks are reachable, so is the week in progress; the future is not.
   await expect(page.locator('#wrPrevBtn')).toBeEnabled();
-  await expect(page.locator('#wrNextBtn')).toBeDisabled();
   await page.locator('#wrPrevBtn').click();
   await expect.poll(() => bodies.length).toBe(2);
   expect(bodies[1].weekStart).toBe(weekStarts().previous);
+  await page.locator('#wrNextBtn').click();
+  await page.locator('#wrNextBtn').click();
+  await expect.poll(() => bodies.length).toBe(3);
+  expect(bodies[2].weekStart).toBe(weekStarts().next);
+  await expect(page.locator('#wrWeekCurrent')).toHaveText('Current week');
+  await expect(page.locator('#wrNextBtn')).toBeDisabled();
 });
 
 test('a failed programme read does not take the review down', async ({ page }) => {
@@ -407,7 +426,7 @@ test('weeks the coach never built are filled in by date around the ones they did
   await page.setViewportSize({ width: 393, height: 852 });
   const bodies = [];
   const starts = weekStarts();
-  // Only an older week exists as a programme row; this week has none.
+  // Only an older week exists as a programme row; the recent weeks have none.
   const older = new Date(starts.previous);
   older.setDate(older.getDate() - 7);
   const stubs = reviewStubs({

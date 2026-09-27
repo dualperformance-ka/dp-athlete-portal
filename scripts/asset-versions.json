@@ -24,8 +24,8 @@
     "sha": "f9dc9ff495f8"
   },
   "js/03-nav-nudges.js": {
-    "version": 127,
-    "sha": "4581de0239df"
+    "version": 128,
+    "sha": "4cf81cb9a282"
   },
   "js/04-checkin.js": {
     "version": 104,
@@ -40,8 +40,8 @@
     "sha": "e17c88e8cc1b"
   },
   "js/07-progress.js": {
-    "version": 93,
-    "sha": "8be5666a42b9"
+    "version": 94,
+    "sha": "8d78156c9f5c"
   },
   "js/strava-match.js": {
     "version": 8,

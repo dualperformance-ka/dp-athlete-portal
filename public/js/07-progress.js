@@ -492,6 +492,15 @@ function wrCurrentIndex(weeks){
   for(var j=0;j<weeks.length;j++){if(weeks[j].startDate<=today)started=j;}
   return started>=0?started:0;
 }
+// The review opens on the last week that has fully finished: the Monday push
+// reviews the week just gone, and mid-week the athlete sees final numbers for
+// a whole week rather than a half-empty one. A programme whose first week is
+// still running has no finished week yet, so it opens on that one.
+function wrDefaultIndex(weeks){
+  var today=localISO(new Date()),last=-1;
+  for(var i=0;i<weeks.length;i++){if(weeks[i].endDate<today)last=i;}
+  return last>=0?last:wrCurrentIndex(weeks);
+}
 // Navigation never reaches a week that has not started. A future week has no
 // facts in it, so offering it would only ever render an empty card.
 function wrIsFuture(week){
@@ -530,7 +539,13 @@ function wrSetNav(week,index,weeks){
   // week 0 reading as "Discovery Week" on every surface.
   if(label)label.textContent=wrWeekName(week);
   if(dates)dates.textContent=week?wrRangeLabel(week.startDate,week.endDate):'';
-  if(marker)marker.hidden=!(week&&index===wrCurrentIndex(weeks));
+  if(marker){
+    var current=week?wrCurrentIndex(weeks):-1;
+    var isCurrent=!!week&&index===current;
+    var isLast=!!week&&!isCurrent&&index===current-1&&week.endDate<localISO(new Date());
+    marker.hidden=!(isCurrent||isLast);
+    marker.textContent=isLast?'Last week':'Current week';
+  }
   if(prev){
     var hasPrev=index>0;
     prev.disabled=!hasPrev;
@@ -781,7 +796,7 @@ function loadWeeklyReview(options){
       wrRenderError('We could not work out your training weeks just now.');
       return;
     }
-    return wrShow(_wrIndex==null?wrCurrentIndex(weeks):_wrIndex,{});
+    return wrShow(_wrIndex==null?wrDefaultIndex(weeks):_wrIndex,{});
   }).catch(function(error){
     console.warn('Weekly review weeks failed',error);
     wrSetNav(null,0,[]);

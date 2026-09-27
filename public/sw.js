@@ -1,14 +1,14 @@
-const CACHE_NAME = 'dp-athlete-v234'; // v234: Nutrition page (macros by week) in the profile menu; weekly review by date
+const CACHE_NAME = 'dp-athlete-v235'; // v235: weekly review opens on last finished week; push moves to Monday 7am
 const APP_SHELL = [
   '/index.html', '/styles.css?v=187', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
   '/js/02-login-goals.js?v=121',
-  '/js/03-nav-nudges.js?v=127',
+  '/js/03-nav-nudges.js?v=128',
   '/js/04-checkin.js?v=104',
   '/js/05-handbook.js?v=89',
   '/js/06-nutrition.js?v=108',
-  '/js/07-progress.js?v=93',
+  '/js/07-progress.js?v=94',
   '/js/strava-match.js?v=8',
   '/js/08-training-interval-rest.js?v=1',
   '/js/08-training-muscle-coverage.js?v=1',
