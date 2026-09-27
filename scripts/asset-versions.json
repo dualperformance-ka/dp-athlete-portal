@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 185,
-    "sha": "2e4bd73b6975"
+    "version": 186,
+    "sha": "cdc5681fdbe1"
   },
   "desktop.css": {
     "version": 14,
@@ -24,8 +24,8 @@
     "sha": "f9dc9ff495f8"
   },
   "js/03-nav-nudges.js": {
-    "version": 126,
-    "sha": "684a720db921"
+    "version": 127,
+    "sha": "4581de0239df"
   },
   "js/04-checkin.js": {
     "version": 104,
@@ -40,8 +40,8 @@
     "sha": "be64a36c3bc3"
   },
   "js/07-progress.js": {
-    "version": 92,
-    "sha": "6ce7a475854b"
+    "version": 93,
+    "sha": "8be5666a42b9"
   },
   "js/strava-match.js": {
     "version": 8,

@@ -59,10 +59,18 @@ the action to `performanceSummary()` in `api/_lib/performance-summary.js`.
 
 ### What the client may send
 
-Only `action`, `period` and `programmeWeekId`. That is the entire input surface.
+`action`, `period`, and one of:
 
-The client **never** sends an athlete code, a date, a week label, a total or any
-calculated metric. `write.js` resolves identity with `getRequestAthlete(req)`
+- `programmeWeekId` — a dated programme week the coach built. Its linked
+  sessions are read by id and unlinked ones by date.
+- `weekStart` (plus an optional display-only `weekNumber`) — a calendar week,
+  used when no programme week covers it. The date is normalised to its Monday
+  and every published session dated in that Monday-to-Sunday block counts.
+  This is what lets the review run for every athlete without a coach
+  publishing anything first. It is ignored whenever `programmeWeekId` is sent.
+
+That is the entire input surface. The client **never** sends an athlete code, a
+week label, a total or any calculated metric. `write.js` resolves identity with `getRequestAthlete(req)`
 and passes the code down; a code in the body is ignored, and a unit test asserts
 every scoped query carries the authenticated code and not the body's.
 
@@ -71,6 +79,7 @@ every scoped query carries the authenticated code and not the body's.
 | Condition | Result |
 | --- | --- |
 | `period !== 'week'` | `400`, before any database read |
+| No `programmeWeekId` and no valid `weekStart` date | `400`, before any database read |
 | `programmeWeekId` is not a UUID | `400`, before any database read |
 | No authenticated session | `401` from the handler |
 | Athlete has no programme | `404` "Programme week not found" |

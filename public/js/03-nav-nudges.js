@@ -863,10 +863,17 @@ function notificationTime(value){
 // unread, and a one-off glow the first time the athlete sees it. Automatic
 // reminders stay plain on purpose; that is what makes these stand out.
 function isCoachMessage(item){return !!item&&item.type==='custom';}
+function isWeeklyReviewNotice(item){return !!item&&item.type==='weekly_review';}
+// Unread coach messages first, then an unread weekly review, then the rest in
+// server order.
+function notificationRank(item){
+  if(item.read_at)return 2;
+  if(isCoachMessage(item))return 0;
+  return isWeeklyReviewNotice(item)?1:2;
+}
 function sortNotificationInbox(items){
   return items.map(function(item,index){return{item:item,index:index};}).sort(function(a,b){
-    var ap=isCoachMessage(a.item)&&!a.item.read_at?0:1,bp=isCoachMessage(b.item)&&!b.item.read_at?0:1;
-    return ap-bp||a.index-b.index;
+    return notificationRank(a.item)-notificationRank(b.item)||a.index-b.index;
   }).map(function(entry){return entry.item;});
 }
 var COACH_MESSAGE_SEEN_KEY='dp_coach_msg_seen';
@@ -881,14 +888,15 @@ function renderNotificationInbox(){
   if(!_notificationInbox.length){list.innerHTML='<div class="notification-empty"><strong>You’re all caught up</strong><span>Programme changes and coaching reminders will stay here for 30 days.</span></div>';return;}
   var seen=coachMessagesSeen(),fresh=[];
   list.innerHTML=sortNotificationInbox(_notificationInbox).map(function(item){
-    var id=esc(item.id),title=esc(item.title),coach=isCoachMessage(item);
+    var id=esc(item.id),title=esc(item.title),coach=isCoachMessage(item),review=!coach&&isWeeklyReviewNotice(item);
     var glow=coach&&!item.read_at&&seen.indexOf(String(item.id))<0;
     if(glow)fresh.push(String(item.id));
     var meta=coach?esc(notificationTime(item.created_at)):esc(notificationTime(item.created_at))+(item.pushed_at?' · Sent to your device':' · Inbox');
-    return '<div class="notification-item'+(item.read_at?'':' is-unread')+(coach?' is-coach':'')+(glow?' is-new':'')+'">'
+    return '<div class="notification-item'+(item.read_at?'':' is-unread')+(coach?' is-coach':'')+(review?' is-review':'')+(glow?' is-new':'')+'">'
       +'<button class="notification-item-open" type="button" onclick="openNotificationItem(\''+id+'\',decodeURIComponent(\''+encodeURIComponent(String(item.url||'/'))+'\'))">'
       +'<span class="notification-item-dot"></span><span class="notification-item-copy">'
       +(coach?'<span class="notification-coach-tag"><span class="notification-coach-mark" aria-hidden="true">DP</span>From your coach</span>':'')
+      +(review?'<span class="notification-review-tag"><svg class="icon" aria-hidden="true"><use href="#i-clipboard"/></svg>Weekly review</span>':'')
       +'<strong>'+title+'</strong><span>'+esc(item.body)+'</span><small>'+meta+'</small></span><b>›</b></button>'
       +'<button class="notification-item-clear" type="button" onclick="clearNotification(\''+id+'\')" aria-label="Clear '+title+' notification"'+(_notificationInboxMutating?' disabled':'')+'>×</button></div>';
   }).join('');

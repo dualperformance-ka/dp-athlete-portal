@@ -1887,6 +1887,17 @@ body.focus-session-open{overflow:hidden}
 .notification-coach-mark{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:var(--radius-pill);background:var(--text);color:var(--bg);font:800 8px var(--mono);letter-spacing:0}
 .notification-item.is-coach .notification-item-copy strong{font-size:var(--font-md,1rem)}
 .notification-item.is-coach .notification-item-copy>span{color:var(--text)}
+.notification-item.is-review{border-color:var(--readout-line);background:linear-gradient(135deg,var(--readout-soft),var(--surface) 72%);box-shadow:inset 4px 0 0 var(--readout)}
+.notification-item.is-review.is-unread{border-color:color-mix(in srgb,var(--readout) 48%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--readout) 16%,transparent),var(--surface2) 78%);box-shadow:inset 4px 0 0 var(--readout),0 0 0 1px color-mix(in srgb,var(--readout) 14%,transparent),0 10px 28px -14px color-mix(in srgb,var(--readout) 55%,transparent)}
+.notification-item.is-review .notification-item-dot{background:transparent;box-shadow:none}
+.notification-item.is-review .notification-item-copy>.notification-review-tag{display:inline-flex;align-items:center;gap:6px;width:fit-content;font:700 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;line-height:1.2;color:var(--readout)}
+.notification-review-tag .icon{width:14px;height:14px;color:currentColor}
+.notification-item.is-review .notification-item-copy strong{font-size:var(--font-md,1rem)}
+.notification-item.is-review .notification-item-copy>span{color:var(--text)}
+.notification-item.is-review .notification-item-open>b{color:var(--readout)}
+.outdoor-mode .notification-item.is-review{border-color:rgba(8,127,174,.35);background:rgba(8,127,174,.06);box-shadow:inset 4px 0 0 var(--run-deep)}
+.outdoor-mode .notification-item.is-review.is-unread{background:rgba(8,127,174,.12);box-shadow:inset 4px 0 0 var(--run-deep)}
+.outdoor-mode .notification-item.is-review .notification-item-copy>.notification-review-tag,.outdoor-mode .notification-item.is-review .notification-item-open>b{color:var(--run-deep-strong)}
 .notification-item.is-new{animation:coach-msg-glow 1.6s ease-out 2}
 @keyframes coach-msg-glow{0%{box-shadow:inset 4px 0 0 var(--text),0 0 0 0 color-mix(in srgb,var(--text) 45%,transparent)}100%{box-shadow:inset 4px 0 0 var(--text),0 0 0 12px transparent}}
 @media(prefers-reduced-motion:reduce){.notification-item.is-new{animation:none}}
