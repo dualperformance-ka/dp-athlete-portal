@@ -6590,6 +6590,17 @@ button.chip,a.chip,.chip[role="button"]{min-height:44px;padding-inline:var(--sp-
 }
 .wr-retry:active{background:var(--g-3)}
 .wr-retry:focus-visible{outline:2px solid var(--c2);outline-offset:2px}
+/* ── NUTRITION PAGE ── opened from the profile menu. Reuses the weekly review's
+   nav, sections and tiles; only the averages bar and day list are its own. */
+.nutrition-page-body{display:flex;flex-direction:column;gap:var(--sp-3)}
+.nh-note{margin:0;padding:10px 12px;border-radius:var(--r-2);background:var(--g-2);box-shadow:inset 3px 0 0 var(--readout);font-size:var(--font-xs);line-height:1.5;color:var(--t-2);white-space:pre-line;overflow-wrap:anywhere}
+.nh-sub{margin:0;font-family:var(--mono);font-size:var(--fs-label);letter-spacing:var(--tracking-label);color:var(--t-3)}
+.nh-averages li{display:grid;grid-template-columns:minmax(0,1fr) auto;row-gap:6px}
+.nh-averages b small,.nh-days b small{font-family:var(--mono);font-weight:500;color:var(--t-3)}
+.nh-bar{grid-column:1 / -1;display:block;height:4px;border-radius:var(--r-pill);background:var(--g-3);overflow:hidden}
+.nh-bar>span{display:block;height:100%;border-radius:inherit;background:var(--readout)}
+.nh-days b{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+.nh-days li.is-empty b{color:var(--t-3)}
 /* 320px: the week name has to give way before the controls do. */
 @media(max-width:359px){
   .wr-nav{gap:6px}

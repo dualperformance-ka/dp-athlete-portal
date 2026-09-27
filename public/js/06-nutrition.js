@@ -764,3 +764,196 @@ async function loadNutrition(){
 
   if(weekOffset===0&&document.getElementById('tab-training').classList.contains('active'))renderTodaySection();
 }
+
+// ── NUTRITION PAGE ────────────────────────────────────────────────────────────
+// Opened from the profile menu. Every week the coaches have set macros for,
+// past and upcoming, with what the athlete actually logged against it. One
+// read per open (`nutrition-history`), held in memory only — nothing here is
+// written to device storage.
+var _nhWeeks=null,_nhIndex=null,_nhSeq=0;
+var NH_MACROS=[
+  {key:'cal',plan:'calories',log:'calories',label:'Calories',unit:'kcal'},
+  {key:'pro',plan:'protein',log:'protein',label:'Protein',unit:'g'},
+  {key:'carb',plan:'carbs',log:'carbs',label:'Carbs',unit:'g'},
+  {key:'fat',plan:'fats',log:'fat',label:'Fats',unit:'g'},
+  {key:'fibre',plan:'fibre',log:'fibre',label:'Fibre',unit:'g'}
+];
+// Same markup and classes as the weekly review's sections, built here because
+// 07-progress.js loads lazily and may not be on the page yet.
+function nhSection(title,inner){return '<div class="wr-section"><h4 class="wr-section-title">'+esc(title)+'</h4>'+inner+'</div>';}
+function nhEmpty(text){return '<p class="wr-empty">'+esc(text)+'</p>';}
+function nhMetric(label,value){
+  return '<div class="wr-metric"><span class="wr-metric-label">'+esc(label)+'</span>'
+    +'<strong class="wr-metric-value readout readout--compact">'+esc(value)+'</strong></div>';
+}
+function nhMonday(date){
+  var d=new Date(date.getFullYear(),date.getMonth(),date.getDate());
+  d.setDate(d.getDate()-((d.getDay()+6)%7));
+  return d;
+}
+function nhAddDays(date,days){var d=new Date(date.getFullYear(),date.getMonth(),date.getDate());d.setDate(d.getDate()+days);return d;}
+function nhWeekNumberFromLabel(label){
+  var text=String(label||'').trim();
+  if(typeof isDiscoveryWeek==='function'&&isDiscoveryWeek(text))return 0;
+  var m=text.match(/\d+/);return m?parseInt(m[0],10):null;
+}
+// "2,400", "2400 kcal" and "35-38" all read as their first number; the
+// original text is what is shown.
+function nhNumber(value){
+  if(value==null)return null;
+  var n=parseFloat(String(value).replace(/,/g,''));
+  return isFinite(n)?n:null;
+}
+function nhText(value){
+  var s=value==null?'':String(value).trim();
+  // A plain number reads with a thousands separator; a range or a note is shown as the coach wrote it.
+  if(/^\d+(\.\d+)?$/.test(s))return Number(s).toLocaleString('en-AU');
+  return s||'—';
+}
+// A row the coaches created but never filled in is not a plan.
+function nhHasPlan(row){
+  return !!row&&(NH_MACROS.some(function(m){return nhText(row[m.plan])!=='—';})||!!String(row.notes||'').trim());
+}
+function nhBuildWeeks(data){
+  var current=0;
+  try{current=Number(getCurrentProgrammeWeek())||0;}catch(e){}
+  var thisMonday=nhMonday(new Date());
+  var plans={},logsByWeek={},numbers=[current];
+  (data.plans||[]).forEach(function(row){
+    var n=nhWeekNumberFromLabel(row.week_label);
+    if(n==null||n<0||n>104||!nhHasPlan(row))return;
+    // Two rows for one week (a legacy "Discovery Week" beside "Week 0"): the
+    // one with calories set wins.
+    if(!plans[n]||(!nhNumber(plans[n].calories)&&nhNumber(row.calories)))plans[n]=row;
+    numbers.push(n);
+  });
+  (data.logs||[]).forEach(function(row){
+    var iso=String(row.log_date||'').slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return;
+    var monday=nhMonday(localDateFromISO(iso));
+    var n=current+Math.round((monday-thisMonday)/(7*24*60*60*1000));
+    if(n<0||n>104)return;
+    (logsByWeek[n]=logsByWeek[n]||{})[iso]=row;
+    numbers.push(n);
+  });
+  var min=Math.min.apply(null,numbers),max=Math.max.apply(null,numbers),weeks=[];
+  for(var n=min;n<=max;n++){
+    var start=nhAddDays(thisMonday,(n-current)*7);
+    weeks.push({number:n,start:start,end:nhAddDays(start,6),plan:plans[n]||null,logs:logsByWeek[n]||{},
+      state:n<current?'past':n>current?'future':'current'});
+  }
+  return {weeks:weeks,currentIndex:weeks.findIndex(function(w){return w.state==='current';})};
+}
+function nhRange(week){
+  var opts={day:'numeric',month:'short'};
+  return week.start.toLocaleDateString('en-AU',opts)+' – '+week.end.toLocaleDateString('en-AU',opts);
+}
+function nhSetNav(week){
+  var label=document.getElementById('nhWeekLabel'),dates=document.getElementById('nhWeekDates'),marker=document.getElementById('nhWeekMarker');
+  var prev=document.getElementById('nhPrevBtn'),next=document.getElementById('nhNextBtn');
+  if(label)label.textContent=week?programmeWeekLabel(week.number):'Nutrition';
+  if(dates)dates.textContent=week?nhRange(week):'';
+  if(marker){
+    marker.hidden=!week||week.state==='past';
+    marker.textContent=week&&week.state==='future'?'Upcoming':'This week';
+  }
+  var hasPrev=!!week&&_nhIndex>0,hasNext=!!week&&_nhWeeks&&_nhIndex<_nhWeeks.length-1;
+  if(prev){prev.disabled=!hasPrev;prev.setAttribute('aria-disabled',hasPrev?'false':'true');}
+  if(next){next.disabled=!hasNext;next.setAttribute('aria-disabled',hasNext?'false':'true');}
+}
+function nhTargetsHtml(week){
+  if(!week.plan){
+    return nhSection('Targets',nhEmpty(week.state==='future'
+      ?'Your coaches have not set this week yet. It will appear here as soon as they do.'
+      :'No macro targets were set for this week.'));
+  }
+  var tiles=NH_MACROS.map(function(m){
+    var value=nhText(week.plan[m.plan]);
+    return nhMetric(m.label,value==='—'?value:value+(/[a-z]/i.test(value)?'':' '+m.unit));
+  }).join('');
+  var note=String(week.plan.notes||'').trim();
+  return nhSection('Daily targets','<div class="wr-metrics nh-targets">'+tiles+'</div>')
+    +(note?nhSection('Coach note','<p class="nh-note">'+esc(note)+'</p>'):'');
+}
+function nhLoggedHtml(week){
+  if(week.state==='future')return '';
+  var today=localISO(new Date()),days=[];
+  for(var i=0;i<7;i++){var d=nhAddDays(week.start,i);days.push(localISO(d));}
+  var logged=days.filter(function(iso){return week.logs[iso];});
+  if(!logged.length){
+    return nhSection('What you logged',nhEmpty(week.state==='current'
+      ?'Nothing logged yet this week. Log your fuel from the Log button and it lands here.'
+      :'No nutrition was logged this week.'));
+  }
+  var rows=NH_MACROS.map(function(m){
+    var vals=logged.map(function(iso){return nhNumber(week.logs[iso][m.log]);}).filter(function(v){return v!=null;});
+    if(!vals.length)return '';
+    var avg=Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length);
+    var target=week.plan?nhNumber(week.plan[m.plan]):null;
+    var pct=target?Math.round(avg/target*100):null;
+    var bar=target?'<span class="nh-bar" aria-hidden="true"><span style="width:'+Math.min(100,Math.max(0,pct))+'%"></span></span>':'';
+    return '<li><span>'+esc(m.label)+'</span><b>'+esc(avg.toLocaleString('en-AU'))+' '+esc(m.unit)
+      +(target?'<small> / '+esc(target.toLocaleString('en-AU'))+(pct!=null?' · '+pct+'%':'')+'</small>':'')+'</b>'+bar+'</li>';
+  }).join('');
+  var dayRows=days.map(function(iso){
+    var row=week.logs[iso],d=localDateFromISO(iso);
+    var name=d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric'});
+    var detail;
+    if(row){
+      var cal=nhNumber(row.calories),p=nhNumber(row.protein),c=nhNumber(row.carbs),f=nhNumber(row.fat);
+      detail=(cal!=null?Math.round(cal).toLocaleString('en-AU')+' kcal':'—')
+        +'<small>P '+(p!=null?Math.round(p):'—')+' · C '+(c!=null?Math.round(c):'—')+' · F '+(f!=null?Math.round(f):'—')+'</small>';
+    }else detail=iso>today?'<small>Upcoming</small>':'<small>Not logged</small>';
+    return '<li class="'+(row?'is-logged':'is-empty')+'"><span>'+esc(name)+'</span><b>'+detail+'</b></li>';
+  }).join('');
+  var countLabel=logged.length+' of 7 days logged';
+  return nhSection('What you logged',
+    '<p class="nh-sub">Daily average · '+esc(countLabel)+'</p>'
+    +(rows?'<ul class="wr-split nh-averages">'+rows+'</ul>':'')
+    +'<ul class="wr-split nh-days">'+dayRows+'</ul>');
+}
+function nhRender(){
+  var body=document.getElementById('nutritionBody');if(!body||!_nhWeeks)return;
+  var week=_nhWeeks[_nhIndex];
+  nhSetNav(week);
+  body.setAttribute('aria-busy','false');
+  body.innerHTML=nhTargetsHtml(week)+nhLoggedHtml(week);
+}
+function nutritionStep(direction){
+  if(!_nhWeeks||_nhIndex==null)return;
+  var target=_nhIndex+direction;
+  if(target<0||target>=_nhWeeks.length)return;
+  _nhIndex=target;nhRender();
+}
+function loadNutritionPage(){
+  var body=document.getElementById('nutritionBody');if(!body)return Promise.resolve();
+  var seq=++_nhSeq;
+  body.setAttribute('aria-busy','true');
+  body.innerHTML='<p class="wr-status" role="status">Loading your nutrition…</p><div class="wr-skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></div>';
+  nhSetNav(null);
+  return portalRequest('nutrition-history').then(function(res){
+    if(seq!==_nhSeq)return;
+    var built=nhBuildWeeks(res||{});
+    _nhWeeks=built.weeks;
+    // Reopening keeps the week the athlete was on; a first open lands on this week.
+    if(_nhIndex==null||_nhIndex>=_nhWeeks.length)_nhIndex=Math.max(0,built.currentIndex);
+    nhRender();
+  }).catch(function(error){
+    if(seq!==_nhSeq)return;
+    console.warn('Nutrition page load failed',error);
+    body.setAttribute('aria-busy','false');
+    body.innerHTML='<div class="wr-error" role="alert"><strong>Nutrition unavailable</strong><p>We could not load your nutrition just now.</p>'
+      +'<button type="button" class="wr-retry" onclick="loadNutritionPage()">Try again</button></div>';
+  });
+}
+function openNutritionPage(){
+  if(typeof toggleProfileMenu==='function')toggleProfileMenu(false);
+  var modal=document.getElementById('nutritionModal');if(!modal)return;
+  modal.classList.add('open');document.body.style.overflow='hidden';
+  if(typeof track==='function')track('nutrition_page_opened');
+  loadNutritionPage();
+}
+function closeNutritionPage(){
+  var modal=document.getElementById('nutritionModal');if(modal)modal.classList.remove('open');
+  document.body.style.overflow='';
+}
