@@ -1159,25 +1159,26 @@ export async function selectTolerant(table, query, optionalColumns = [], selectR
 const TRAINING_LOG_COLUMNS = 'session_name,session_category,session_date,exercise_name,programmed_exercise,raw_sets,distance_km,duration_min,client_write_id';
 const TRAINING_LOG_OPTIONAL = ['exercise_name', 'programmed_exercise', 'distance_km', 'duration_min', 'client_write_id'];
 
-/**
- * The authenticated entry point. `code` comes from getRequestAthlete() in the
- * handler and is never read from the body.
- */
-export async function performanceSummary(code, body = {}, deps = {}) {
-  const selectRows = deps.select || select;
-  const now = deps.now ? deps.now() : new Date();
-  const todayISO = deps.todayISO || adelaideToday(now);
+// Monday of the week containing `value`, or null when `value` is not a real
+// calendar date. Anything the client sends is normalised to the Monday, so a
+// review always covers the same Monday-to-Sunday block the calendar draws.
+export function calendarWeekStart(value) {
+  const iso = toIsoDate(value);
+  if (!iso || String(value).trim().length !== 10) return null;
+  const [year, month, day] = iso.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  const offset = (date.getUTCDay() + 6) % 7;
+  return addDaysISO(iso, -offset);
+}
 
-  const period = String(body.period || '').trim();
-  if (period !== 'week') throw requestError('Only weekly summaries are available', 400);
+const PLANNED_COLUMNS = 'id,notion_page_id,title,planned_date,session_type,status,library_id,distance_km,week_label,prescription_mode';
 
-  const programmeWeekId = String(body.programmeWeekId || '').trim();
-  if (!isUuid(programmeWeekId)) throw requestError('A valid programme week is required', 400);
-
-  // ── Ownership. Mandatory, and answered from the athlete's own programmes
-  // rather than by asking whether this week exists. A valid UUID belonging to
-  // someone else takes the same path as one that does not exist at all, so the
-  // response never reveals which.
+// Programme-week mode: the week is a row a coach built. Ownership is mandatory,
+// and answered from the athlete's own programmes rather than by asking whether
+// the week exists — a valid UUID belonging to someone else takes the same path
+// as one that does not exist at all, so the response never reveals which.
+async function programmeWeekPlanned(code, programmeWeekId, selectRows) {
   const programmes = await selectRows('athlete_programmes', {
     athlete_code: `eq.${code}`,
     select: 'id',
@@ -1199,8 +1200,6 @@ export async function performanceSummary(code, body = {}, deps = {}) {
   const range = weekRangeFromStart(weekRow.start_date);
   if (!range) throw requestError('Programme week has no usable start date', 502);
   const { startDate, endDate } = range;
-  const previousStart = addDaysISO(startDate, -7);
-  const previousEnd = addDaysISO(startDate, -1);
 
   const programmeWeek = {
     id: weekRow.id,
@@ -1209,13 +1208,13 @@ export async function performanceSummary(code, body = {}, deps = {}) {
     startDate,
   };
 
-  // ── Mandatory: the week's planned sessions. Drafts are invisible to the
+  // Mandatory: the week's planned sessions. Drafts are invisible to the
   // athlete everywhere else and must stay invisible here.
   const plannedRows = await selectRows('planned_sessions', {
     athlete_code: `eq.${code}`,
     publish_state: 'eq.published',
     programme_week_id: `eq.${programmeWeekId}`,
-    select: 'id,notion_page_id,title,planned_date,session_type,status,library_id,distance_km,week_label,prescription_mode',
+    select: PLANNED_COLUMNS,
     order: 'planned_date.asc',
     limit: '200',
   });
@@ -1233,7 +1232,7 @@ export async function performanceSummary(code, body = {}, deps = {}) {
     publish_state: 'eq.published',
     programme_week_id: 'is.null',
     and: `(planned_date.gte.${startDate},planned_date.lte.${endDate})`,
-    select: 'id,notion_page_id,title,planned_date,session_type,status,library_id,distance_km,week_label,prescription_mode',
+    select: PLANNED_COLUMNS,
     order: 'planned_date.asc',
     limit: '200',
   }).catch((error) => {
@@ -1247,6 +1246,68 @@ export async function performanceSummary(code, body = {}, deps = {}) {
     planned.push(row);
   });
   planned.sort((a, b) => String(a.planned_date || '').localeCompare(String(b.planned_date || '')));
+  return { programmeWeek, planned };
+}
+
+// Calendar-week mode: no programme row is needed. The athlete's own code
+// scopes every read, so there is no ownership question to answer. Every
+// published session dated inside the week counts, linked to a programme week
+// or not. The week number is only a display label the client already knows;
+// it is bounded and never used to select anything.
+async function calendarWeekPlanned(code, weekStart, weekNumber, selectRows) {
+  const { startDate, endDate } = weekRangeFromStart(weekStart);
+  // `undefined`, not null, when there is no usable number: the shared rules
+  // read Number(null) as 0, which would label the week Discovery Week.
+  const number = weekNumber == null || weekNumber === '' ? NaN : Number(weekNumber);
+  const programmeWeek = {
+    id: null,
+    weekNumber: Number.isInteger(number) && number >= 0 && number <= 104 ? number : undefined,
+    weekLabel: `Week of ${startDate}`,
+    startDate,
+  };
+  const plannedRows = await selectRows('planned_sessions', {
+    athlete_code: `eq.${code}`,
+    publish_state: 'eq.published',
+    and: `(planned_date.gte.${startDate},planned_date.lte.${endDate})`,
+    select: PLANNED_COLUMNS,
+    order: 'planned_date.asc',
+    limit: '200',
+  });
+  return { programmeWeek, planned: Array.isArray(plannedRows) ? [...plannedRows] : [] };
+}
+
+/**
+ * The authenticated entry point. `code` comes from getRequestAthlete() in the
+ * handler and is never read from the body.
+ */
+export async function performanceSummary(code, body = {}, deps = {}) {
+  const selectRows = deps.select || select;
+  const now = deps.now ? deps.now() : new Date();
+  const todayISO = deps.todayISO || adelaideToday(now);
+
+  const period = String(body.period || '').trim();
+  if (period !== 'week') throw requestError('Only weekly summaries are available', 400);
+
+  const programmeWeekId = String(body.programmeWeekId || '').trim();
+  // A calendar week, asked for by its start date. This is how the review works
+  // for every athlete whether or not a coach has built dated programme weeks
+  // for them: the facts all live in Supabase against dates, so the week is the
+  // seven days from `weekStart` and nothing has to be published first. It is
+  // only used when no programme-week id is given, so an id is never silently
+  // downgraded to a date read.
+  const weekStart = programmeWeekId ? null : calendarWeekStart(body.weekStart);
+  if (!weekStart && !isUuid(programmeWeekId)) throw requestError('A valid programme week is required', 400);
+
+  let programmeWeek;
+  let planned;
+  if (weekStart) {
+    ({ programmeWeek, planned } = await calendarWeekPlanned(code, weekStart, body.weekNumber, selectRows));
+  } else {
+    ({ programmeWeek, planned } = await programmeWeekPlanned(code, programmeWeekId, selectRows));
+  }
+  const { startDate, endDate } = weekRangeFromStart(programmeWeek.startDate);
+  const previousStart = addDaysISO(startDate, -7);
+  const previousEnd = addDaysISO(startDate, -1);
 
   // ── Optional sources. Each one degrades on its own.
   const missingSources = [];

@@ -408,25 +408,77 @@ function wrSourceLabel(source){
   return {strava:'from Strava',portal_logs:'from your logs',unavailable:'no source available'}[source]||'';
 }
 
-// ── Programme weeks ──────────────────────────────────────────────────────────
-// The navigator needs the week list. programme-data already returns it for the
-// volume strip, so this reuses that action rather than adding another.
+// ── Review weeks ─────────────────────────────────────────────────────────────
+// The review never waits on a coach. Every fact in it is already in Supabase
+// against a date, so the navigator is simply the athlete's calendar weeks, from
+// the start of their programme up to this week. Where the coach has built a
+// dated programme week for one of those weeks it is used (its sessions are
+// linked by id); every other week is asked for by its Monday. An athlete with
+// no programme rows at all still gets this week's review.
+var WR_MAX_WEEKS=52;
+function wrMondayISO(date){
+  var d=new Date(date.getFullYear(),date.getMonth(),date.getDate());
+  d.setDate(d.getDate()-((d.getDay()+6)%7));
+  return localISO(d);
+}
+function wrAddDays(iso,days){
+  var d=localDateFromISO(iso);d.setDate(d.getDate()+days);return localISO(d);
+}
+function wrProgrammeWeekRows(res){
+  var rows=(res&&res.programmeWeeks)||[];
+  return rows.filter(function(w){return w&&w.id&&/^\d{4}-\d{2}-\d{2}/.test(String(w.startDate||''));})
+    .map(function(w){
+      var start=String(w.startDate).slice(0,10);
+      return {id:w.id,programmeWeekId:w.id,weekNumber:w.weekNumber,weekLabel:w.weekLabel,startDate:start,endDate:wrAddDays(start,6)};
+    });
+}
+function wrBuildWeeks(programmeRows){
+  var thisMonday=wrMondayISO(new Date());
+  var currentNumber=null;
+  try{currentNumber=getCurrentProgrammeWeek();}catch(e){}
+  if(!Number.isFinite(Number(currentNumber)))currentNumber=null;
+  // How far back: the programme start, else the first dated programme week,
+  // else a quarter. Never more than a year of weeks in the navigator.
+  var anchor=null;
+  if(athlete&&/^\d{4}-\d{2}-\d{2}/.test(String(athlete.startDate||'')))anchor=wrMondayISO(localDateFromISO(athlete.startDate));
+  programmeRows.forEach(function(w){var m=wrMondayISO(localDateFromISO(w.startDate));if(!anchor||m<anchor)anchor=m;});
+  if(!anchor||anchor>thisMonday)anchor=wrAddDays(thisMonday,-7*11);
+  var oldest=wrAddDays(thisMonday,-7*(WR_MAX_WEEKS-1));
+  if(anchor<oldest)anchor=oldest;
+  var byMonday={};
+  programmeRows.forEach(function(w){
+    var m=wrMondayISO(localDateFromISO(w.startDate));
+    if(!byMonday[m])byMonday[m]=w;
+  });
+  var weeks=[];
+  for(var monday=anchor;monday<=thisMonday;monday=wrAddDays(monday,7)){
+    if(byMonday[monday]){weeks.push(byMonday[monday]);continue;}
+    var back=Math.round((localDateFromISO(thisMonday)-localDateFromISO(monday))/(7*24*60*60*1000));
+    var number=currentNumber==null?null:currentNumber-back;
+    weeks.push({id:'cal-'+monday,programmeWeekId:null,weekNumber:number!=null&&number>=0?number:null,weekLabel:null,startDate:monday,endDate:wrAddDays(monday,6)});
+  }
+  return weeks;
+}
 function wrLoadWeeks(force){
   if(force){_wrWeeks=null;_wrWeeksPromise=null;}
   if(_wrWeeks)return Promise.resolve(_wrWeeks);
   if(_wrWeeksPromise)return _wrWeeksPromise;
-  _wrWeeksPromise=portalRequest('programme-data').then(function(res){
-    var rows=(res&&res.programmeWeeks)||[];
-    _wrWeeks=rows.filter(function(w){return w&&w.id&&/^\d{4}-\d{2}-\d{2}/.test(String(w.startDate||''));})
-      .map(function(w){
-        var start=String(w.startDate).slice(0,10);
-        var end=localDateFromISO(start);end.setDate(end.getDate()+6);
-        return {id:w.id,weekNumber:w.weekNumber,weekLabel:w.weekLabel,startDate:start,endDate:localISO(end)};
-      })
-      .sort(function(a,b){return a.startDate.localeCompare(b.startDate);});
+  // programme-data only improves the list (linked session ids). If it fails,
+  // the calendar weeks still stand, so the review still loads.
+  _wrWeeksPromise=portalRequest('programme-data').then(wrProgrammeWeekRows,function(error){
+    console.warn('Programme weeks unavailable, using calendar weeks',error);
+    return [];
+  }).then(function(rows){
+    _wrWeeks=wrBuildWeeks(rows);
     return _wrWeeks;
   }).catch(function(error){_wrWeeksPromise=null;throw error;});
   return _wrWeeksPromise;
+}
+function wrWeekName(week){
+  if(!week)return 'Weekly review';
+  if(week.weekNumber!=null&&Number.isFinite(Number(week.weekNumber)))return programmeWeekLabel(week.weekNumber);
+  try{return 'Week of '+localDateFromISO(week.startDate).toLocaleDateString('en-AU',{day:'numeric',month:'short'});}
+  catch(e){return 'Week of '+week.startDate;}
 }
 
 // The week containing today, else the most recent week that has already begun.
@@ -449,12 +501,16 @@ function wrIsFuture(week){
 // ── Fetch ────────────────────────────────────────────────────────────────────
 // One request per week per page session, and never two at once for the same
 // week. A retry clears the failed entry so it genuinely goes back to the server.
-function wrFetch(weekId,options){
+function wrFetch(week,options){
   options=options||{};
+  var weekId=week.id;
+  var payload=week.programmeWeekId
+    ?{period:'week',programmeWeekId:week.programmeWeekId}
+    :{period:'week',weekStart:week.startDate,weekNumber:week.weekNumber};
   if(options.bypassCache){delete _wrCache[weekId];delete _wrInflight[weekId];}
   if(_wrCache[weekId])return Promise.resolve(_wrCache[weekId]);
   if(_wrInflight[weekId])return _wrInflight[weekId];
-  _wrInflight[weekId]=portalRequest('performance-summary',{period:'week',programmeWeekId:weekId})
+  _wrInflight[weekId]=portalRequest('performance-summary',payload)
     .then(function(res){
       var summary=res&&res.summary;
       if(!summary)throw new Error('The weekly review came back empty.');
@@ -472,7 +528,7 @@ function wrSetNav(week,index,weeks){
   var prev=wrEl('wrPrevBtn'),next=wrEl('wrNextBtn');
   // programmeWeekLabel() is the one place a week gets a name — it is what keeps
   // week 0 reading as "Discovery Week" on every surface.
-  if(label)label.textContent=week?programmeWeekLabel(week.weekNumber):'Weekly review';
+  if(label)label.textContent=wrWeekName(week);
   if(dates)dates.textContent=week?wrRangeLabel(week.startDate,week.endDate):'';
   if(marker)marker.hidden=!(week&&index===wrCurrentIndex(weeks));
   if(prev){
@@ -685,7 +741,7 @@ function wrShow(index,options){
   // A late response for a week the athlete has already navigated away from must
   // never paint over the week they are looking at now.
   var seq=++_wrRequestSeq;
-  return wrFetch(week.id,options).then(function(summary){
+  return wrFetch(week,options).then(function(summary){
     if(seq!==_wrRequestSeq)return;
     wrRenderSummary(summary);
   }).catch(function(error){
@@ -722,11 +778,7 @@ function loadWeeklyReview(options){
   return wrLoadWeeks(options.force).then(function(weeks){
     if(!weeks.length){
       wrSetNav(null,0,[]);
-      var body=wrBody();
-      if(body){
-        body.setAttribute('aria-busy','false');
-        body.innerHTML=wrEmptyLine('Your programme weeks will appear here once your coach has published them.');
-      }
+      wrRenderError('We could not work out your training weeks just now.');
       return;
     }
     return wrShow(_wrIndex==null?wrCurrentIndex(weeks):_wrIndex,{});

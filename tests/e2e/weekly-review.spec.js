@@ -366,15 +366,69 @@ test('a PB status of not_calculated says so instead of claiming none were set', 
   await expect(body(page)).not.toContainText('Back Squat');
 });
 
-// ── Programme with no published weeks ────────────────────────────────────────
+// ── No coach-built weeks ─────────────────────────────────────────────────────
+// The review is generated from Supabase against dates, so it must never wait on
+// a coach publishing programme weeks. These replace the old contract, where no
+// weeks meant a "once your coach has published them" placeholder.
 
-test('an athlete with no published programme weeks gets an explanation, not an error', async ({ page }) => {
+test('an athlete with no programme weeks still gets this week reviewed, by date', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
-  await bootPortal(page, { onPortalAction: reviewStubs({ weeks: [] }) });
+  const bodies = [];
+  const stubs = reviewStubs({ weeks: [] });
+  await bootPortal(page, {
+    onPortalAction: async (action, payload) => {
+      if (action === 'performance-summary') bodies.push(payload);
+      return stubs(action, payload);
+    },
+  });
   await openProgress(page);
-  await expect(body(page)).toContainText('Your programme weeks will appear here');
-  await expect(page.locator('#wrPrevBtn')).toBeDisabled();
+  await expect(body(page)).toContainText('of 6 completed');
+  await expect(body(page)).not.toContainText('published');
+  await expect(page.locator('#wrWeekCurrent')).toBeVisible();
+  expect(bodies.length).toBe(1);
+  expect(bodies[0].programmeWeekId).toBeUndefined();
+  expect(bodies[0].weekStart).toBe(weekStarts().current);
+  // Earlier calendar weeks are reachable; the future is not.
+  await expect(page.locator('#wrPrevBtn')).toBeEnabled();
   await expect(page.locator('#wrNextBtn')).toBeDisabled();
+  await page.locator('#wrPrevBtn').click();
+  await expect.poll(() => bodies.length).toBe(2);
+  expect(bodies[1].weekStart).toBe(weekStarts().previous);
+});
+
+test('a failed programme read does not take the review down', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  await bootPortal(page, { onPortalAction: reviewStubs({ weeks: 'fail' }) });
+  await openProgress(page);
+  await expect(body(page)).toContainText('of 6 completed');
+});
+
+test('weeks the coach never built are filled in by date around the ones they did', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  const bodies = [];
+  const starts = weekStarts();
+  // Only an older week exists as a programme row; this week has none.
+  const older = new Date(starts.previous);
+  older.setDate(older.getDate() - 7);
+  const stubs = reviewStubs({
+    weeks: [{ id: PREVIOUS_ID, programmeId: 'prog', weekNumber: 6, weekLabel: 'Week 6', startDate: localISO(older) }],
+  });
+  await bootPortal(page, {
+    onPortalAction: async (action, payload) => {
+      if (action === 'performance-summary') bodies.push(payload);
+      return stubs(action, payload);
+    },
+  });
+  await openProgress(page);
+  await expect(body(page)).toContainText('of 6 completed');
+  expect(bodies[0].weekStart).toBe(starts.current);
+  await page.locator('#wrPrevBtn').click();
+  await expect.poll(() => bodies.length).toBe(2);
+  expect(bodies[1].weekStart).toBe(starts.previous);
+  await page.locator('#wrPrevBtn').click();
+  await expect.poll(() => bodies.length).toBe(3);
+  expect(bodies[2].programmeWeekId).toBe(PREVIOUS_ID);
+  await expect(page.locator('#wrWeekLabel')).toHaveText('Week 6');
 });
 
 // ── Fit, themes and console ──────────────────────────────────────────────────

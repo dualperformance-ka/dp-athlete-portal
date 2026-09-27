@@ -1,14 +1,14 @@
-const CACHE_NAME = 'dp-athlete-v232'; // v232: run sessions open as swipeable pages; Strava result + check-in lead
+const CACHE_NAME = 'dp-athlete-v233'; // v233: weekly review runs by date for every athlete; week-in-review notice highlighted
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=185', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=186', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
   '/js/02-login-goals.js?v=121',
-  '/js/03-nav-nudges.js?v=126',
+  '/js/03-nav-nudges.js?v=127',
   '/js/04-checkin.js?v=104',
   '/js/05-handbook.js?v=89',
   '/js/06-nutrition.js?v=107',
-  '/js/07-progress.js?v=92',
+  '/js/07-progress.js?v=93',
   '/js/strava-match.js?v=8',
   '/js/08-training-interval-rest.js?v=1',
   '/js/08-training-muscle-coverage.js?v=1',

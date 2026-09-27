@@ -909,3 +909,67 @@ test('the top-level sections are exactly the documented contract', async () => {
   ]);
   assert.deepEqual(Object.keys(summary.training.byType).sort(), ['cycling', 'other', 'running', 'strength', 'swimming']);
 });
+
+// ── Calendar weeks: no coach-built programme week required ───────────────────
+// The review is generated from dated facts, so an athlete with no programme
+// rows (or a week the coach never built) is reviewed by the week's Monday.
+
+test('a calendar week is summarised with no programme rows at all', async () => {
+  const seen = [];
+  const tables = {
+    ...BASE_TABLES,
+    athlete_programmes: [],
+    athlete_programme_weeks: [],
+    planned_sessions: (query) => {
+      seen.push(query);
+      return [planned({ id: 'linked', programme_week_id: WEEK_ID }), planned({ id: 'dated', planned_date: '2026-09-23' })];
+    },
+  };
+  const { summary } = await performanceSummary('KARL', { period: 'week', weekStart: '2026-09-24', weekNumber: 12 }, summaryDeps(tables));
+  assert.equal(summary.period.startDate, START, 'normalised to the Monday');
+  assert.equal(summary.period.endDate, END);
+  assert.equal(summary.period.programmeWeekId, null);
+  assert.equal(summary.period.label, 'Week 12');
+  assert.equal(summary.training.plannedSessions, 2, 'linked and unlinked sessions both count');
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].athlete_code, 'eq.KARL');
+  assert.equal(seen[0].publish_state, 'eq.published');
+  assert.equal(seen[0].programme_week_id, undefined);
+  assert.equal(seen[0].and, `(planned_date.gte.${START},planned_date.lte.${END})`);
+});
+
+test('a calendar week request never reads programme tables', async () => {
+  const touched = [];
+  const deps = {
+    select: async (table, query) => { touched.push(table); return stubSelect(BASE_TABLES)(table, query); },
+    now: () => new Date('2026-09-24T02:00:00.000Z'),
+  };
+  await performanceSummary('KARL', { period: 'week', weekStart: START }, deps);
+  assert.ok(!touched.includes('athlete_programmes'));
+  assert.ok(!touched.includes('athlete_programme_weeks'));
+});
+
+test('a malformed calendar week start is rejected before any read', async () => {
+  let reads = 0;
+  const deps = { select: async () => { reads += 1; return []; }, now: () => new Date() };
+  for (const bad of ['2026-02-30', '2026-9-1', '2026-09-21T00:00', 'yesterday', '', null]) {
+    await assert.rejects(
+      () => performanceSummary('KARL', { period: 'week', weekStart: bad }, deps),
+      (error) => error.status === 400,
+    );
+  }
+  assert.equal(reads, 0);
+});
+
+test('an out-of-range week number is dropped rather than echoed', async () => {
+  const { summary } = await performanceSummary('KARL', { period: 'week', weekStart: START, weekNumber: '9999' }, summaryDeps(BASE_TABLES));
+  assert.equal(summary.period.weekNumber, null);
+});
+
+test('a programme-week id still takes the programme path even with a weekStart', async () => {
+  const { summary } = await performanceSummary('KARL', {
+    period: 'week', programmeWeekId: WEEK_ID, weekStart: '2020-01-06',
+  }, summaryDeps(BASE_TABLES));
+  assert.equal(summary.period.programmeWeekId, WEEK_ID);
+  assert.equal(summary.period.startDate, START);
+});
