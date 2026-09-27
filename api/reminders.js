@@ -469,10 +469,10 @@ async function handleCronSend(req, res) {
     if (!now) { skippedZones++; continue; }
     const morning = minuteMatches(now, MORNING_HOUR, MORNING_MINUTE);
     const logging = minuteMatches(now, LOGGING_HOUR, LOGGING_MINUTE);
-    // Sunday 19:00 in the athlete's OWN zone. localNow() resolves through Intl
-    // with the stored timezone, so this stays 7pm across South Australia's
-    // October daylight-saving switch instead of drifting to 6pm like a fixed
-    // UTC schedule would.
+    // Monday 07:00 in the athlete's OWN zone, reviewing the week just gone.
+    // localNow() resolves through Intl with the stored timezone, so this stays
+    // 7am across South Australia's October daylight-saving switch instead of
+    // drifting an hour like a fixed UTC schedule would.
     const weeklyReview = now.dow === WEEKLY_REVIEW_DOW
       && minuteMatches(now, WEEKLY_REVIEW_HOUR, WEEKLY_REVIEW_MINUTE);
     const quiet = isQuietTime(now);

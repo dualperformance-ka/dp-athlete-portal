@@ -6,11 +6,10 @@ export const LOGGING_HOUR = 19;
 export const LOGGING_MINUTE = 30;
 export const QUIET_HOUR = 21;
 export const DAILY_PUSH_CAP = 3;
-// The weekly review lands on Sunday evening, while the week is still the one
-// the athlete is living in. `dow` is the index localNow() produces, so Sunday
-// is 0. 19:00 sits inside the waking window and ahead of the 19:30 logging
-// nudge, so the review is the first thing they see rather than a footnote to
-// "you still have a session open".
+// The weekly review lands on Monday morning and reviews the week just gone, so
+// every number in it is final, Sunday's long run included. `dow` is the index
+// localNow() produces, so Monday is 1. 07:00 sits after the 05:30 plan push, so
+// Monday spends at most three pushes: plan, review and the 19:30 log nudge.
 // Every notification type any code path may write to athlete_notifications.
 // It must equal the athlete_notifications_type_check list in the newest
 // migration that defines it; tests/notification-type-constraint.test.js fails
@@ -20,8 +19,8 @@ export const NOTIFICATION_TYPES = Object.freeze([
   'sessions', 'logging', 'checkins', 'photos', 'calls', 'coach', 'custom', 'weekly_review',
 ]);
 
-export const WEEKLY_REVIEW_DOW = 0;
-export const WEEKLY_REVIEW_HOUR = 19;
+export const WEEKLY_REVIEW_DOW = 1;
+export const WEEKLY_REVIEW_HOUR = 7;
 export const WEEKLY_REVIEW_MINUTE = 0;
 
 export function minuteMatches(now, hour, minute, windowMinutes = 2) {
@@ -144,15 +143,15 @@ export function buildCoachMessage(changes = [], iso = '', options = {}) {
 // The notification deliberately carries NO figures. Computing the summary for
 // every athlete inside the cron would duplicate the whole metric layer on a
 // path that runs every minute, and any number baked in here could disagree with
-// the card by the time it is opened — the week is still open at 7pm Sunday, and
-// a late session would make the push a lie. It says the review is ready and
-// deep-links to it; the card is the single place the numbers are produced.
+// the card by the time it is opened, and a late back-dated log would make the
+// push a lie. It says the review is ready and deep-links to it; the card is the
+// single place the numbers are produced.
 export function buildWeeklyReviewMessage(iso = '', weekLabel = '') {
   const label = String(weekLabel || '').trim();
   return {
     type: 'weekly_review',
-    title: label ? `${label} in review` : 'Your week in review',
-    body: 'Sessions, distance, strength and recovery for the week, in one place.',
+    title: label ? `${label} in review` : 'Last week in review',
+    body: 'Sessions, distance, strength and recovery from last week, in one place.',
     url: '/?tab=progress',
     dedupeKey: `weekly-review:${iso}`,
   };
