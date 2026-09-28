@@ -528,14 +528,19 @@ function volumeStripHtml(data,mode,collapsible){
   // The collapsed head used to sit the title and the whole summary sentence on
   // one line, both clipped by ellipsis — at 390px it rendered "Weekly volum…"
   // next to "… Ride 51…." So the head is two rows now, and the summary is a
-  // readout rather than a sentence: the running figure, then the OTHER SPORTS
-  // NAMED AND NOT NUMBERED. A second and third number is what made the line too
-  // long to fit in the first place, and those numbers are one tap away inside
-  // the panel. The full sentence stays on the button's accessible name.
-  var runRow=null,otherSports=[];
+  // readout rather than a sentence: the running figure first, then a dedicated
+  // wrapping target line for the other prescribed sports. Unprescribed sports
+  // are still named without numbers, and the full activity sentence stays on
+  // the button's accessible name.
+  var runRow=null,otherSports=[],otherTargets=[];
   selectedSports.forEach(function(row){
     if(row.sport==='running'){runRow=row;return;}
     var m=row.metrics||{};
+    var targetDistance=row.target?Number(row.target.distanceTargetMetres)||0:Number(row.plannedTargetMetres)||0;
+    if(targetDistance>0){
+      otherTargets.push((row.sport==='cycling'?'Ride ':'Swim ')+coachDistanceText(targetDistance,row.sport));
+      return;
+    }
     if(Number(m.distanceMetres)>0||Number(m.sessions)>0||Number(m.durationMinutes)>0) otherSports.push(row.sport);
   });
   var headline='<span class="vstrip-sum">'+summary+'</span>';
@@ -544,6 +549,9 @@ function volumeStripHtml(data,mode,collapsible){
     var runTarget=runRow.target?Number(runRow.target.distanceTargetMetres)||0:Number(runRow.plannedTargetMetres)||0;
     headline='<span class="vstrip-readout"><b>'+fmtKmVal(runActual/1000)+'</b>'
       +(runTarget>0?'<i>/ '+fmtKmVal(runTarget/1000)+' km</i>':'<i>km run</i>')+'</span>'
+      +(otherTargets.length?'<span class="vstrip-targets">'+otherTargets.map(function(label){
+        return '<span>'+esc(label)+'</span>';
+      }).join('')+'</span>':'')
       +(otherSports.length?'<span class="vstrip-also">'+otherSports.map(function(sport){
         return sport==='cycling'?'ride':'swim';
       }).join(' · ')+'</span>':'');
