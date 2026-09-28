@@ -392,6 +392,37 @@ function coachTargetSummary(week){
       +'/'+coachDistanceText(target.distanceTargetMetres,row.sport).replace(' ','\u00a0');
   }).join(' · ');
 }
+// The closed card is the athlete's quickest read of the week. A published
+// coach prescription therefore gets the same large actual/target treatment in
+// every sport; it cannot look like a footnote under running. Activity imported
+// from Strava without a prescription stays on the quieter Logged line so a
+// recorded ride or swim is never mistaken for something the coach assigned.
+function collapsedVolumeHeadlineHtml(rows){
+  var heroes=[],logged=[];
+  (rows||[]).forEach(function(row){
+    var sport=row.sport,metrics=row.metrics||{};
+    var prescribed=!!row.target||row.plannedTargetMetres!=null;
+    if(prescribed){
+      var targetDistance=row.target?Number(row.target.distanceTargetMetres)||0:Number(row.plannedTargetMetres)||0;
+      var actualParts=coachDistanceParts(Number(metrics.distanceMetres)||0,sport);
+      var targetParts=coachDistanceParts(targetDistance,sport);
+      var authority=row.target?'target':'plan';
+      heroes.push('<span class="vstrip-readout vstrip-readout-'+sport+'">'
+        +'<small>'+COACH_SPORT_SHORT_LABELS[sport]+' '+authority+'</small>'
+        +'<span class="vstrip-readout-values"><b>'+actualParts.value+'</b>'
+          +'<i>/ '+targetParts.value+' '+targetParts.unit+'</i></span>'
+      +'</span>');
+      return;
+    }
+    if(sportMetricsHaveActivity(metrics)){
+      logged.push('<span>'+COACH_SPORT_SHORT_LABELS[sport]+' '
+        +coachDistanceText(metrics.distanceMetres||0,sport)+'</span>');
+    }
+  });
+  return (heroes.length?'<span class="vstrip-heroes">'+heroes.join('')+'</span>':'')
+    +(logged.length?'<span class="vstrip-logged"><span class="vstrip-logged-label">Logged</span>'
+      +logged.join('')+'</span>':'');
+}
 // One dial per PRESCRIBED sport; everything else logged on a line.
 //
 // Every sport with any activity used to get a full dial, so a normal week
@@ -528,34 +559,13 @@ function volumeStripHtml(data,mode,collapsible){
   // The collapsed head used to sit the title and the whole summary sentence on
   // one line, both clipped by ellipsis — at 390px it rendered "Weekly volum…"
   // next to "… Ride 51…." So the head is two rows now, and the summary is a
-  // readout rather than a sentence: the running figure first, then a dedicated
-  // wrapping target line for the other prescribed sports. Unprescribed sports
-  // are still named without numbers, and the full activity sentence stays on
-  // the button's accessible name.
-  var runRow=null,otherSports=[],otherTargets=[];
-  selectedSports.forEach(function(row){
-    if(row.sport==='running'){runRow=row;return;}
-    var m=row.metrics||{};
-    var targetDistance=row.target?Number(row.target.distanceTargetMetres)||0:Number(row.plannedTargetMetres)||0;
-    if(targetDistance>0){
-      otherTargets.push((row.sport==='cycling'?'Ride ':'Swim ')+coachDistanceText(targetDistance,row.sport));
-      return;
-    }
-    if(Number(m.distanceMetres)>0||Number(m.sessions)>0||Number(m.durationMinutes)>0) otherSports.push(row.sport);
-  });
-  var headline='<span class="vstrip-sum">'+summary+'</span>';
-  if(runRow){
-    var runActual=Number((runRow.metrics||{}).distanceMetres)||0;
-    var runTarget=runRow.target?Number(runRow.target.distanceTargetMetres)||0:Number(runRow.plannedTargetMetres)||0;
-    headline='<span class="vstrip-readout"><b>'+fmtKmVal(runActual/1000)+'</b>'
-      +(runTarget>0?'<i>/ '+fmtKmVal(runTarget/1000)+' km</i>':'<i>km run</i>')+'</span>'
-      +(otherTargets.length?'<span class="vstrip-targets">'+otherTargets.map(function(label){
-        return '<span>'+esc(label)+'</span>';
-      }).join('')+'</span>':'')
-      +(otherSports.length?'<span class="vstrip-also">'+otherSports.map(function(sport){
-        return sport==='cycling'?'ride':'swim';
-      }).join(' · ')+'</span>':'');
-  }
+  // readout rather than a sentence. Every prescribed sport is an equal hero;
+  // unprescribed Strava activity remains visibly secondary and is called
+  // Logged, never Target. The full activity sentence stays on the button's
+  // accessible name.
+  var headline=selectedSports.length
+    ?collapsedVolumeHeadlineHtml(selectedSports)
+    :'<span class="vstrip-sum">'+summary+'</span>';
   var head=collapsible
     ? '<button type="button" class="vstrip-head vstrip-toggle" onclick="toggleVolumeStrip(this)" aria-expanded="false"'
         +' aria-label="'+esc('Weekly volume'+(summary?'. '+summary:''))+'">'

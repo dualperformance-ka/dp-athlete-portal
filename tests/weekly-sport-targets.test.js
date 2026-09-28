@@ -257,6 +257,36 @@ test('only a prescribed sport gets a dial', () => {
   assert.doesNotMatch(html, /sport-target-cycling|sport-target-swimming/, 'neither gets a dial');
 });
 
+test('the collapsed summary heroes every coach target and keeps Strava-only sport secondary', () => {
+  const { collapsedVolumeHeadlineHtml, volumeSportRows } = targetDisplayHelpers();
+  const rows = volumeSportRows({
+    planned: 28.8,
+    coachTargets: [
+      target({ sport: 'running', distanceTargetMetres: 28800 }),
+      target({ sport: 'cycling', distanceTargetMetres: 143000 }),
+      target({ sport: 'swimming', distanceTargetMetres: 4000 }),
+    ],
+    actualBySport: {
+      running: { distanceMetres: 13200, sessions: 1, durationMinutes: 60 },
+      cycling: { distanceMetres: 0, sessions: 0, durationMinutes: 0 },
+      swimming: { distanceMetres: 0, sessions: 0, durationMinutes: 0 },
+    },
+  });
+  const html = collapsedVolumeHeadlineHtml(rows);
+  assert.equal((html.match(/class="vstrip-readout /g) || []).length, 3, 'all three prescriptions are equal readouts');
+  assert.match(html, /Run target[\s\S]*13\.2[\s\S]*28\.8 km/);
+  assert.match(html, /Ride target[\s\S]*0[\s\S]*143 km/);
+  assert.match(html, /Swim target[\s\S]*0[\s\S]*4000 m/);
+
+  const stravaOnly = collapsedVolumeHeadlineHtml(volumeSportRows({
+    coachTargets: [],
+    actualBySport: { cycling: { distanceMetres: 51400, sessions: 1, durationMinutes: 151 } },
+  }));
+  assert.doesNotMatch(stravaOnly, /vstrip-readout/, 'activity without a prescription is not promoted');
+  assert.match(stravaOnly, /Logged[\s\S]*Ride 51\.4 km/);
+  assert.doesNotMatch(stravaOnly, /Ride target/);
+});
+
 test('the dial states what is left, and the record line states both numbers', () => {
   const { volumeDialFigure } = targetDisplayHelpers();
   assert.deepEqual({ ...volumeDialFigure(61200, 64000, 'running') }, { value: '2.8', qualifier: 'km to go', state: ' is-togo' });
