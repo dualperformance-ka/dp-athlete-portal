@@ -117,7 +117,7 @@ async function clippedFigures(page) {
     const probe = document.getElementById('fitProbe');
     const offenders = [];
     probe.querySelectorAll([
-      '.vstrip-delta', '.vstrip-km', '.vstrip-wk', '.vstrip-sum', '.vstrip-title', '.vstrip-readout', '.vstrip-targets span',
+      '.vstrip-delta', '.vstrip-km', '.vstrip-wk', '.vstrip-sum', '.vstrip-title', '.vstrip-readout', '.vstrip-readout small', '.vstrip-readout-values', '.vstrip-logged span',
       '.sport-target-distance', '.sport-target-distance strong', '.sport-target-name',
       '.sport-target-status', '.sport-target-lock', '.sport-target-record', '.sport-target-clock',
       '.sport-week-clock', '.sport-logged-label', '.sport-logged-sport', '.sport-logged-row b',
@@ -241,16 +241,35 @@ for (const viewport of [{ width: 428, height: 926 }, { width: 390, height: 844 }
   });
 }
 
-test('the collapsed weekly banner includes every prescribed sport target', async ({ page }) => {
+for (const width of [320, 390]) {
+  test(`the collapsed weekly banner heroes every prescribed sport target at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await login(page);
+    await mountStrip(page, { open: false, weeks: [TARGET_WEEK] });
+    const banner = page.locator('#fitProbe .vstrip-toggle');
+    const heroes = banner.locator('.vstrip-readout');
+    await expect(heroes).toHaveCount(3);
+    await expect(heroes.nth(0)).toContainText('Run target');
+    await expect(heroes.nth(0)).toContainText('13.2/ 28.8 km');
+    await expect(heroes.nth(1)).toContainText('Ride target');
+    await expect(heroes.nth(1)).toContainText('0/ 143 km');
+    await expect(heroes.nth(2)).toContainText('Swim target');
+    await expect(heroes.nth(2)).toContainText('0/ 4000 m');
+    await expect(banner.locator('.vstrip-targets')).toHaveCount(0);
+    expect(await clippedFigures(page), 'collapsed target values should fit without clipping').toEqual([]);
+  });
+}
+
+test('Strava-only sports stay in the secondary logged line', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
-  await mountStrip(page, { open: false, weeks: [TARGET_WEEK] });
+  await mountStrip(page, { open: false });
   const banner = page.locator('#fitProbe .vstrip-toggle');
-  await expect(banner).toContainText('13.2');
-  await expect(banner).toContainText('28.8 km');
-  await expect(banner).toContainText('Ride 143 km');
-  await expect(banner).toContainText('Swim 4000 m');
-  expect(await clippedFigures(page), 'collapsed target values should fit without clipping').toEqual([]);
+  await expect(banner.locator('.vstrip-readout')).toHaveCount(1);
+  await expect(banner.locator('.vstrip-readout')).toContainText('Run plan');
+  await expect(banner.locator('.vstrip-logged')).toContainText('Logged');
+  await expect(banner.locator('.vstrip-logged')).toContainText('Ride 51.4 km');
+  await expect(banner.locator('.vstrip-logged')).toContainText('Swim 3025 m');
 });
 
 test('the floating mobile header reserves its safe area and clears the Week heading', async ({ page }) => {

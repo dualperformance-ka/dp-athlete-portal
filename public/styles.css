@@ -4759,31 +4759,40 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
    name. Stacking them gives each the full width and nothing has to be cut. */
 .vstrip-headmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
 .vstrip-toggle .vstrip-title{min-width:0}
-.vstrip-headline{display:flex;align-items:baseline;gap:8px;min-width:0;flex-wrap:wrap}
-/* The figure the athlete opens this panel to see, as a readout. */
-.vstrip-readout{display:inline-flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums}
+.vstrip-headline{display:block;min-width:0}
+/* Every prescription is a hero. The equal grid stops cycling and swimming
+   targets reading like notes attached to the running figure. */
+.vstrip-heroes{display:grid;grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:6px;min-width:0}
+.vstrip-readout{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;font-variant-numeric:tabular-nums}
+.vstrip-readout small{
+  font-family:var(--mono);font-size:var(--fs-label);font-weight:650;line-height:1;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--t-3);white-space:nowrap
+}
+.vstrip-readout-values{display:inline-flex;align-items:baseline;gap:4px;min-width:0;white-space:nowrap}
 .vstrip-readout b{
-  font-family:var(--display);font-family:'Barlow Condensed',var(--display);font-size:var(--fs-2);font-weight:700;line-height:1;
+  font-family:var(--display);font-family:'Barlow Condensed',var(--display);font-size:var(--fs-2-sm);font-weight:700;line-height:1;
   letter-spacing:-.02em;color:var(--readout)!important
 }
 .vstrip-readout i{font-family:var(--mono);font-size:var(--fs-label);font-style:normal;line-height:1;color:var(--t-2)}
 /* --run on paper is 4.0:1 against the card, under the floor for a 17px figure.
    --run-strong is 6.4:1 and reads as the same number. */
-/* The other sports get named, never numbered, in the collapsed head: a second
-   and third figure here is what forced the old max-width that cut "Ride 51...."
-   in half. Their numbers are two taps away, inside the panel. */
-.vstrip-also{
-  font-family:var(--mono);font-size:var(--fs-label);letter-spacing:.06em;text-transform:uppercase;
-  color:var(--t-2);white-space:nowrap
-}
-.vstrip-also::before{content:'\00b7';margin-right:7px;color:var(--t-3)}
-.vstrip-targets{
-  flex:1 1 100%;display:flex;flex-wrap:wrap;gap:4px 12px;min-width:0;
+/* Strava activity with no prescription stays factual and secondary. Including
+   its distance is useful; the explicit Logged label prevents target ambiguity. */
+.vstrip-logged{
+  display:flex;flex-wrap:wrap;gap:3px 8px;min-width:0;margin-top:5px;
   font-family:var(--mono);font-size:var(--fs-label);line-height:1.3;letter-spacing:.03em;color:var(--t-2)
 }
-.vstrip-targets span{min-width:0;overflow-wrap:anywhere}
-.vstrip-targets::before{content:'Targets ·';color:var(--t-3);text-transform:uppercase;letter-spacing:.06em}
+.vstrip-logged>span{min-width:0;overflow-wrap:anywhere}
+.vstrip-logged>span+span::before{content:'\00b7';margin-right:8px;color:var(--t-3)}
+.vstrip-logged-label{color:var(--t-3);text-transform:uppercase;letter-spacing:.06em}
 .vstrip-sum{font-family:var(--mono);font-size:var(--fs-label);letter-spacing:.04em;color:var(--t-2)}
+@media(max-width:340px){
+  /* Three prescribed sports still share one hero row on the narrowest phone.
+     Stack each actual over its target rather than shrinking either below the
+     12px type floor or letting neighbouring figures collide. */
+  .vstrip-readout small{white-space:normal;letter-spacing:.03em}
+  .vstrip-readout-values{flex-direction:column;align-items:flex-start;gap:1px}
+}
 .vstrip-chev{
   width:15px;height:15px;flex-shrink:0;color:var(--t-3);
   transform:rotate(-90deg);transition:transform .2s ease

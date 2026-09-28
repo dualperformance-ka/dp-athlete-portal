@@ -195,16 +195,16 @@ test('the live week is the brightest column and the only one that glows', () => 
 // half. Fit is proved at six phone widths in tests/e2e/volume-strip-fit.spec.js;
 // this holds the shape that makes it fit.
 
-test('the collapsed head keeps the running readout and exposes other prescribed targets', () => {
-  assert.match(nutritionSource, /class="vstrip-readout"><b>'\+fmtKmVal/,
-    'the running week is a readout, not a sentence');
-  assert.match(nutritionSource, /otherTargets\.push\(\(row\.sport==='cycling'\?'Ride ':'Swim '\)\+coachDistanceText/,
-    'other prescribed sport targets stay visible on a separate wrapping line');
-  assert.match(nutritionSource, /sport==='cycling'\?'ride':'swim'/,
-    'an unprescribed sport that was logged is still named without inventing a target');
+test('the collapsed head gives every prescription the same readout treatment', () => {
+  assert.match(nutritionSource, /function collapsedVolumeHeadlineHtml\(rows\)/,
+    'the collapsed summary has one authority-aware renderer');
+  assert.match(nutritionSource, /row\.target\?'target':'plan'/,
+    'coach prescriptions are named as targets while the calculated running fallback stays a plan');
+  assert.match(nutritionSource, /class="vstrip-logged"/,
+    'unprescribed Strava activity stays in a clearly secondary logged line');
   assert.ok(!/\.vstrip-sum\{[^}]*max-width/.test(css),
     'nothing in the head may be clamped to a width that cuts a figure in half');
-  assert.ok(!/\.vstrip-(?:sum|title|also)\{[^}]*text-overflow:ellipsis/.test(css),
+  assert.ok(!/\.vstrip-(?:sum|title|logged)\{[^}]*text-overflow:ellipsis/.test(css),
     'the head has room for its own text now, so nothing there needs an ellipsis');
 });
 

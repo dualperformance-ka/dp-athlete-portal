@@ -1,13 +1,13 @@
-const CACHE_NAME = 'dp-athlete-v237'; // v237: mobile Week safe areas, target-ring layout, and collapsed target summaries
+const CACHE_NAME = 'dp-athlete-v238'; // v238: equal coach-target heroes and secondary Strava-only activity
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=188', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=189', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=128',
   '/js/02-login-goals.js?v=122',
   '/js/03-nav-nudges.js?v=129',
   '/js/04-checkin.js?v=104',
   '/js/05-handbook.js?v=89',
-  '/js/06-nutrition.js?v=109',
+  '/js/06-nutrition.js?v=110',
   '/js/07-progress.js?v=94',
   '/js/strava-match.js?v=8',
   '/js/08-training-interval-rest.js?v=1',
