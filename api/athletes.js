@@ -14,19 +14,30 @@
 //   POST { action:'update', code, fields:{ active?, name?, coach?, start_date?,
 //          race_target?, notes?, ghl_contact_id? } }                     [admin]
 //   POST { action:'archive', code }    → sets archived_at + active=false. [admin]
+//   POST { action:'disconnect-strava', code, confirmed:true }
+//                                      → revokes an inactive athlete's
+//                                        Strava access and purges its cache. [admin]
 //        NEVER hard-deletes: athlete_data, planned_sessions etc are keyed by
 //        code and history must survive.
 //
 // Auth: mutations require header  x-admin-key === process.env.ADMIN_KEY
 // (fail-closed if ADMIN_KEY is unset). Reads (roster/validate) are open, same
 // as the other portal endpoints.
-// Env: SUPABASE_URL, SUPABASE_SERVICE_KEY (already configured), ADMIN_KEY (new),
-//      PORTAL_URL (optional, defaults to the production portal).
+// Env: SUPABASE_URL, SUPABASE_SERVICE_KEY, ADMIN_KEY, STRAVA_CLIENT_ID,
+//      STRAVA_CLIENT_SECRET (already configured), PORTAL_URL (optional,
+//      defaults to the production portal).
 
 import crypto from 'crypto';
 import { select, insert, patch } from './_lib/supabase-rest.js';
 import { normCode } from './_lib/roster.js';
 import { allowPortalRequest } from './_lib/http.js';
+import { deauthorize, refreshStravaToken } from './_lib/strava-client.js';
+import {
+  deleteAllActivities,
+  deleteTokens,
+  getTokens,
+  mergeTokens,
+} from './_lib/strava-store.js';
 
 const PORTAL_URL = (process.env.PORTAL_URL || 'https://dp-athleteportal.vercel.app').replace(/\/+$/, '');
 
@@ -205,6 +216,93 @@ async function handleArchive(payload) {
   return { ok: true, athlete: rows[0] };
 }
 
+/**
+ * Admin-only escape hatch for an inactive athlete who can no longer use the
+ * athlete-owned disconnect control. Strava counts an authorization against the
+ * app's athlete capacity until Strava itself is deauthorized, so deleting the
+ * Supabase row first would lose the only credential capable of freeing a slot.
+ *
+ * Exported with dependency injection so the destructive ordering is testable:
+ * refresh (when needed) -> revoke at Strava -> purge local cache and tokens.
+ */
+export async function disconnectInactiveAthleteStrava(payload, deps = {}) {
+  const code = normCode(payload.code);
+  if (!code) throw httpError(400, 'code is required');
+  if (payload.confirmed !== true) throw httpError(400, 'confirmed must be true');
+
+  const {
+    findAthlete = async (athleteCode) => {
+      const rows = await select('athletes', {
+        code: `eq.${athleteCode}`,
+        select: 'code,name,active,archived_at',
+        limit: 1,
+      });
+      return (rows || [])[0] || null;
+    },
+    readTokens = getTokens,
+    refreshToken = refreshStravaToken,
+    saveTokenChanges = mergeTokens,
+    revoke = deauthorize,
+    purgeActivities = deleteAllActivities,
+    purgeTokens = deleteTokens,
+    nowSeconds = () => Math.floor(Date.now() / 1000),
+  } = deps;
+
+  const athlete = await findAthlete(code);
+  if (!athlete) throw httpError(404, `Unknown athlete code: ${code}`);
+  if (athlete.active === true) {
+    throw httpError(409, 'Only an inactive athlete can be disconnected by an administrator');
+  }
+
+  const stored = await readTokens(code);
+  if (!stored || (!stored.access_token && !stored.refresh_token)) {
+    await purgeActivities(code);
+    await purgeTokens(code);
+    return { ok: true, code, disconnected: true, alreadyDisconnected: true };
+  }
+
+  let accessToken = stored.access_token || '';
+  let refreshed = false;
+  const expiresAt = Number(stored.expires_at || 0);
+
+  // Refresh before deauthorizing when the access token is expired (or inside
+  // the same five-minute safety buffer used by the athlete read path). Strava
+  // rejects an expired access token with 401; deleting locally after that 401
+  // would leave the authorization consuming athlete capacity with no token to
+  // revoke it later.
+  if (!accessToken || !expiresAt || nowSeconds() > expiresAt - 300) {
+    if (!stored.refresh_token) throw httpError(409, 'Strava refresh token is missing; nothing was deleted');
+    const next = await refreshToken(stored.refresh_token);
+    accessToken = next.access_token || '';
+    if (!accessToken) throw httpError(502, 'Strava refresh returned no access token; nothing was deleted');
+    await saveTokenChanges(code, {
+      access_token: accessToken,
+      refresh_token: next.refresh_token || stored.refresh_token,
+      expires_at: next.expires_at,
+      ...(next.scope ? { scope: next.scope } : {}),
+    });
+    refreshed = true;
+  }
+
+  // Do not catch this error. A transient Strava failure must leave the local
+  // credential intact so the revocation can be retried instead of permanently
+  // marooning an athlete-capacity slot.
+  await revoke(accessToken);
+  await purgeActivities(code);
+  await purgeTokens(code);
+
+  return { ok: true, code, disconnected: true, refreshed };
+}
+
+/**
+ * Admin-only escape hatch for an inactive athlete who can no longer use the
+ * athlete-owned disconnect control. Strava counts an authorization against the
+ * app's athlete capacity until Strava itself is deauthorized, so deleting the
+ * Supabase row first would lose the only credential capable of freeing a slot.
+ *
+ * Exported with dependency injection so the destructive ordering is testable:
+ * refresh (when needed) -> revoke at Strava -> purge local cache and tokens.
+ */
 function httpError(status, message) {
   const e = new Error(message);
   e.status = status;
@@ -233,13 +331,16 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const payload = req.body || {};
       const action = String(payload.action || '').trim();
-      if (!['add', 'update', 'archive'].includes(action)) {
+      if (!['add', 'update', 'archive', 'disconnect-strava'].includes(action)) {
         return send(res, 400, { ok: false, error: `Unknown action: ${action}` });
       }
       if (!requireAdmin(req, res)) return; // response already sent
       if (action === 'add') return send(res, 200, await handleAdd(payload));
       if (action === 'update') return send(res, 200, await handleUpdate(payload));
       if (action === 'archive') return send(res, 200, await handleArchive(payload));
+      if (action === 'disconnect-strava') {
+        return send(res, 200, await disconnectInactiveAthleteStrava(payload));
+      }
     }
 
     return send(res, 405, { ok: false, error: 'Method not allowed' });
