@@ -43,6 +43,24 @@ const WEEKS = [
   { week: 12, planned: null, actual: null, isFuture: true },
 ];
 
+const TARGET_WEEK = {
+  week: 1,
+  planned: 28.8,
+  actual: 13.2,
+  isCurrent: true,
+  endISO: '2099-10-04',
+  coachTargets: [
+    { sport: 'running', distanceTargetMetres: 28800, sessionTarget: 4, durationTargetMinutes: 150, source: 'coach', locked: true },
+    { sport: 'cycling', distanceTargetMetres: 143000, sessionTarget: 4, durationTargetMinutes: 360, source: 'coach', locked: true },
+    { sport: 'swimming', distanceTargetMetres: 4000, sessionTarget: 3, durationTargetMinutes: 135, source: 'coach', locked: true },
+  ],
+  actualBySport: {
+    running: { distanceMetres: 13200, sessions: 1, durationMinutes: 60 },
+    cycling: { distanceMetres: 0, sessions: 0, durationMinutes: 0 },
+    swimming: { distanceMetres: 0, sessions: 0, durationMinutes: 0 },
+  },
+};
+
 async function login(page) {
   await page.addInitScript(() => {
     window.supabase = { createClient: () => ({ auth: {
@@ -76,7 +94,7 @@ async function login(page) {
 // Mount the dropdown exactly as Training mounts it — same card classes, same
 // width — and open it, because a collapsed body measures zero and would pass
 // any fit assertion by being invisible.
-async function mountStrip(page, { open }) {
+async function mountStrip(page, { open, weeks = WEEKS }) {
   await page.evaluate(({ weeks, open }) => {
     const host = document.getElementById('fitProbe') || document.createElement('div');
     host.id = 'fitProbe';
@@ -88,7 +106,7 @@ async function mountStrip(page, { open }) {
     window.selectedVolumeWeek = () => weeks.find(w => w.isCurrent);
     host.innerHTML = window.volumeStripHtml({ weeks, targetState: 'ok' }, 'training', true);
     if (!document.getElementById('fitProbe')) document.body.appendChild(host);
-  }, { weeks: WEEKS, open });
+  }, { weeks, open });
 }
 
 // A node clips its own text when the text is wider than the box and the box is
@@ -99,7 +117,7 @@ async function clippedFigures(page) {
     const probe = document.getElementById('fitProbe');
     const offenders = [];
     probe.querySelectorAll([
-      '.vstrip-delta', '.vstrip-km', '.vstrip-wk', '.vstrip-sum', '.vstrip-title', '.vstrip-readout',
+      '.vstrip-delta', '.vstrip-km', '.vstrip-wk', '.vstrip-sum', '.vstrip-title', '.vstrip-readout', '.vstrip-targets span',
       '.sport-target-distance', '.sport-target-distance strong', '.sport-target-name',
       '.sport-target-status', '.sport-target-lock', '.sport-target-record', '.sport-target-clock',
       '.sport-week-clock', '.sport-logged-label', '.sport-logged-sport', '.sport-logged-row b',
@@ -186,4 +204,111 @@ test('opening the drawer never lands on half a figure', async ({ page }) => {
   expect(Math.abs(offset.nearest), `left edge sits ${offset.nearest}px into a column`).toBeLessThan(1.5);
   // ...and the week the drawer was opened to read is fully in view.
   expect(offset.liveVisible, 'the live week should be wholly visible on open').toBe(true);
+});
+
+for (const viewport of [{ width: 428, height: 926 }, { width: 390, height: 844 }]) {
+  test(`weekly target rings and details stay separated at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await login(page);
+    await mountStrip(page, { open: true, weeks: [TARGET_WEEK] });
+
+    const layout = await page.locator('#fitProbe .sport-target').evaluateAll((sports) => sports.map((sport) => {
+      const box = (selector) => sport.querySelector(selector).getBoundingClientRect();
+      const ring = box('.sport-target-track');
+      const value = box('.sport-target-distance strong');
+      const caption = box('.sport-target-distance span');
+      const head = box('.sport-target-head');
+      return {
+        valueOffsetX: Math.abs((value.left + value.width / 2) - (ring.left + ring.width / 2)),
+        valueOffsetY: Math.abs((value.top + value.height / 2) - (ring.top + ring.height / 2)),
+        captionGap: caption.top - ring.bottom,
+        detailGap: head.left - ring.right,
+        headTop: head.top,
+        ringBottom: ring.bottom,
+      };
+    }));
+
+    expect(layout).toHaveLength(3);
+    for (const sport of layout) {
+      expect(sport.valueOffsetX, 'ring value should be horizontally centred').toBeLessThan(1.5);
+      expect(sport.valueOffsetY, 'ring value should be vertically centred').toBeLessThan(1.5);
+      expect(sport.captionGap, 'ring caption should sit below the ring').toBeGreaterThanOrEqual(7);
+      expect(sport.detailGap, 'sport facts should align beside the ring').toBeGreaterThanOrEqual(12);
+      expect(sport.headTop, 'sport heading should begin alongside the ring').toBeLessThan(sport.ringBottom);
+    }
+    expect(await clippedFigures(page), 'target labels and values should fit without clipping').toEqual([]);
+    expect(await horizontalOverflow(page), 'target rows should not create horizontal overflow').toEqual([]);
+  });
+}
+
+test('the collapsed weekly banner includes every prescribed sport target', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await mountStrip(page, { open: false, weeks: [TARGET_WEEK] });
+  const banner = page.locator('#fitProbe .vstrip-toggle');
+  await expect(banner).toContainText('13.2');
+  await expect(banner).toContainText('28.8 km');
+  await expect(banner).toContainText('Ride 143 km');
+  await expect(banner).toContainText('Swim 4000 m');
+  expect(await clippedFigures(page), 'collapsed target values should fit without clipping').toEqual([]);
+});
+
+test('the floating mobile header reserves its safe area and clears the Week heading', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--mobile-safe-top', '24px');
+    document.body.classList.add('portal-header-scrolled');
+  });
+  const clearance = await page.evaluate(() => {
+    const header = document.querySelector('#portalScreen > header').getBoundingClientRect();
+    const intro = document.querySelector('#tab-weekly > .page-intro').getBoundingClientRect();
+    const logo = document.querySelector('#portalScreen > header .logo').getBoundingClientRect();
+    return {
+      safeInset: logo.top - header.top,
+      contentGap: intro.top - header.bottom,
+    };
+  });
+  expect(clearance.safeInset, 'header controls should clear the iPhone top safe area').toBeGreaterThanOrEqual(24);
+  expect(clearance.contentGap, 'the Week heading should start below the floating header').toBeGreaterThanOrEqual(8);
+});
+
+test('the final Week content scrolls clear of the safe-area bottom navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--mobile-safe-bottom', '20px');
+    const weekly = document.getElementById('tab-weekly');
+    weekly.style.minHeight = '1500px';
+    const sentinel = document.createElement('div');
+    sentinel.id = 'weekEndProbe';
+    sentinel.style.cssText = 'height:24px;margin-top:1200px';
+    weekly.appendChild(sentinel);
+  });
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForTimeout(50);
+  const clearance = await page.evaluate(() => {
+    const sentinel = document.getElementById('weekEndProbe');
+    const end = sentinel.getBoundingClientRect();
+    const nav = document.querySelector('.mobile-nav').getBoundingClientRect();
+    return { gap: nav.top - end.bottom, navHeight: nav.height };
+  });
+  expect(clearance.navHeight, 'bottom safe area should be part of the fixed navigation height').toBeGreaterThanOrEqual(92);
+  expect(clearance.gap, 'the last Week content should remain visible above the navigation').toBeGreaterThanOrEqual(24);
+});
+
+test('desktop keeps the three-column weekly target layout', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page);
+  await mountStrip(page, { open: true, weeks: [TARGET_WEEK] });
+  const rows = await page.locator('#fitProbe .sport-target').evaluateAll((sports) => sports.map((sport) => {
+    const box = sport.getBoundingClientRect();
+    return { left: box.left, top: box.top, width: box.width };
+  }));
+  expect(rows).toHaveLength(3);
+  expect(Math.max(...rows.map(row => row.top)) - Math.min(...rows.map(row => row.top))).toBeLessThan(2);
+  expect(rows[1].left).toBeGreaterThan(rows[0].left + rows[0].width - 2);
+  expect(rows[2].left).toBeGreaterThan(rows[1].left + rows[1].width - 2);
 });

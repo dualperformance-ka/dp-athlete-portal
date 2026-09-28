@@ -33,7 +33,10 @@ test('phone, tablet, and desktop expose the same five destinations in the same o
   }
   assert.match(mobileNavMarkup(), /class="[^"]*mobile-nav-log[^"]*"[^>]+data-mobile-tab="log"/);
   assert.match(styles, /grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
-  assert.match(styles, /--bottom-bar-h:calc\(72px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(styles, /--mobile-safe-bottom:env\(safe-area-inset-bottom,0px\)/);
+  assert.match(styles, /--bottom-bar-h:calc\(72px \+ var\(--mobile-safe-bottom\)\)/);
+  assert.match(styles, /\.tab-content\{padding-bottom:calc\(var\(--bottom-bar-h\) \+ 118px\)\}/,
+    'page content should clear the fixed navigation and its safe area');
   assert.match(styles, /--railw:248px/);
 });
 
