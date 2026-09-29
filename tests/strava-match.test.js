@@ -10,6 +10,7 @@ import {
   combineStravaActivities,
   classifyPrescribedIntensity,
   matchActivityToSession,
+  matchRideActivityToSession,
   matchSwimActivityToSession,
   stravaActivityKey,
 } from '../public/js/strava-match.js';
@@ -40,6 +41,35 @@ const swim = (id, metres, extra = {}) => ({
   distance: metres,
   moving_time: 1800,
   ...extra,
+});
+
+const ride = (id, km, extra = {}) => ({
+  id,
+  sport_type: 'Ride',
+  start_date_local: '2026-08-04T06:00:00',
+  distance: km * 1000,
+  moving_time: 1800,
+  ...extra,
+});
+
+test('a unique same-day ride matches its scheduled cycling session', () => {
+  const result = matchRideActivityToSession({ id: 'ride-easy', date: session.date }, [ride(40, 24), run(41, 8)]);
+  assert.equal(result.matched, true);
+  assert.equal(result.activity.id, 40);
+  assert.equal(result.confidence, 'high');
+});
+
+test('ride matching excludes other-day and already claimed rides', () => {
+  const otherDay = ride(42, 24, { start_date_local: '2026-08-05T06:00:00' });
+  assert.equal(matchRideActivityToSession({ date: session.date }, [otherDay]).matched, false);
+  assert.equal(matchRideActivityToSession({ date: session.date }, [ride(43, 24)], { claimedActivityIds: ['43'] }).matched, false);
+});
+
+test('multiple same-day rides require athlete confirmation', () => {
+  const result = matchRideActivityToSession({ date: session.date }, [ride(44, 10), ride(45, 24)], { sessionCount: 2 });
+  assert.equal(result.matched, true);
+  assert.equal(result.confidence, 'low');
+  assert.deepEqual(result.reasons, ['ambiguous_ride_match']);
 });
 
 test('a unique same-day swim matches its scheduled technique session', () => {
