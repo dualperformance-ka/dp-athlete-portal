@@ -16,7 +16,7 @@ const APP_SHELL = [
   '/js/08-strength-engine.js?v=4',
   '/js/08-training-run.js?v=1',
   '/js/08-training.js?v=158',
-  '/js/09-logging.js?v=132',
+  '/js/09-logging.js?v=133',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=111',
   '/login.js?v=50', '/icons.css?v=4',
