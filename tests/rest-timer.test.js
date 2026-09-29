@@ -107,6 +107,14 @@ function timerContext(options = {}) {
 // The wake lock is requested through a promise, so let the microtask queue drain.
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+test('a disabled rest timer explains why a set will not start the countdown', () => {
+  const { context, stored, toasts } = timerContext();
+  stored.set('dp_rest_timer_enabled', 'false');
+  context.startRest(0, 1, 'Lat Pulldown');
+  assert.deepEqual(toasts, ['Rest timer is off · turn it on in Log your sets']);
+  assert.equal(stored.has('dp_rest_timer_TEST'), false);
+});
+
 test('visible rest timer finishes with an exact in-app cue for the right exercise', () => {
   const { context, notifications, stored, toasts, vibrations } = timerContext();
 
