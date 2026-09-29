@@ -587,7 +587,7 @@ function buildCard(s,i){
   h+='<div class="scb" id="scb_'+i+'">';
   // A completed Strava activity is shown in its sport's session card. The
   // attribution strip avoids repeating logged run/swim details in the body.
-  var _stravaSport=type==='run'||type==='swim';
+  var _stravaSport=type==='run'||type==='swim'||type==='ride';
   var _heroShown=_stravaSport&&logs[s.id]&&logs[s.id].__stravaMatch&&isSessionLogged(s.id);
   if(_stravaSport&&typeof stravaMatchHtml==='function'&&!_heroShown)h+=stravaMatchHtml(s,i,'session');
   h+=buildBody(s,i,type)+'</div></div>';
