@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v240'; // v240: preserve rest-timer feedback with safe auth restoration
+const CACHE_NAME = 'dp-athlete-v241'; // v241: show swim and cycling prescriptions in session detail
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=189', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=190', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=129',
   '/js/02-login-goals.js?v=122',
@@ -15,7 +15,7 @@ const APP_SHELL = [
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
   '/js/08-training-run.js?v=1',
-  '/js/08-training.js?v=158',
+  '/js/08-training.js?v=160',
   '/js/09-logging.js?v=135',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=111',

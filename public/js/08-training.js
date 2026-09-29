@@ -981,6 +981,12 @@ function renderTodaySection(){
         }
       }else if(type==='strength'){
         html+='<div class="todaytarget"><div class="label">Primary target</div><div class="value">'+esc(displayName)+'</div><div class="desc">Use your previous efforts as a guide, then log what you actually complete today.</div><div class="session-why"><svg class="icon"><use href="#i-bulb"/></svg><div><span>Why it matters</span>Build durable strength that supports running economy, resilience and confident progression.</div></div></div>';
+      }else if(type==='swim'||type==='ride'){
+        var _enduranceLabel=type==='swim'?'Swim workout':'Ride workout';
+        var _endurancePlan=String(s.runDetails||'').trim();
+        html+='<div class="todaytarget"><div class="label">'+_enduranceLabel+'</div><div class="value">'+esc(displayName)+'</div>';
+        if(_endurancePlan)html+='<div class="desc">'+esc(_endurancePlan)+'</div>';
+        html+='</div>';
       }else if(type==='note'){
         var _noteInstr=s.runDetails||(_sessionOverrides[s.id]&&_sessionOverrides[s.id].notes)||'Train as you normally would and log what you did.';
         html+='<div class="todaytarget"><div class="label">Discovery week</div><div class="value">'+esc(displayName)+'</div><div class="desc">'+esc(_noteInstr)+'</div></div>';
@@ -2493,6 +2499,41 @@ function setGymSubmissionStatus(i,state){
   if(typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(i);
 }
 
+function endurancePrescriptionHtml(s,type){
+  var sport=type==='swim'?'Swim':'Ride',override=_sessionOverrides[s.id]||{};
+  var prescription=String(s.runDetails||'').trim();
+  var note=String(override.notes||'').trim();
+  var parts=prescription.split(/\.\s+(?=[A-Z0-9])/).map(function(part){return part.trim().replace(/\.$/,'');}).filter(Boolean);
+  var entry=logs[s.id]||{},activity=entry.__stravaMatch&&entry.__stravaMatch.activity;
+  var h='<div class="endurance-details '+type+'">';
+  if(activity&&isSessionLogged(s.id)&&typeof stravaActivitySummary==='function'){
+    var summary=stravaActivitySummary(activity),distance=type==='swim'?Math.round(summary.distance*1000)+' m':summary.distance.toFixed(1).replace(/\.0$/,'')+' km';
+    h+='<section class="endurance-result" aria-label="Completed '+sport.toLowerCase()+' from Strava">';
+    h+='<span class="endurance-result-source">'+(typeof stravaLogoSvg==='function'?stravaLogoSvg():'')+'Synced from Strava</span>';
+    h+='<div><strong>'+esc(distance)+'</strong><span>'+esc(Math.round(summary.duration)+' min')+'</span></div>';
+    h+='</section>';
+  }
+  h+='<section class="endurance-prescription" aria-label="'+sport+' workout">';
+  h+='<div class="endurance-prescription-head"><div><span>Coach prescription</span><strong>'+sport+' workout</strong></div><div class="endurance-prescription-tags">';
+  if(s.intensity)h+='<span>'+esc(s.intensity)+'</span>';
+  if(s.estimatedMinutes)h+='<span>'+esc(s.estimatedMinutes)+' min</span>';
+  h+='</div></div>';
+  if(parts.length>1){
+    h+='<ol class="endurance-steps">';
+    parts.forEach(function(part){h+='<li><span>'+esc(part)+'</span></li>';});
+    h+='</ol>';
+  }else if(prescription){
+    h+='<p class="endurance-prescription-copy">'+esc(prescription)+'</p>';
+  }else{
+    h+='<p class="endurance-prescription-empty">No workout instructions have been added to this session yet.</p>';
+  }
+  if(note&&note!==prescription){
+    h+='<aside class="endurance-coach-note"><span>Coach note</span><p>'+esc(note)+'</p></aside>';
+  }
+  h+='</section></div>';
+  return h;
+}
+
 function buildBody(s,i,type){
   var h='';
   if(type==='run'){
@@ -2677,6 +2718,8 @@ function buildBody(s,i,type){
     }
     h+=runPagerHtml(i,pages);
     h+='</div>'; // end run-details
+  }else if(type==='swim'||type==='ride'){
+    h+=endurancePrescriptionHtml(s,type);
   }else if(type==='strength'){
 
     var splitKey=splitKeyForSession(s,'Upper A');
@@ -3043,7 +3086,9 @@ function startFocusedSession(i){
     scroll.appendChild(card);
   }
   card.classList.add('in-focus-overlay');
-  ov.classList.toggle('is-run',!!(sessions[i]&&getType(sessions[i])==='run'));
+  var focusedType=sessions[i]?getType(sessions[i]):'';
+  ov.classList.toggle('is-run',focusedType==='run');
+  ov.classList.toggle('is-endurance',focusedType==='swim'||focusedType==='ride');
   var nameEl=document.getElementById('focusOverlayName');if(nameEl)nameEl.textContent=(sessions[i]&&sessions[i].name)||'Workout';
   document.body.classList.add('focus-session-open');
   void ov.offsetHeight;ov.classList.add('open');scroll.scrollTop=0;_exlRefreshList(i);_exlOpenUpNext(i);refreshFocusedSessionChrome(i);
@@ -3074,7 +3119,7 @@ function closeFocusedSession(){
       else if(ph&&ph.parentNode){ph.parentNode.insertBefore(card,ph);ph.parentNode.removeChild(ph);}
     }
   }
-  var ov=document.getElementById('focusOverlay');if(ov)ov.classList.remove('open','has-open-exercise');
+  var ov=document.getElementById('focusOverlay');if(ov)ov.classList.remove('open','has-open-exercise','is-run','is-endurance');
   document.body.classList.remove('focus-session-open');focusedSessionIndex=null;focusedSessionGenerated=false;focusedSessionReturnFocus=null;
   if(returnFocus&&typeof returnFocus.focus==='function')setTimeout(function(){returnFocus.focus();},180);
 }
