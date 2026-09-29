@@ -444,7 +444,7 @@ function stravaMatchableSession(session){
     resolvedMeta:meta,coachOverride:(typeof _sessionOverrides!=='undefined'&&_sessionOverrides[session.id])||null
   });
 }
-function stravaSessionSportLabel(session){return getType(session)==='swim'?'Swim':'Run';}
+function stravaSessionSportLabel(session){var type=getType(session);return type==='swim'?'Swim':type==='ride'?'Ride':'Run';}
 function stravaLogoSvg(){return '<svg width="11" height="11" viewBox="0 0 24 24" fill="#FC4C02" aria-hidden="true"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg>';}
 function stravaMatchHtml(session,i,context){
   var match=getStravaSessionMatch(session);
@@ -454,13 +454,13 @@ function stravaMatchHtml(session,i,context){
     }
     return '';
   }
-  var swim=getType(session)==='swim',sport=swim?'swim':'run',sum=stravaActivitySummary(match.activity),distance=swim?Math.round(sum.distance*1000)+' m':sum.distance.toFixed(1).replace(/\.0$/,'')+' km',minutes=Math.round(sum.duration),runCount=stravaMatchRunCount(match),runLabel=runCount===1?sport:(runCount+' '+sport+'s');
+  var sessionType=getType(session),swim=sessionType==='swim',cycling=sessionType==='ride',sport=swim?'swim':cycling?'ride':'run',sum=stravaActivitySummary(match.activity),distance=swim?Math.round(sum.distance*1000)+' m':sum.distance.toFixed(1).replace(/\.0$/,'')+' km',minutes=Math.round(sum.duration),runCount=stravaMatchRunCount(match),runLabel=runCount===1?sport:(runCount+' '+sport+'s');
   if(match.confidence==='low'&&!isSessionLogged(session.id)){
     // "did you do the intervals?" was wrong whenever the prescription was a
     // tempo, hill or threshold run rather than reps — and wrong every time for
     // the easy-run-with-strides case this used to misfire on. Ask about the
     // session, which holds whatever the prescription was.
-    var prompt=stravaMatchHasReason(match,'intensity_below_prescription')?'This looks easier than the session you had planned — did you complete the full session?':('Looks like you '+(swim?'swam':'ran')+' this — '+distance+', '+minutes+' min. Mark it done?');
+    var prompt=stravaMatchHasReason(match,'intensity_below_prescription')?'This looks easier than the session you had planned — did you complete the full session?':('Looks like you '+(swim?'swam':cycling?'rode':'ran')+' this — '+distance+', '+minutes+' min. Mark it done?');
     return '<div class="strava-match-suggestion '+(context||'')+'">'+stravaLogoSvg()+'<span>'+prompt+'</span><button type="button" onclick="event.stopPropagation();confirmStravaMatch('+i+')">Confirm</button></div>';
   }
   if(!isSessionLogged(session.id))return '';
@@ -530,7 +530,7 @@ async function refreshStravaSessionMatches(){
   var strava=null;try{strava=window._stravaLoadPromise?await window._stravaLoadPromise:null;}catch(e){}
   window._stravaConnectedNow=!!(strava&&strava.connected);
   if(!strava||!strava.connected||strava.activitiesAvailable===false||!window.matchActivityToSession){stravaSessionMatches={};paintStravaMatches();return;}
-  var activities=strava.activities||[],runSessions=(allSessions||[]).filter(function(s){return getType(s)==='run'&&s.date;}),swimSessions=(allSessions||[]).filter(function(s){return getType(s)==='swim'&&s.date;}),trackable=runSessions.concat(swimSessions),claimed=new Set(),nextMatches={};
+  var activities=strava.activities||[],runSessions=(allSessions||[]).filter(function(s){return getType(s)==='run'&&s.date;}),swimSessions=(allSessions||[]).filter(function(s){return getType(s)==='swim'&&s.date;}),rideSessions=(allSessions||[]).filter(function(s){return getType(s)==='ride'&&s.date;}),trackable=runSessions.concat(swimSessions,rideSessions),claimed=new Set(),nextMatches={};
   trackable.forEach(function(s){
     var entry=logs[s.id],meta=entry&&entry.__stravaMatch;if(!meta)return;
     var activityKeys=(meta.activityKeys||(meta.activity&&meta.activity.source_activity_ids)||[meta.activityKey]).map(String);
@@ -574,6 +574,20 @@ async function refreshStravaSessionMatches(){
     if(!bestSwim)break;
     nextMatches[String(bestSwim.session.id)]=bestSwim.match;claimStravaMatch(bestSwim.match,claimed);
     remainingSwims=remainingSwims.filter(function(s){return s.id!==bestSwim.session.id;});
+  }
+  var remainingRides=rideSessions.filter(function(s){return !nextMatches[String(s.id)]&&!isSessionLogged(s.id)&&s.status!=='Completed';});
+  while(remainingRides.length&&window.matchRideActivityToSession){
+    var bestRide=null;
+    remainingRides.forEach(function(s){
+      var count=remainingRides.filter(function(other){return other.date===s.date;}).length;
+      var match=window.matchRideActivityToSession(s,activities,{claimedActivityIds:claimed,rejections:stravaMatchRejections,sessionCount:count});
+      if(!match.matched)return;
+      var candidate={session:s,match:match};
+      if(!bestRide||(match.confidence==='high'&&bestRide.match.confidence!=='high'))bestRide=candidate;
+    });
+    if(!bestRide)break;
+    nextMatches[String(bestRide.session.id)]=bestRide.match;claimStravaMatch(bestRide.match,claimed);
+    remainingRides=remainingRides.filter(function(s){return s.id!==bestRide.session.id;});
   }
   stravaSessionMatches=nextMatches;
   for(var x=0;x<trackable.length;x++){
