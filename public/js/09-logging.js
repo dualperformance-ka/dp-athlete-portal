@@ -195,7 +195,7 @@ function runRestTimer(i,ei){
   if(_rest.deadline)_rest.iv=setInterval(function(){renderRestTimer(i,ei);},500);
 }
 function startRest(i,ei,exerciseName){
-  if(!restTimerEnabled())return;
+  if(!restTimerEnabled()){if(typeof showToast==='function')showToast('Rest timer is off · turn it on in Log your sets');return;}
   var el=document.getElementById('rest_'+i+'_'+ei);if(!el) return;
   var total=parseInt(el.getAttribute('data-rest'),10)||0;if(total<=0) return;
   if(_rest.iv){clearInterval(_rest.iv);_rest.iv=null;}
