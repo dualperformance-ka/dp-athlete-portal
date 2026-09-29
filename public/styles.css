@@ -620,6 +620,29 @@ body.sheet-open{overflow:hidden}
 
 /* Running-specific expanded details */
 .run-details{padding:12px 14px;background:var(--surface2);border-top:1px solid var(--border);margin-top:0}
+.endurance-details{display:flex;flex-direction:column;gap:12px;padding:16px 14px 24px;background:var(--surface2);border-top:1px solid var(--border)}
+.endurance-result,.endurance-prescription{border:1px solid var(--border-mid);border-radius:var(--radius-lg);background:var(--surface);overflow:hidden}
+.endurance-result{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px}
+.endurance-result-source{display:inline-flex;align-items:center;gap:7px;font:600 var(--font-xs) var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--strava-text)}
+.endurance-result>div{display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+.endurance-result strong{font-family:var(--exl-display);font-size:var(--font-xl);font-weight:400;color:var(--text)}
+.endurance-result>div span{font:500 var(--font-xs) var(--mono);color:var(--muted)}
+.endurance-prescription-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.015)}
+.endurance-prescription-head>div:first-child{display:flex;flex-direction:column;gap:3px}
+.endurance-prescription-head>div:first-child span,.endurance-coach-note>span{font:600 var(--font-xs) var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--run)}
+.endurance-prescription-head strong{font-family:var(--exl-display);font-size:var(--font-xl);font-weight:400;letter-spacing:.02em;text-transform:uppercase;color:var(--text)}
+.endurance-prescription-tags{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.endurance-prescription-tags span{padding:4px 8px;border-radius:var(--radius-xs);background:var(--surface3);font:600 var(--font-xs) var(--mono);color:var(--muted);white-space:nowrap}
+.endurance-steps{list-style:none;counter-reset:endurance-step;margin:0;padding:4px 16px}
+.endurance-steps li{counter-increment:endurance-step;display:grid;grid-template-columns:28px 1fr;align-items:baseline;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.endurance-steps li:last-child{border-bottom:0}
+.endurance-steps li::before{content:counter(endurance-step,decimal-leading-zero);font:600 var(--font-xs) var(--mono);color:var(--run)}
+.endurance-steps li span,.endurance-prescription-copy{font-size:var(--font-md);font-weight:600;line-height:1.5;color:var(--text)}
+.endurance-prescription-copy,.endurance-prescription-empty{margin:0;padding:16px}
+.endurance-prescription-empty{font:500 var(--font-sm) var(--mono);line-height:1.5;color:var(--muted)}
+.endurance-coach-note{margin:4px 16px 16px;padding:11px 13px;border:1px solid rgba(146,210,237,.18);border-radius:var(--radius-sm);background:rgba(146,210,237,.07)}
+.endurance-coach-note p{margin:5px 0 0;font-size:var(--font-sm);line-height:1.55;color:var(--text)}
+.focus-overlay.is-endurance .exl-key{display:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .chip{font-family:var(--mono);font-size:var(--font-xs);padding:5px 12px;border-radius:var(--radius-2xl);background:var(--surface3);border:1px solid var(--border-mid);color:var(--muted);letter-spacing:.02em}
 
