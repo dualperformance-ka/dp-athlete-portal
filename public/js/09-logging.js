@@ -638,6 +638,10 @@ async function loadSessionLogs(preloaded){
   }catch(e){console.warn('session_logs load failed:',e);}
 }
 function isSessionLogged(sessionId){
+  // Session restoration and logout can briefly leave the old workout UI alive
+  // without an active athlete profile. Treat that state as not submitted rather
+  // than letting a queued UI refresh dereference athlete.code and crash.
+  if(!athlete||!athlete.code) return false;
   if(stravaSessionNeedsManualLog(sessionId)) return false;
   // Primary: in-memory cache (set at save time, or loaded from session_logs on login)
   if(sessionLoggedCache['session_'+athlete.code+'_'+sessionId]) return true;

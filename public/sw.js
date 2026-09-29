@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v238'; // v238: equal coach-target heroes and secondary Strava-only activity
+const CACHE_NAME = 'dp-athlete-v240'; // v240: preserve rest-timer feedback with safe auth restoration
 const APP_SHELL = [
   '/index.html', '/styles.css?v=189', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -16,7 +16,7 @@ const APP_SHELL = [
   '/js/08-strength-engine.js?v=4',
   '/js/08-training-run.js?v=1',
   '/js/08-training.js?v=158',
-  '/js/09-logging.js?v=134',
+  '/js/09-logging.js?v=135',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=111',
   '/login.js?v=50', '/icons.css?v=4',
