@@ -1747,6 +1747,7 @@ function getType(s){
   // "Swim: Technique"). Keep these out of the default run bucket so the
   // calendar, weekly counts, and activity matching use the right sport.
   if(t==='swim'||t==='swimming'||/\b(?:swim|swimming)\b/.test(n))return 'swim';
+  if(t==='ride'||t==='cycling'||t==='bike'||/\b(?:ride|bike|cycling|cycle)\b/.test(n))return 'ride';
   // A coach-built strength session carries its own exercises, so it no longer
   // has to be named after one of the four legacy splits to be recognised.
   // Sessions that also carry run steps stay run-led, as they do today.
@@ -1756,7 +1757,7 @@ function getType(s){
   return 'run';
 }
 function sortSessionsForDisplay(list){
-  var order={run:0,swim:1,strength:2,rest:3};
+  var order={run:0,swim:1,ride:2,strength:3,rest:4};
   return(list||[]).slice().sort(function(a,b){
     var ao=order[getType(a)]!=null?order[getType(a)]:9;
     var bo=order[getType(b)]!=null?order[getType(b)]:9;
