@@ -199,6 +199,14 @@ function classifyExecutedIntensity(activity, threshold) {
   return effort / distanceKm >= threshold ? 'quality' : 'easy';
 }
 
+export function matchSwimActivityToSession(session, activities, opts = {}) {
+  return matchActivityBySportToSession(session, activities, opts, 'swim');
+}
+
+export function matchRideActivityToSession(session, activities, opts = {}) {
+  return matchActivityBySportToSession(session, activities, opts, 'ride');
+}
+
 /**
  * Match one planned run to the closest eligible Strava activity or linked
  * group of activities. Consecutive same-day runs may be combined when the next
@@ -324,7 +332,7 @@ export function matchActivityToSession(session, activities, opts = {}) {
  * date are the reliable signals. Auto-complete only when there is one eligible
  * swim and one pending swim session that day; ambiguous cases require a tap.
  */
-export function matchSwimActivityToSession(session, activities, opts = {}) {
+function matchActivityBySportToSession(session, activities, opts, sport) {
   var sessionDate = String(session && (session.date || session.plannedDate) || '').slice(0, 10);
   if (!sessionDate) return { matched: false, reasons: ['missing_session_date'] };
   var claimed = toKeySet(opts.claimedActivityIds || opts.claimedActivities);
@@ -333,7 +341,8 @@ export function matchSwimActivityToSession(session, activities, opts = {}) {
   var reasons = [];
   (Array.isArray(activities) ? activities : []).forEach(function (activity) {
     var type = String(activity && (activity.sport_type || activity.type) || '').toLowerCase();
-    if (type.indexOf('swim') < 0) { reasons.push('not_swim'); return; }
+    var isSport = sport === 'swim' ? type.indexOf('swim') >= 0 : /ride|bike|cycl/.test(type);
+    if (!isSport) { reasons.push('not_' + sport); return; }
     var activityDate = String(activity && (activity.start_date_local || activity.start_date) || '').slice(0, 10);
     if (activityDate !== sessionDate) { reasons.push('date_mismatch'); return; }
     var key = activityKey(activity);
@@ -354,7 +363,7 @@ export function matchSwimActivityToSession(session, activities, opts = {}) {
     activities: [selected.activity],
     activityKeys: [selected.key],
     confidence: eligible.length === 1 && Number(opts.sessionCount || 1) === 1 ? 'high' : 'low',
-    reasons: eligible.length > 1 || Number(opts.sessionCount || 1) > 1 ? ['ambiguous_swim_match'] : [],
+    reasons: eligible.length > 1 || Number(opts.sessionCount || 1) > 1 ? ['ambiguous_' + sport + '_match'] : [],
   };
 }
 
@@ -363,6 +372,7 @@ export { activityKey as stravaActivityKey };
 if (typeof window !== 'undefined') {
   window.matchActivityToSession = matchActivityToSession;
   window.matchSwimActivityToSession = matchSwimActivityToSession;
+  window.matchRideActivityToSession = matchRideActivityToSession;
   window.stravaActivityKey = activityKey;
   window.stravaMatchActivityKeys = stravaMatchActivityKeys;
   window.combineStravaActivities = combineStravaActivities;
