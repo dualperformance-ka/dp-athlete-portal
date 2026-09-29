@@ -40,7 +40,7 @@
     "sha": "8ed2148e6130"
   },
   "js/07-progress.js": {
-    "version": 94,
+    "version": 104,
     "sha": "8d78156c9f5c"
   },
   "js/strava-match.js": {
@@ -73,7 +73,7 @@
   },
   "js/09-logging.js": {
     "version": 134,
-    "sha": "3c8060bf5172"
+    "sha": "793a250cc93b"
   },
   "accessibility.js": {
     "version": 3,
