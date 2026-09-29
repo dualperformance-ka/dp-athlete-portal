@@ -1,6 +1,86 @@
 {
-  "styles.css":{"version":189,"sha":"522fd5f624eb"},"desktop.css":{"version":14,"sha":"6647be47572b"},"icons.css":{"version":4,"sha":"57dc01b3f1fa"},"login.js":{"version":50,"sha":"fe00d2ebfa23"},
-  "js/01-core.js":{"version":130,"sha":"5e6f06376a4c"},"js/02-login-goals.js":{"version":122,"sha":"4ca6e484fc45"},"js/03-nav-nudges.js":{"version":129,"sha":"b4d42c9c7c8c"},"js/04-checkin.js":{"version":104,"sha":"89eece7c44bc"},"js/05-handbook.js":{"version":89,"sha":"d1ef64cd953c"},"js/06-nutrition.js":{"version":110,"sha":"8ed2148e6130"},"js/07-progress.js":{"version":104,"sha":"8d78156c9f5c"},
-  "js/strava-match.js":{"version":10,"sha":"5f5863229c27"},"js/08-training-interval-rest.js":{"version":1,"sha":"ce83ae62b788"},"js/08-training-muscle-coverage.js":{"version":1,"sha":"31115aaa0715"},"js/08-training-focus.js":{"version":2,"sha":"84c067e46e46"},"js/08-strength-engine.js":{"version":4,"sha":"cafd28bcda3f"},"js/08-training-run.js":{"version":1,"sha":"c7f5512f9291"},
-  "js/08-training.js":{"version":159,"sha":"bef703af8290"},"js/09-logging.js":{"version":132,"sha":"97487b2d3e6f"},"accessibility.js":{"version":3,"sha":"92cf32569619"},"js/10-boot.js":{"version":111,"sha":"a497fd406062"}
+  "styles.css": {
+    "version": 189,
+    "sha": "522fd5f624eb"
+  },
+  "desktop.css": {
+    "version": 14,
+    "sha": "6647be47572b"
+  },
+  "icons.css": {
+    "version": 4,
+    "sha": "57dc01b3f1fa"
+  },
+  "login.js": {
+    "version": 50,
+    "sha": "fe00d2ebfa23"
+  },
+  "js/01-core.js": {
+    "version": 130,
+    "sha": "5e6f06376a4c"
+  },
+  "js/02-login-goals.js": {
+    "version": 122,
+    "sha": "4ca6e484fc45"
+  },
+  "js/03-nav-nudges.js": {
+    "version": 129,
+    "sha": "b4d42c9c7c8c"
+  },
+  "js/04-checkin.js": {
+    "version": 104,
+    "sha": "89eece7c44bc"
+  },
+  "js/05-handbook.js": {
+    "version": 89,
+    "sha": "d1ef64cd953c"
+  },
+  "js/06-nutrition.js": {
+    "version": 110,
+    "sha": "8ed2148e6130"
+  },
+  "js/07-progress.js": {
+    "version": 104,
+    "sha": "8d78156c9f5c"
+  },
+  "js/strava-match.js": {
+    "version": 10,
+    "sha": "5f5863229c27"
+  },
+  "js/08-training-interval-rest.js": {
+    "version": 1,
+    "sha": "ce83ae62b788"
+  },
+  "js/08-training-muscle-coverage.js": {
+    "version": 1,
+    "sha": "31115aaa0715"
+  },
+  "js/08-training-focus.js": {
+    "version": 2,
+    "sha": "84c067e46e46"
+  },
+  "js/08-strength-engine.js": {
+    "version": 4,
+    "sha": "cafd28bcda3f"
+  },
+  "js/08-training-run.js": {
+    "version": 1,
+    "sha": "c7f5512f9291"
+  },
+  "js/08-training.js": {
+    "version": 159,
+    "sha": "bef703af8290"
+  },
+  "js/09-logging.js": {
+    "version": 133,
+    "sha": "dbcdce9ff752"
+  },
+  "accessibility.js": {
+    "version": 3,
+    "sha": "92cf32569619"
+  },
+  "js/10-boot.js": {
+    "version": 111,
+    "sha": "a497fd406062"
+  }
 }
