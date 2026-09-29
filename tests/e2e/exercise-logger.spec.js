@@ -153,6 +153,8 @@ test('ticking a row logs it, advances, and the done exercise closes itself', asy
   await expect(page.locator('#st_0_0_0')).toHaveClass(/\bon\b/);
   await page.waitForTimeout(400);
   await expect(page.locator('#st_0_0_0')).toHaveClass(/\bon\b/);
+  await expect(card.locator('.exl-dock .exl-rest')).toHaveClass(/is-running/);
+  await expect(card.locator('.exl-dock .exl-rest span')).not.toHaveText('1:30');
   await expect(card.locator('.exl-dock-note')).toContainText('Set saved');
   await expect(page.locator('#sr_0_0_1')).toHaveClass(/is-current/);
 
