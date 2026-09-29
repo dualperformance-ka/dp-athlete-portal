@@ -1743,6 +1743,10 @@ function usesLeftRightReps(exerciseName,prescription){
 function getType(s){
   var t=(s.sessionType||'').toLowerCase(),n=(s.name||'').toLowerCase();
   if(t==='note'||t==='notes'||t==='general'||t==='discovery'||t==='custom')return 'note';
+  // Endurance sessions can be explicitly typed or named (for example,
+  // "Swim: Technique"). Keep these out of the default run bucket so the
+  // calendar, weekly counts, and activity matching use the right sport.
+  if(t==='swim'||t==='swimming'||/\b(?:swim|swimming)\b/.test(n))return 'swim';
   // A coach-built strength session carries its own exercises, so it no longer
   // has to be named after one of the four legacy splits to be recognised.
   // Sessions that also carry run steps stay run-led, as they do today.
@@ -1752,7 +1756,7 @@ function getType(s){
   return 'run';
 }
 function sortSessionsForDisplay(list){
-  var order={run:0,strength:1,rest:2};
+  var order={run:0,swim:1,strength:2,rest:3};
   return(list||[]).slice().sort(function(a,b){
     var ao=order[getType(a)]!=null?order[getType(a)]:9;
     var bo=order[getType(b)]!=null?order[getType(b)]:9;
