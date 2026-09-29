@@ -21,6 +21,11 @@ test('swim sessions are classified as swimming instead of defaulting to runs', (
   assert.equal(context.getType({ sessionType: 'Swimming', name: 'Technique' }), 'swim');
 });
 
+test('cycling sessions are classified as rides instead of defaulting to runs', () => {
+  assert.equal(context.getType({ name: 'Ride: Easy' }), 'ride');
+  assert.equal(context.getType({ sessionType: 'Cycling', name: 'Easy' }), 'ride');
+});
+
 test('existing run, strength, rest, and note classification stays intact', () => {
   assert.equal(context.getType({ name: 'Easy Run' }), 'run');
   assert.equal(context.getType({ sessionType: 'Strength', name: 'Session' }), 'strength');
