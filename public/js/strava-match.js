@@ -199,6 +199,14 @@ function classifyExecutedIntensity(activity, threshold) {
   return effort / distanceKm >= threshold ? 'quality' : 'easy';
 }
 
+export function matchSwimActivityToSession(session, activities, opts = {}) {
+  return matchActivityBySportToSession(session, activities, opts, 'swim');
+}
+
+export function matchRideActivityToSession(session, activities, opts = {}) {
+  return matchActivityBySportToSession(session, activities, opts, 'ride');
+}
+
 /**
  * Match one planned run to the closest eligible Strava activity or linked
  * group of activities. Consecutive same-day runs may be combined when the next
@@ -318,10 +326,53 @@ export function matchActivityToSession(session, activities, opts = {}) {
   };
 }
 
+/**
+ * Match a same-day Strava swim to a scheduled swim session. Swim plans in this
+ * portal often prescribe technique rather than a fixed distance, so sport and
+ * date are the reliable signals. Auto-complete only when there is one eligible
+ * swim and one pending swim session that day; ambiguous cases require a tap.
+ */
+function matchActivityBySportToSession(session, activities, opts, sport) {
+  var sessionDate = String(session && (session.date || session.plannedDate) || '').slice(0, 10);
+  if (!sessionDate) return { matched: false, reasons: ['missing_session_date'] };
+  var claimed = toKeySet(opts.claimedActivityIds || opts.claimedActivities);
+  var rejected = rejectedKeys(session, opts);
+  var eligible = [];
+  var reasons = [];
+  (Array.isArray(activities) ? activities : []).forEach(function (activity) {
+    var type = String(activity && (activity.sport_type || activity.type) || '').toLowerCase();
+    var isSport = sport === 'swim' ? type.indexOf('swim') >= 0 : /ride|bike|cycl/.test(type);
+    if (!isSport) { reasons.push('not_' + sport); return; }
+    var activityDate = String(activity && (activity.start_date_local || activity.start_date) || '').slice(0, 10);
+    if (activityDate !== sessionDate) { reasons.push('date_mismatch'); return; }
+    var key = activityKey(activity);
+    if (claimed.has(key)) { reasons.push('already_claimed'); return; }
+    if (rejected.has(key)) { reasons.push('rejected'); return; }
+    eligible.push({ activity: activity, key: key });
+  });
+  if (!eligible.length) return { matched: false, reasons: Array.from(new Set(reasons)) };
+  eligible.sort(function (a, b) {
+    return String(a.activity.start_date_local || a.activity.start_date || '').localeCompare(
+      String(b.activity.start_date_local || b.activity.start_date || '')
+    );
+  });
+  var selected = eligible[0];
+  return {
+    matched: true,
+    activity: selected.activity,
+    activities: [selected.activity],
+    activityKeys: [selected.key],
+    confidence: eligible.length === 1 && Number(opts.sessionCount || 1) === 1 ? 'high' : 'low',
+    reasons: eligible.length > 1 || Number(opts.sessionCount || 1) > 1 ? ['ambiguous_' + sport + '_match'] : [],
+  };
+}
+
 export { activityKey as stravaActivityKey };
 
 if (typeof window !== 'undefined') {
   window.matchActivityToSession = matchActivityToSession;
+  window.matchSwimActivityToSession = matchSwimActivityToSession;
+  window.matchRideActivityToSession = matchRideActivityToSession;
   window.stravaActivityKey = activityKey;
   window.stravaMatchActivityKeys = stravaMatchActivityKeys;
   window.combineStravaActivities = combineStravaActivities;

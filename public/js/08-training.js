@@ -585,10 +585,11 @@ function buildCard(s,i){
   h+='</button></div>';
   if(marked) h+='<div class="sc-nudge" id="nudge_'+i+'">Marked — tap to open &amp; log your data</div>';
   h+='<div class="scb" id="scb_'+i+'">';
-  // A logged Strava run shows its result as the hero inside the body, so the
-  // attribution strip would repeat it. Suggestions and "match removed" stay.
-  var _heroShown=type==='run'&&logs[s.id]&&logs[s.id].__stravaMatch&&isSessionLogged(s.id);
-  if(type==='run'&&typeof stravaMatchHtml==='function'&&!_heroShown)h+=stravaMatchHtml(s,i,'session');
+  // A completed Strava activity is shown in its sport's session card. The
+  // attribution strip avoids repeating logged run/swim details in the body.
+  var _stravaSport=type==='run'||type==='swim'||type==='ride';
+  var _heroShown=_stravaSport&&logs[s.id]&&logs[s.id].__stravaMatch&&isSessionLogged(s.id);
+  if(_stravaSport&&typeof stravaMatchHtml==='function'&&!_heroShown)h+=stravaMatchHtml(s,i,'session');
   h+=buildBody(s,i,type)+'</div></div>';
   return h;
 }
