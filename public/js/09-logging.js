@@ -472,16 +472,20 @@ function stravaLogPayload(session,activity,entry){
   return {clientWriteId:stravaClientWriteId(activity),name:athlete.name+' — '+session.name+' — '+session.date,session:session.name,type:sport,sessionCategory:sport,distanceKm:sum.distance,durationMin:sum.duration,pace:sport==='Run'?sum.pace:'',rpe:entry&&entry.rpe||'',painFlag:pain==='yes',exerciseLog:'Matched from Strava '+sport.toLowerCase()+' | Distance: '+distanceLabel+' | Moving time: '+sum.duration+'min'+(sport==='Run'?' | Pace: '+sum.pace:'')+(entry&&entry.rpe?' | RPE: '+entry.rpe+'/10':'')+(pain==='yes'?' | PAIN FLAGGED':''),notes:entry&&entry.notes||'',stravaActivityId:stravaMatchActivityKey(activity),stravaActivityIds:activityIds,stravaMatchReasons:matchReasons,ranAbovePrescription:matchReasons.indexOf('ran_above_prescription')>=0,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:session.date,submittedAt:entry&&entry.__submittedAt||new Date().toISOString()};
 }
 async function completeStravaMatch(session,i,match){
-  if(!session||!match||!match.activity||isSessionLogged(session.id)||_stravaAutoCompleting[session.id])return;
+  if(!session||!match||!match.activity||isSessionLogged(session.id)||(logs[session.id]&&logs[session.id].__stravaMatch)||_stravaAutoCompleting[session.id])return;
   _stravaAutoCompleting[session.id]=true;
   try{
     var activity=match.activity,sum=stravaActivitySummary(activity),previous=logs[session.id]||{};
     logs[session.id]=Object.assign({},previous,{distance:String(sum.distance),duration:String(sum.duration),pace:getType(session)==='run'?sum.pace:'',pain:previous.pain||'',__stravaMatch:{activityKey:stravaMatchActivityKey(activity),activityKeys:stravaMatchActivityKeys(match),clientWriteId:stravaClientWriteId(activity),activity:slimStravaActivity(activity),confidence:match.confidence,reasons:match.reasons||[],matchedAt:new Date().toISOString()}});
     logs.__savedAt=Date.now();localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
     try{await portalStateWrite('logs',logs);}catch(e){}
-    await coachWrite(WEBHOOK,stravaLogPayload(session,activity,logs[session.id]));
-    await markSessionLogged(session.id);
-    stampSessionSubmitted(session.id);
+    // Runs retain their existing automatic receipt. Swim and ride wait for the
+    // athlete's RPE and pain/niggle review before anything is submitted.
+    if(getType(session)==='run'){
+      await coachWrite(WEBHOOK,stravaLogPayload(session,activity,logs[session.id]));
+      await markSessionLogged(session.id);
+      stampSessionSubmitted(session.id);
+    }
   }finally{delete _stravaAutoCompleting[session.id];}
 }
 // The run check-in answers with chip groups whose values live in hidden
@@ -514,6 +518,8 @@ async function saveStravaFeedback(i){
   }
   delete entry.__stravaFeedbackQueued;entry.__stravaFeedbackAt=new Date().toISOString();logs[session.id]=entry;logs.__savedAt=Date.now();
   localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+  await markSessionLogged(session.id);
+  stampSessionSubmitted(session.id);
   try{await portalStateWrite('logs',logs);}catch(e){}
   await markSessionDone(i);
   paintStravaMatches();

@@ -213,6 +213,37 @@ function runSplitsHtml(activity){
   '</section>';
 }
 
+function enduranceStravaReviewHtml(type,activity){
+  var a=activity&&typeof activity==='object'?activity:{},num=function(v){var n=Number(v);return v==null||v===''||!Number.isFinite(n)?null:n;};
+  var swim=type==='swim',distance=num(a.distance),seconds=num(a.moving_time)||num(a.elapsed_time),avgHr=num(a.average_heartrate),maxHr=num(a.max_heartrate);
+  var laps=(Array.isArray(a.laps)?a.laps:Array.isArray(a.splits_metric)?a.splits_metric:[]).map(function(lap,index){
+    var metres=num(lap&&lap.distance),time=num(lap&&(lap.moving_time!=null?lap.moving_time:lap.elapsed_time));
+    if(!metres||!time)return null;
+    return {n:index+1,metres:metres,seconds:time,hr:num(lap.average_heartrate),watts:num(lap.average_watts)};
+  }).filter(Boolean);
+  var stats=[];
+  if(distance!=null)stats.push({label:'Distance',value:swim?Math.round(distance)+' m':(Math.round(distance/100)/10).toFixed(1)+' km'});
+  if(seconds)stats.push({label:'Moving time',value:runClock(seconds)});
+  if(swim&&distance&&seconds)stats.push({label:'Avg pace',value:runClock(seconds/(distance/100))+' /100m'});
+  if(!swim&&num(a.average_watts)!=null)stats.push({label:'Avg power',value:Math.round(num(a.average_watts))+' W'});
+  if(!swim&&num(a.weighted_average_watts)!=null)stats.push({label:'Weighted',value:Math.round(num(a.weighted_average_watts))+' W weighted'});
+  if(avgHr!=null)stats.push({label:'Avg HR',value:Math.round(avgHr)+' bpm'});
+  if(maxHr!=null)stats.push({label:'Max HR',value:Math.round(maxHr)+' bpm'});
+  if(!swim&&num(a.total_elevation_gain)!=null)stats.push({label:'Elevation',value:Math.round(num(a.total_elevation_gain))+' m'});
+  var statHtml=stats.map(function(stat){return '<div><span>'+_runEsc(stat.label)+'</span><strong>'+_runEsc(stat.value)+'</strong></div>';}).join('');
+  var lapHtml=laps.map(function(lap){
+    var distanceLabel=swim?Math.round(lap.metres)+' m':(Math.round(lap.metres/10)/100).toFixed(2).replace(/0+$/,'').replace(/\.$/,'')+' km';
+    var detail=swim?(runClock(lap.seconds/(lap.metres/100))+' /100m'):(lap.watts!=null?Math.round(lap.watts)+' W':'');
+    var hr=lap.hr!=null?Math.round(lap.hr)+' bpm':'';
+    return '<li class="endurance-lap"><span>'+String(lap.n).padStart(2,'0')+'</span><strong>'+_runEsc(distanceLabel)+'</strong><b>'+_runEsc(runClock(lap.seconds))+'</b><em>'+_runEsc(detail)+'</em><small>'+_runEsc(hr)+'</small></li>';
+  }).join('');
+  return '<section class="endurance-review" aria-label="'+(swim?'Swim':'Ride')+' result from Strava">'+
+    '<div class="endurance-review-head"><span>'+(_runEsc(swim?'Swim review':'Ride review'))+'</span><strong>From Strava</strong></div>'+
+    '<div class="endurance-review-stats">'+statHtml+'</div>'+
+    (laps.length?'<div class="endurance-laps-head"><strong>'+(swim?'Lengths':'Laps')+'</strong><span>'+laps.length+' recorded</span></div><ol class="endurance-laps">'+lapHtml+'</ol>':'<p class="endurance-laps-empty">Strava did not provide lap detail for this activity.</p>')+
+  '</section>';
+}
+
 // Before a run: Strava does the logging, the manual form is the fallback.
 function runLogPageHtml(s,i,formHtml){
   var connected=!!window._stravaConnectedNow;
@@ -234,10 +265,11 @@ async function runCheckStravaNow(button){
 // Footer state for a run in the session overlay.
 function runFocusState(s,i){
   var entry=(typeof logs!=='undefined'&&logs[s.id])||{},logged=typeof isSessionLogged==='function'&&isSessionLogged(s.id);
-  if(entry.__stravaMatch&&logged&&!entry.__stravaFeedbackAt){
+  var sport=typeof stravaSessionSportLabel==='function'?stravaSessionSportLabel(s):'Run';
+  if(entry.__stravaMatch&&!entry.__stravaFeedbackAt){
     var missing=runCheckinMissing(i);
-    return {title:'Run received from Strava',detail:missing?(missing===1?'1 answer left':'2 answers left'):'Ready to send',action:'Send to coaches',submit:true,run:'feedback'};
+    return {title:sport+' received from Strava',detail:missing?(missing===1?'1 answer left':'2 answers left'):'Ready to send',action:'Send to coaches',submit:true,run:'feedback'};
   }
-  if(entry.__stravaFeedbackAt||logged)return {title:'Sent to your coaches',detail:'Your coaches have this run.',action:'Back to plan',submit:false};
-  return {title:'Not run yet',detail:window._stravaConnectedNow?'Your run syncs from Strava.':'Log it once it’s done.',action:'Back to plan',submit:false};
+  if(entry.__stravaFeedbackAt||logged)return {title:'Sent to your coaches',detail:'Your coaches have this '+sport.toLowerCase()+'.',action:'Back to plan',submit:false};
+  return {title:sport==='Run'?'Not run yet':'Not completed yet',detail:window._stravaConnectedNow?'Your '+sport.toLowerCase()+' syncs from Strava.':'Log it once it’s done.',action:'Back to plan',submit:false};
 }

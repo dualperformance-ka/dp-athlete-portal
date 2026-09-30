@@ -86,6 +86,7 @@ function fakeIndexedDB() {
 }
 
 function loadQueue({ storage = fakeLocalStorage(), idb = fakeIndexedDB() } = {}) {
+  const toasts = [];
   const context = {
     localStorage: storage,
     indexedDB: idb,
@@ -99,7 +100,8 @@ function loadQueue({ storage = fakeLocalStorage(), idb = fakeIndexedDB() } = {})
     clearTimeout,
     structuredClone,
     track() {},
-    showToast() {},
+    showToast(message, type) { toasts.push({ message, type }); },
+    portalStateWrite: async () => ({ ok: true }),
     loadConfirmedLogDates: undefined,
   };
   vm.createContext(context);
@@ -111,7 +113,9 @@ function loadQueue({ storage = fakeLocalStorage(), idb = fakeIndexedDB() } = {})
     this.queueCoachWrite=queueCoachWrite;
     this.readPendingPortalStateWrites=readPendingPortalStateWrites;
     this.queuePortalStateWrite=queuePortalStateWrite;
+    this.manualRetryPendingCoachWrites=manualRetryPendingCoachWrites;
   `, context);
+  context.toasts = toasts;
   return context;
 }
 
@@ -231,6 +235,20 @@ test('all pending updates are loud, retryable, and measured', () => {
   assert.match(core, /track\('queue_flush_manual'\)/);
   assert.match(core, /offline_queue_flushed',\{count:totalSynced,trigger:trigger/);
   assert.match(core, /offline_state_flushed',\{count:synced,trigger:trigger/);
+});
+
+test('a manual retry that still fails tells the athlete it is still queued', async () => {
+  const context = loadQueue();
+  context.athlete = { code: 'KARL' };
+  context._authToken = 'signed-session';
+  await context.persistPendingCoachWrites([
+    { id: 'strava_swim', url: '/api/ingest', payload: { type: 'Swim' }, attempts: 2 },
+  ], 'KARL');
+  context.ingestWrite = async () => { throw new Error('unsupported_write_type'); };
+
+  await context.manualRetryPendingCoachWrites();
+
+  assert.match(context.toasts.at(-1)?.message || '', /still waiting/i);
 });
 
 test('cloud hydration preserves newer local outbox values and merges queue mirrors', () => {
