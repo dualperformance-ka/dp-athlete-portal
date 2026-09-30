@@ -875,14 +875,23 @@ async function updatePendingQueueIndicator(){
   banner.hidden=count===0;
   banner.style.display=count?'flex':'none';
   var text=banner.querySelector('b');if(text)text.textContent=count+' update'+(count===1?'':'s')+' waiting to send';
+  var hint=banner.querySelector('span:last-child');if(hint)hint.textContent='Tap to retry now';
   if(count>0&&count!==_pendingQueueIndicatorCount)track('queue_pending_shown',{count:count});
   _pendingQueueIndicatorCount=count;
 }
 async function manualRetryPendingCoachWrites(){
   track('queue_flush_manual');
-  var banner=document.getElementById('queuePendingBanner');if(banner)banner.classList.add('is-retrying');
-  try{await Promise.all([retryPendingCoachWrites(false,'manual'),retryPendingPortalStateWrites(false,'manual')]);}
-  finally{if(banner)banner.classList.remove('is-retrying');await updatePendingQueueIndicator();}
+  var before=await pendingCoachWriteCount(),banner=document.getElementById('queuePendingBanner');
+  if(banner){banner.classList.add('is-retrying');var hint=banner.querySelector('span:last-child');if(hint)hint.textContent='Retrying now…';}
+  if(before)showToast('Retrying '+before+' pending update'+(before===1?'':'s')+'…');
+  try{await Promise.all([retryPendingCoachWrites(true,'manual'),retryPendingPortalStateWrites(true,'manual')]);}
+  finally{
+    var after=await pendingCoachWriteCount(),sent=Math.max(0,before-after);
+    if(banner)banner.classList.remove('is-retrying');await updatePendingQueueIndicator();
+    if(before&&after===0)showToast(before+' pending update'+(before===1?'':'s')+' sent ✓');
+    else if(sent)showToast(sent+' sent · '+after+' still waiting');
+    else if(after)showToast(after+' update'+(after===1?' is':'s are')+' still waiting. We’ll keep retrying automatically.');
+  }
 }
 async function retryPendingCoachWrites(silent,trigger){
   var code=currentWriteCode();

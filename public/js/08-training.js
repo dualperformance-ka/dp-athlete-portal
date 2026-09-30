@@ -2499,20 +2499,23 @@ function setGymSubmissionStatus(i,state){
   if(typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(i);
 }
 
-function endurancePrescriptionHtml(s,type){
+function endurancePrescriptionHtml(s,type,i){
   var sport=type==='swim'?'Swim':'Ride',override=_sessionOverrides[s.id]||{};
   var prescription=String(s.runDetails||'').trim();
   var note=String(override.notes||'').trim();
   var parts=prescription.split(/\.\s+(?=[A-Z0-9])/).map(function(part){return part.trim().replace(/\.$/,'');}).filter(Boolean);
-  var entry=logs[s.id]||{},activity=entry.__stravaMatch&&entry.__stravaMatch.activity;
+  var entry=logs[s.id]||{},liveMatch=typeof getStravaSessionMatch==='function'?getStravaSessionMatch(s):null;
+  var activity=(liveMatch&&liveMatch.activity)||(entry.__stravaMatch&&entry.__stravaMatch.activity);
   var h='<div class="endurance-details '+type+'">';
-  if(activity&&isSessionLogged(s.id)&&typeof stravaActivitySummary==='function'){
+  if(activity&&typeof stravaActivitySummary==='function'){
     var summary=stravaActivitySummary(activity),distance=type==='swim'?Math.round(summary.distance*1000)+' m':summary.distance.toFixed(1).replace(/\.0$/,'')+' km';
     h+='<section class="endurance-result" aria-label="Completed '+sport.toLowerCase()+' from Strava">';
     h+='<span class="endurance-result-source">'+(typeof stravaLogoSvg==='function'?stravaLogoSvg():'')+'Synced from Strava</span>';
     h+='<div><strong>'+esc(distance)+'</strong><span>'+esc(Math.round(summary.duration)+' min')+'</span></div>';
     h+='</section>';
   }
+  if(activity&&entry.__stravaMatch&&typeof enduranceStravaReviewHtml==='function')h+=enduranceStravaReviewHtml(type,activity);
+  if(activity&&entry.__stravaMatch&&typeof runCheckinHtml==='function')h+=runCheckinHtml(s,i);
   h+='<section class="endurance-prescription" aria-label="'+sport+' workout">';
   h+='<div class="endurance-prescription-head"><div><span>Coach prescription</span><strong>'+sport+' workout</strong></div><div class="endurance-prescription-tags">';
   if(s.intensity)h+='<span>'+esc(s.intensity)+'</span>';
@@ -2719,7 +2722,7 @@ function buildBody(s,i,type){
     h+=runPagerHtml(i,pages);
     h+='</div>'; // end run-details
   }else if(type==='swim'||type==='ride'){
-    h+=endurancePrescriptionHtml(s,type);
+    h+=endurancePrescriptionHtml(s,type,i);
   }else if(type==='strength'){
 
     var splitKey=splitKeyForSession(s,'Upper A');
@@ -3015,9 +3018,10 @@ function strengthSessionProgress(i){
 }
 function focusedSessionSubmitState(i,progress){
   var session=sessions[i]||{},entry=logs[session.id]||{},submitted=!!entry.__submittedAt;
-  // Runs have their own states: a Strava run reaches the coaches as soon as it
-  // matches, but it is not finished until the athlete adds RPE and pain.
-  if(getType(session)==='run'&&typeof runFocusState==='function')return runFocusState(session,i);
+  // Strava-backed endurance sessions are not finished until the athlete has
+  // reviewed the result and added RPE and pain/niggle feedback.
+  var sessionType=getType(session);
+  if((sessionType==='run'||sessionType==='swim'||sessionType==='ride')&&typeof runFocusState==='function')return runFocusState(session,i);
   var changed=!!(submitted&&entry.__submittedSig&&gymLogSignature(entry)!==entry.__submittedSig);
   if(changed)return {title:'Changes saved as a draft',detail:'Review the update before sending it.',action:'Review update',submit:true};
   if(submitted)return {title:'Sent to your coaches',detail:'This session is fully submitted.',action:'Back to plan',submit:false};
@@ -3038,8 +3042,8 @@ function refreshFocusedSessionChrome(i){
 function handleFocusedSessionAction(){
   if(focusedSessionIndex==null)return;
   var button=document.getElementById('focusFooterAction');
-  var runSession=sessions[focusedSessionIndex];
-  if(runSession&&getType(runSession)==='run'&&button&&button.getAttribute('data-submit')==='true'){
+  var runSession=sessions[focusedSessionIndex],runType=runSession&&getType(runSession);
+  if(runSession&&(runType==='run'||runType==='swim'||runType==='ride')&&button&&button.getAttribute('data-submit')==='true'){
     // The check-in is on the first page; bring it into view before saving so
     // a missing answer is flagged where the athlete can see it.
     if(typeof runPagerGo==='function')runPagerGo(focusedSessionIndex,0);

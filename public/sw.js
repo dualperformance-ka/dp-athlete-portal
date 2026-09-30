@@ -1,8 +1,8 @@
-const CACHE_NAME = 'dp-athlete-v241'; // v241: show swim and cycling prescriptions in session detail
+const CACHE_NAME = 'dp-athlete-v242'; // v242: review and submit synced swim and ride detail
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=190', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=191', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=129',
+  '/js/01-core.js?v=131',
   '/js/02-login-goals.js?v=122',
   '/js/03-nav-nudges.js?v=129',
   '/js/04-checkin.js?v=104',
@@ -14,9 +14,9 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
-  '/js/08-training-run.js?v=1',
-  '/js/08-training.js?v=160',
-  '/js/09-logging.js?v=135',
+  '/js/08-training-run.js?v=2',
+  '/js/08-training.js?v=161',
+  '/js/09-logging.js?v=136',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=111',
   '/login.js?v=50', '/icons.css?v=4',

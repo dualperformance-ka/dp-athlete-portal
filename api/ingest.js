@@ -330,7 +330,7 @@ export async function persistStructured(payload, deps = {}) {
     }, 'athlete_code,log_date');
   }
 
-  if (type === 'Run' || type === 'Strength' || type === 'training_log') {
+  if (type === 'Run' || type === 'Swim' || type === 'Ride' || type === 'Strength' || type === 'training_log') {
     const storedPayload = type === 'Strength' ? normalizeStrengthPayload(payload) : payload;
     return upsertTolerant('training_session_logs', {
       client_write_id: text(storedPayload.clientWriteId, 120),
@@ -363,7 +363,7 @@ export async function persistStructured(payload, deps = {}) {
       raw_payload: storedPayload,
       submitted_at: submittedAt(storedPayload),
       updated_at: new Date().toISOString(),
-    }, 'client_write_id');
+    }, 'client_write_id', deps.upsert || upsert);
   }
 
   return null;
