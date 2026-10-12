@@ -7151,3 +7151,54 @@ body.exl-sheet-open{overflow:hidden}
 .run-log-intro{color:var(--muted);margin-bottom:10px}
 .run-page>.run-log{margin-top:0;padding-top:0;border-top:0}
 .run-page>.run-log{display:flex;flex-direction:column;gap:12px}
+
+/* ── SUBMIT FEEDBACK ─────────────────────────────────────────────────────────
+   One contract for every "send to coaches" button (09-logging.js
+   setButtonBusy / markButtonSent). Sending used to fall through to the plain
+   :disabled style, so a pressed button turned grey and dim and looked dead
+   for the length of the upload. Now:
+     sending → stays lit, baby-blue edge, spinner, "Sending…"
+     sent    → green, "Sent to coaches ✓"
+     queued  → amber, saved on this device and sending when back online */
+.savebtn[aria-busy="true"]:disabled,.focus-done-btn[aria-busy="true"]:disabled,
+.strength-review-primary[aria-busy="true"],.coach-note-send[aria-busy="true"]{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  background:color-mix(in srgb,var(--readout) 20%,var(--g-3));border-color:var(--readout);
+  color:var(--t-1);opacity:1;cursor:progress;
+  box-shadow:inset 0 0 0 1px var(--readout),0 0 0 3px color-mix(in srgb,var(--readout) 18%,transparent)
+}
+.strength-review-primary[aria-busy="true"]::after,.coach-note-send[aria-busy="true"]::after{
+  content:"";width:1em;height:1em;flex:0 0 1em;border:2px solid color-mix(in srgb,currentColor 30%,transparent);
+  border-top-color:currentColor;border-radius:999px;animation:btn-spin .8s linear infinite
+}
+.savebtn[aria-busy="true"]::after,.focus-done-btn[aria-busy="true"]::after{
+  border-color:color-mix(in srgb,currentColor 30%,transparent);border-top-color:currentColor
+}
+.savebtn.is-sent,.savebtn.is-sent:disabled,.focus-done-btn.is-sent,.focus-done-btn.is-sent:disabled,
+.strength-review-primary.is-sent,.strength-review-primary.is-sent:disabled,
+.coach-note-send.is-sent,.coach-note-send.is-sent:disabled,
+.savebtn.saved:disabled{
+  background:var(--done);border-color:var(--done);color:var(--ink-success);opacity:1;cursor:default;
+  box-shadow:0 8px 22px color-mix(in srgb,var(--done) 26%,transparent)
+}
+.savebtn.is-sending,.savebtn.is-sending:disabled,.focus-done-btn.is-sending,.focus-done-btn.is-sending:disabled,
+.strength-review-primary.is-sending,.strength-review-primary.is-sending:disabled{
+  background:var(--watch);border-color:var(--watch);color:#211405;opacity:1
+}
+.savebtn.is-sent,.focus-done-btn.is-sent,.strength-review-primary.is-sent,.coach-note-send.is-sent{animation:sent-pop .32s var(--ease-in,ease-out)}
+@keyframes sent-pop{0%{transform:scale(.97)}60%{transform:scale(1.02)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){
+  .strength-review-primary[aria-busy="true"]::after,.coach-note-send[aria-busy="true"]::after{animation:none}
+  .savebtn.is-sent,.focus-done-btn.is-sent,.strength-review-primary.is-sent,.coach-note-send.is-sent{animation:none}
+}
+
+/* ── UNSENT DRAFT ON THE WEEK ────────────────────────────────────────────────
+   A session the athlete has typed into but not sent (08-training.js
+   trainingSessionHasUnsentDraft). Amber, the portal's "on this device, not
+   with the coaches yet" colour, plus a Not sent pill so it does not rely on
+   colour alone. */
+.mobile-week-draft{display:none;align-items:center;padding:3px 6px;border-radius:var(--radius-2xl,999px);background:var(--watch);color:#211405;font:800 var(--font-xs)/1 var(--mono);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+.mobile-week-session.has-draft{background:color-mix(in srgb,var(--watch) 14%,transparent);box-shadow:inset 3px 0 0 var(--watch),inset 0 0 0 1px color-mix(in srgb,var(--watch) 22%,transparent)}
+.mobile-week-session.has-draft strong{color:var(--watch-text)}
+.mobile-week-session.has-draft .mobile-week-draft{display:inline-flex}
+.mobile-week-session.has-draft .mobile-week-chevron,.mobile-week-session.has-draft .mobile-week-complete{display:none}

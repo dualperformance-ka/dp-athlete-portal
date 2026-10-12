@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 191,
-    "sha": "8509a2314b9c"
+    "version": 192,
+    "sha": "992998cd0210"
   },
   "desktop.css": {
     "version": 14,
@@ -24,12 +24,12 @@
     "sha": "4ca6e484fc45"
   },
   "js/03-nav-nudges.js": {
-    "version": 129,
-    "sha": "b4d42c9c7c8c"
+    "version": 130,
+    "sha": "f2a0bba79e18"
   },
   "js/04-checkin.js": {
-    "version": 104,
-    "sha": "89eece7c44bc"
+    "version": 105,
+    "sha": "32220dec1a06"
   },
   "js/05-handbook.js": {
     "version": 89,
@@ -68,12 +68,12 @@
     "sha": "a4a18d5c3de0"
   },
   "js/08-training.js": {
-    "version": 161,
-    "sha": "19a1d7de2e0b"
+    "version": 162,
+    "sha": "ba1faa81301d"
   },
   "js/09-logging.js": {
-    "version": 136,
-    "sha": "2957fa6c2e64"
+    "version": 137,
+    "sha": "2a2f55c9d1b5"
   },
   "accessibility.js": {
     "version": 3,

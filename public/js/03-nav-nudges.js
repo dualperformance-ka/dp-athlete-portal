@@ -1170,7 +1170,7 @@ function openCoachNote(){
     box.value=String(draft).slice(0,COACH_NOTE_MAX);
   }
   var send=document.getElementById('coachNoteSend');
-  if(send){send.disabled=false;send.textContent='Send to your coaches';}
+  if(send){send.disabled=false;send.classList.remove('is-sent');send.removeAttribute('aria-busy');send.textContent='Send to your coaches';}
   var note=document.getElementById('coachNoteDraft');
   if(note) note.textContent=(box&&box.value.trim())?'Draft saved on this device':'';
   setCoachNoteStatus('');
@@ -1188,21 +1188,21 @@ async function sendCoachNote(){
   if(!box||!send)return;
   var message=box.value.trim();
   if(message.length<2){setCoachNoteStatus('Write a message first.','error');return;}
-  send.disabled=true;send.textContent='Sending\u2026';setCoachNoteStatus('');
+  send.disabled=true;send.classList.remove('is-sent');send.setAttribute('aria-busy','true');send.textContent='Sending\u2026';setCoachNoteStatus('');
   try{
     await portalRequest('contact-coach',{message:message.slice(0,COACH_NOTE_MAX)});
     try{localStorage.removeItem(coachNoteDraftKey());}catch(e){}
     box.value='';box.disabled=true;
     var note=document.getElementById('coachNoteDraft');if(note) note.textContent='';
     syncCoachNoteMeta();
-    send.textContent='Sent \u2713';
+    send.removeAttribute('aria-busy');send.classList.add('is-sent');send.textContent='Sent \u2713';
     setCoachNoteStatus('Sent. Karl and Alex have it and will come back to you directly.','sent');
     track('contact_message_sent');
     showToast('Note sent to your coaches \u2713');
     setTimeout(closeCoachNote,2200);
   }catch(e){
     // The draft is still on the device, so say so rather than implying it went.
-    send.disabled=false;send.textContent='Send to your coaches';
+    send.removeAttribute('aria-busy');send.disabled=false;send.textContent='Send to your coaches';
     setCoachNoteStatus((e&&e.message)||'Could not send that just now. Your draft is saved on this device.','error');
   }
 }
