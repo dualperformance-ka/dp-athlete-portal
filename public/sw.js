@@ -1,11 +1,11 @@
-const CACHE_NAME = 'dp-athlete-v242'; // v242: review and submit synced swim and ride detail
+const CACHE_NAME = 'dp-athlete-v243'; // v243: unsent-draft flag on the week, sending/sent states on submit buttons
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=191', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=192', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=131',
   '/js/02-login-goals.js?v=122',
-  '/js/03-nav-nudges.js?v=129',
-  '/js/04-checkin.js?v=104',
+  '/js/03-nav-nudges.js?v=130',
+  '/js/04-checkin.js?v=105',
   '/js/05-handbook.js?v=89',
   '/js/06-nutrition.js?v=110',
   '/js/07-progress.js?v=94',
@@ -15,8 +15,8 @@ const APP_SHELL = [
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
   '/js/08-training-run.js?v=2',
-  '/js/08-training.js?v=161',
-  '/js/09-logging.js?v=136',
+  '/js/08-training.js?v=162',
+  '/js/09-logging.js?v=137',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=111',
   '/login.js?v=50', '/icons.css?v=4',

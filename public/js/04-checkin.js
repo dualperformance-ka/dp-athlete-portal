@@ -166,7 +166,7 @@ async function submitCheckin(){
   var btn=document.getElementById('ciSubmitBtn');
   var name=document.getElementById('ciName').value.trim();
   if(!name){showToast('Please enter your name');return;}
-  btn.textContent='Submitting...';btn.disabled=true;
+  btn.disabled=true;btn.classList.remove('is-sent','is-sending');btn.classList.add('is-loading');btn.setAttribute('aria-busy','true');btn.textContent='Sending\u2026';
   var weekEndVal=document.getElementById('ciWeekEnding').value;
   var wkNum=1;
   if(athlete&&athlete.startDate&&athlete.startDate!=='—'&&weekEndVal){
@@ -201,6 +201,12 @@ async function submitCheckin(){
     // Previously the cache was written before /api/ingest ran, so a failed or
     // abandoned submission could suppress the nudge without a real check-in.
     track('weekly_checkin_submitted');
+    // Green (or amber when it is only queued) before the form gives way to the
+    // confirmation, so the press visibly landed.
+    btn.classList.remove('is-loading');btn.removeAttribute('aria-busy');
+    btn.classList.add(checkinResult.queued?'is-sending':'is-sent');
+    btn.textContent=checkinResult.queued?'Saved \u00b7 sends when online':'Sent to coaches \u2713';
+    await new Promise(function(resolve){setTimeout(resolve,750);});
     hideCheckinNudge();
     clearCiDraft();
     // Stashed so the testimonial can be sent afterwards as the same check-in,
@@ -224,7 +230,7 @@ async function submitCheckin(){
       // from under it would be the same tax in a different place. The athlete
       // answers the ask — either way — and that closes it.
     }
-  }catch(e){btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit your check-in — please try again','error');}
+  }catch(e){btn.classList.remove('is-loading','is-sent','is-sending');btn.removeAttribute('aria-busy');btn.textContent='Submit Check-in';btn.disabled=false;showToast('Could not submit your check-in — please try again','error');}
 }
 // ── TESTIMONIAL ASK ───────────────────────────────────────────────────────────
 // Asking for a testimonial is fair. Making the weekly check-in wait behind it
@@ -348,7 +354,7 @@ function resetCheckin(){
   var tEl=document.getElementById('ciTestimonial');if(tEl)tEl.value='';
   showTestimonialAsk();
   document.getElementById('ciFormContent').style.display='block';document.getElementById('ciSuccess').style.display='none';
-  var btn=document.getElementById('ciSubmitBtn');btn.textContent='Submit Check-in';btn.disabled=false;ciGoStep(1);
+  var btn=document.getElementById('ciSubmitBtn');btn.classList.remove('is-loading','is-sent','is-sending');btn.removeAttribute('aria-busy');btn.textContent='Submit Check-in';btn.disabled=false;ciGoStep(1);
 }
 function todayISO2(){return localISO(new Date());}
 // ── SESSION COUNTER ───────────────────────────────────────────────────────────
@@ -908,9 +914,11 @@ function updateNutFeedback(){
 }
 function showQuickLogSubmitFeedback(btn,kind,queued){
   if(!btn)return Promise.resolve();
+  // Drop the spinner first, or it keeps turning beside the confirmation.
+  btn.classList.remove('is-loading');btn.removeAttribute('aria-busy');
   btn.classList.toggle('saved',!queued);
   btn.classList.toggle('is-sending',!!queued);
-  btn.textContent=queued?'Saved on this device':(kind==='body'?'Body check-in saved ✓':'Nutrition logged ✓');
+  btn.textContent=queued?'Saved on this device':'Sent to coaches ✓';
   return new Promise(function(resolve){setTimeout(resolve,750);});
 }
 function resetQuickLogSubmitButton(btn,label){
@@ -1021,7 +1029,7 @@ document.addEventListener('input',function(e){
 });
 async function submitQuickBody(){
   if(!validateLogSheet('body'))return;
-  var btn=document.getElementById('qlbSubmitBtn');btn.disabled=true;btn.classList.add('is-loading');btn.setAttribute('aria-busy','true');
+  var btn=document.getElementById('qlbSubmitBtn');btn.disabled=true;btn.classList.add('is-loading');btn.setAttribute('aria-busy','true');btn.textContent='Sending\u2026';
   var bodyDate=document.getElementById('qlbDate').value||todayISO2();
   var pain=document.getElementById('qlbPain').value||'0',painLocation=document.getElementById('qlbPainLocation').value||'',notes=document.getElementById('qlbNotes').value||'';
   if(Number(pain)>0)notes=('Pain '+pain+'/10'+(painLocation?' · '+painLocation:'')+(notes?' · '+notes:''));
@@ -1065,7 +1073,7 @@ async function submitQuickBody(){
 }
 async function submitQuickNut(){
   if(!validateLogSheet('nut'))return;
-  var btn=document.getElementById('qlnSubmitBtn');btn.disabled=true;btn.classList.add('is-loading');btn.setAttribute('aria-busy','true');
+  var btn=document.getElementById('qlnSubmitBtn');btn.disabled=true;btn.classList.add('is-loading');btn.setAttribute('aria-busy','true');btn.textContent='Sending\u2026';
   var nutDate=document.getElementById('qlnDate').value||todayISO2();
   var payload={type:'daily_nutrition',athleteName:athlete.name,athleteCode:athlete.code,athleteId:athlete.notionPageId,
     date:nutDate,notes:document.getElementById('qlnNotes').value||'',submittedAt:new Date().toISOString()};

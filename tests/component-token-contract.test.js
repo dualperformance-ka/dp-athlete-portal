@@ -27,10 +27,15 @@ test('buttons share one component contract and real interaction states',()=>{
   assert.match(styles,/min-height:44px/);
 });
 
-test('session saves keep their accessible name while busy',()=>{
+// Replaced contract: a sent session's button used to keep its idle label
+// ("Review & submit") and only change colour, which read as unsent. It now
+// says Sending… while busy and Sent to coaches once locked; markButtonSent
+// owns the wording so every submit button says the same thing.
+test('session saves say what is happening while busy and once sent',()=>{
   const lock=logging.slice(logging.indexOf('function lockSaveButton('),logging.indexOf('function unlockSaveButton('));
-  assert.doesNotMatch(lock,/textContent\s*=/);
+  assert.match(lock,/markButtonSent\(btn,null,queued\)/);
   assert.match(logging,/function setButtonBusy\(/);
+  assert.match(logging,/btn\.textContent=label\|\|'Sending\\u2026'/);
   assert.match(logging,/setAttribute\('aria-busy','true'\)/);
   assert.match(logging,/setTimeout\([^]*?,2000\)/);
 });

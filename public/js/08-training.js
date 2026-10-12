@@ -306,12 +306,12 @@ function renderCal(ws){
       var cellDate=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+mdi),miso=localISO(cellDate),isToday=miso===todayISO;
       var rawDaySessions=allSessions.filter(function(s){return s.date===miso;}),hasRecoveryOnly=rawDaySessions.length>0&&rawDaySessions.every(isCalendarPlaceholder);
       var daySessions=sortSessionsForDisplay(rawDaySessions.filter(function(s){return !isCalendarPlaceholder(s);}));
-      var dayDone=daySessions.length>0&&daySessions.every(sessionDone),dayMissed=daySessions.length>0&&miso<todayISO&&!dayDone,labels='';
+      var dayDone=daySessions.length>0&&daySessions.every(function(ds){return sessionDone(ds)&&!trainingSessionHasUnsentDraft(ds);}),dayMissed=daySessions.length>0&&miso<todayISO&&!dayDone,labels='';
       daySessions.forEach(function(s){
-        var si=interactiveSessionIndex(s),done=sessionDone(s),needsFeedback=trainingSessionNeedsFeedback(s),sessionName=s.name||monthSessionLabel(s),detail=monthSessionDetail(s);
+        var si=interactiveSessionIndex(s),unsent=trainingSessionHasUnsentDraft(s),done=sessionDone(s)&&!unsent,needsFeedback=trainingSessionNeedsFeedback(s),sessionName=s.name||monthSessionLabel(s),detail=monthSessionDetail(s);
         var baseOpenLabel='Open '+sessionName+(detail?', '+detail:'');
-        var openLabel=baseOpenLabel+(done?', completed':needsFeedback?', Strava synced, finish RPE and niggle check-in':'');
-        labels+='<button type="button" class="mobile-week-session '+getType(s)+(done?' done':'')+(needsFeedback?' pending-feedback':'')+(s.rescheduled?' rescheduled':'')+'" data-session-index="'+si+'" data-open-label="'+esc(baseOpenLabel)+'" onclick="openMobileWeekSession('+si+',this)" aria-label="'+esc(openLabel)+'"><i class="session-mark session-mark--'+getType(s)+'" aria-hidden="true"></i><span><strong>'+esc(sessionName)+'</strong><small>'+esc(detail)+'</small></span><span class="mobile-week-session-marks">'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session"><svg class="icon"><use href="#i-star-filled"/></svg></i>':'')+'<span class="mobile-week-pending" aria-label="Finish RPE and niggle check-in"><svg class="icon"><use href="#i-alert"/></svg><b>Finish</b></span><i class="mobile-week-complete" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></i><i class="mobile-week-chevron" aria-hidden="true">›</i></span></button>';
+        var openLabel=baseOpenLabel+(unsent?', '+UNSENT_DRAFT_LABEL:done?', completed':needsFeedback?', Strava synced, finish RPE and niggle check-in':'');
+        labels+='<button type="button" class="mobile-week-session '+getType(s)+(done?' done':'')+(needsFeedback?' pending-feedback':'')+(unsent?' has-draft':'')+(s.rescheduled?' rescheduled':'')+'" data-session-index="'+si+'" data-open-label="'+esc(baseOpenLabel)+'" onclick="openMobileWeekSession('+si+',this)" aria-label="'+esc(openLabel)+'"><i class="session-mark session-mark--'+getType(s)+'" aria-hidden="true"></i><span><strong>'+esc(sessionName)+'</strong><small>'+esc(detail)+'</small></span><span class="mobile-week-session-marks">'+(calendarSessionIsKey(s)?'<i class="mobile-week-key" aria-label="Key session"><svg class="icon"><use href="#i-star-filled"/></svg></i>':'')+'<span class="mobile-week-pending" aria-label="Finish RPE and niggle check-in"><svg class="icon"><use href="#i-alert"/></svg><b>Finish</b></span><span class="mobile-week-draft" aria-hidden="true">Not sent</span><i class="mobile-week-complete" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></i><i class="mobile-week-chevron" aria-hidden="true">›</i></span></button>';
       });
       var dayOpenLabel='Open '+cellDate.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+' day overview';
       if(!daySessions.length)labels='<button type="button" class="mobile-week-rest" onclick="openDayPlanDate(\''+miso+'\',this)" aria-label="'+esc(dayOpenLabel)+'">'+(hasRecoveryOnly?'Recovery day':'No session planned')+'</button>';
@@ -554,6 +554,26 @@ function trainingSessionNeedsFeedback(s){
 }
 function trainingSessionAwaitsSubmission(s){
   return !!(s&&!trainingSessionIsComplete(s)&&(logHasRealData(logs[s.id])||ticked[s.id]));
+}
+// Something the athlete typed that the coaches do not have: sets, run numbers
+// or notes saved on this device and never sent, or a sent strength session
+// that has been added to since. Stricter than logHasRealData, which also
+// counts bookkeeping (timestamps, slot maps) and would flag sessions nobody
+// has touched. A Strava session waiting on RPE keeps its own Finish state.
+var UNSENT_INPUT_FIELDS=['distance','duration','pace','rpe','feel','notes'];
+function sessionEntryHasAthleteInput(entry){
+  if(!entry||typeof entry!=='object')return false;
+  if(typeof gymDraftHasData==='function'&&gymDraftHasData(entry))return true;
+  return UNSENT_INPUT_FIELDS.some(function(k){return entry[k]!=null&&String(entry[k]).trim()!=='';});
+}
+function trainingSessionHasUnsentDraft(s){
+  if(!s||trainingSessionNeedsFeedback(s))return false;
+  var entry=logs&&logs[s.id];
+  if(!entry||typeof entry!=='object')return false;
+  if(trainingSessionIsComplete(s)){
+    return !!(entry.__submittedAt&&entry.__submittedSig&&typeof gymLogSignature==='function'&&gymLogSignature(entry)!==entry.__submittedSig);
+  }
+  return sessionEntryHasAthleteInput(entry);
 }
 function buildCard(s,i){
   var type=getType(s);
@@ -2988,9 +3008,21 @@ function openStrengthSubmitReview(i,splitKey){
   body.innerHTML='<div class="strength-review-hero"><span>✓</span><div><strong>'+data.progress.doneSets+' set'+(data.progress.doneSets===1?'':'s')+' ready</strong><small>'+(incomplete?incomplete+' set'+(incomplete===1?' is':'s are')+' still open. You can submit now or keep training.':'Everything programmed is complete.')+'</small></div></div>'+strengthReviewMetricsHtml(data)+strengthReviewOutcomesHtml(data.recommendations)+(data.unlocks.length?'<div class="strength-review-unlocks"><small>Earned for next session</small><strong>'+data.unlocks.map(esc).join(' · ')+'</strong></div>':'')+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Keep training</button><button type="button" class="strength-review-primary" '+(data.progress.doneSets?'':'disabled')+' onclick="submitStrengthFromReview()">Submit to coaches</button></div>'+(data.progress.doneSets?'':'<p class="strength-review-hint">Log at least one completed set before submitting.</p>');
   modal.classList.add('open');
 }
-function submitStrengthFromReview(){
+// The review sheet stays up while the session sends. Closing it first left the
+// athlete staring at an unchanged screen for the length of the upload, with no
+// sign the tap had registered. Now the button says Sending, goes green, and
+// the same sheet becomes the recap.
+async function submitStrengthFromReview(){
   var context=strengthReviewContext;if(!context)return;
-  closeStrengthReview();saveGym(context.i,context.splitKey);
+  var primary=document.querySelector('#strengthReviewModal .strength-review-primary');
+  if(primary&&primary.disabled)return;
+  var footer=document.getElementById('focusFooterAction');
+  setButtonBusy(primary,true);setButtonBusy(footer,true);
+  try{await saveGym(context.i,context.splitKey);}
+  finally{
+    setButtonBusy(footer,false);
+    if(typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(context.i);
+  }
 }
 function showStrengthSessionRecap(i,splitKey,options){
   options=options||{};var modal=ensureStrengthReviewModal(),data=strengthSessionReviewData(i,splitKey),body=document.getElementById('strengthReviewBody'),title=document.getElementById('strengthReviewTitle'),subtitle=document.getElementById('strengthReviewSubtitle');
@@ -3037,7 +3069,9 @@ function refreshFocusedSessionChrome(i){
   if(fill)fill.style.width=(progress.totalSets?Math.round(progress.doneSets/progress.totalSets*100):0)+'%';
   var state=focusedSessionSubmitState(i,progress),title=document.getElementById('focusFooterTitle'),detail=document.getElementById('focusFooterDetail'),action=document.getElementById('focusFooterAction');
   if(title)title.textContent=state.title;if(detail)detail.textContent=state.detail;
-  if(action){action.textContent=state.action;action.setAttribute('data-submit',state.submit?'true':'false');}
+  // Mid-send the footer shows Sending / Sent; a refresh fired by the save
+  // itself must not snap it back to the idle label underneath the athlete.
+  if(action&&action.getAttribute('aria-busy')!=='true'&&!action.classList.contains('is-sent')){action.textContent=state.action;action.setAttribute('data-submit',state.submit?'true':'false');}
 }
 function handleFocusedSessionAction(){
   if(focusedSessionIndex==null)return;
@@ -3124,19 +3158,37 @@ function closeFocusedSession(){
     }
   }
   var ov=document.getElementById('focusOverlay');if(ov)ov.classList.remove('open','has-open-exercise','is-run','is-endurance');
+  var footerAction=document.getElementById('focusFooterAction');
+  if(footerAction){if(typeof setButtonBusy==='function')setButtonBusy(footerAction,false);footerAction.classList.remove('is-sent','is-sending');footerAction.disabled=false;}
   document.body.classList.remove('focus-session-open');focusedSessionIndex=null;focusedSessionGenerated=false;focusedSessionReturnFocus=null;
   if(returnFocus&&typeof returnFocus.focus==='function')setTimeout(function(){returnFocus.focus();},180);
+  // Anything typed in the overlay is now a draft on this device; show it on
+  // the week straight away rather than at the next full render.
+  syncMobileWeekSessionDrafts();
 }
 document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(closeExlSheet())return;if(focusedSessionIndex!=null)closeFocusedSession();else if(dayPlanDateISO)closeDayPlan();});
 function togS(i){var el=document.getElementById('scb_'+i);if(!el) return;
   var open=el.classList.toggle('open');
   var toggle=document.getElementById('scht_'+i);
   if(toggle) toggle.setAttribute('aria-expanded',open?'true':'false');}
+var UNSENT_DRAFT_LABEL='saved on this device, not sent to your coaches yet';
+function syncMobileWeekSessionDrafts(){
+  if(typeof document==='undefined'||!document.querySelectorAll)return;
+  document.querySelectorAll('.mobile-week-session[data-session-index]').forEach(function(button){
+    var s=sessions[Number(button.getAttribute('data-session-index'))];if(!s)return;
+    var unsent=trainingSessionHasUnsentDraft(s),done=trainingSessionIsComplete(s);
+    button.classList.toggle('has-draft',unsent);
+    button.classList.toggle('done',done&&!unsent);
+    var label=button.getAttribute('data-open-label')||'Open workout';
+    button.setAttribute('aria-label',label+(unsent?', '+UNSENT_DRAFT_LABEL:done?', completed':''));
+  });
+}
 function syncMobileWeekSessionCompletion(i,done){
   document.querySelectorAll('.mobile-week-session[data-session-index="'+i+'"]').forEach(function(button){
     button.classList.toggle('done',!!done);
     if(done)button.classList.remove('pending-feedback');
     var label=button.getAttribute('data-open-label')||'Open workout';button.setAttribute('aria-label',label+(done?', completed':''));
+    if(done)button.classList.remove('has-draft');
   });
   document.querySelectorAll('.mobile-week-day').forEach(function(day){
     var workoutButtons=day.querySelectorAll('.mobile-week-session');if(!workoutButtons.length)return;

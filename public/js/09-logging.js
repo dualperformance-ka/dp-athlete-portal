@@ -259,7 +259,7 @@ function deleteSet(btn,i,ei,splitKey){var row=btn.closest('.setrow,.setrow-singl
 function formatRest(r){if(!r) return '';var s=parseInt(r);if(isNaN(s)) return r;if(s>=60){var m=Math.floor(s/60),rem=s%60;return rem?m+'min '+rem+'s rest':m+' min rest';}return s+'s rest';}
 function draftRun(i){var s=sessions[i];if(!s) return;var d={distance:document.getElementById('rd_'+i).value||'',duration:document.getElementById('rdur_'+i).value||'',pace:document.getElementById('rp_'+i).value||'',rpe:document.getElementById('rr_'+i).value||'',feel:document.getElementById('rf_'+i).value||'',notes:document.getElementById('rn_'+i).value||''};logs[s.id]=d;(logs.__savedAt=Date.now(),localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs)));}
 function editRun(i){var form=document.getElementById('run_form_'+i),saved=document.getElementById('saved_run_'+i);if(form) form.style.display='block';if(saved) saved.style.display='none';}
-function showRunSaved(i,d){
+function showRunSaved(i,d,queued){
   var s=sessions[i];if(!d){d=logs[s?s.id:null]||{};}
   var distEl=document.getElementById('saved_run_'+i+'_distance');
   var durEl=document.getElementById('saved_run_'+i+'_duration');
@@ -276,7 +276,7 @@ function showRunSaved(i,d){
   var saved=document.getElementById('saved_run_'+i);
   if(saved) saved.style.display='block';
   // Keep the form visible so athletes can see their saved data for reassurance
-  lockSaveButton(i,'Save session');
+  lockSaveButton(i,'Save session',queued);
 }
 var _draftGymTimer=null,_draftGymPending=null;
 // The debounced strength write can outlive the card it was reading from — the
@@ -392,7 +392,7 @@ async function saveNote(i){
   var queued=(noteResult&&noteResult.queued)||(statusResult&&statusResult.queued);
   showToast(queued?'Submitted - coach dashboard sync pending':'Submitted ✓');
   var banner=document.getElementById('note_saved_'+i);if(banner) banner.style.display='block';
-  lockSaveButton(i,'Save');
+  lockSaveButton(i,'Save',queued);
 }
 // ── SESSION LOG STATE (Supabase-backed) ───────────────────────────────────────
 var stravaMatchRejections={};
@@ -505,6 +505,10 @@ async function saveStravaFeedback(i){
   if(pain!=='no'&&pain!=='yes'){if(painInput){painInput.focus();painInput.setAttribute('aria-invalid','true');}_stravaFeedbackFlag('spaing_'+i);showToast('Confirm whether you had any pain or niggles');return;}
   if(painInput)painInput.removeAttribute('aria-invalid');
   var btn=document.getElementById('sfb_'+i);if(btn)setButtonBusy(btn,true);
+  // Sent from the session footer: that is the button the athlete is looking
+  // at, so it carries the same sending / sent state as the one in the card.
+  var footer=(typeof focusedSessionIndex!=='undefined'&&focusedSessionIndex===i)?document.getElementById('focusFooterAction'):null;
+  if(footer)setButtonBusy(footer,true);
   entry.rpe=String((rpeInput||{}).value||'');
   entry.pain=pain;
   entry.notes=(document.getElementById('snotes_'+i)||{}).value||'';
@@ -514,7 +518,8 @@ async function saveStravaFeedback(i){
   var result=await coachWrite(WEBHOOK,stravaLogPayload(session,activity,entry));
   if(result&&result.queued){
     if(btn){setButtonBusy(btn,false);btn.classList.remove('saved');btn.classList.add('is-sending');btn.textContent='Retry feedback sync';}
-    paintStravaMatches();showToast('Feedback saved - coach dashboard sync pending');return;
+    if(footer){setButtonBusy(footer,false);if(typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(i);}
+    paintStravaMatches();showToast('Feedback saved - coach dashboard sync pending');return 'queued';
   }
   delete entry.__stravaFeedbackQueued;entry.__stravaFeedbackAt=new Date().toISOString();logs[session.id]=entry;logs.__savedAt=Date.now();
   localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
@@ -523,9 +528,16 @@ async function saveStravaFeedback(i){
   try{await portalStateWrite('logs',logs);}catch(e){}
   await markSessionDone(i);
   paintStravaMatches();
-  if(btn){setButtonBusy(btn,false);btn.classList.remove('is-sending');btn.classList.add('saved');btn.textContent='Feedback saved ✓';}
-  showToast('Feedback saved ✓');
-  if(typeof focusedSessionIndex!=='undefined'&&focusedSessionIndex===i&&typeof closeFocusedSession==='function')closeFocusedSession();
+  if(btn){setButtonBusy(btn,false);btn.classList.remove('is-sending');btn.classList.add('saved');markButtonSent(btn);}
+  if(footer)markButtonSent(footer);
+  showToast('Sent to your coaches ✓');
+  if(typeof focusedSessionIndex!=='undefined'&&focusedSessionIndex===i&&typeof closeFocusedSession==='function'){
+    await holdSentState();
+    // The athlete may have closed it themselves during the hold.
+    if(focusedSessionIndex===i)closeFocusedSession();
+  }
+  if(footer){setButtonBusy(footer,false);footer.classList.remove('is-sent');}
+  return 'sent';
 }
 function paintStravaMatches(){
   if(typeof renderTodaySection==='function')renderTodaySection();
@@ -665,24 +677,56 @@ function stampSessionSubmitted(sessionId){
   logs.__savedAt=Date.now();
   localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
 }
-function setButtonBusy(btn,busy){
+// ── SUBMIT FEEDBACK ──────────────────────────────────────────────────────────
+// Every "send to coaches" button runs the same three states, so an athlete is
+// never left looking at a dead grey button wondering whether it went:
+//   sending  → keeps its colour, spinner, and says "Sending…"
+//   sent     → turns green and says so
+//   queued   → amber: saved on this device, will send when back online
+// A disabled button used to mean all three at once — it was greyed out the
+// moment it was pressed and stayed that way until the toast arrived.
+var SENT_HOLD_MS=750;
+function setButtonBusy(btn,busy,label){
   if(!btn) return;
   if(busy){
+    // Remember what the button said so a failed or abandoned send can put it
+    // back. A property rather than an attribute: it never reaches the markup.
+    if(btn.__dpIdleLabel==null) btn.__dpIdleLabel=btn.textContent;
     btn.disabled=true;
+    btn.classList.remove('saved','is-sent','is-sending');
     btn.classList.add('is-loading');
     btn.setAttribute('aria-busy','true');
+    btn.textContent=label||'Sending\u2026';
     return;
   }
   btn.classList.remove('is-loading');
   btn.removeAttribute('aria-busy');
   btn.disabled=false;
+  if(btn.__dpIdleLabel!=null){btn.textContent=btn.__dpIdleLabel;btn.__dpIdleLabel=null;}
 }
-function lockSaveButton(i,label){
+function markButtonSent(btn,label,queued){
+  if(!btn) return;
+  btn.__dpIdleLabel=null;
+  btn.classList.remove('is-loading');
+  btn.removeAttribute('aria-busy');
+  btn.classList.remove('is-sent','is-sending');
+  btn.classList.add(queued?'is-sending':'is-sent');
+  btn.disabled=true;
+  btn.textContent=label||(queued?'Saved \u00b7 sends when online':'Sent to coaches \u2713');
+}
+// Long enough to read the green before the screen moves on. Resolves at once
+// where there is no timer (the unit tests' sandboxes).
+function holdSentState(){
+  return new Promise(function(resolve){
+    if(typeof setTimeout==='function') setTimeout(resolve,SENT_HOLD_MS); else resolve();
+  });
+}
+function lockSaveButton(i,label,queued){
   var btn=document.getElementById('sb_'+i);
   if(!btn) return;
   setButtonBusy(btn,false);
-  btn.classList.add('saved');
-  btn.disabled=true;
+  if(!queued) btn.classList.add('saved');
+  markButtonSent(btn,null,queued);
 }
 // A submitted session is not a closed session. Athletes routinely add an
 // exercise after pressing save — they finish the session, then remember the
@@ -693,7 +737,7 @@ function unlockSaveButton(i,label){
   var btn=document.getElementById('sb_'+i);
   if(!btn) return;
   setButtonBusy(btn,false);
-  btn.classList.remove('saved');
+  btn.classList.remove('saved','is-sent','is-sending');
   btn.textContent=label||'Update session';
   btn.disabled=false;
 }
@@ -748,8 +792,9 @@ async function saveRun(i){
   stampSessionSubmitted(s.id);
   var runStatusResult=await markSessionDone(i);
   track('session_logged',{type:'run'});
-  showToast((runCoachResult&&runCoachResult.queued)||(runStatusResult&&runStatusResult.queued)?'Run submitted - coach dashboard sync pending':'Run submitted ✓');
-  showRunSaved(i,d);
+  var runQueued=!!((runCoachResult&&runCoachResult.queued)||(runStatusResult&&runStatusResult.queued));
+  showToast(runQueued?'Run submitted - coach dashboard sync pending':'Run submitted ✓');
+  showRunSaved(i,d,runQueued);
   if(runDate!==s.date)setSessionDateOverride(s.id,runDate,{silent:true});
   await loadNutrition();
 }
@@ -1047,6 +1092,11 @@ async function saveGym(i,splitKey){
     if(sbBtn){gymSavedBanner=document.createElement('div');gymSavedBanner.id='gym_saved_'+i;sbBtn.parentNode.insertBefore(gymSavedBanner,sbBtn);}
   }
   refreshGymSubmitState(i,s.id,logs[s.id]);
+  if(gymQueued) lockSaveButton(i,'Save session',true);
+  // Submitted from the review sheet: let its button go green before the sheet
+  // turns into the recap, so the tap visibly landed.
+  var reviewPrimary=document.querySelector('#strengthReviewModal.open .strength-review-primary');
+  if(reviewPrimary){markButtonSent(reviewPrimary,null,gymQueued);await holdSentState();}
   if(typeof refreshFocusedSessionChrome==='function')refreshFocusedSessionChrome(i);
   if(typeof showStrengthSessionRecap==='function')showStrengthSessionRecap(i,splitKey,{queued:gymQueued,pbCount:pbHits.length});
   if(gymDate!==s.date)setSessionDateOverride(s.id,gymDate,{silent:true});

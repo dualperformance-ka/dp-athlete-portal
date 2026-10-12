@@ -68,8 +68,10 @@ test('confirmed Strava feedback completes and closes the focused session', async
   assert.equal(calls.painted, 1);
   assert.match(context.logs['run-1'].__stravaFeedbackAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(context.logs['run-1'].__stravaFeedbackQueued, undefined);
-  assert.equal(elements.sfb_0.textContent, 'Feedback saved ✓');
+  assert.equal(elements.sfb_0.textContent, 'Sent to coaches ✓');
   assert.equal(classNames.has('saved'), true);
+  assert.equal(classNames.has('is-sent'), true);
+  assert.equal(classNames.has('is-loading'), false);
   assert.equal(elements.sfb_0.attributes['aria-busy'], undefined);
 });
 

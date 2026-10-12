@@ -747,3 +747,55 @@ test('11. a testimonial sent after submit is the same check-in, with the one emp
   expect(second.runWins).toBe(first.runWins);
   await expect(page.locator('#ciTestimonialThanks')).toBeVisible();
 });
+
+// Gym sessions are the case the unsent flag exists for: no Strava, so typed
+// sets sit on the phone until the athlete presses Submit. Opening a session
+// and closing it again must not flag it; typing sets and closing must.
+test('typed but unsent gym sets read Not sent on the week until submitted', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+  await codeLogin(page);
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  const weekRow = () => page.locator('#weeklyCalEl .mobile-week-session', { hasText: 'Lower A' });
+
+  // Just looking is not a draft.
+  await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await openUpNext(page);
+  await page.locator('.focus-close').click();
+  await page.evaluate(() => goTrainingPlan());
+  await expect(weekRow()).not.toHaveClass(/has-draft/);
+
+  // Typed sets, closed without submitting.
+  await weekRow().click();
+  await openUpNext(page);
+  for (let set = 0; set < 3; set++) {
+    await page.locator(`#w_0_0_${set}`).fill(String(60 + set * 5));
+    await page.locator(`#r_0_0_${set}`).fill(String(10 - set));
+  }
+  await page.getByRole('button', { name: /On target/ }).click();
+  await page.locator('.focus-close').click();
+  await page.evaluate(() => goTrainingPlan());
+  await expect(weekRow()).toHaveClass(/has-draft/);
+  await expect(weekRow().locator('.mobile-week-draft')).toHaveText('Not sent');
+  await page.locator('#weeklyCalEl').screenshot({ path: 'test-results/week-unsent-gym.png' });
+
+  // Survives a reload: the draft is still on the device and still unsent.
+  await page.reload();
+  await expect(page.locator('#portalScreen')).toBeVisible();
+  await page.evaluate(() => goTrainingPlan());
+  await expect(weekRow()).toHaveClass(/has-draft/);
+
+  // Submitted: the flag goes and the row turns complete.
+  await page.evaluate(() => switchTab('today'));
+  await page.getByRole('button', { name: 'Open awaiting submission Lower A' }).click();
+  await expect(page.locator('#focusFooterAction')).toHaveText('Review & submit');
+  await page.locator('#focusFooterAction').click();
+  await page.getByRole('button', { name: 'Submit to coaches' }).click();
+  await expect(page.getByText('Your coaches can now review the full session.')).toBeVisible();
+  await page.getByRole('button', { name: 'Back to plan' }).last().click();
+  await page.evaluate(() => goTrainingPlan());
+  await expect(weekRow()).not.toHaveClass(/has-draft/);
+  await expect(weekRow()).toHaveClass(/\bdone\b/);
+  expect(errors).toEqual([]);
+});
