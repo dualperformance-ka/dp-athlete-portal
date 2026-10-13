@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v243'; // v243: unsent-draft flag on the week, sending/sent states on submit buttons
+const CACHE_NAME = 'dp-athlete-v244'; // v244: leaving a session with unsent work asks to keep, clear or submit
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=192', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=193', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=131',
   '/js/02-login-goals.js?v=122',
@@ -15,7 +15,7 @@ const APP_SHELL = [
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
   '/js/08-training-run.js?v=2',
-  '/js/08-training.js?v=162',
+  '/js/08-training.js?v=163',
   '/js/09-logging.js?v=137',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=111',

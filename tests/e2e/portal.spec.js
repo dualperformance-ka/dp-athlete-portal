@@ -268,6 +268,7 @@ test('a locally saved workout awaits submission and does not count as complete',
   await page.locator('#r_0_0_0').fill('10');
   await page.getByRole('button', { name: /On target/ }).click();
   await page.getByRole('button', { name: 'Close session' }).click();
+  await page.getByRole('button', { name: 'Keep draft & close' }).click();
   await page.evaluate(() => renderTodaySection());
 
   await expect(page.locator('.todaymeta')).toContainText('Awaiting submission');
@@ -775,6 +776,7 @@ test('typed but unsent gym sets read Not sent on the week until submitted', asyn
   }
   await page.getByRole('button', { name: /On target/ }).click();
   await page.locator('.focus-close').click();
+  await page.getByRole('button', { name: 'Keep draft & close' }).click();
   await page.evaluate(() => goTrainingPlan());
   await expect(weekRow()).toHaveClass(/has-draft/);
   await expect(weekRow().locator('.mobile-week-draft')).toHaveText('Not sent');
@@ -797,5 +799,82 @@ test('typed but unsent gym sets read Not sent on the week until submitted', asyn
   await page.evaluate(() => goTrainingPlan());
   await expect(weekRow()).not.toHaveClass(/has-draft/);
   await expect(weekRow()).toHaveClass(/\bdone\b/);
+  expect(errors).toEqual([]);
+});
+
+// Leaving a session asks only when something is unsent, and whatever the
+// athlete picks, nothing reaches the coaches until they submit.
+test('leaving a session with unsent sets asks to keep, clear or submit', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.addInitScript(() => { localStorage.setItem('dp_strength_rpe_enabled', 'false'); localStorage.setItem('dp_outdoor_mode', '0'); });
+  await codeLogin(page);
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  const coachWrites = [];
+  page.on('request', r => { if (new URL(r.url()).pathname === '/api/ingest') coachWrites.push(r.url()); });
+  const sheet = page.locator('#leaveSessionModal');
+  const overlay = page.locator('#focusOverlay');
+  const weekRow = () => page.locator('#weeklyCalEl .mobile-week-session', { hasText: 'Lower A' });
+  const typeSets = async () => {
+    await openUpNext(page);
+    for (let set = 0; set < 3; set++) {
+      await page.locator(`#w_0_0_${set}`).fill(String(60 + set * 5));
+      await page.locator(`#r_0_0_${set}`).fill(String(10 - set));
+    }
+  };
+
+  // Nothing typed: the × closes straight away, no question.
+  await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await openUpNext(page);
+  await page.getByRole('button', { name: 'Close session' }).click();
+  await expect(page.locator('#leaveSessionModal.open')).toHaveCount(0);
+  await expect(overlay).not.toHaveClass(/\bopen\b/);
+
+  // Typed sets: the × asks. Dismissing returns to the workout untouched.
+  await page.getByRole('button', { name: 'Open Lower A' }).click();
+  await typeSets();
+  await page.getByRole('button', { name: 'Close session' }).click();
+  await expect(sheet).toHaveClass(/\bopen\b/);
+  await expect(page.locator('#leaveSessionTitle')).toHaveText('Not sent yet');
+  await expect(page.locator('#leaveSessionSubtitle')).toHaveText(/^3 sets are saved on this phone/);
+  await expect(page.locator('#leaveSessionKeep')).toBeFocused();
+  await page.screenshot({ path: 'test-results/leave-session-sheet.png' });
+  await page.getByRole('button', { name: 'Keep training' }).click();
+  await expect(page.locator('#leaveSessionModal.open')).toHaveCount(0);
+  await expect(overlay).toHaveClass(/\bopen\b/);
+  await expect(page.locator('#w_0_0_0')).toHaveValue('60');
+
+  // Keep: closes, stays on the phone through a reload, still flagged, never sent.
+  await page.getByRole('button', { name: 'Close session' }).click();
+  await page.getByRole('button', { name: 'Keep draft & close' }).click();
+  await expect(overlay).not.toHaveClass(/\bopen\b/);
+  await page.reload();
+  await expect(page.locator('#portalScreen')).toBeVisible();
+  await page.evaluate(() => goTrainingPlan());
+  await expect(weekRow()).toHaveClass(/has-draft/);
+  expect(coachWrites, 'keeping a draft sends nothing to the coaches').toEqual([]);
+
+  // Clear: the draft is gone everywhere, the row is no longer flagged and
+  // reopening shows an empty workout.
+  await weekRow().click();
+  await expect(overlay).toHaveClass(/\bopen\b/);
+  await page.getByRole('button', { name: 'Close session' }).click();
+  await expect(sheet).toHaveClass(/\bopen\b/);
+  await page.getByRole('button', { name: 'Clear workout' }).click();
+  await expect(overlay).not.toHaveClass(/\bopen\b/);
+  await expect(weekRow()).not.toHaveClass(/has-draft/);
+  expect(await page.evaluate(() => logs['session-1'] || null)).toBeNull();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('dp_logs_KARL') || '{}')['session-1'] || null)).toBeNull();
+  await weekRow().click();
+  await openUpNext(page);
+  await expect(page.locator('#w_0_0_0')).toHaveValue('');
+  expect(coachWrites, 'clearing sends nothing to the coaches').toEqual([]);
+
+  // Submit from the question goes to the normal review, not straight out.
+  await typeSets();
+  await page.getByRole('button', { name: /On target/ }).click();
+  await page.getByRole('button', { name: 'Close session' }).click();
+  await page.getByRole('button', { name: 'Submit to coaches' }).first().click();
+  await expect(page.locator('#strengthReviewTitle')).toHaveText('Review session');
   expect(errors).toEqual([]);
 });

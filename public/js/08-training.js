@@ -3094,7 +3094,7 @@ function ensureFocusOverlay(){
   var ov=document.getElementById('focusOverlay');
   if(ov)return ov;
   ov=document.createElement('div');ov.id='focusOverlay';ov.className='focus-overlay';
-  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" onclick="closeFocusedSession()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong><div class="focus-progress" aria-hidden="true"><i id="focusProgressFill"></i></div></div><div class="focus-overlay-meta"><strong id="focusOverlayMeta"></strong><small id="focusOverlayTime"></small></div></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><div class="focus-footer-state"><strong id="focusFooterTitle">Session in progress</strong><small id="focusFooterDetail">Your entries save as you go.</small></div><button class="focus-done-btn" id="focusFooterAction" data-submit="false" onclick="handleFocusedSessionAction()">Back to plan</button><div class="exl-key" aria-label="Next time key: arrow up means the load goes up, equals means hold, arrow down means it comes down"><span><b class="is-up">↑</b> up</span><span><b class="is-hold">=</b> hold</span><span><b class="is-down">↓</b> down</span></div></div>';
+  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" onclick="requestCloseFocusedSession()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong><div class="focus-progress" aria-hidden="true"><i id="focusProgressFill"></i></div></div><div class="focus-overlay-meta"><strong id="focusOverlayMeta"></strong><small id="focusOverlayTime"></small></div></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><div class="focus-footer-state"><strong id="focusFooterTitle">Session in progress</strong><small id="focusFooterDetail">Your entries save as you go.</small></div><button class="focus-done-btn" id="focusFooterAction" data-submit="false" onclick="handleFocusedSessionAction()">Back to plan</button><div class="exl-key" aria-label="Next time key: arrow up means the load goes up, equals means hold, arrow down means it comes down"><span><b class="is-up">↑</b> up</span><span><b class="is-hold">=</b> hold</span><span><b class="is-down">↓</b> down</span></div></div>';
   document.body.appendChild(ov);
   return ov;
 }
@@ -3166,7 +3166,117 @@ function closeFocusedSession(){
   // the week straight away rather than at the next full render.
   syncMobileWeekSessionDrafts();
 }
-document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(closeExlSheet())return;if(focusedSessionIndex!=null)closeFocusedSession();else if(dayPlanDateISO)closeDayPlan();});
+document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(closeExlSheet())return;if(closeLeaveSessionSheet())return;if(focusedSessionIndex!=null)requestCloseFocusedSession();else if(dayPlanDateISO)closeDayPlan();});
+// ── LEAVING A SESSION ─────────────────────────────────────────────────────────
+// The × used to close straight away. Anything typed was kept as a draft, which
+// is right, but an athlete who had tapped a tick or typed a number by accident
+// had no way to undo it, so the session sat on the week saying "Not sent"
+// forever. Leaving now asks, but only when there is something unsent: an
+// untouched session, or one already sent and unchanged, still closes at once.
+// Whatever they choose, nothing reaches the coaches until they press submit.
+function requestCloseFocusedSession(){
+  if(focusedSessionIndex==null)return;
+  // Typing is saved on a short delay; save it now so the question is asked
+  // about what is actually on screen.
+  try{if(typeof flushGymDraft==='function')flushGymDraft();}catch(e){}
+  var i=focusedSessionIndex,s=sessions[i];
+  if(!s||!trainingSessionHasUnsentDraft(s)){closeFocusedSession();return;}
+  openLeaveSessionSheet(i);
+}
+// What is actually sitting unsent, in the athlete's terms.
+function unsentDraftSummary(s){
+  var entry=(logs&&logs[s.id])||{},resent=trainingSessionIsComplete(s),sets=0,sig=resent?submittedSetCounts(entry):null;
+  Object.keys(entry).forEach(function(k){
+    if(k.indexOf('__')===0||!Array.isArray(entry[k]))return;
+    sets+=resent?Math.max(0,entry[k].length-(sig[exerciseHistoryKey(k)]||0)):entry[k].length;
+  });
+  if(sets)return sets+(resent?' new set':' set')+(sets===1?'':'s');
+  if(String(entry.__notes||'').trim())return 'Your notes';
+  return getType(s)==='run'?'Your run details':'Your entries';
+}
+function submittedSetCounts(entry){
+  var out={};
+  String((entry&&entry.__submittedSig)||'').split('|').forEach(function(part){
+    var at=part.lastIndexOf(':');if(at>0)out[part.slice(0,at)]=parseInt(part.slice(at+1),10)||0;
+  });
+  return out;
+}
+function ensureLeaveSessionSheet(){
+  var modal=document.getElementById('leaveSessionModal');if(modal)return modal;
+  modal=document.createElement('div');modal.id='leaveSessionModal';modal.className='ql-modal leave-session-modal';
+  modal.onclick=function(event){if(event.target===modal)closeLeaveSessionSheet();};
+  modal.innerHTML='<div class="ql-modal-inner leave-session-inner" role="dialog" aria-modal="true" aria-labelledby="leaveSessionTitle" aria-describedby="leaveSessionSubtitle"><div class="ql-modal-header"><div><div class="ql-modal-title" id="leaveSessionTitle">Not sent yet</div><div class="modal-subtitle" id="leaveSessionSubtitle"></div></div><button class="ql-modal-close" onclick="closeLeaveSessionSheet()" aria-label="Keep training">×</button></div><div class="ql-modal-body"><div class="leave-session-actions"><button type="button" class="leave-session-btn is-primary" id="leaveSessionSubmit" onclick="leaveSessionSubmit()">Submit to coaches</button><button type="button" class="leave-session-btn" id="leaveSessionKeep" onclick="leaveSessionKeep()">Keep draft &amp; close</button><button type="button" class="leave-session-btn is-danger" id="leaveSessionClear" onclick="leaveSessionClear()">Clear workout</button></div></div></div>';
+  document.body.appendChild(modal);return modal;
+}
+var leaveSessionIndex=null,leaveSessionReturnFocus=null;
+function openLeaveSessionSheet(i){
+  var s=sessions[i];if(!s)return;
+  var modal=ensureLeaveSessionSheet(),resent=trainingSessionIsComplete(s),what=unsentDraftSummary(s);
+  leaveSessionIndex=i;leaveSessionReturnFocus=document.activeElement;
+  var part=function(id){return modal.querySelector('#'+id)||{};};
+  part('leaveSessionTitle').textContent=resent?'Update not sent yet':'Not sent yet';
+  part('leaveSessionSubtitle').textContent=what+(what.indexOf('Your ')===0?' are':(/^1 /.test(what)?' is':' are'))+' saved on this phone. Your coaches only see '+(resent?'the update':'this session')+' once you submit it.';
+  part('leaveSessionSubmit').textContent=resent?'Send update to coaches':'Submit to coaches';
+  part('leaveSessionKeep').textContent='Keep draft & close';
+  part('leaveSessionClear').textContent=resent?'Discard changes since you sent it':'Clear workout';
+  modal.classList.add('open');
+  setTimeout(function(){var keep=document.getElementById('leaveSessionKeep');if(keep&&keep.focus)keep.focus();},60);
+}
+// Returns true when it closed something, so Escape stops there.
+function closeLeaveSessionSheet(){
+  var modal=document.getElementById('leaveSessionModal');
+  if(!modal||!modal.classList.contains('open'))return false;
+  modal.classList.remove('open');leaveSessionIndex=null;
+  var back=leaveSessionReturnFocus;leaveSessionReturnFocus=null;
+  if(back&&back.focus&&document.contains(back))try{back.focus();}catch(e){}
+  return true;
+}
+function leaveSessionKeep(){
+  closeLeaveSessionSheet();
+  closeFocusedSession();
+  if(typeof showToast==='function')showToast('Saved on this phone · not sent yet');
+}
+function leaveSessionSubmit(){
+  var i=leaveSessionIndex;closeLeaveSessionSheet();if(i==null)return;
+  // The session's own save button already knows its type: the strength
+  // review, a manual run, or a notes-only session.
+  var save=document.getElementById('sb_'+i);
+  if(save&&!save.disabled){save.click();return;}
+  handleFocusedSessionAction();
+}
+function leaveSessionClear(){
+  var i=leaveSessionIndex;closeLeaveSessionSheet();if(i==null)return;
+  var s=sessions[i],resent=s&&trainingSessionIsComplete(s);
+  // Close first: closing saves whatever is on screen, which must happen
+  // before the draft is cleared or it would be written straight back.
+  closeFocusedSession();
+  clearSessionDraft(s);
+  if(typeof renderCal==='function'&&typeof getWS==='function')try{renderCal(getWS());}catch(e){}
+  if(typeof renderTodaySection==='function')try{renderTodaySection();}catch(e){}
+  if(typeof showToast==='function')showToast(resent?'Changes discarded · your sent session is unchanged':'Workout cleared');
+}
+// Never-sent: remove everything the athlete entered, keeping only a Strava
+// match the session may carry. Sent then added to: trim back to exactly what
+// was sent, so the session matches its submitted copy again.
+function clearSessionDraft(s){
+  if(!s||!logs)return;
+  var entry=logs[s.id];if(!entry||typeof entry!=='object')return;
+  if(trainingSessionIsComplete(s)){
+    var sent=submittedSetCounts(entry);
+    Object.keys(entry).forEach(function(k){
+      if(k.indexOf('__')===0||!Array.isArray(entry[k]))return;
+      var n=sent[exerciseHistoryKey(k)]||0;
+      if(!n)delete entry[k];else if(entry[k].length>n)entry[k]=entry[k].slice(0,n);
+    });
+  }else{
+    var kept={};
+    Object.keys(entry).forEach(function(k){if(k.indexOf('__strava')===0)kept[k]=entry[k];});
+    if(Object.keys(kept).length)logs[s.id]=kept;else delete logs[s.id];
+  }
+  logs.__savedAt=Date.now();
+  try{localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));}catch(e){}
+  try{var w=portalStateWrite('logs',logs);if(w&&w.catch)w.catch(function(){});}catch(e){}
+}
 function togS(i){var el=document.getElementById('scb_'+i);if(!el) return;
   var open=el.classList.toggle('open');
   var toggle=document.getElementById('scht_'+i);

@@ -7202,3 +7202,15 @@ body.exl-sheet-open{overflow:hidden}
 .mobile-week-session.has-draft strong{color:var(--watch-text)}
 .mobile-week-session.has-draft .mobile-week-draft{display:inline-flex}
 .mobile-week-session.has-draft .mobile-week-chevron,.mobile-week-session.has-draft .mobile-week-complete{display:none}
+
+/* ── LEAVING A SESSION ───────────────────────────────────────────────────────
+   Asked only when a session holds something unsent (08-training.js
+   requestCloseFocusedSession). Submit leads, keeping the draft is the safe
+   default and takes focus, clearing is set apart as the destructive choice. */
+.leave-session-modal{z-index:335}
+.leave-session-inner{max-width:480px}
+.leave-session-actions{display:grid;gap:10px;margin-top:4px}
+.leave-session-btn{min-height:50px;padding:12px 16px;border:1px solid var(--border-mid);border-radius:var(--radius-md);background:var(--g-2);color:var(--t-1);font:750 var(--font-sm)/1.2 var(--body);cursor:pointer}
+.leave-session-btn.is-primary{background:var(--readout);border-color:var(--readout);color:var(--readout-ink)}
+.leave-session-btn.is-danger{margin-top:6px;background:transparent;border-color:color-mix(in srgb,var(--alert) 55%,transparent);color:var(--alert)}
+.leave-session-btn:focus-visible{outline:3px solid var(--t-2);outline-offset:3px}
