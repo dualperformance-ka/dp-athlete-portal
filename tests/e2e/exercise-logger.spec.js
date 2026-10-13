@@ -231,6 +231,8 @@ test('next-time badges follow direction against the load just lifted, not the en
     };
   });
   await page.getByRole('button', { name: 'Close session' }).click();
+  // Unsent sets: leaving asks first; keep them as a draft.
+  await page.getByRole('button', { name: 'Keep draft & close' }).click();
   await page.getByRole('button', { name: /Open .*Upper A/ }).click();
 
   const pecBadge = page.locator('.exc[data-exercise-index="0"] .exl-badge');
