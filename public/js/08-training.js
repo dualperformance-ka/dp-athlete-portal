@@ -1178,6 +1178,27 @@ function getWorkingRows(ex,arr,requireReps){
   return arr.slice(0,workingSets);
 }
 function getWorkingSlice(ex,arr){return getWorkingRows(ex,arr,true);}
+// The collapsed "done" line is progression evidence, so it reads the same
+// working-set window the engine reads: warm-ups and bonus rows never appear.
+// Unilateral sets show the weaker side (the side that has to earn the
+// increase), and an assisted machine's headline load is the least assistance.
+// Display only: the saved sets are untouched.
+function strengthWorkingSummaryText(ex,sets,assisted){
+  var work=getWorkingSlice(ex,sets||[]);
+  if(!work.length)return '';
+  var unit=assisted?'kg assist':'kg',loads=[],parts=[];
+  work.forEach(function(set){
+    var w=parseFloat(set.weight),reps=_effReps(set);
+    loads.push(isNaN(w)?null:w);
+    parts.push(reps==null||reps===Infinity?'-':String(reps));
+  });
+  var known=loads.filter(function(v){return v!=null;});
+  var same=known.length===loads.length&&known.every(function(v){return Math.abs(v-known[0])<0.005;});
+  if(!known.length)return parts.join(' · ');
+  if(same)return _nsBare(known[0])+unit+' × '+parts.join(' · ');
+  // Ramped or changed loads: each working set keeps its own load.
+  return work.map(function(set,ix){return (loads[ix]==null?'—':_nsBare(loads[ix])+unit)+' × '+parts[ix];}).join(' · ');
+}
 function _isAssistedExercise(name){return /\bassist(?:ed|ance)?\b/i.test(String(name||''));}
 function formatSetSummary(arr,exerciseName){arr=(arr||[]).filter(function(x){return x&&((x.weight&&String(x.weight).trim()!=='')||(x.reps&&String(x.reps).trim()!=='')||(x.repsLeft&&String(x.repsLeft).trim()!=='')||(x.repsRight&&String(x.repsRight).trim()!==''));});if(!arr.length) return '';var unit=_isAssistedExercise(exerciseName)?'kg assist':'kg';return arr.map(function(ps){var reps=ps.reps?(' × '+ps.reps):(ps.repsLeft||ps.repsRight?(' × L '+(ps.repsLeft||'—')+' / R '+(ps.repsRight||'—')):'');return(ps.weight?ps.weight+unit:'—')+reps;}).join(' | ');}
 function setVal(v){return String(v==null?'':v).trim();}
@@ -1313,17 +1334,74 @@ function _strengthEasierStepInfo(name,load,history,ex,assisted){
 // outcomes; the three legacy codes stay valid so drafts and submitted sessions
 // written before this change keep meaning what they meant.
 var STRENGTH_EFFORT_CODES=/^(on_target|too_easy|too_hard|form_pain|reserve|failure|form_break)$/;
-function strengthEffortLabel(effort){
-  var labels={on_target:'On target',too_easy:'Too easy',too_hard:'Too hard',form_pain:'Technique / niggle',
-    reserve:'Too easy',failure:'On target',form_break:'Technique / niggle'};
-  return labels[String(effort||'')]||'Set rated';
+// Legacy answers keep their stored code and read as the outcome the engine
+// already gives them: reserve is "too easy", failure is "no clean rep left"
+// (the engine's at-limit band) and form_break is a technique stop.
+var STRENGTH_LEGACY_EFFORT={reserve:'too_easy',failure:'too_hard',form_break:'form_pain'};
+// Effort is asked as "how many clean reps were left", because that is a
+// question an athlete can answer mid-set. The choices follow the coach's RIR
+// target rather than assuming two: the easy choice starts where the engine's
+// easy band starts, and reps achieved are never folded into the effort label.
+function _strTargetRir(pres){
+  var t=pres&&pres.targetRir!=null?Number(pres.targetRir):STRENGTH_POLICY.defaultTargetRir;
+  return isFinite(t)&&t>0?t:0;
+}
+function _strRepsWord(n){return Number(n)===1?'rep':'reps';}
+function strengthEffortChoices(pres){
+  var t=_strTargetRir(pres),easy=Math.ceil(t+STRENGTH_POLICY.easyRirMargin),hardMax=Math.max(0,Math.ceil(t)-1);
+  return [
+    {code:'too_easy',label:easy+'+ clean reps left',detail:'Easier than planned · the load can go up'},
+    {code:'on_target',label:t<=0?'No reps left, as set':'About '+_nsTrim(t)+' '+_strRepsWord(t)+' left',detail:'On target'},
+    {code:'too_hard',label:t<=0?'Could not finish cleanly':(hardMax<=0?'0 clean reps left':'0–'+hardMax+' clean reps left'),detail:'Harder than planned · the load holds'},
+    {code:'form_pain',label:'Form or pain stopped me',detail:'Progression pauses · tell your coach'}
+  ];
+}
+function strengthEffortLabel(effort,pres){
+  var code=String(effort||'');code=STRENGTH_LEGACY_EFFORT[code]||code;
+  var match=strengthEffortChoices(pres).filter(function(choice){return choice.code===code;})[0];
+  return match?match.label:'Effort logged';
+}
+// "about 2 clean reps left": the primary effort phrase on every athlete
+// screen. RIR/RPE stay available as the secondary, technical terms.
+function strengthRepsLeftPhrase(pres){
+  var t=_strTargetRir(pres);
+  if(t<=0)return 'the effort your coach set';
+  return 'about '+_nsTrim(t)+' clean '+_strRepsWord(t)+' left';
+}
+function strengthEffortTechLabel(pres){
+  var t=_strTargetRir(pres),rpe=pres&&pres.targetRpe!=null?pres.targetRpe:10-t;
+  return 'RIR '+_nsTrim(t)+' · RPE '+_nsTrim(rpe);
 }
 // How the prescribed effort reads on the card. A coach RIR/RPE wins; with no
 // coach target this is the conservative default, and it never asks for failure.
 function strengthEffortTargetLabel(pres){
-  if(!pres)return 'about 2 reps in reserve';
+  if(!pres)return 'about 2 clean reps left (RIR 2)';
   if(pres.targetRir<=0)return 'the effort your coach set';
-  return pres.targetRir+' rep'+(pres.targetRir===1?'':'s')+' in reserve (RPE '+_nsTrim(pres.targetRpe)+')';
+  return strengthRepsLeftPhrase(pres)+' ('+strengthEffortTechLabel(pres)+')';
+}
+// With RPE logging on, the first working set's RPE already answers the effort
+// question, so it is mapped to the engine's own effort input instead of
+// asking twice. The engine's band decides the outcome — the same band it uses
+// when it reads a logged RPE — so nothing here is a new rule.
+function strengthEffortFromRpe(pres,rpe){
+  if(!pres)return '';
+  var row=normaliseStrengthSets([{rpe:rpe,reps:'1'}],pres,'working')[0];
+  if(!row||row.rpe==null)return '';
+  var band=strengthEffortEvidence(pres,row).band;
+  return band==='easy'?'too_easy':(band==='hard'?'too_hard':(band==='on'?'on_target':''));
+}
+function strengthRowUsesRpeEffort(row){
+  if(!row||typeof row.querySelector!=='function'||!row.querySelector('input[id^="rpe_"]'))return false;
+  var card=row.closest?row.closest('.exc'):null;
+  return strengthCardRequiresRpe(card);
+}
+function strengthRpeEffortText(pres,rpe,effort,source){
+  var code=STRENGTH_LEGACY_EFFORT[effort]||effort;
+  if(code==='form_pain')return 'Form or pain stopped this set';
+  if(effort&&source!=='rpe')return strengthEffortLabel(effort,pres);
+  var derived=strengthEffortFromRpe(pres,rpe);
+  if(!derived)return 'Your RPE sets the effort for this set';
+  return 'RPE '+_nsTrim(rpe)+' · '+strengthEffortLabel(derived,pres).toLowerCase();
 }
 function _nsTrim(value){var n=Math.round(Number(value)*10)/10;return Number.isInteger(n)?String(n):String(n);}
 function strengthPrescriptionFor(ex,resolvedName){
@@ -1363,14 +1441,26 @@ function strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex){
   if(!guidance)return '';
   return '<span>'+esc(guidance.message)+'</span>';
 }
-function strengthEffortPickerHtml(i,ei,si,effort,guidance,nextRowIndex,required,prompting,pres){
-  var options=[['on_target','On target','Effort as prescribed'],['too_easy','Too easy','Clean reps to spare'],['too_hard','Too hard','Under the range, or close to failing'],['form_pain','Technique / niggle','Form broke or something hurt']];
-  var label=strengthEffortLabel(effort);
-  var h='<div class="set-effort'+(effort?' is-rated':(prompting?' is-prompting':''))+'" id="effort_'+i+'_'+ei+'_'+si+'">';
-  h+='<button type="button" class="set-effort-summary" onclick="toggleStrengthEffortPanel('+i+','+ei+','+si+')"><span>'+esc(label)+' ✓</span><small>Change</small></button>';
-  var effortTarget=pres?strengthEffortTargetLabel(pres):'about 2 reps in reserve';
-  h+='<div class="set-effort-editor"><div class="set-effort-head"><strong>How did the first working set finish?</strong>'+(required?'<small>Required · aim for '+esc(effortTarget)+'</small>':'')+'</div><div class="set-effort-options" role="group" aria-label="First working set effort and quality">';
-  options.forEach(function(opt){h+='<button type="button" class="'+(effort===opt[0]?'active':'')+'" aria-pressed="'+(effort===opt[0]?'true':'false')+'" aria-label="'+esc(opt[1]+' — '+opt[2])+'" onclick="setStrengthEffort('+i+','+ei+','+si+',\''+opt[0]+'\',this)"><strong>'+opt[1]+'</strong><small>'+opt[2]+'</small></button>';});
+// One panel, two ways in. With RPE off it asks how many clean reps were left.
+// With RPE on (and an RPE box on the row) the RPE answers that, so only a
+// one-line read-back and the form/pain report are shown — never a second
+// question. CSS picks the mode from the card's data-rpe-required, so flipping
+// the RPE switch mid-session needs no re-render.
+function strengthEffortPickerHtml(i,ei,si,effort,guidance,nextRowIndex,required,prompting,pres,opts){
+  opts=opts||{};
+  var options=strengthEffortChoices(pres);
+  var stored=String(effort||''),code=STRENGTH_LEGACY_EFFORT[stored]||stored;
+  var label=strengthEffortLabel(stored,pres),source=opts.source||'';
+  var key=i+','+ei+','+si;
+  var h='<div class="set-effort'+(stored?' is-rated':(prompting?' is-prompting':''))+'" id="effort_'+i+'_'+ei+'_'+si+'" data-rpe-capable="'+(opts.rpeCapable?'true':'false')+'" data-effort-source="'+esc(source)+'">';
+  h+='<button type="button" class="set-effort-summary" onclick="toggleStrengthEffortPanel('+key+')" aria-label="'+esc('Working set 1 effort: '+label+'. Change')+'"><span>'+esc(label)+' ✓</span><small>Change</small></button>';
+  if(opts.rpeCapable){
+    var pain=code==='form_pain';
+    h+='<div class="set-effort-rpe"><span class="set-effort-rpe-text" id="effort_rpe_'+i+'_'+ei+'_'+si+'">'+esc(strengthRpeEffortText(pres,opts.rpe,stored,source))+'</span>'+
+      '<button type="button" class="set-effort-pain'+(pain?' active':'')+'" aria-pressed="'+(pain?'true':'false')+'" onclick="toggleStrengthPainReport('+key+',this)">Form or pain stopped me</button></div>';
+  }
+  h+='<div class="set-effort-editor"><div class="set-effort-head"><strong>How many clean reps did you have left?</strong>'+(required?'<small>Work 1 · aim for '+esc(strengthRepsLeftPhrase(pres))+'</small>':'')+'</div><div class="set-effort-options" role="group" aria-label="Clean reps left on working set 1">';
+  options.forEach(function(opt){var on=code===opt.code;h+='<button type="button" data-effort-code="'+opt.code+'" class="'+(on?'active':'')+'" aria-pressed="'+(on?'true':'false')+'" aria-label="'+esc(opt.label+' — '+opt.detail)+'" onclick="setStrengthEffort('+key+',\''+opt.code+'\',this)"><strong>'+esc(opt.label)+'</strong><small>'+esc(opt.detail)+'</small></button>';});
   return h+'</div><div class="set-effort-advice tone-'+(guidance&&guidance.tone||'blue')+'" id="effort_advice_'+i+'_'+ei+'_'+si+'">'+strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex)+'</div></div></div>';
 }
 // Kept for callers that only want the number.
@@ -1427,7 +1517,7 @@ function collectExerciseSets(i,ei,trackRows){
     var w=wEl?wEl.value||'':'';var done=doneEl?doneEl.classList.contains('on'):false;var effort=row.getAttribute('data-effort')||'';var item=null;
     if(rLEl&&rREl){var rL=rLEl.value||'';var rR=rREl.value||'';if(w||rL||rR||done)item={weight:w,repsLeft:rL,repsRight:rR,done:done};}
     else{var rEl=row.querySelector('input[id^="r_"]');var rpeEl=row.querySelector('input[id^="rpe_"]');var r=rEl?rEl.value||'':'';var rpe=rpeEl?rpeEl.value||'':'';if(w||r||rpe||done)item={weight:w,reps:r,rpe:rpe,done:done};}
-    if(item){if(effort)item.effort=effort;if(trackRows)item._rowIndex=rowIndex;arr.push(item);}
+    if(item){if(effort){item.effort=effort;if(row.getAttribute('data-effort-source')==='rpe')item.effortSource='rpe';}if(trackRows)item._rowIndex=rowIndex;arr.push(item);}
   });
   return arr;
 }
@@ -1454,17 +1544,36 @@ function applyStrengthEffortLoadToRemaining(i,ei,startRow,endRow,weight,repTarge
   return changed;
 }
 function setStrengthEffort(i,ei,si,effort,button){
-  var row=document.getElementById('sr_'+i+'_'+ei+'_'+si),panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(!row||!panel)return;
+  var applied=_applyStrengthEffort(i,ei,si,effort,'athlete');
+  if(!applied)return applied;
+  autoCompleteStrengthSet(i,ei,si);
+  return true;
+}
+// Records one effort answer and applies its same-day guidance. `source` is
+// 'rpe' when the answer was read from the row's RPE, so a later RPE edit can
+// re-read it; a tapped answer (including form/pain) is never overwritten.
+function _applyStrengthEffort(i,ei,si,effort,source){
+  var row=document.getElementById('sr_'+i+'_'+ei+'_'+si),panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(!row||!panel)return false;
   // Week refreshes replace the sessions array before the old workout DOM is
   // necessarily gone. Bind the interaction to the session ID rendered on the
   // card so a delayed tap cannot crash or write into a different workout.
   var card=row.closest('.exc'),session=sessions[i],renderedSessionId=card&&card.getAttribute('data-session-id');
   if(!session||session.id==null||(renderedSessionId&&String(session.id)!==String(renderedSessionId)))return false;
-  row.setAttribute('data-effort',effort);panel.classList.add('is-rated');panel.classList.remove('is-prompting','is-editing','needs-attention');
-  panel.querySelectorAll('.set-effort-options button').forEach(function(opt){var active=opt===button;opt.classList.toggle('active',active);opt.setAttribute('aria-pressed',active?'true':'false');});
-  var summary=panel.querySelector('.set-effort-summary span');if(summary)summary.textContent=strengthEffortLabel(effort)+' ✓';
-  var splitKey=card&&card.getAttribute('data-split-key')||'Upper A',exercises=getSplit(splitKey),ex=exercises[ei];if(!ex)return;
-  var resolvedEx=exPicks[ex.exercise]||ex.exercise,history=getExerciseHistory(session.id,resolvedEx),sets=collectExerciseSets(i,ei,true),current=sets.find(function(set){return Number(set._rowIndex)===si;})||{};
+  var splitKey=card&&card.getAttribute('data-split-key')||'Upper A',exercises=getSplit(splitKey),ex=exercises[ei];if(!ex)return false;
+  var resolvedEx=exPicks[ex.exercise]||ex.exercise,pres=strengthPrescriptionFor(ex,resolvedEx);
+  if(effort)row.setAttribute('data-effort',effort);else row.removeAttribute('data-effort');
+  if(source==='rpe'&&effort)row.setAttribute('data-effort-source','rpe');else row.removeAttribute('data-effort-source');
+  panel.setAttribute('data-effort-source',source==='rpe'?'rpe':'');
+  panel.classList.toggle('is-rated',!!effort);panel.classList.remove('is-editing','needs-attention');
+  if(effort)panel.classList.remove('is-prompting');
+  var code=STRENGTH_LEGACY_EFFORT[effort]||effort;
+  panel.querySelectorAll('.set-effort-options button').forEach(function(opt){var active=opt.getAttribute('data-effort-code')===code;opt.classList.toggle('active',active);opt.setAttribute('aria-pressed',active?'true':'false');});
+  var summary=panel.querySelector('.set-effort-summary span');if(summary)summary.textContent=strengthEffortLabel(effort,pres)+' ✓';
+  var pain=panel.querySelector('.set-effort-pain');if(pain){pain.classList.toggle('active',code==='form_pain');pain.setAttribute('aria-pressed',code==='form_pain'?'true':'false');}
+  var rpeEl=row.querySelector('input[id^="rpe_"]'),rpeText=document.getElementById('effort_rpe_'+i+'_'+ei+'_'+si);
+  if(rpeText)rpeText.textContent=strengthRpeEffortText(pres,rpeEl?rpeEl.value:'',effort,source);
+  if(!effort){draftGym(i,splitKey);return true;}
+  var history=getExerciseHistory(session.id,resolvedEx),sets=collectExerciseSets(i,ei,true),current=sets.find(function(set){return Number(set._rowIndex)===si;})||{};
   var warmups=parseInt(ex.warmupSets,10)||0,working=parseInt(ex.workingSets||ex.sets,10)||1,finalSet=si>=warmups+working-1,nextRowIndex=finalSet?null:si+1;
   var guidance=strengthEffortGuidance(ex,effort,current,resolvedEx,history,finalSet),advice=document.getElementById('effort_advice_'+i+'_'+ei+'_'+si);
   if(advice){advice.className='set-effort-advice tone-'+(guidance&&guidance.tone||'blue');advice.innerHTML=strengthEffortAdviceHtml(guidance,i,ei,nextRowIndex);}
@@ -1473,8 +1582,37 @@ function setStrengthEffort(i,ei,si,effort,button){
   var repTarget=guidance&&guidance.repTarget!=null?guidance.repTarget:(parseInt(String(ex.repRange||ex.reps||'').split('-')[0],10)||parseInt(ex.reps,10)||null);
   if(guidance&&guidance.targetWeight!=null&&guidance.direction!=='same'&&!finalSet)applyStrengthEffortLoadToRemaining(i,ei,si+1,warmups+working-1,guidance.targetWeight,repTarget);
   if(guidance&&guidance.flagCoach&&typeof showToast==='function')showToast('Logged — stop or reduce the load, and let your coach know');
-  draftGym(i,splitKey);autoCompleteStrengthSet(i,ei,si);
+  draftGym(i,splitKey);
   return true;
+}
+// RPE on: read the first working set's effort from its RPE. Returns true when
+// the row now carries an effort answer. Explicit answers are left alone.
+function syncStrengthEffortFromRpe(i,ei,si){
+  var row=document.getElementById('sr_'+i+'_'+ei+'_'+si);
+  if(!row||typeof row.getAttribute!=='function'||row.getAttribute('data-effort-required')!=='true')return false;
+  if(!strengthRowUsesRpeEffort(row))return false;
+  var current=row.getAttribute('data-effort')||'',source=row.getAttribute('data-effort-source')||'';
+  if(current&&source!=='rpe')return true;
+  var card=row.closest('.exc'),splitKey=card&&card.getAttribute('data-split-key')||'Upper A';
+  var ex=(getSplit(splitKey)||[])[ei];if(!ex)return false;
+  var pres=strengthPrescriptionFor(ex,exPicks[ex.exercise]||ex.exercise);
+  var rpeEl=row.querySelector('input[id^="rpe_"]'),code=strengthEffortFromRpe(pres,rpeEl?rpeEl.value:'');
+  if(code===current)return !!code;
+  _applyStrengthEffort(i,ei,si,code,'rpe');
+  return !!code;
+}
+// The form/pain report stays one tap away when RPE answers the effort. A
+// second tap withdraws it and the RPE reading takes over again.
+function toggleStrengthPainReport(i,ei,si,button){
+  var row=document.getElementById('sr_'+i+'_'+ei+'_'+si);if(!row)return false;
+  var on=(STRENGTH_LEGACY_EFFORT[row.getAttribute('data-effort')]||row.getAttribute('data-effort'))==='form_pain'&&row.getAttribute('data-effort-source')!=='rpe';
+  if(on){
+    _applyStrengthEffort(i,ei,si,'','');
+    syncStrengthEffortFromRpe(i,ei,si);
+    autoCompleteStrengthSet(i,ei,si);
+    return true;
+  }
+  return setStrengthEffort(i,ei,si,'form_pain',button);
 }
 function applyStrengthEffortLoad(i,ei,si,weight){
   var input=document.getElementById('w_'+i+'_'+ei+'_'+si);if(!input)return;
@@ -1562,7 +1700,7 @@ function computeOverload(ex,effort,resolvedName,history){
   rec.prescription=pres;
   var reps=strengthCompletedRows(rows).map(function(row){return row.reps;});
   if(reps.length&&/^(increase_load|increase_reps|add_reps|load_confirmed)$/.test(rec.decision)){
-    rec.milestone=_nsMilestone(reps,pres.repCeiling,pres.workingSets);
+    rec.milestone=_nsMilestone(reps,pres.repCeiling,pres.workingSets,rec.decision);
   }
   rec.beaten=strengthTargetBeaten(pres,rows,rec.target);
   return rec;
@@ -1613,46 +1751,54 @@ function strengthRecommendationSnapshot(sessionId,exercises){
   });
   return out;
 }
-// Classify how today's completed work relates to the recommendation that was
-// shown at the start of the exercise. This is intentionally ephemeral: it
-// powers the athlete's review/recap without adding any new coach-bound fields.
-function strengthRecommendationOutcome(ex,pres,rec,currentSets){
+// How today's work moved this exercise on, in athlete terms. It reads the
+// engine's next-session decision made from today's completed working sets —
+// the same one the result card shows — and adds nothing coach-bound: the
+// review and recap are calculated on the athlete's device only.
+//   progressed   — a heavier load (or less assistance, or more reps) earned,
+//                  or a heavier load confirmed today
+//   stay         — stays at the current load and keeps building
+//   consolidate  — locking in a heavier load already reached
+//   lighter      — a sensible lighter start next time
+//   form         — technique or pain recorded; tell the coach
+//   coach        — the next step needs a coach decision
+function strengthRecommendationOutcome(ex,pres,next,currentSets){
   var working=normaliseStrengthSets(getWorkingSlice(ex,currentSets||[]),pres,'working');
   var completed=strengthCompletedRows(working);
   if(!completed.length)return null;
   var loads=completed.filter(function(row){return row.hasLoad;}).map(function(row){return row.load;});
-  var actualLoad=loads.length?(pres.assisted?Math.min.apply(null,loads):Math.max.apply(null,loads)):null;
-  var expectedLoad=rec&&rec.weightKg!=null?Number(rec.weightKg):null;
-  var pain=completed.some(function(row){return row.quality==='form_pain';});
-  var complete=completed.length>=pres.workingSets;
-  var targets=rec&&rec.target||[];
-  var targetMet=complete&&completed.slice(0,pres.workingSets).every(function(row,index){
-    var target=targets[index]!=null?Number(targets[index]):pres.repFloor;
-    return row.reps>=target;
-  });
-  var status='building';
-  if(pain)status='safety_review';
-  else if(rec&&rec.coachReview)status='coach_review';
-  else if(actualLoad!=null&&expectedLoad!=null&&Math.abs(actualLoad-expectedLoad)>0.01)status='adapted';
-  else if(complete&&targetMet)status='followed';
-  return {status:status,actualLoad:actualLoad,expectedLoad:expectedLoad,complete:complete,targetMet:targetMet};
+  var todayLoad=loads.length?(pres.assisted?Math.min.apply(null,loads):Math.max.apply(null,loads)):null;
+  var nextLoad=next&&next.weightKg!=null?Number(next.weightKg):null;
+  var d=String(next&&next.decision||'');
+  var pain=completed.some(function(row){return row.quality==='form_pain';})||!!(next&&next.painFlag)||d==='technique_check';
+  var status='stay';
+  if(pain)status='form';
+  else if(next&&(next.coachReview||d==='coach_review'))status='coach';
+  else if(/^(increase_load|increase_reps|change_provisional|load_confirmed)$/.test(d))status='progressed';
+  else if(d==='change_unconfirmed')status='consolidate';
+  else if(d==='reduce_load')status='lighter';
+  var direction='same';
+  if(nextLoad!=null&&todayLoad!=null&&Math.abs(nextLoad-todayLoad)>0.01)direction=(pres.assisted?nextLoad<todayLoad:nextLoad>todayLoad)?'up':'down';
+  else if(nextLoad==null&&/^(increase_load|change_provisional)$/.test(d))direction='up';
+  else if(d==='increase_reps')direction='up';
+  return {status:status,todayLoad:todayLoad,nextLoad:nextLoad,direction:direction,complete:completed.length>=pres.workingSets,action:next&&next.action||''};
 }
 function strengthRecommendationSummaryForSession(i,splitKey){
-  var summary={total:0,followed:0,adapted:0,building:0,safety:0,review:0};
+  var summary={total:0,progressed:0,stay:0,consolidate:0,lighter:0,form:0,coach:0,changes:[],alerts:[]};
   var session=sessions[i];if(!session)return summary;
   (getSplit(splitKey)||[]).forEach(function(ex,ei){
     var current=collectExerciseSets(i,ei,true);if(!current.length)return;
     var resolved=exPicks[ex.exercise]||ex.exercise;
     var history=getExerciseHistory(session.id,resolved);
-    var rec=_nsRecommendation(ex,getExercisePreviousEffort(session.id,resolved),resolved,history);
-    var outcome=strengthRecommendationOutcome(ex,rec.prescription||strengthPrescriptionFor(ex,resolved),rec,current);
+    var pres=strengthPrescriptionFor(ex,resolved);
+    var next=_nsRecommendation(ex,current,resolved,history);
+    var outcome=strengthRecommendationOutcome(ex,next.prescription||pres,next,current);
     if(!outcome)return;
     summary.total++;
-    if(outcome.status==='followed')summary.followed++;
-    else if(outcome.status==='adapted')summary.adapted++;
-    else if(outcome.status==='safety_review')summary.safety++;
-    else if(outcome.status==='coach_review')summary.review++;
-    else summary.building++;
+    summary[outcome.status]++;
+    if(outcome.status==='form')summary.alerts.push({name:resolved,kind:'form',text:'form or pain stopped a set'});
+    else if(outcome.status==='coach')summary.alerts.push({name:resolved,kind:'coach',text:'needs your coach to set the next step'});
+    else if(outcome.direction!=='same')summary.changes.push({name:resolved,direction:outcome.direction,action:outcome.action});
   });
   return summary;
 }
@@ -1706,19 +1852,21 @@ function _nsChip(rec){
 }
 // Live progression milestone: how close the athlete is to earning the load bump.
 // Recalculates from whatever is currently entered, so it climbs as they log.
-function _nsMilestone(reps,top,wantSets){
+// Three behaviour-led steps: build reps, confirm every working set, increase
+// earned. The last step needs the engine's own increase decision as well as
+// the reps, so a hard effort, a technique stop or pain can always hold it.
+function _nsMilestone(reps,top,wantSets,decision){
   var topped=reps.filter(function(v){return v>=top;}).length;
   if(!reps.length) return {stage:0,topped:0,wantSets:wantSets};
   var stage;
-  if(topped>=wantSets) stage=4;                          // every set topped -> unlocked
-  else if(wantSets>1&&topped===wantSets-1) stage=3;      // last set to go
-  else if(topped>0) stage=2;                             // first set topped
-  else stage=1;                                          // building reps
+  if(topped>=wantSets&&/^(increase_load|increase_reps)$/.test(String(decision||''))) stage=3;
+  else if(topped>0) stage=2;
+  else stage=1;
   return {stage:stage,topped:topped,wantSets:wantSets};
 }
 function _nsMileHTML(m,assisted){
   if(!m||m.stage<=0) return '';
-  var nodes=[['dot-ring','One more rep'],['dot-ring','One more set'],['dot','Unlocked'],['rocket',assisted?'Less assist':'Increase next']];
+  var nodes=[['dot-ring','Build reps'],['dot-ring','Confirm all working sets'],['rocket',assisted?'Less assistance earned':'Increase earned']];
   var h='<div class="ns-mile" data-stage="'+m.stage+'">';
   nodes.forEach(function(n,ix){
     var on=ix<m.stage, cur=ix===m.stage-1;
@@ -1774,8 +1922,10 @@ function _nsLiveProgress(ex,currentEffort,rec,resolvedName,history,previousEffor
     msg=reps.length+' of '+wantSets+' working sets in · '+total+' reps so far';
     if(reps.length===wantSets-1&&topped===reps.length&&currentLoad!=null){
       var info=assisted?_ovAssistanceStepInfo(resolvedName||ex.exercise,currentLoad,history,ex):_ovStepInfo(resolvedName||ex.exercise,currentLoad,history,ex);
-      var unlock=assisted?(info.next>0?_nsKg(info.next)+' assistance':'bodyweight'):(info.step===0?'more reps':_nsKg(info.next));
-      prompt='Final working set: stay at '+_nsKg(currentLoad)+(assisted?' assistance':'')+' and aim for '+top+'. Hit it to unlock '+unlock+' next session.';
+      // An estimated step is never named as a number: the equipment may not
+      // have it.
+      var unlock=assisted?(info.exact?(info.next>0?_nsKg(info.next)+' assistance':'bodyweight'):'the next lower assistance setting'):(info.step===0?'more reps':(info.exact?_nsKg(info.next):'the next available weight'));
+      prompt='Final working set: stay at '+_nsKg(currentLoad)+(assisted?' assistance':'')+' and aim for '+top+'. Hit it at this effort to unlock '+unlock+' next session.';
     }
   }else if(assisted&&previousLoad!=null&&currentLoad!=null&&currentLoad<previousLoad){
     msg=total+' reps at '+_nsKg(currentLoad)+' assistance · less help than last session';
@@ -1942,7 +2092,7 @@ function _nsBody(rec){
   var perSet=(rec.perSet&&rec.perSet.length)?'<div class="ns-perset"><div class="ns-tl">Set roles</div>'+rec.perSet.map(function(role){
     return '<div class="ns-perset-row"><span>'+esc(role.label)+'</span><strong>'+_nsBare(role.loadKg)+(rec.assisted?'kg assist':'kg')+' × '+role.reps+'</strong></div>';}).join('')+'</div>':'';
   var mile=rec.milestone?_nsMileHTML(rec.milestone,rec.assisted):'';
-  var ri=(rec.milestone&&rec.milestone.stage>=4)?'rocket':(rec.tone==='red'?'alert':'bulb');
+  var ri=(rec.milestone&&rec.milestone.stage>=3)?'rocket':(rec.tone==='red'?'alert':'bulb');
   var reason=rec.reason?'<div class="ns-reason"><span class="ns-ri ov-node-ic"><svg class="icon"><use href="#i-'+ri+'"/></svg></span><span><span class="ns-tl">Why</span>'+esc(rec.reason)+' '+_nsConfidenceHtml(rec)+'</span></div>':'';
   var today=_nsTodayTarget(rec);
   var todayLine=today?'<div class="ns-today"><span class="ns-tl">Today’s target</span><strong>'+esc(today)+'</strong></div>':'';
@@ -1958,6 +2108,15 @@ function _nsBody(rec){
     todayLine+t+perSet+
     '<div class="ns-hd">'+'<svg class="icon"><use href="#i-target"/></svg>'+(rec.liveLoadChange?'Current recommendation':'Next session')+'</div>'+
     '<div class="ns-action">'+esc(rec.action)+'</div>'+_nsPeakHtml(rec)+approx+flag+mile+reason+live+_nsHistoryHtml(rec)+'</div>';
+}
+// One short paragraph on progressive overload, kept in the Why sheet so it is
+// there when the athlete wants it and never clutters the logging screen.
+function strengthOverloadExplainerHtml(pres){
+  var assisted=!!(pres&&pres.assisted),unlock=assisted?'less assistance unlocks':'the next weight unlocks';
+  var items=['one more clean rep','every working set confirmed','the same reps at the right effort',(assisted?'less assistance':'more load')+', once the range is earned','locking in a heavier attempt','a lighter load when technique or pain needs it'];
+  return '<div class="ns-explain"><div class="ns-tl">How progress works here</div>'+
+    '<p>Build clean reps at the same load. When every working set reaches the top of the range at the prescribed effort, '+unlock+'. Technique and pain always override progression.</p>'+
+    '<div class="ns-explain-k">Progress can be</div><ul>'+items.map(function(item){return '<li>'+esc(item)+'</li>';}).join('')+'</ul></div>';
 }
 function _nsSubtitle(rec,state,summary,doneCount,total){
   if(state==='done') return '<span class="ns-tag done">Done</span><span class="ns-sum">'+esc(summary||'')+'</span>';
@@ -1982,7 +2141,7 @@ var _exlIcon={
 };
 // One wording for which rows decide progression, numbered by work set so a
 // warm-up row never shifts the count ("work sets 1–2", never "sets 3–4").
-function _exlWorkSetsLabel(n){n=parseInt(n,10)||0;return n<=1?'Work set 1':'Work sets 1–'+n;}
+function _exlWorkSetsLabel(n){n=parseInt(n,10)||0;return n<=1?'Working set 1':'Working sets 1–'+n;}
 function _exlFmtSeconds(sec){sec=Math.max(0,parseInt(sec,10)||0);var m=Math.floor(sec/60),x=sec%60;return m+':'+(x<10?'0':'')+x;}
 function _exlMetaLine(ex,warm,work){
   var parts=[];
@@ -1997,12 +2156,6 @@ function _exlRepText(pres,ex){
   if(pres.repMode==='seconds')return {value:String(pres.repFloor),unit:'sec'};
   if(pres.repMode==='distance')return {value:'As written',unit:''};
   return {value:pres.repFloor===pres.repCeiling?String(pres.repFloor):pres.repFloor+'–'+pres.repCeiling,unit:'reps'};
-}
-// The effort sentence comes from the prescription, never a hard-coded RPE.
-function _exlEffortHtml(pres){
-  if(!pres||pres.targetRir==null)return 'Stop with <strong>about 2 reps left in the tank</strong>';
-  if(pres.targetRir<=0)return 'Work at <strong>the effort your coach set</strong>';
-  return 'Stop with <strong>'+pres.targetRir+' rep'+(pres.targetRir===1?'':'s')+' left in the tank</strong> (RPE '+esc(_nsTrim(pres.targetRpe))+')';
 }
 function _exlSetText(set){
   if(!set)return '';
@@ -2025,48 +2178,166 @@ function _exlTopLoad(ex,sets,assisted){
   if(!loads.length)return null;
   return assisted?Math.min.apply(null,loads):Math.max.apply(null,loads);
 }
-// The next-step line under the progress bar. It restates the engine's own
-// double-progression rule (every required work set at the top of the range),
-// and falls back to the engine's action wherever that rule is not the one in
-// play. It never invents a rule of its own.
-function _exlRuleText(rec,pres){
-  if(!rec)return '';
-  if(rec.liveLoadChange)return rec.action||'';
-  var other=/^(calibrate|reduce_load|technique_check|coach_review|coach_target|mode_deferred|change_unconfirmed|change_provisional|incomplete)$/;
-  var ranged=pres&&pres.repMode!=='exact'&&pres.repMode!=='seconds'&&pres.repMode!=='distance'&&pres.loadMode!=='bodyweight'&&pres.repCeiling&&pres.repFloor!==pres.repCeiling;
-  if(ranged&&!other.test(String(rec.decision||''))){
-    var n=parseInt(pres.workingSets,10)||0;
-    var which=n===2?'both work sets':(n===1?'your work set':'all '+n+' work sets');
-    return 'Hit '+pres.repCeiling+' on '+which+' to '+(pres.assisted?'drop assistance':'go up');
-  }
-  return rec.action||'';
+// ── Today's plan card ────────────────────────────────────────────────────────
+// Every exercise answers four questions without the athlete reading the
+// algorithm: what weight, how many reps on each working set, how hard, and
+// what has to happen before the load changes. Nothing here decides anything:
+// the load and the per-set targets are the engine's own `weightKg` and
+// `target`, and the unlock line restates the engine's rule. Warm-up and bonus
+// rows never appear as targets.
+var _EXL_RULE_EXEMPT=/^(calibrate|reduce_load|technique_check|coach_review|coach_target|mode_deferred|change_unconfirmed|change_provisional|incomplete)$/;
+function _exlUnit(rec){return rec&&rec.assisted?'kg assist':'kg';}
+function _exlNextWord(pres){
+  if(pres&&pres.assisted)return 'less assistance';
+  if(pres&&pres.loadMode==='bodyweight')return 'more reps';
+  return 'the next weight';
 }
-var _EXL_STAGES=['','One more rep','One more set','Load unlocked','Increase next'];
+function _exlEveryWorking(n){return n<=1?'your working set':(n===2?'both working sets':'every working set');}
+// The programmed working sets, by slot, exactly as getWorkingRows selects them
+// for the engine. Slot k is "Work k+1"; a missing row is null.
+function _exlWorkingSlots(ex,sets,n){
+  var warm=parseInt(ex&&ex.warmupSets,10)||0,out=[],k;
+  for(k=0;k<n;k++)out.push(null);
+  var all=sets||[],indexed=all.some(function(x){return x&&x._rowIndex!=null;});
+  getWorkingRows(ex,all,false).forEach(function(set,pos){
+    var slot=indexed?Number(set._rowIndex)-warm:pos;
+    if(slot>=0&&slot<n)out[slot]=set;
+  });
+  return out;
+}
+// Where the athlete is right now: the first row not yet ticked.
+function _exlNowLabel(ctx,n){
+  var row=ctx.nowRow,warm=ctx.warm||0;
+  if(row==null||row<0)return null;
+  if(row<warm)return {kind:'warmup',text:'Now: warm-up '+(row+1)+' of '+warm};
+  if(row<warm+n)return {kind:'work',slot:row-warm,text:'Now: Work '+(row-warm+1)};
+  return {kind:'bonus',text:'Now: bonus set · not counted'};
+}
+function _exlLoadDisplay(rec,pres){
+  if(rec.weightKg!=null){
+    if(pres&&pres.loadMode==='bodyweight'&&Math.abs(rec.weightKg)<0.005)return {word:'Bodyweight'};
+    return {value:_nsBare(rec.weightKg),unit:_exlUnit(rec)};
+  }
+  var d=String(rec.decision||'');
+  // Unknown equipment step: name the next setting, never a fabricated number.
+  if(/^(increase_load|change_provisional)$/.test(d))return {word:pres&&pres.assisted?'Next lower assistance':'Next available weight'};
+  if(d==='mode_deferred')return {word:'As written'};
+  if(pres&&pres.bodyweight)return {word:'Bodyweight'};
+  if(pres&&pres.assisted)return {word:'Set your assistance'};
+  return {word:'Pick your load'};
+}
+function _exlRangeText(pres){
+  if(!pres)return '';
+  if(pres.repMode==='exact')return 'Exactly '+pres.exactReps+' reps';
+  if(pres.repMode==='seconds')return 'Hold '+pres.repFloor+'s';
+  if(pres.repMode==='distance'||pres.repMode==='other')return 'As written';
+  return 'Range '+(pres.repFloor===pres.repCeiling?pres.repFloor:pres.repFloor+'–'+pres.repCeiling);
+}
+function _exlEffortLine(pres){
+  // Reps-left language only fits rep work: a timed hold or a distance is done
+  // as written.
+  if(pres&&(pres.repMode==='seconds'||pres.repMode==='distance'||pres.repMode==='other'))return 'Work at <strong>the effort your coach wrote</strong>';
+  if(!pres||_strTargetRir(pres)<=0)return 'Work at <strong>the effort your coach set</strong>';
+  // RIR/RPE are the secondary terms: they live in the Why sheet and the
+  // effort question, so the logging screen keeps one plain phrase.
+  return 'Stop with <strong>'+esc(strengthRepsLeftPhrase(pres))+'</strong>';
+}
+// Three behaviour-led steps. "Increase earned" only appears once the engine
+// itself has decided on an increase, so effort, technique and pain can always
+// hold it back.
+var _EXL_STAGES=['','Build reps','Confirm all working sets','Increase earned'];
+function _exlStageName(stage,pres){
+  if(stage===3&&pres&&pres.assisted)return 'Less assistance earned';
+  if(stage===3&&pres&&pres.loadMode==='bodyweight')return 'More reps earned';
+  return _EXL_STAGES[stage]||'';
+}
 function _exlStage(ctx){
   var rec=ctx.rec,pres=ctx.pres;
   if(!rec||rec.liveLoadChange||!pres)return 0;
-  var reps=_exlWorkingReps(ctx.ex,ctx.current);
-  var m=reps.length?_nsMilestone(reps,pres.repCeiling,pres.workingSets):rec.milestone;
-  return m&&m.stage?m.stage:0;
+  if(pres.repMode!=='range'||pres.repFloor===pres.repCeiling)return 0;
+  if(_EXL_RULE_EXEMPT.test(String(rec.decision||'')))return 0;
+  var n=pres.workingSets||1,reps=_exlWorkingReps(ctx.ex,ctx.current);
+  if(reps.length){
+    if(reps.length>=n){
+      var next=ctx.next,earned=next?/^(increase_load|increase_reps)$/.test(String(next.decision||'')):!!(ctx.live&&ctx.live.unlocked);
+      if(earned)return 3;
+    }
+    return reps.some(function(r){return r>=pres.repCeiling;})?2:1;
+  }
+  var t=rec.target||[];
+  return t.length&&t.every(function(v){return v>=pres.repCeiling;})?2:1;
+}
+// What has to happen before the load changes, in one sentence.
+function _exlUnlockText(ctx,stage){
+  var rec=ctx.rec||{},pres=ctx.pres,live=ctx.live,d=String(rec.decision||'');
+  if(!pres)return rec.action||'';
+  if(rec.liveLoadChange)return rec.action||'';
+  var n=pres.workingSets||1,every=_exlEveryWorking(n);
+  var floorAll=pres.repFloor+' clean reps on '+every;
+  if(live&&live.prompt&&!ctx.complete&&/^Final working set/.test(live.prompt))return live.prompt;
+  if(stage===3)return 'Next session moves up. Keep every rep clean to finish.';
+  if(d==='calibrate')return rec.targetNote||'Pick a load you control.';
+  if(d==='mode_deferred')return rec.targetNote||'Hold the written target. Your coach changes this one.';
+  if(d==='coach_target')return 'Your coach set this load. Aim for '+floorAll+'.';
+  if(d==='change_unconfirmed')return (rec.action||'')+'. '+floorAll.charAt(0).toUpperCase()+floorAll.slice(1)+' locks it in.';
+  if(d==='change_provisional'||(d==='load_confirmed'&&rec.calibrated))return 'Confirm it with '+floorAll+' at this effort.';
+  if(d==='reduce_load')return 'Rebuild to '+floorAll+', then climb again.';
+  if(d==='technique_check')return 'Keep it pain-free: reduce it or leave it out, and tell your coach.';
+  if(d==='coach_review')return 'You have earned more resistance. Your coach sets the next step.';
+  if(d==='incomplete')return 'Log '+(n===1?'your working set':'every working set')+' so the load can move.';
+  if(pres.repMode==='exact')return 'Hit '+pres.exactReps+' on '+every+' cleanly and the load moves.';
+  if(pres.repMode!=='range')return rec.action||'';
+  var tops=[];for(var k=0;k<n;k++)tops.push(pres.repCeiling);
+  var reach='reach '+tops.join(' / ')+' at this effort to unlock '+_exlNextWord(pres)+'.';
+  // Holds have a reason, and the line says which: an effort that ran hard, or
+  // a working set under the floor. Neither is a failure; both name the way on.
+  if(d==='hold_load'&&rec.status==='Hold The Load')return 'Last time ran hard: hold this load, then '+reach;
+  if(d==='hold_load'&&rec.status==='Build The Reps')return 'Own '+floorAll+' first, then '+reach;
+  return reach.charAt(0).toUpperCase()+reach.slice(1);
+}
+// Per-working-set targets as chips. A working set already done shows the reps
+// it got; the current one is marked in words, not just colour.
+function _exlSetChipsHtml(targets,slots,now,label){
+  if(!targets||!targets.length)return '';
+  var items=targets.map(function(target,k){
+    var set=slots[k],reps=set?_effReps(set):null,done=!!(set&&set.done&&reps!=null&&reps!==Infinity);
+    var isNow=!done&&now&&now.kind==='work'&&now.slot===k;
+    return '<li class="exl-set'+(done?' is-done':'')+(isNow?' is-now':'')+'"><span class="exl-set-k">Work '+(k+1)+(done?' <b aria-hidden="true">✓</b>':'')+'</span> '+
+      '<span class="exl-set-v">'+esc(String(done?reps:target))+'<small> reps</small></span>'+
+      '<span class="exl-sr">'+(done?', done, target '+esc(String(target)):(isNow?', current set':''))+'</span></li>';
+  }).join('');
+  return '<ol class="exl-sets" aria-label="'+esc(label||'Reps on each working set')+'">'+items+'</ol>';
+}
+function _exlLoadHtml(load,rec){
+  if(load.word)return '<span class="exl-load-word">'+esc(load.word)+'</span>';
+  return (rec.ramped&&rec.perSet?'<span class="exl-role">Top set</span>':'')+'<span class="exl-big">'+esc(load.value)+'</span><span class="exl-unit">'+esc(load.unit)+'</span>'+
+    (rec.approx?'<span class="exl-approx">nearest available</span>':'');
+}
+function _exlBackoffHtml(rec){
+  if(!rec.ramped||!rec.perSet)return '';
+  var back=rec.perSet.filter(function(role){return role.role==='backoff';})[0];
+  if(!back||back.loadKg==null)return '';
+  return '<div class="exl-backoff">Back-off sets '+esc(_nsBare(back.loadKg)+_exlUnit(rec))+'</div>';
 }
 function _exlTargetHtml(ctx){
-  var rec=ctx.rec||{},pres=ctx.pres,live=ctx.live,assisted=!!rec.assisted;
-  var reps=_exlRepText(pres,ctx.ex);
-  if(rec.liveLoadChange&&live&&live.loadDecision)reps={value:String(live.loadDecision.repTarget),unit:'reps'};
-  var load=rec.weightKg!=null
-    ?'<span class="exl-big">'+esc(_nsBare(rec.weightKg))+'</span><span class="exl-unit">'+(assisted?'kg assist':'kg')+'</span><span class="exl-x">×</span>'
-    :'';
-  var stage=_exlStage(ctx),bar='';
-  for(var s=1;s<=4;s++)bar+='<i class="'+(s<=stage?'on':'')+'"></i>';
-  var stageName=stage?(stage===4&&assisted?'Less assist next':_EXL_STAGES[stage]):(rec.status||'');
-  var sentence=rec.liveLoadChange&&live&&live.prompt?esc(live.prompt):_exlEffortHtml(pres);
-  var prompt=(!rec.liveLoadChange&&live&&live.prompt&&!ctx.complete)?'<div class="exl-prompt">'+esc(live.prompt)+'</div>':'';
-  return '<div class="exl-target ns-t-'+esc(rec.tone||'blue')+'" data-stage="'+stage+'">'+
-    '<div class="exl-label">'+(rec.liveLoadChange?'Current target':'Today’s target')+' · per work set</div>'+
-    '<div class="exl-line">'+load+'<span class="exl-big">'+esc(reps.value)+'</span>'+(reps.unit||rec.weightKg==null?'<span class="exl-unit">'+esc(reps.unit)+(rec.weightKg==null?(reps.unit?' · ':'')+'pick your load':'')+'</span>':'')+'</div>'+
-    '<div class="exl-effort">'+sentence+'</div>'+prompt+
-    '<div class="exl-bar" role="img" aria-label="Progression stage '+stage+' of 4">'+bar+'</div>'+
-    '<div class="exl-bar-foot"><span class="exl-stage">'+esc(stageName)+'</span><span class="exl-rule">'+esc(_exlRuleText(rec,pres))+'</span></div>'+
+  var rec=ctx.rec||{},pres=ctx.pres,live=ctx.live;
+  var n=(rec.target&&rec.target.length)||(pres&&pres.workingSets)||0;
+  var slots=_exlWorkingSlots(ctx.ex,ctx.current,n),now=_exlNowLabel(ctx,n);
+  var load=_exlLoadDisplay(rec,pres),stage=_exlStage(ctx);
+  var steps='';
+  if(stage){
+    for(var s=1;s<=3;s++)steps+='<i class="'+(s<=stage?'on':'')+'"></i>';
+    steps='<span class="exl-steps" role="img" aria-label="'+esc('Progress step '+stage+' of 3: '+_exlStageName(stage,pres))+'">'+steps+'</span>';
+  }
+  var stageName=stage?_exlStageName(stage,pres):(rec.liveLoadChange?(rec.status||''):'');
+  var heading=rec.liveLoadChange?'Today’s plan · load changed':'Today’s plan';
+  var effortBits=[_exlRangeText(pres)].filter(Boolean).map(esc);
+  return '<div class="exl-target ns-t-'+esc(rec.tone||'blue')+'" data-stage="'+stage+'" data-decision="'+esc(rec.decision||'')+'" role="group" aria-label="Today’s plan">'+
+    '<div class="exl-target-head"><span class="exl-label">'+heading+'</span>'+(now?'<span class="exl-now">'+esc(now.text)+'</span>':'')+'</div>'+
+    '<div class="exl-plan"><div class="exl-line">'+_exlLoadHtml(load,rec)+'</div>'+_exlSetChipsHtml(rec.target,slots,now)+'</div>'+
+    _exlBackoffHtml(rec)+
+    '<div class="exl-effort">'+(effortBits.length?effortBits.join(' · ')+' · ':'')+_exlEffortLine(pres)+'</div>'+
+    '<div class="exl-unlock">'+steps+(stageName?'<span class="exl-stage">'+esc(stageName)+'</span>':'')+'<span class="exl-rule">'+esc(_exlUnlockText(ctx,stage))+'</span></div>'+
   '</div>';
 }
 // Next-time direction is measured against the load just lifted, never against
@@ -2099,7 +2370,11 @@ function _exlBadgeHtml(ctx){
 }
 function _exlUpNextHtml(ctx){
   var rec=ctx.rec||{},reps=_exlRepText(ctx.pres,ctx.ex),last=_exlSetText(getWorkingSlice(ctx.ex,ctx.prevEffort||[])[0]);
-  var rpe=ctx.pres&&ctx.pres.targetRir>0?' · RPE '+esc(_nsTrim(ctx.pres.targetRpe)):'';
+  // The preview shows the same exact per-working-set targets as the open card,
+  // not the broad range. Seconds, distance and calibration keep their text.
+  var repMode=ctx.pres&&ctx.pres.repMode;
+  if(rec.target&&rec.target.length&&(repMode==='range'||repMode==='exact'))reps={value:rec.target.join(' · '),unit:'reps'};
+  var rpe='';
   return '<span class="exl-up">'+
     '<span class="exl-up-meta">'+esc(_exlMetaLine(ctx.ex,ctx.warm,ctx.work))+'</span>'+
     (last?'<span class="exl-up-last">Last '+esc(last)+'</span>':'')+
@@ -2107,9 +2382,97 @@ function _exlUpNextHtml(ctx){
     '<span class="exl-up-start">Start</span>'+
   '</span>';
 }
-// Finished state: one card. Work sets, one comparison with last session, one
-// next-session instruction. It replaces the live result, target-beaten,
-// next-session and start-at blocks that used to repeat each other.
+// ── Next session, made actionable ───────────────────────────────────────────
+// After an exercise is done the athlete needs the exact next prescription,
+// not only "stay" or "add a rep": the load, the engine's target for every
+// working set, the effort, and the single thing that moves the load after
+// that. `kind` is the outcome in words, so nothing depends on colour, and a
+// reduction is framed as the sensible next step it is, never as lost ground.
+function strengthNextPlan(next,pres,todayReps){
+  var plan=_strengthNextPlan(next||{},pres,todayReps||[]);
+  // A recommendation under a load already reached is consolidation, and says
+  // so wherever the lower number appears.
+  if(next&&next.belowPeak&&next.reached&&next.reached.loadKg!=null&&plan.kind!=='consolidate'&&plan.kind!=='safety'){
+    plan.condition=(plan.condition?plan.condition+' ':'')+'You have already reached '+_nsBare(next.reached.loadKg)+_exlUnit(next)+'; this step locks it in.';
+  }
+  return plan;
+}
+function _strengthNextPlan(next,pres,todayReps){
+  var d=String(next.decision||''),n=(pres&&pres.workingSets)||1,every=_exlEveryWorking(n);
+  var targets=(next.target&&next.target.length)?Array.prototype.slice.call(next.target):[];
+  var ceiling=pres?pres.repCeiling:null,floor=pres?pres.repFloor:null,word=_exlNextWord(pres);
+  var plan={kind:'hold',label:'Stay at this weight',targets:targets,condition:''};
+  if(next.painFlag||d==='technique_check'){
+    plan.kind='safety';plan.label='Form or pain · check with your coach';
+    plan.condition='Technique and pain come first. Use the lighter setting or leave it out, and tell your coach before it goes up again.';
+    return plan;
+  }
+  if(d==='coach_review'||(next.coachReview&&d!=='reduce_load')){
+    plan.kind='coach';plan.label='Your coach sets the next step';
+    plan.condition='You have earned more resistance, but this one needs your coach to choose the step.';
+    return plan;
+  }
+  if(d==='increase_load'||d==='increase_reps'||d==='change_provisional'){
+    plan.kind='up';
+    plan.label=d==='change_provisional'?'Try the heavier start':(pres&&pres.assisted?'Less assistance earned':(d==='increase_reps'?'More reps earned':'Increase earned'));
+    plan.condition=d==='increase_reps'
+      ?'Go past '+ceiling+' on '+every+' while every rep stays clean.'
+      :(d==='change_provisional'
+        ?'Confirm it with '+floor+' clean reps on '+every+' at this effort.'
+        :(pres&&pres.repMode==='exact'
+          ?'New load. Hit '+pres.exactReps+' on '+every+' cleanly before it moves again.'
+          :'New load, reps reset to '+floor+'. Build back to '+ceiling+' on '+every+' before the next increase.'));
+    return plan;
+  }
+  if(d==='load_confirmed'){
+    plan.kind='confirmed';plan.label='New baseline confirmed';
+    plan.condition='This load is yours. Build toward '+ceiling+' on '+every+' before it moves again.';
+    return plan;
+  }
+  if(d==='change_unconfirmed'){
+    var toward=next.workingToward&&next.workingToward.loadKg!=null?_nsBare(next.workingToward.loadKg)+_exlUnit(next):'the heavier load';
+    plan.kind='consolidate';plan.label='Locking in '+toward;
+    plan.condition='You have already moved '+toward+'. Hit '+floor+' clean reps on '+every+' here and the heavier load is yours.';
+    return plan;
+  }
+  if(d==='reduce_load'){
+    plan.kind='down';plan.label='Lighter start next time';
+    plan.condition='A lighter start keeps every rep clean. Rebuild to '+floor+' on '+every+', then climb again.'+(next.coachReview?' Worth a word with your coach too.':'');
+    return plan;
+  }
+  if(d==='incomplete'){
+    plan.label='Finish every working set';
+    plan.condition='Log '+(n===1?'your working set':'all '+n+' working sets')+' so the load can move.';
+    return plan;
+  }
+  if(d==='mode_deferred'){plan.label='Follow the written prescription';plan.condition=next.targetNote||'';return plan;}
+  if(pres&&pres.repMode==='exact'){
+    plan.condition='Hit '+pres.exactReps+' on '+every+' cleanly and the load moves.';
+    return plan;
+  }
+  if(next.status==='Build The Reps'){
+    plan.condition='Own '+floor+' clean reps on '+every+' first, then build to '+ceiling+' at this effort to unlock '+word+'.';
+    return plan;
+  }
+  if(next.status==='Hold The Load'){
+    plan.condition='The effort ran harder than planned. Finish with clean reps at '+strengthRepsLeftPhrase(pres)+' and the load can move again.';
+    return plan;
+  }
+  if(targets.length&&ceiling!=null){
+    var gaps=[];
+    targets.forEach(function(t,k){if(todayReps[k]!=null&&t>todayReps[k])gaps.push({k:k,by:t-todayReps[k]});});
+    var allTop=targets.every(function(t){return t>=ceiling;});
+    if(allTop&&gaps.length===1&&gaps[0].by===1)plan.condition='One more clean rep on Work '+(gaps[0].k+1)+' at this effort unlocks '+word+'.';
+    else if(allTop)plan.condition='Reach '+ceiling+' on '+every+' at this effort to unlock '+word+'.';
+    else if(gaps.length===1)plan.condition='One more clean rep on Work '+(gaps[0].k+1)+'. '+ceiling+' on '+every+' at this effort unlocks '+word+'.';
+    else plan.condition='Build toward '+ceiling+' on '+every+'. At this effort, that unlocks '+word+'.';
+  }
+  return plan;
+}
+// Finished state: one card. Working sets done, one comparison with last
+// session, then the exact next-session prescription. It replaces the live
+// result, target-beaten, next-session and start-at blocks that used to repeat
+// each other.
 function _exlResultHtml(ctx){
   if(!ctx.complete)return '<div class="exl-result" hidden></div>';
   var ex=ctx.ex,assisted=!!(ctx.rec&&ctx.rec.assisted),work=getWorkingSlice(ex,ctx.current||[]);
@@ -2122,13 +2485,20 @@ function _exlResultHtml(ctx){
   else if(total>prevTotal)cmp='beat last session by '+(total-prevTotal);
   else if(total===prevTotal)cmp='level with last session';
   else cmp=(prevTotal-total)+' short of last session';
-  var next=ctx.next||ctx.rec||{};
-  var reasonText=String(next.reason||''),firstSentence=reasonText.match(/^.*?\.(?=\s|$)/),rule=firstSentence?firstSentence[0]:reasonText;
+  var next=ctx.next||ctx.rec||{},pres=next.prescription||ctx.pres;
+  var plan=strengthNextPlan(next,pres,reps);
+  var load=_exlLoadDisplay(next,pres);
+  var loadText=load.word||(load.value+load.unit);
   var sets=work.map(function(set,ix){return '<li><span>Work '+(ix+1)+'</span><strong>'+esc(_exlSetText(set))+'</strong></li>';}).join('');
+  var chips=plan.targets.length?_exlSetChipsHtml(plan.targets,[],null,'Next session reps on each working set'):'';
+  var effort=plan.kind==='safety'?'':'<div class="exl-next-effort">'+_exlEffortLine(pres)+'</div>';
+  var sr='Next session: '+plan.label+'. '+(next.action||loadText)+'.'+(plan.targets.length?' '+plan.targets.map(function(t,k){return 'Working set '+(k+1)+': '+t+' reps';}).join(', ')+'.':'');
   return '<div class="exl-result">'+
-    '<div class="exl-label">Work sets done</div><ul class="exl-result-sets">'+sets+'</ul>'+
-    '<div class="exl-result-line">'+total+' work reps · '+esc(cmp)+'</div>'+
-    '<div class="exl-next"><div class="exl-label">Next session</div><div class="exl-next-action">'+esc(next.action||'')+'</div>'+(rule?'<div class="exl-next-rule">'+esc(rule)+'</div>':'')+'</div>'+
+    '<div class="exl-label">Working sets done</div><ul class="exl-result-sets">'+sets+'</ul>'+
+    '<div class="exl-result-line">'+total+' working-set reps · '+esc(cmp)+'</div>'+
+    '<div class="exl-next is-'+esc(plan.kind)+'" role="group" aria-label="'+esc(sr)+'"><div class="exl-label">Next session · <span class="exl-next-kind">'+esc(plan.label)+'</span></div>'+
+      '<div class="exl-next-action">'+esc(next.action||loadText)+'</div>'+chips+effort+
+      (plan.condition?'<div class="exl-next-rule">'+esc(plan.condition)+'</div>':'')+'</div>'+
     '<button type="button" class="exl-edit" onclick="toggleExlEdit(this)" aria-expanded="false">Edit sets</button>'+
   '</div>';
 }
@@ -2159,9 +2529,15 @@ function _exlDockHtml(ctx){
 }
 // Repaint the parts of one exercise that depend on the recommendation. Called
 // on every keystroke (via refreshStrengthFeedback) and after a swap.
+function _exlNowRowIndex(card){
+  var rows=card?card.querySelectorAll('.setrow,.setrow-single'):[];
+  for(var x=0;x<rows.length;x++){var t=rows[x].querySelector('.st');if(!t||!t.classList.contains('on'))return x;}
+  return null;
+}
 function _exlPaint(card,ctx){
   if(!card||!ctx)return;
   ctx.complete=strengthExerciseIsComplete(card);
+  ctx.nowRow=_exlNowRowIndex(card);
   if(ctx.complete&&!ctx.next)ctx.next=_nsRecommendation(ctx.ex,ctx.current,ctx.resolvedEx,ctx.history);
   var swap=function(sel,html){var el=card.querySelector(sel);if(el)el.outerHTML=html;};
   swap('.exl-target',_exlTargetHtml(ctx));
@@ -2398,6 +2774,16 @@ function strengthExerciseIsComplete(card){
   }
   return true;
 }
+// The collapsed line for a card in the DOM, through the same working-set
+// window as the engine. A card that cannot be resolved to its exercise shows
+// no summary rather than falling back to every visible row.
+function strengthCardWorkingSummary(card,assisted){
+  if(!card||typeof card.getAttribute!=='function')return '';
+  var i=parseInt(card.getAttribute('data-session-index'),10),ei=parseInt(card.getAttribute('data-exercise-index'),10);
+  if(isNaN(i)||isNaN(ei)||typeof getSplit!=='function')return '';
+  var ex=(getSplit(card.getAttribute('data-split-key')||'Upper A')||[])[ei];if(!ex)return '';
+  return strengthWorkingSummaryText(ex,collectExerciseSets(i,ei,true),assisted);
+}
 function refreshStrengthExerciseState(card){
   if(!card) return;
   var hasData=strengthExerciseHasData(card);
@@ -2412,17 +2798,11 @@ function refreshStrengthExerciseState(card){
   var state=complete?'done':(hasData?'prog':'todo');
   var rows=card.querySelectorAll('.setrow,.setrow-single');
   var assisted=card.getAttribute('data-assisted')==='true';
-  var total=rows.length,doneCount=0,parts=[],topW=null;
+  var total=rows.length,doneCount=0;
   rows.forEach(function(row){
     var tick=row.querySelector('.st');if(tick&&tick.classList.contains('on')) doneCount++;
-    var w=row.querySelector('input[id^="w_"]'),r=row.querySelector('input[id^="r_"]');
-    var rL=row.querySelector('input[id^="rL_"]'),rR=row.querySelector('input[id^="rR_"]');
-    var wv=w?parseFloat(w.value):NaN;
-    var rep=r?String(r.value||'').trim():(rL&&rR?((rL.value||'-')+'/'+(rR.value||'-')):'');
-    if(!isNaN(wv)&&(topW==null||(assisted?wv<topW:wv>topW))) topW=wv;
-    if(!isNaN(wv)||String(rep).replace(/[-\/]/g,'').trim()!=='') parts.push(rep!==''?rep:'-');
   });
-  var summary=(topW!=null?_nsBare(topW)+(assisted?'kg assist × ':'kg × '):'')+parts.join(' · ');
+  var summary=strengthCardWorkingSummary(card,assisted);
   var rec={action:card.getAttribute('data-ns-action')||'',tone:card.getAttribute('data-ns-tone')||'blue'};
   var ic=card.querySelector('.ns-ic');if(ic) ic.outerHTML=_nsStateIcon(state);
   var sub=card.querySelector('.ns-sub');if(sub) sub.innerHTML=_nsSubtitle(rec,state,summary,doneCount,total);
@@ -2754,8 +3134,8 @@ function buildBody(s,i,type){
       var strengthRpeOn=typeof strengthRpeEnabled==='function'?strengthRpeEnabled():true;
       h+='<div class="strength-log-heading"><div class="ltitle">Log your sets</div><div class="strength-log-prefs"><button type="button" class="rest-pref-toggle'+(strengthRpeOn?' is-on':'')+'" data-strength-rpe-toggle aria-pressed="'+(strengthRpeOn?'true':'false')+'" onclick="toggleStrengthRpePreference()"><span class="rest-pref-dot"></span><span>RPE</span><strong class="rest-pref-state">'+(strengthRpeOn?'On':'Off')+'</strong></button><button type="button" class="rest-pref-toggle'+(restTimerOn?' is-on':'')+'" data-rest-timer-toggle aria-pressed="'+(restTimerOn?'true':'false')+'" onclick="toggleRestTimerPreference()"><span class="rest-pref-dot"></span><span>Rest timer</span><strong class="rest-pref-state">'+(restTimerOn?'On':'Off')+'</strong></button></div></div>';
       // One line on the list; the full explanation is one tap away in a sheet.
-      h+='<div class="strength-effort-note exl-cal"><span>SET 1</span><div><strong>First work set calibrates the load. Stop with 2 reps left.</strong></div><button type="button" class="exl-info" onclick="openExlInfo('+i+')" aria-label="How calibration works">'+_exlIcon.info+'</button></div>';
-      h+=_exlSheetHtml('exlCal_'+i,'Calibrate the first working set','<div class="exl-sec"><div class="exl-sec-t">Calibrate the first working set</div><p class="exl-sheet-p">Work at the effort your coach set — stop when you could complete about two more clean reps unless they wrote otherwise. Tell us how it finished and we’ll adjust today’s remaining sets and carry a confirmed change into your next workout.</p></div>');
+      h+='<div class="strength-effort-note exl-cal"><span>WORK 1</span><div><strong>Working set 1 checks today’s load. Stop with about 2 clean reps left.</strong></div><button type="button" class="exl-info" onclick="openExlInfo('+i+')" aria-label="How calibration works">'+_exlIcon.info+'</button></div>';
+      h+=_exlSheetHtml('exlCal_'+i,'Calibrate the first working set','<div class="exl-sec"><div class="exl-sec-t">Calibrate the first working set</div><p class="exl-sheet-p">Work at the effort your coach set — stop when you could do about two more clean reps unless they wrote otherwise. Then say how many clean reps you had left (with RPE on, your RPE answers that). We adjust today’s remaining working sets and carry a confirmed change into your next workout. If form or pain stopped the set, say so — that always comes first.</p></div>');
       if(isFemaleSplit(splitKey)){
         h+='<div class="female-priority-note"><span class="female-priority-note-badge">Priority</span><div><strong>Short on time?</strong><span>Complete the priority exercises first to cover the session’s main muscle groups. Keep going through the full session whenever time allows.</span></div></div>';
       }
@@ -2795,19 +3175,14 @@ function buildBody(s,i,type){
         var warmupSetsForEffort=parseInt(ex.warmupSets,10)||0;
 	        var exerciseIsComplete=hasExerciseData&&renderedRows.every(function(set,rowIndex){var effortRequired=sessionEffortRequired&&rowIndex===warmupSetsForEffort;return !!set.done&&strengthSavedSetHasRequiredInputs(set,isSingleLeg,sessionRpeRequired,effortRequired);});
 	        var _nsState=exerciseIsComplete?'done':(hasExerciseData?'prog':'todo');
-	        var _nsDone=0,_nsParts=[],_nsTopW=null;
-	        getWorkingSlice(ex,savedEx||[]).forEach(function(sv){
-	          if(sv.done) _nsDone++;
-          var wv=parseFloat(sv.weight);
-          var rep=(sv.reps!=null&&String(sv.reps).trim()!=='')?sv.reps:((sv.repsLeft||sv.repsRight)?((sv.repsLeft||'-')+'/'+(sv.repsRight||'-')):'');
-          if(!isNaN(wv)&&(_nsTopW==null||(isAssisted?wv<_nsTopW:wv>_nsTopW))) _nsTopW=wv;
-          if(!isNaN(wv)||String(rep).replace(/[-\/]/g,'').trim()!=='') _nsParts.push(rep!==''?rep:'-');
-        });
-        var _nsSummary=(_nsTopW!=null?_nsBare(_nsTopW)+(isAssisted?'kg assist × ':'kg × '):'')+_nsParts.join(' · ');
+	        var _nsDone=0;
+	        getWorkingSlice(ex,savedEx||[]).forEach(function(sv){if(sv.done) _nsDone++;});
+        var _nsSummary=strengthWorkingSummaryText(ex,savedEx,isAssisted);
         var _nsStateCls=exerciseIsComplete?' ns-logged':(hasExerciseData?' ns-inprogress':' ns-t-'+_ov.tone);
         var _nsLiveUnlocked=!!(_ov.live&&_ov.live.unlocked);
         var _exlWarm=parseInt(ex.warmupSets,10)||0,_exlWork=parseInt(ex.workingSets,10)||Math.max(1,sets-_exlWarm);
-        var _exlCtx={i:i,ei:ei,ex:ex,resolvedEx:resolvedEx,rec:_ov,live:_ovLive,pres:_ovPres,history:_ovHistory,prevEffort:prevEffort,current:savedEx,complete:exerciseIsComplete,warm:_exlWarm,work:_exlWork,
+        var _exlNowRow=null;for(var _nr=0;_nr<renderedRows.length;_nr++){if(!renderedRows[_nr].done){_exlNowRow=_nr;break;}}
+        var _exlCtx={i:i,ei:ei,ex:ex,resolvedEx:resolvedEx,rec:_ov,live:_ovLive,pres:_ovPres,history:_ovHistory,prevEffort:prevEffort,current:savedEx,complete:exerciseIsComplete,warm:_exlWarm,work:_exlWork,nowRow:_exlNowRow,
           next:exerciseIsComplete?_nsRecommendation(ex,savedEx,resolvedEx,_ovHistory):null};
         h+='<div class="exc exl'+_nsStateCls+(ei===0&&!exerciseIsComplete?' open':'')+(hasExerciseData?' has-entry':'')+(exerciseIsComplete?' exercise-complete':'')+(isTimeCrunchPriority?' female-priority-exercise':'')+'" data-session-index="'+i+'" data-session-id="'+esc(s.id)+'" data-exercise-index="'+ei+'" data-split-key="'+esc(splitKey)+'" data-assisted="'+(isAssisted?'true':'false')+'" data-rest-seconds="'+(parseInt(ex.rest,10)||0)+'" data-rpe-required="'+(sessionRpeRequired?'true':'false')+'" data-ns-action="'+esc(_ov.action)+'" data-ns-tone="'+_ov.tone+'" data-ns-live-unlocked="'+(_nsLiveUnlocked?'true':'false')+'" data-ns-unlock-celebrated="'+(_nsLiveUnlocked?'true':'false')+'">';
         h+='<button type="button" class="exc-summary" onclick="toggleExc(this)" aria-expanded="'+((ei===0&&!exerciseIsComplete)?'true':'false')+'">'+_nsStateIcon(_nsState)+'<div class="exc-sum-main"><div class="exn-row"><div class="exn" id="exn_'+safeKey+'">'+esc(resolvedEx)+'</div>'+(isTimeCrunchPriority?'<span class="female-priority-badge">Priority</span>':'')+'</div><div class="exc-why ns-sub">'+_nsSubtitle(_ov,_nsState,_nsSummary,_nsDone,sets)+'</div>'+_exlUpNextHtml(_exlCtx)+'</div>'+_exlBadgeHtml(_exlCtx)+'<div class="exc-chev">▾</div></button>';
@@ -2836,26 +3211,26 @@ function buildBody(s,i,type){
           h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
 	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var rowTag=isExtra?('Bonus '+bonusSet):(isWarmup?('WU '+(si+1)):('Work '+displaySet));var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set" aria-label="Remove bonus set">×</button>':'';
 	            var effortRequired=sessionEffortRequired&&si===warmupSets;
-	            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+rowTag+'</div><div class="slast" aria-label="Last session">'+_exlLastHtml(prevSet)+'</div>';
+	            h+='<div class="setrow-single'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'"'+(sv.effort&&sv.effortSource==='rpe'?' data-effort-source="rpe"':'')+' data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+rowTag+'</div><div class="slast" aria-label="Last session">'+_exlLastHtml(prevSet)+'</div>';
 	            h+='<input type="number" inputmode="decimal" class="sin" id="w_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' load')+'" placeholder="'+esc(_nsRowLoadPlaceholder(_ov,ex,si,prevSet))+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" inputmode="numeric" class="sin" id="rL_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' left reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet,'left'))+'" min="0" value="'+esc(sv.repsLeft||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" inputmode="numeric" class="sin" id="rR_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' right reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet,'right'))+'" min="0" value="'+esc(sv.repsRight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onpointerdown="armSetTick('+i+','+ei+','+si+')" onclick="tapSetTick('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
-	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,true,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres);}
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,true,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres,{rpeCapable:false,source:sv.effortSource||''});}
 	          }
 	        }else{
 	          h+='<div class="exl-slbls" aria-hidden="true"><span>Set</span><span>Last</span><span>'+_exlKgHead+'</span><span>Reps</span><span class="slbl-rpe">RPE</span><span class="slbl-tick">✓</span></div>';
 	          h+='<div class="exsets" id="sets_'+i+'_'+ei+'">';
 	          for(var si=0;si<renderSets;si++){var sv=savedByRow[si]||{};var prevSet=prevEffort&&prevEffort[si]?prevEffort[si]:null;var isWarmup=si<warmupSets;var isExtra=si>=sets;var bonusSet=si-sets+1;var displaySet=isExtra?('B'+bonusSet):(isWarmup?'WU':(si-warmupSets+1));var setLabel=isExtra?('Bonus set '+bonusSet):(isWarmup?'Warm-up set':'Working set '+displaySet);var rowTag=isExtra?('Bonus '+bonusSet):(isWarmup?('WU '+(si+1)):('Work '+displaySet));var delSet=isExtra?'<button class="del-set" onclick="deleteSet(this,'+i+','+ei+',\''+esc(splitKey)+'\')" title="Remove bonus set" aria-label="Remove bonus set">×</button>':'';
 	            var effortRequired=sessionEffortRequired&&si===warmupSets;
-	            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'" data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+rowTag+'</div><div class="slast" aria-label="Last session">'+_exlLastHtml(prevSet)+'</div>';
+	            h+='<div class="setrow'+(isWarmup?' is-warmup':'')+(isExtra?' extra':'')+'" id="sr_'+i+'_'+ei+'_'+si+'" data-effort="'+esc(sv.effort||'')+'"'+(sv.effort&&sv.effortSource==='rpe'?' data-effort-source="rpe"':'')+' data-effort-required="'+(effortRequired?'true':'false')+'"><div class="snum" aria-label="'+setLabel+'">'+rowTag+'</div><div class="slast" aria-label="Last session">'+_exlLastHtml(prevSet)+'</div>';
 	            h+='<input type="number" inputmode="decimal" class="sin" id="w_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' load')+'" placeholder="'+esc(_nsRowLoadPlaceholder(_ov,ex,si,prevSet))+'" min="0" step="0.5" value="'+esc(sv.weight||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" inputmode="numeric" class="sin" id="r_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' reps')+'" placeholder="'+esc(_nsRowRepPlaceholder(_ov,ex,si,prevSet))+'" min="0" value="'+esc(sv.reps||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<input type="number" inputmode="decimal" class="rpe-in'+(sv.rpe?' filled':'')+'" id="rpe_'+i+'_'+ei+'_'+si+'" aria-label="'+esc(setLabel+' RPE out of 10')+'" placeholder="—" min="1" max="10" step="0.5" value="'+esc(sv.rpe||'')+'" oninput="draftStrengthSet('+i+','+ei+','+si+',\''+esc(splitKey)+'\')" onchange="autoCompleteStrengthSet('+i+','+ei+','+si+')" />';
 	            h+='<button class="st'+(sv.done?' on':'')+' " id="st_'+i+'_'+ei+'_'+si+'" aria-label="Mark '+setLabel.toLowerCase()+' complete" aria-pressed="'+(sv.done?'true':'false')+'" onpointerdown="armSetTick('+i+','+ei+','+si+')" onclick="tapSetTick('+i+','+ei+','+si+')">';
 	            h+='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>'+delSet+'</div>';
-	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,false,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres);}
+	            if(effortRequired||sv.effort){var effortGuidance=strengthEffortGuidance(ex,sv.effort,sv,resolvedEx,_ovHistory,false),effortPrompt=effortRequired&&!sv.effort&&strengthSavedSetHasRequiredInputs(sv,false,false,false);h+=strengthEffortPickerHtml(i,ei,si,sv.effort||'',effortGuidance,si+1,effortRequired,effortPrompt,_ovPres,{rpeCapable:true,rpe:sv.rpe,source:sv.effortSource||''});}
 	          }
 	        }
         h+='</div>';
@@ -2867,7 +3242,7 @@ function buildBody(s,i,type){
         h+='</div>';
         h+=_exlDockHtml(_exlCtx);
         // Everything that left the main view, one tap away. Nothing is removed.
-        var sheet='<section class="exl-sec" data-exl-section="why"><div class="exl-sec-t">Why this load</div>'+_nsBody(_ov)+'</section>';
+        var sheet='<section class="exl-sec" data-exl-section="why"><div class="exl-sec-t">Why this load</div>'+_nsBody(_ov)+strengthOverloadExplainerHtml(_ovPres)+'</section>';
         var guide='';
         if(ex.prescriptionLine) guide+='<div class="exnotes exnotes-rx">'+esc(ex.prescriptionLine)+'</div>';
         if(ex.notes) guide+='<div class="exnotes">'+esc(ex.notes)+'</div>';
@@ -2988,24 +3363,43 @@ function strengthSessionReviewData(i,splitKey){
 }
 function strengthReviewMetricsHtml(data){
   var p=data.progress;
-  return '<div class="strength-review-grid"><div><small>Exercises</small><strong>'+p.doneExercises+' / '+p.totalExercises+'</strong></div><div><small>Sets logged</small><strong>'+p.doneSets+' / '+p.totalSets+'</strong></div><div><small>PBs today</small><strong>'+data.pbCount+'</strong></div><div><small>Next-session unlocks</small><strong>'+data.unlocks.length+'</strong></div></div>';
+  return '<div class="strength-review-grid is-three"><div><small>Exercises</small><strong>'+p.doneExercises+' / '+p.totalExercises+'</strong></div><div><small>Sets logged</small><strong>'+p.doneSets+' / '+p.totalSets+'</strong></div><div><small>PBs today</small><strong>'+data.pbCount+'</strong></div></div>';
 }
+// What today changed for next session, in plain outcomes. Safety and coach
+// items get their own block with the exercise named, so they cannot be
+// skimmed past; only exercises whose next load actually changes are listed.
 function strengthReviewOutcomesHtml(summary){
   if(!summary||!summary.total)return '';
-  var parts=[];
-  if(summary.followed)parts.push(summary.followed+' followed');
-  if(summary.adapted)parts.push(summary.adapted+' adapted live');
-  if(summary.building)parts.push(summary.building+' still building');
-  if(summary.safety)parts.push(summary.safety+' safety response recorded');
-  if(summary.review)parts.push(summary.review+' coach decision needed');
-  return '<div class="strength-review-unlocks '+(summary.safety||summary.review?'':'is-quiet')+'"><small>Adaptive coaching</small><strong>'+parts.join(' · ')+'</strong></div>';
+  var plural=function(n,one,many){return n+' '+(n===1?one:many);};
+  var lines=[];
+  if(summary.progressed)lines.push(plural(summary.progressed,'exercise progressed','exercises progressed'));
+  if(summary.stay)lines.push(summary.stay+' stay at the current load');
+  if(summary.consolidate)lines.push(summary.consolidate+' locking in a heavier load');
+  if(summary.lighter)lines.push(summary.lighter+' start lighter next time');
+  if(summary.form)lines.push(summary.form+' adjusted for form or pain');
+  if(summary.coach)lines.push(summary.coach+' '+(summary.coach===1?'needs':'need')+' coach review');
+  var h='<div class="strength-review-progression"><small>Session progression</small><ul>'+lines.map(function(line){return '<li>'+esc(line)+'</li>';}).join('')+'</ul>';
+  var changes=(summary.changes||[]).slice(0,6);
+  if(changes.length){
+    h+='<div class="strength-review-changes-k">Changes next session</div><ul class="strength-review-changes">'+changes.map(function(c){
+      return '<li><span>'+esc(c.name)+'</span><strong>'+(c.direction==='up'?'Up':'Down')+' · '+esc(c.action)+'</strong></li>';
+    }).join('')+'</ul>';
+  }
+  h+='</div>';
+  var alerts=summary.alerts||[];
+  if(alerts.length){
+    h+='<div class="strength-review-alert" role="alert"><strong>Tell your coach</strong><ul>'+alerts.map(function(a){
+      return '<li><span class="strength-review-alert-k">'+(a.kind==='form'?'Form or pain':'Coach review')+'</span> '+esc(a.name)+' — '+esc(a.text)+'</li>';
+    }).join('')+'</ul></div>';
+  }
+  return h;
 }
 function openStrengthSubmitReview(i,splitKey){
   try{if(typeof persistGymDraft==='function')persistGymDraft(i,splitKey);}catch(e){}
   var modal=ensureStrengthReviewModal(),data=strengthSessionReviewData(i,splitKey),body=document.getElementById('strengthReviewBody'),title=document.getElementById('strengthReviewTitle'),subtitle=document.getElementById('strengthReviewSubtitle');
   strengthReviewContext={i:i,splitKey:splitKey};title.textContent='Review session';subtitle.textContent='One last check before this reaches your coaches.';
   var incomplete=data.progress.totalSets-data.progress.doneSets;
-  body.innerHTML='<div class="strength-review-hero"><span>✓</span><div><strong>'+data.progress.doneSets+' set'+(data.progress.doneSets===1?'':'s')+' ready</strong><small>'+(incomplete?incomplete+' set'+(incomplete===1?' is':'s are')+' still open. You can submit now or keep training.':'Everything programmed is complete.')+'</small></div></div>'+strengthReviewMetricsHtml(data)+strengthReviewOutcomesHtml(data.recommendations)+(data.unlocks.length?'<div class="strength-review-unlocks"><small>Earned for next session</small><strong>'+data.unlocks.map(esc).join(' · ')+'</strong></div>':'')+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Keep training</button><button type="button" class="strength-review-primary" '+(data.progress.doneSets?'':'disabled')+' onclick="submitStrengthFromReview()">Submit to coaches</button></div>'+(data.progress.doneSets?'':'<p class="strength-review-hint">Log at least one completed set before submitting.</p>');
+  body.innerHTML='<div class="strength-review-hero"><span>✓</span><div><strong>'+data.progress.doneSets+' set'+(data.progress.doneSets===1?'':'s')+' ready</strong><small>'+(incomplete?incomplete+' set'+(incomplete===1?' is':'s are')+' still open. You can submit now or keep training.':'Everything programmed is complete.')+'</small></div></div>'+strengthReviewMetricsHtml(data)+strengthReviewOutcomesHtml(data.recommendations)+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Keep training</button><button type="button" class="strength-review-primary" '+(data.progress.doneSets?'':'disabled')+' onclick="submitStrengthFromReview()">Submit to coaches</button></div>'+(data.progress.doneSets?'':'<p class="strength-review-hint">Log at least one completed set before submitting.</p>');
   modal.classList.add('open');
 }
 // The review sheet stays up while the session sends. Closing it first left the
@@ -3028,7 +3422,7 @@ function showStrengthSessionRecap(i,splitKey,options){
   options=options||{};var modal=ensureStrengthReviewModal(),data=strengthSessionReviewData(i,splitKey),body=document.getElementById('strengthReviewBody'),title=document.getElementById('strengthReviewTitle'),subtitle=document.getElementById('strengthReviewSubtitle');
   strengthReviewContext={i:i,splitKey:splitKey};title.textContent=options.queued?'Session saved':'Session sent ✓';subtitle.textContent=options.queued?'It will reach your coaches when the connection recovers.':'Your coaches can now review the full session.';
   if(options.pbCount!=null)data.pbCount=options.pbCount;
-  body.innerHTML='<div class="strength-review-hero is-complete"><span>✓</span><div><strong>'+data.progress.doneSets+' sets logged</strong><small>'+data.progress.doneExercises+' of '+data.progress.totalExercises+' exercises fully completed.</small></div></div>'+strengthReviewMetricsHtml(data)+strengthReviewOutcomesHtml(data.recommendations)+(data.unlocks.length?'<div class="strength-review-unlocks"><small>Ready for next session</small><strong>Increase '+data.unlocks.map(esc).join(' · ')+'</strong></div>':'<div class="strength-review-unlocks is-quiet"><small>Next session</small><strong>Keep building through the rep range.</strong></div>')+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Review workout</button><button type="button" class="strength-review-primary" onclick="closeStrengthReview();closeFocusedSession()">Back to plan</button></div>';
+  body.innerHTML='<div class="strength-review-hero is-complete"><span>✓</span><div><strong>'+data.progress.doneSets+' sets logged</strong><small>'+data.progress.doneExercises+' of '+data.progress.totalExercises+' exercises fully completed.</small></div></div>'+strengthReviewMetricsHtml(data)+(strengthReviewOutcomesHtml(data.recommendations)||'<div class="strength-review-progression"><small>Session progression</small><ul><li>No completed working sets to carry forward yet.</li></ul></div>')+'<div class="strength-review-actions"><button type="button" class="strength-review-secondary" onclick="closeStrengthReview()">Review workout</button><button type="button" class="strength-review-primary" onclick="closeStrengthReview();closeFocusedSession()">Back to plan</button></div>';
   modal.classList.add('open');
 }
 function closeStrengthReview(){var modal=document.getElementById('strengthReviewModal');if(modal)modal.classList.remove('open');}
@@ -3340,10 +3734,23 @@ async function markSessionDone(i){
   // Completion lives in Supabase: the ticked state is saved to athlete_data above,
   // and the saved run/gym log is the source-of-truth record the coach dashboard reads.
 }
-function promptStrengthCalibration(i,ei,si){
+// Returns true only when the athlete still has to answer the effort question
+// before this set can complete. With RPE on, the RPE answers it: the panel
+// opens as a read-back with the form/pain report, and never blocks.
+// The RPE is read only once the athlete pauses or leaves the box (readRpe):
+// reading every keystroke would act on the "1" of a "10" and move the
+// remaining sets to a heavier load nobody asked for.
+function promptStrengthCalibration(i,ei,si,readRpe){
   var row=document.getElementById('sr_'+i+'_'+ei+'_'+si);if(!row)return false;
-  if(!row.getAttribute||row.getAttribute('data-effort-required')!=='true'||row.getAttribute('data-effort')||!strengthSetHasCalibrationInputs(row))return false;
-  var panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(!panel)return false;
+  if(!row.getAttribute||row.getAttribute('data-effort-required')!=='true')return false;
+  var panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);
+  if(strengthRowUsesRpeEffort(row)){
+    if(readRpe)syncStrengthEffortFromRpe(i,ei,si);
+    if(panel&&strengthSetHasCalibrationInputs(row))panel.classList.add('is-prompting');
+    return false;
+  }
+  if(row.getAttribute('data-effort')||!strengthSetHasCalibrationInputs(row))return false;
+  if(!panel)return false;
   panel.classList.add('is-prompting');return true;
 }
 function draftStrengthSet(i,ei,si,splitKey){
@@ -3386,7 +3793,7 @@ function autoCompleteStrengthSet(i,ei,si){
   if(!row||!btn)return;
   var pending=_exlAutoTimers[i+'_'+ei+'_'+si];if(pending){clearTimeout(pending);delete _exlAutoTimers[i+'_'+ei+'_'+si];}
   if(row.closest&&row.closest('.exc.exl')&&!btn.classList.contains('on')&&_exlRowHasReps(row))_exlAdoptLoadHint(i,ei,row);
-  if(promptStrengthCalibration(i,ei,si))return;
+  if(promptStrengthCalibration(i,ei,si,true))return;
   if(!strengthSetHasRequiredInputs(row))return;
   if(!btn.classList.contains('on')){togSet(i,ei,si);return;}
   settleStrengthExerciseCompletion(btn.closest('.exc'));
@@ -3428,7 +3835,8 @@ function togSet(i,ei,si){
   // Ticking without typing over the kg hint means "I lifted the target": the
   // hint becomes the value, exactly as if it had been typed.
   if(on&&row&&row.closest&&row.closest('.exc.exl'))_exlAdoptLoadHint(i,ei,row);
-  if(on&&row&&row.getAttribute('data-effort-required')==='true'&&!row.getAttribute('data-effort')){var panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(panel){panel.classList.add('is-prompting','needs-attention');panel.scrollIntoView({behavior:'smooth',block:'nearest'});}if(typeof showToast==='function')showToast('Calibrate the first working set before continuing');return;}
+  if(on&&row&&row.getAttribute('data-effort-required')==='true'&&!row.getAttribute('data-effort'))syncStrengthEffortFromRpe(i,ei,si);
+  if(on&&row&&row.getAttribute('data-effort-required')==='true'&&!row.getAttribute('data-effort')){var rpeMode=strengthRowUsesRpeEffort(row),panel=document.getElementById('effort_'+i+'_'+ei+'_'+si);if(panel){panel.classList.add('is-prompting','needs-attention');if(panel.scrollIntoView)panel.scrollIntoView({behavior:'smooth',block:'nearest'});}if(typeof showToast==='function')showToast(rpeMode?'Add your RPE for working set 1 first':'Say how many clean reps were left on working set 1');return;}
   btn.classList.toggle('on',on);btn.setAttribute('aria-pressed',on?'true':'false');btn.style.background=on?'var(--ok)':'transparent';btn.style.borderColor=on?'var(--ok)':'var(--border-mid)';
   var card=btn.closest('.exc');
   if(card){

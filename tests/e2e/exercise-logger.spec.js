@@ -95,13 +95,22 @@ for (const { rpe, ...size } of fits) {
     const card = page.locator('.exc.is-up-next');
     await expect(card).toContainText('Low Machine Row');
     await expect(card).toHaveClass(/\bopen\b/);
-    await expect(card.locator('.exl-target')).toContainText('Today’s target · per work set');
-    await expect(card.locator('.exl-target')).toContainText('Stop with 2 reps left in the tank (RPE 8)');
-    await expect(card.locator('.exl-rule')).toHaveText('Hit 12 on both work sets to go up');
+    // Today's plan: the load, the engine's exact target for each working set,
+    // then the range and effort, then the condition that moves the load.
+    const target = card.locator('.exl-target');
+    await expect(target.locator('.exl-label')).toHaveText('Today’s plan');
+    await expect(target.locator('.exl-now')).toHaveText('Now: warm-up 1 of 2');
+    await expect(target.locator('.exl-big').first()).toHaveText('38.6');
+    await expect(target.locator('.exl-set')).toHaveText([/^Work 1 10 reps$/, /^Work 2 9 reps$/]);
+    await expect(target.locator('.exl-effort')).toContainText('Range 8–12 · Stop with about 2 clean reps left');
+    await expect(card.locator('.exl-rule')).toHaveText('Reach 12 / 12 at this effort to unlock the next weight.');
+    await expect(card.locator('.exl-stage')).toHaveText('Build reps');
+    // The target is visible text, not only input placeholders.
+    expect(await target.evaluate(el => el.querySelectorAll('input').length)).toBe(0);
     await expect(card.locator('.snum')).toHaveText(['WU 1', 'WU 2', 'Work 1', 'Work 2']);
     await expect(card.locator('.slast').nth(2)).toHaveText('38.6 × 9');
     // Nothing in the table is clipped: every LAST value and every input fits its cell.
-    const clipped = await card.evaluate((node) => [...node.querySelectorAll('.slast, .sin, .rpe-in')]
+    const clipped = await card.evaluate((node) => [...node.querySelectorAll('.slast, .sin, .rpe-in, .exl-set, .exl-now, .exl-line, .exl-rule, .exl-effort')]
       .filter(el => el.offsetParent && el.scrollWidth > el.clientWidth + 1).map(el => el.id || el.textContent));
     expect(clipped).toEqual([]);
     // No Log button: finishing a row logs it. The dock only holds the rest timer.
@@ -137,6 +146,34 @@ for (const { rpe, ...size } of fits) {
   });
 }
 
+for (const size of [{ width: 360, height: 780 }, { width: 375, height: 812 }, { width: 390, height: 844 }]) {
+  test(`the final working set stays on screen while the effort question is open · ${size.width}×${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+    const errors = await login(page, [row, dips], rowHistory);
+    for (const [si, reps] of [[0, '10'], [1, '8'], [2, '12']]) {
+      await page.locator(`#r_0_0_${si}`).fill(reps);
+      await page.locator(`#r_0_0_${si}`).blur();
+    }
+    const options = page.locator('#effort_0_0_2 .set-effort-options');
+    await expect(options).toBeVisible();
+    await page.waitForTimeout(400);
+    const m = await page.locator('.exc.exl.open').evaluate((node) => {
+      const rows = node.querySelectorAll('.setrow');
+      return {
+        last: rows[rows.length - 1].getBoundingClientRect().bottom,
+        dockTop: node.querySelector('.exl-dock').getBoundingClientRect().top,
+        wide: document.documentElement.scrollWidth - window.innerWidth,
+        buttons: [...node.querySelectorAll('#effort_0_0_2 .set-effort-options button')].map(b => Math.round(b.getBoundingClientRect().height)),
+      };
+    });
+    expect(m.last, 'final working set hidden behind the dock with the question open').toBeLessThanOrEqual(m.dockTop);
+    expect(m.wide).toBeLessThanOrEqual(0);
+    expect(Math.min(...m.buttons), 'answer buttons under 44px').toBeGreaterThanOrEqual(44);
+    expect(errors).toEqual([]);
+  });
+}
+
 test('ticking a row logs it, advances, and the done exercise closes itself', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
@@ -167,8 +204,9 @@ test('ticking a row logs it, advances, and the done exercise closes itself', asy
   // Work set 1: kg left as the target hint. Ticking it records the target.
   await page.locator('#r_0_0_2').fill('12');
   await page.locator('#st_0_0_2').click();
-  await expect(page.getByRole('button', { name: /On target/ })).toBeVisible();
-  await page.getByRole('button', { name: /On target/ }).click();
+  await expect(page.locator('#effort_0_0_2').getByText('How many clean reps did you have left?')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^About 2 reps left/ })).toBeVisible();
+  await page.getByRole('button', { name: /^About 2 reps left/ }).click();
   if (!(await page.locator('#st_0_0_2').evaluate(el => el.classList.contains('on')))) await page.locator('#st_0_0_2').click();
   await expect(page.locator('#st_0_0_2')).toHaveClass(/\bon\b/);
   await expect(page.locator('#w_0_0_2')).toHaveValue('38.6');
@@ -180,6 +218,9 @@ test('ticking a row logs it, advances, and the done exercise closes itself', asy
   await expect(card).not.toHaveClass(/\bopen\b/);
   await expect(page.locator('#w_0_0_3')).toHaveValue('38.6');
   await expect(card.locator('.exl-badge')).toBeVisible();
+  // The collapsed line is working sets only: the 23.6 × 10 and 33.6 × 8
+  // warm-ups are not progression evidence.
+  await expect(card.locator('.ns-sum')).toHaveText('38.6kg × 12 · 11');
   await expect(page.locator('.exc.is-up-next')).toContainText('Machine Dips');
   await expect(page.locator('.exc.is-up-next')).toBeInViewport();
 
@@ -187,8 +228,11 @@ test('ticking a row logs it, advances, and the done exercise closes itself', asy
   await card.locator('.exc-summary').click();
   const result = card.locator('.exl-result');
   await expect(result).toBeVisible();
-  await expect(result).toContainText('23 work reps · beat last session by 5');
-  await expect(result.locator('.exl-next-action')).not.toBeEmpty();
+  await expect(result).toContainText('23 working-set reps · beat last session by 5');
+  await expect(result.locator('.exl-next-action')).toHaveText('Stay at 38.6kg');
+  await expect(result.locator('.exl-next-kind')).toHaveText('Stay at this weight');
+  await expect(result.locator('.exl-next .exl-set')).toHaveText([/^Work 1 12 reps$/, /^Work 2 12 reps$/]);
+  await expect(result.locator('.exl-next-rule')).toHaveText('One more clean rep on Work 2 at this effort unlocks the next weight.');
   await expect(card.locator('.exl-target')).toBeHidden();
   await page.screenshot({ path: 'test-results/exercise-logger-finished.png' });
   await card.locator('.exc-summary').click();
@@ -327,9 +371,9 @@ test('a row ticks itself once reps are in, with no button pressed', async ({ pag
 
   // First work set: reps in, then the effort answer ticks it. Still no Log press.
   await page.locator('#r_0_0_2').fill('11');
-  await expect(page.getByRole('button', { name: /On target/ })).toBeVisible({ timeout: 3000 });
+  await expect(page.getByRole('button', { name: /^About 2 reps left/ })).toBeVisible({ timeout: 3000 });
   await expect(page.locator('#st_0_0_2')).not.toHaveClass(/\bon\b/);
-  await page.getByRole('button', { name: /On target/ }).click();
+  await page.getByRole('button', { name: /^About 2 reps left/ }).click();
   await expect(page.locator('#st_0_0_2')).toHaveClass(/\bon\b/);
   await expect(page.locator('#w_0_0_2')).toHaveValue('38.6');
 
@@ -337,6 +381,91 @@ test('a row ticks itself once reps are in, with no button pressed', async ({ pag
   await page.locator('#r_0_0_3').fill('10');
   await expect(page.locator('.exc[data-exercise-index="0"]')).not.toHaveClass(/\bopen\b/, { timeout: 3000 });
   await expect(page.locator('.exc.is-up-next')).toContainText('Machine Dips');
+  expect(errors).toEqual([]);
+});
+
+test('with RPE on, the first working set’s RPE answers the effort question — no second question', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'true'));
+  const errors = await login(page, [dips, row], null);
+  const card = page.locator('.exc[data-exercise-index="0"]');
+  await page.locator('#w_0_0_0').fill('80');
+  await page.locator('#r_0_0_0').fill('10');
+  // Weight and reps alone: the read-back opens, the reps-left question does not.
+  const panel = page.locator('#effort_0_0_0');
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('.set-effort-options')).toBeHidden();
+  await expect(panel.getByText('How many clean reps did you have left?')).toBeHidden();
+  await expect(panel.getByRole('button', { name: 'Form or pain stopped me' })).toBeVisible();
+  // The RPE completes the set by itself: nothing else to answer.
+  await page.locator('#rpe_0_0_0').fill('8');
+  await expect(page.locator('#st_0_0_0')).toHaveClass(/\bon\b/, { timeout: 3000 });
+  await expect(panel.locator('.set-effort-rpe-text')).toHaveText('RPE 8 · about 2 reps left');
+  await page.waitForTimeout(400);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('dp_logs_KARL') || '{}')['session-1']['Machine Dips'][0]);
+  expect(saved.rpe).toBe('8');
+  expect(saved.effort).toBe('on_target');
+  expect(saved.effortSource).toBe('rpe');
+  // Changing the RPE re-reads it; 6 is four reps left, so the next empty
+  // working set is moved up the same way the reps-left answer would.
+  await page.locator('#rpe_0_0_0').fill('6');
+  await page.locator('#rpe_0_0_0').blur();
+  await expect(panel.locator('.set-effort-rpe-text')).toHaveText('RPE 6 · 4+ clean reps left');
+  await expect(page.locator('#sr_0_0_0')).toHaveAttribute('data-effort', 'too_easy');
+  await expect(page.locator('#w_0_0_1')).not.toHaveValue('');
+  expect(Number(await page.locator('#w_0_0_1').inputValue())).toBeGreaterThan(80);
+  await expect(card.locator('.exl-target')).toContainText('Load Increased');
+  expect(errors).toEqual([]);
+});
+
+test('with RPE on, form or pain is still one tap away and overrides the RPE', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'true'));
+  const errors = await login(page, [dips, row], null);
+  await page.locator('#w_0_0_0').fill('80');
+  await page.locator('#r_0_0_0').fill('10');
+  await page.locator('#rpe_0_0_0').fill('6');
+  await page.locator('#rpe_0_0_0').blur();
+  await expect(page.locator('#sr_0_0_0')).toHaveAttribute('data-effort', 'too_easy');
+  const pain = page.locator('#effort_0_0_0').getByRole('button', { name: 'Form or pain stopped me' });
+  const box = await pain.boundingBox();
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  await pain.click();
+  await expect(pain).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#sr_0_0_0')).toHaveAttribute('data-effort', 'form_pain');
+  await expect(page.locator('#effort_0_0_0 .set-effort-rpe-text')).toHaveText('Form or pain stopped this set');
+  // A later RPE edit never overwrites the athlete's own report.
+  await page.locator('#rpe_0_0_0').fill('7');
+  await page.locator('#rpe_0_0_0').blur();
+  await expect(page.locator('#sr_0_0_0')).toHaveAttribute('data-effort', 'form_pain');
+  // Withdrawing it hands the answer back to the RPE.
+  await pain.click();
+  await expect(pain).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#sr_0_0_0')).toHaveAttribute('data-effort', 'on_target');
+  expect(errors).toEqual([]);
+});
+
+test('screen readers get the plan, the current set and the next-session direction in words', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+  const errors = await login(page, [dips, row], [{ id: 'past-dips', date: '2026-09-21', log: { 'Machine Dips': [
+    { weight: '82.8', reps: '8', done: true, effort: 'on_target' }, { weight: '82.8', reps: '9', done: true },
+  ] } }]);
+  const card = page.locator('.exc[data-exercise-index="0"]');
+  const plan = card.getByRole('group', { name: 'Today’s plan' });
+  await expect(plan).toBeVisible();
+  const chips = plan.getByRole('list', { name: 'Reps on each working set' }).getByRole('listitem');
+  await expect(chips.first()).toHaveText(/Work 1\s*9 reps, current set/);
+  await expect(plan.getByRole('img', { name: 'Progress step 1 of 3: Build reps' })).toBeVisible();
+  await page.locator('#r_0_0_0').fill('12');
+  await page.getByRole('button', { name: /^About 2 reps left/ }).click();
+  await page.locator('#r_0_0_1').fill('12');
+  await expect(card).not.toHaveClass(/\bopen\b/, { timeout: 3000 });
+  // Direction is carried in words on the collapsed badge and the result card.
+  await expect(card.locator('.exl-badge')).toHaveAttribute('aria-label', /^Next time: (up to|hold at|down to) /);
+  await card.locator('.exc-summary').click();
+  const next = card.locator('.exl-next');
+  await expect(next).toHaveAttribute('aria-label', /^Next session: Increase earned\. Increase to [\d.]+kg\. Working set 1: 8 reps, Working set 2: 8 reps\.$/);
   expect(errors).toEqual([]);
 });
 

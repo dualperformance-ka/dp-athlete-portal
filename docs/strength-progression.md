@@ -105,6 +105,38 @@ Quality codes are `on_target`, `too_easy`, `too_hard`, `form_pain`. The three
 legacy codes still parse: `reserve` → too easy, `failure` → at limit (RIR 0),
 `form_break` → technique/pain.
 
+### How the athlete is asked
+
+The first-working-set question is "How many clean reps did you have left?",
+with four answers built from the prescription's target RIR (T) rather than a
+fixed two:
+
+| Code | Label at T = 2 | General rule |
+|---|---|---|
+| `too_easy` | 4+ clean reps left | T + `easyRirMargin`, rounded up |
+| `on_target` | About 2 reps left | about T |
+| `too_hard` | 0–1 clean reps left | 0 to T − 1 |
+| `form_pain` | Form or pain stopped me | always offered |
+
+Reps achieved and effort are separate signals, so no label mentions the rep
+range. Legacy codes keep their stored value and display as the answer the
+engine reads them as (`failure` shows as "0–1 clean reps left").
+
+With RPE logging on, a bilateral first working set does not ask a second
+question: once the athlete pauses or leaves the RPE box, the RPE is mapped to
+a quality code through the engine's own band (`strengthEffortEvidence`), and
+stored with `effortSource: 'rpe'`. Because the mapping is the engine's band,
+the code and the RPE never conflict. A later RPE edit re-reads it; a tapped
+answer is never overwritten. "Form or pain stopped me" stays one tap away in
+that mode. Unilateral rows have no RPE box and keep the reps-left question.
+This only happens on rows that still require an effort answer (unfinished
+workouts), so historical logs are never reinterpreted.
+
+Note the one boundary where the two ways in differ at T = 2: an athlete who
+had exactly one clean rep left picks "0–1" (too hard → hold), while RPE 9 is
+inside the engine's ±1 on-target band. Both are safe; aligning them is a
+coach decision about the labels, not an engine change.
+
 ## Live load changes
 
 A working-load input is evaluated on every keystroke, even before reps exist.
@@ -117,10 +149,40 @@ entered values and completed rows are never rewritten. Once all sets are logged,
 the normal shared progression decision takes over and the saved workout becomes
 the next history baseline.
 
-The pre-submit review and saved-session recap also summarise how today's work
-related to the recommendation: followed, adapted live, still building, or a
-safety/coach-review response. This summary is calculated in the athlete's
-current session and does not add new coach-webhook fields.
+The pre-submit review and saved-session recap summarise what today's work does
+to next session, from the engine's next-session decision on today's working
+sets: progressed, stays at the current load, locking in a heavier load,
+lighter start next time, adjusted for form or pain, or needs coach review.
+Only exercises whose next load changes are listed, and form/pain and coach
+items get their own "Tell your coach" block. This is calculated on the
+athlete's device and adds no coach-webhook fields.
+
+## The athlete's screen
+
+`08-training.js` renders the decision as three time frames, never mixed:
+
+- **Today's plan** (the open exercise): the engine's `weightKg`, the engine's
+  `target` for each programmed working set as chips (the current one marked
+  "Now" in words, done ones showing what they got), the range and effort as a
+  secondary line, then the one condition that moves the load
+  ("Reach 12 / 12 at this effort to unlock the next weight."). No load means
+  calibration text, never an invented number; an unknown equipment step reads
+  "Next available weight". Warm-up and bonus rows are never chips.
+- **Next session** (the finished exercise): the next action, the next target
+  array, the effort, and the specific condition after that ("One more clean
+  rep on Work 2 at this effort unlocks the next weight."). Outcomes are named
+  in words: increase earned, stay, lighter start, locking in, coach, safety.
+- **Why this load** (details sheet): the reasoning, history, records and a
+  short explanation of progressive overload.
+
+The progress indicator has three steps: Build reps, Confirm all working sets,
+Increase earned. The last step needs the engine's own increase decision, so
+effort, technique or pain can always hold it.
+
+The collapsed "done" line uses `strengthWorkingSummaryText`, which reads the
+same `getWorkingSlice` window as the engine: warm-ups and bonus rows never
+appear, unilateral sets show the weaker side, and assisted machines keep
+their direction. It is display only.
 
 ## Equipment
 
@@ -138,7 +200,7 @@ starts a fresh ladder.
 
 ## Card fitting
 
-The milestone ladder was four `flex-shrink:0` nodes with `white-space:nowrap`
+The milestone ladder in the Why sheet (now three steps) was four `flex-shrink:0` nodes with `white-space:nowrap`
 labels, so "Increase next" ran off the right edge of the card on a normal
 phone. Nodes now share the width and labels wrap. Below 410px four labels
 cannot be both legible and inside the card, so they become visually hidden
@@ -149,3 +211,11 @@ These overrides must stay *after* the original ladder rules in `styles.css` or
 they lose the cascade; `check-portal.mjs` asserts that order.
 `tests/e2e/strength-card-fit.spec.js` measures real overflow at 320/360/390/
 414/430px, and separately checks that no label is forced to break mid-word.
+
+On a narrow or short phone (≤375px wide or ≤780px tall) the effort question
+pushed the final working set behind the dock at 360×780 — before this change
+as well as after it. While the question is open and unanswered, the plan
+card's unlock line and the picker's repeat of the effort target now step aside
+(`:has(.set-effort.is-prompting:not(.is-rated))`), and return once answered.
+`tests/e2e/exercise-logger.spec.js` checks the final working set stays above
+the dock with the question open at 360, 375 and 390px.
