@@ -145,9 +145,13 @@ athletes' programme weeks.
     "endurance": {
       "running": {
         "plannedDistanceKm": 42,
-        "plannedDistanceSource": "typed",   // typed | title | none
+        "plannedDistanceMetres": 42000,
+        "plannedDistanceSource": "coach",   // coach | manual | declared | typed | title | none
+        "sessionTarget": 4,                 // coach target only, else null
+        "durationTargetMinutes": 240,       // coach target only, else null
         "actualSessions": 3,
         "actualDistanceKm": 39.6,
+        "actualDistanceMetres": 39600,
         "actualDurationMinutes": 228,
         "actualSource": "strava"            // strava | portal_logs | unavailable
       },
@@ -224,6 +228,8 @@ starts echoing rows. Unit tests assert each one by name.
 | Planned sessions | `planned_sessions` | `id, notion_page_id, title, planned_date, session_type, status, library_id, distance_km, week_label, prescription_mode` | `publish_state = published`, `programme_week_id = <week>` |
 | Session type | — | — | `classifySession()`; see [Classification](#classification) |
 | Completion | `session_logs` | `session_key` | Exact match on `notion_page_id \|\| id` |
+| Weekly targets | `weekly_sport_targets` | `sport, distance_target_metres, session_target, duration_target_minutes, publish_state, removed_at` | `athlete_code`, `programme_week_id = <week>`, `publish_state = published`, `removed_at is null`; optional |
+| Weekly running km | `nutrition_plans` | `week_label, weekly_km_target` | Matched on the number in `week_label`; optional |
 | Planned distance | `planned_sessions` | `distance_km`, `library_id`, `title` | `plannedKmFromRow()`, parity-tested against the browser |
 | Actual endurance | `strava_activities` | `sport_type, start_date_local, distance_m, moving_time_s, elapsed_time_s` | Aggregates only; one source per sport |
 | Actual endurance (fallback) | `training_session_logs` | `session_category, session_name, session_date, distance_km, duration_min` | Used only when Strava has nothing for that sport |
@@ -292,6 +298,28 @@ distance — `5x1km Threshold` and `3km pace` both parse to nothing.
 
 `plannedDistanceSource` reports where the figure came from, so a title guess is
 never presented with the confidence of a prescription.
+
+**Authority.** The review's planned figure is the same one the Week tab dials
+show (`loadProgrammeVolume` in `public/js/05-handbook.js`), per sport:
+
+1. A published, unremoved `weekly_sport_targets` row for this programme week
+   (`coach`). Authoritative even at zero. Carries `sessionTarget` and
+   `durationTargetMinutes` when the coach set them.
+2. Running only: the nutrition plan's `weekly_km_target` for that week
+   (`manual`).
+3. The planned sessions, with a "Weekly KM Total" row as a floor under running
+   (`declared` when the floor wins). That row is never a planned session: it
+   cannot be completed, so it is neither counted nor reported as missed.
+
+Applied by `applyWeeklyTargets()` in the shared rules, so the coach's card in
+the dashboard reads the same figure. If the target read fails the sessions are
+used and `weekly_sport_targets` is named in `dataQuality.missingSources`.
+
+The athlete card calls an authority-1/2 figure a **target** and a session sum
+**planned**, and shows swimming in metres, matching the Week tab. Session
+counts are named for what they count: the review's "Planned sessions" is
+completion of what was scheduled; the Week tab's "5 runs logged · target 3" is
+every activity against the coach's count.
 
 ### Actual endurance
 

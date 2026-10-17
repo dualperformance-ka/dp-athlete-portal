@@ -582,13 +582,21 @@ function wrRenderError(message){
 function wrTrainingSection(summary){
   var t=summary.training;
   var completion=t.completionPercent==null?'':' · '+t.completionPercent+'%';
+  // "Planned sessions": completion of what was scheduled. The Week tab counts
+  // every activity logged, which is a different number, so this says which.
   if(!t.plannedSessions){
-    return wrSection('Sessions',wrEmptyLine('No sessions were scheduled for this week.'));
+    return wrSection('Planned sessions',wrEmptyLine('No sessions were scheduled for this week.'));
   }
   var rows=['running','cycling','swimming','strength'].map(function(type){
     var entry=t.byType[type];
     if(!entry||!entry.planned)return '';
-    return '<li><span>'+esc(wrSportLabel(type))+'</span>'
+    // Planned-session completion only counts sessions confirmed in the portal.
+    // When more activities were recorded than that, say so in the same row, so
+    // five runs never read as "1 of 3" with nothing else to go on.
+    var e=summary.endurance&&summary.endurance[type];
+    var recorded=e&&e.actualSessions>entry.completed
+      ?' <small class="wr-recorded">· '+esc(wrActivityCount(e.actualSessions,type))+' recorded</small>':'';
+    return '<li><span>'+esc(wrSportLabel(type))+recorded+'</span>'
       +'<b>'+entry.completed+' of '+entry.planned+'</b></li>';
   }).join('');
   var missed='';
@@ -602,12 +610,59 @@ function wrTrainingSection(summary){
       +(t.missedSessions.length===1?'':'s')+' not logged: '
       +shown.join(', ')+(rest>0?' and '+rest+' more':'')+'.</p>';
   }
-  return wrSection('Sessions',
+  return wrSection('Planned sessions',
     '<div class="wr-headline"><strong class="readout">'+t.completedSessions+'</strong>'
     +'<span>of '+t.plannedSessions+' completed'+esc(completion)+'</span></div>'
     +(rows?'<ul class="wr-split">'+rows+'</ul>':'')+missed);
 }
 
+// Distances read in the same unit and from the same authority as the Week
+// tab: a published coach target (or the nutrition plan's weekly km) is called
+// a target; a figure added up from the sessions is called planned. Swimming
+// stays in metres on both screens.
+var WR_ACTIVITY_NOUNS={running:['run','runs'],cycling:['ride','rides'],swimming:['swim','swims']};
+function wrDistanceText(km,metres,sport){
+  if(sport==='swimming'){
+    var m=metres!=null?metres:(km!=null?Math.round(km*1000):null);
+    return m==null?null:Math.round(m)+' m';
+  }
+  return km==null?null:km+' km';
+}
+function wrPlannedText(e,sport){
+  var distance=wrDistanceText(e.plannedDistanceKm,e.plannedDistanceMetres,sport);
+  if(distance==null)return 'No planned distance';
+  var targeted=e.plannedDistanceSource==='coach'||e.plannedDistanceSource==='manual';
+  var nouns=WR_ACTIVITY_NOUNS[sport]||['session','sessions'];
+  var count=e.sessionTarget!=null?' · '+e.sessionTarget+' '+(e.sessionTarget===1?nouns[0]:nouns[1]):'';
+  return distance+(targeted?' target':' planned')+count;
+}
+function wrActivityCount(n,sport){
+  var nouns=WR_ACTIVITY_NOUNS[sport]||['session','sessions'];
+  return n+' '+(n===1?nouns[0]:nouns[1]);
+}
+// How the week's actual work sat against its plan, stated as a fact. Doing
+// more than programmed is recognised in plain words, never as a warning and
+// never as a cheer; doing less is stated just as neutrally. Same tolerance as
+// the Week tab dial (50 m, or 0.5 m in the pool).
+function wrAgainstPlanText(e,sport,plannedCount){
+  if(!e||e.actualSource==='unavailable')return '';
+  var plannedM=e.plannedDistanceMetres!=null?e.plannedDistanceMetres:(e.plannedDistanceKm!=null?Math.round(e.plannedDistanceKm*1000):null);
+  var actualM=e.actualDistanceMetres!=null?e.actualDistanceMetres:(e.actualDistanceKm!=null?Math.round(e.actualDistanceKm*1000):0);
+  if(plannedM==null)return '';
+  var targeted=e.plannedDistanceSource==='coach'||e.plannedDistanceSource==='manual';
+  var against=targeted?'the target':'the plan';
+  var tolerance=sport==='swimming'?0.5:50,diff=actualM-plannedM,parts=[];
+  var amount=function(m){return sport==='swimming'?Math.round(m)+' m':(Math.round(m/100)/10)+' km';};
+  if(diff>tolerance)parts.push(amount(diff)+' beyond '+against);
+  else if(diff<-tolerance)parts.push(amount(-diff)+' under '+against);
+  else parts.push('On '+against);
+  var count=e.sessionTarget!=null?e.sessionTarget:plannedCount;
+  if(count!=null&&e.actualSessions>count){
+    var extra=e.actualSessions-count,nouns=WR_ACTIVITY_NOUNS[sport]||['session','sessions'];
+    parts.push(extra+' more '+(extra===1?nouns[0]:nouns[1])+' than planned');
+  }
+  return parts.join(' · ');
+}
 function wrEnduranceSection(summary){
   var rows=['running','cycling','swimming'].map(function(sport){
     var e=summary.endurance[sport];
@@ -615,16 +670,21 @@ function wrEnduranceSection(summary){
     var nothingPlanned=e.plannedDistanceKm==null;
     var nothingDone=!e.actualSessions&&e.actualDistanceKm==null;
     if(nothingPlanned&&nothingDone)return '';
-    var planned=e.plannedDistanceKm==null?'No planned distance':e.plannedDistanceKm+' km planned';
-    var actual=e.actualDistanceKm!=null
-      ?e.actualDistanceKm+' km over '+e.actualSessions+' session'+(e.actualSessions===1?'':'s')
+    var planned=wrPlannedText(e,sport);
+    var nouns=WR_ACTIVITY_NOUNS[sport]||['session','sessions'];
+    var actualDistance=wrDistanceText(e.actualDistanceKm,e.actualDistanceMetres,sport);
+    var actual=actualDistance!=null
+      ?actualDistance+' over '+e.actualSessions+' '+(e.actualSessions===1?nouns[0]:nouns[1])
       :(e.actualSource==='unavailable'?'Activity data unavailable':'Nothing recorded');
     var detail=[actual];
     if(e.actualDurationMinutes!=null)detail.push(e.actualDurationMinutes+' min');
     var source=wrSourceLabel(e.actualSource);
+    var byType=summary.training&&summary.training.byType&&summary.training.byType[sport];
+    var against=wrAgainstPlanText(e,sport,byType?byType.planned:null);
     return '<li><span class="wr-endurance-sport">'+esc(wrSportLabel(sport))+'</span>'
       +'<b>'+esc(planned)+'</b>'
-      +'<small>'+esc(detail.join(' · '))+(source&&e.actualSessions?' · '+esc(source):'')+'</small></li>';
+      +'<small>'+esc(detail.join(' · '))+(source&&e.actualSessions?' · '+esc(source):'')+'</small>'
+      +(against?'<small class="wr-against">'+esc(against)+'</small>':'')+'</li>';
   }).join('');
   if(!rows)return wrSection('Distance',wrEmptyLine('No endurance work was planned or recorded.'));
   return wrSection('Distance','<ul class="wr-endurance">'+rows+'</ul>');

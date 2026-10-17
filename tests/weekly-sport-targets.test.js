@@ -141,8 +141,11 @@ test('running, cycling and swimming render independently with the correct units'
   assert.match(html, />78 of 120 km</);
   assert.match(html, /<strong>1800<\/strong><span>m to go<\/span>/, 'swimming stays in metres');
   assert.match(html, />3200 of 5000 m</);
-  assert.match(html, /2 \/ 3 sessions/);
-  assert.match(html, /52 \/ 90 min/);
+  // Activities against the coach's count, named as activities, so they can
+  // never be read as the weekly review's planned-sessions-completed figure.
+  assert.match(html, /2 rides logged · target 3/);
+  assert.doesNotMatch(html, /\/ 3 sessions/);
+  assert.match(html, /52 of 90 min/);
   assert.equal((html.match(/Coach target · Locked/g) || []).length, 3);
 });
 

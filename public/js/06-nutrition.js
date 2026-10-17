@@ -379,6 +379,11 @@ function volumeSportRows(week){
     return {sport:sport,target:target,plannedTargetMetres:plannedTargetMetres,metrics:metrics};
   }).filter(function(row){return !!row.target||row.plannedTargetMetres!=null||sportMetricsHaveActivity(row.metrics);});
 }
+var VOLUME_ACTIVITY_NOUNS={running:['run','runs'],cycling:['ride','rides'],swimming:['swim','swims']};
+function volumeActivityCount(count,sport){
+  var nouns=VOLUME_ACTIVITY_NOUNS[sport]||['session','sessions'];
+  return count+' '+(count===1?nouns[0]:nouns[1]);
+}
 function coachTargetSummary(week){
   return volumeSportRows(week).map(function(row){
     var target=row.target,metrics=row.metrics;
@@ -445,8 +450,11 @@ function coachTargetsHtml(week){
     var figure=volumeDialFigure(actual,targetDistance,sport);
     var details=[];
     if(target){
-      if(target.sessionTarget!=null) details.push((metrics.sessions||0)+' / '+target.sessionTarget+' sessions');
-      if(target.durationTargetMinutes!=null) details.push((metrics.durationMinutes||0)+' / '+target.durationTargetMinutes+' min');
+      // Activities logged against the coach's count, named as activities: the
+      // weekly review counts planned sessions completed, which is a different
+      // number, so the two must never read as the same "sessions".
+      if(target.sessionTarget!=null) details.push(volumeActivityCount(metrics.sessions||0,sport)+' logged · target '+target.sessionTarget);
+      if(target.durationTargetMinutes!=null) details.push((metrics.durationMinutes||0)+' of '+target.durationTargetMinutes+' min');
     }else{
       if(metrics.sessions>0) details.push(metrics.sessions+' '+(metrics.sessions===1?'session':'sessions'));
       if(metrics.durationMinutes>0) details.push(metrics.durationMinutes+' min');
