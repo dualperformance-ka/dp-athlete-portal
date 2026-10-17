@@ -216,11 +216,12 @@ test('3. three strength sets submit and persist across reload', async ({ page })
   await page.getByRole('button', { name: /On target/ }).click();
   await page.locator('#focusFooterAction').click();
   await expect(page.locator('#strengthReviewTitle')).toHaveText('Review session');
-  await expect(page.getByText('Adaptive coaching')).toBeVisible();
-  await expect(page.getByText('1 followed')).toBeVisible();
+  await expect(page.getByText('Session progression')).toBeVisible();
+  await expect(page.getByText('1 stay at the current load')).toBeVisible();
+  await expect(page.locator('#strengthReviewBody')).not.toContainText(/followed|adapted live|still building|Adaptive coaching/);
   await page.getByRole('button', { name: 'Submit to coaches' }).click();
   await expect(page.getByText('Your coaches can now review the full session.')).toBeVisible();
-  await expect(page.getByText('1 followed')).toBeVisible();
+  await expect(page.getByText('1 stay at the current load')).toBeVisible();
   await expect(page.locator('#gym_saved_0')).toContainText('Session submitted');
 
   await page.reload();
@@ -317,7 +318,7 @@ test('first-set calibration reads as effort and quality, never as a failure test
   // The prompt calibrates against the prescribed effort, with no failure copy
   // anywhere on the athlete's screen.
   // One line on the list; the full calibration text is one tap away.
-  await expect(page.getByText('First work set calibrates the load. Stop with 2 reps left.')).toBeVisible();
+  await expect(page.getByText('Working set 1 checks today’s load. Stop with about 2 clean reps left.')).toBeVisible();
   await page.getByRole('button', { name: 'How calibration works' }).click();
   await expect(page.locator('#exlCal_0').getByText('Calibrate the first working set').first()).toBeVisible();
   const body = await page.locator('body').innerText();
@@ -330,7 +331,7 @@ test('first-set calibration reads as effort and quality, never as a failure test
   // Target first; the full recommendation (target, next session, why) sits
   // behind the Why tile.
   const card = page.locator('.exc').first();
-  await expect(card.locator('.exl-target')).toContainText('Today’s target · per work set');
+  await expect(card.locator('.exl-target .exl-label')).toHaveText('Today’s plan');
   await card.getByRole('button', { name: 'Why this load' }).click();
   const sheet = page.locator('#exlSheet_0_0');
   await expect(sheet.getByText('Today’s target')).toBeVisible();
@@ -341,15 +342,20 @@ test('first-set calibration reads as effort and quality, never as a failure test
 
   await page.locator('#w_0_0_0').fill('40');
   await page.locator('#r_0_0_0').fill('10');
-  await expect(page.getByRole('button', { name: /On target/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Too easy/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Too hard/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Technique/ })).toBeVisible();
-  await expect(page.getByText(/aim for 2 reps in reserve/)).toBeVisible();
+  // Effort is asked as clean reps left, in four concrete answers.
+  await expect(page.locator('#effort_0_0_0').getByText('How many clean reps did you have left?')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^4\+ clean reps left/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^About 2 reps left/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^0–1 clean reps left/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Form or pain stopped me/ })).toBeVisible();
+  await expect(page.getByText(/aim for about 2 clean reps left/)).toBeVisible();
+  // The primary labels are concrete; "On target" survives only as supporting copy.
+  await expect(page.locator('#effort_0_0_0 .set-effort-options strong')).toHaveText(['4+ clean reps left', 'About 2 reps left', '0–1 clean reps left', 'Form or pain stopped me']);
+  await expect(page.locator('#effort_0_0_0 .set-effort-options')).not.toContainText(/Too easy|Too hard|Under the range|close to failing/);
 
-  // Too easy moves only the sets that are still empty, and resets their rep
+  // 4+ left moves only the sets that are still empty, and resets their rep
   // prompt to the floor of the range.
-  await page.getByRole('button', { name: /Too easy/ }).click();
+  await page.getByRole('button', { name: /^4\+ clean reps left/ }).click();
   await expect(page.locator('#w_0_0_1')).toHaveValue('45');
   await expect(page.locator('#w_0_0_2')).toHaveValue('45');
   await expect(page.locator('#w_0_0_0')).toHaveValue('40');
@@ -384,7 +390,10 @@ test('a manual live load increase resets only remaining targets on mobile', asyn
   const target = card.locator('.exl-target');
   await expect(target.getByText('Load Increased', { exact: true })).toBeVisible();
   await expect(target.getByText('Aim for 15 clean reps', { exact: true })).toBeVisible();
-  await expect(target.getByText(/Maintain approximately 2 reps in reserve/)).toBeVisible();
+  await expect(target.getByText(/about 2 clean reps left/)).toBeVisible();
+  // The visible load and the remaining working-set targets move at once.
+  await expect(target.locator('.exl-big').first()).toHaveText('68');
+  await expect(target.locator('.exl-set')).toHaveText([/^Work 1 ✓ 19 reps, done/, /^Work 2 15 reps, current set$/, /^Work 3 15 reps$/, /^Work 4 15 reps$/]);
   await expect(card).not.toContainText('Beat Last Week');
   await expect(page.locator('#r_0_0_0')).toHaveValue('19');
   await expect(page.locator('#w_0_0_0')).toHaveValue('63');
@@ -423,7 +432,8 @@ test('a manual live load decrease is kept and updates remaining targets on mobil
   const target = card.locator('.exl-target');
   await expect(target.getByText('Load Reduced', { exact: true })).toBeVisible();
   await expect(target.getByText('Aim for at least 15 clean reps', { exact: true })).toBeVisible();
-  await expect(target.getByText(/Maintain approximately 2 reps in reserve/)).toBeVisible();
+  await expect(target.getByText(/about 2 clean reps left/)).toBeVisible();
+  await expect(target.locator('.exl-big').first()).toHaveText('63');
   await expect(page.locator('#w_0_0_1')).toHaveValue('63');
   await expect(page.locator('#r_0_0_1')).toHaveAttribute('placeholder', '15');
   await expect(page.locator('#w_0_0_2')).toHaveAttribute('placeholder', '63');
@@ -440,7 +450,7 @@ test('a technique or niggle answer never earns more load', async ({ page }) => {
   await openUpNext(page);
   await page.locator('#w_0_0_0').fill('40');
   await page.locator('#r_0_0_0').fill('10');
-  await page.getByRole('button', { name: /Technique/ }).click();
+  await page.getByRole('button', { name: /^Form or pain stopped me/ }).click();
 
   // One rung easier for the sets still to come, and never an increase.
   await expect(page.locator('#w_0_0_1')).toHaveValue('35');

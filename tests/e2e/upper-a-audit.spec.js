@@ -92,7 +92,7 @@ function measure(page) {
       dockBottom: Math.round(box('.exl-dock').bottom),
       spare: Math.round(dockTop - box('.exl-tiles').bottom),
       wide: Math.max(document.documentElement.scrollWidth - window.innerWidth, (() => { const sc = document.getElementById('focusOverlayScroll'); return sc.scrollWidth - sc.clientWidth; })()),
-      clipped: [...node.querySelectorAll('.slast, .sin, .rpe-in, .exl-line, .exl-name, .snum')]
+      clipped: [...node.querySelectorAll('.slast, .sin, .rpe-in, .exl-line, .exl-name, .snum, .exl-set, .exl-now, .exl-rule, .exl-effort')]
         .filter(el => el.offsetParent && el.scrollWidth > el.clientWidth + 1).map(el => `${el.id || el.className} ${el.scrollWidth}>${el.clientWidth} ${el.textContent}`),
       small: [...node.querySelectorAll('.exl-view input, .exl-view button, .exl-dock button')]
         .filter(el => el.offsetParent && !el.closest('.set-effort') && !el.classList.contains('del-set') && !el.classList.contains('exl-pref') /* 26px pill, 44px touch area via ::after */)
@@ -171,7 +171,10 @@ test('the whole Upper A session logs by typing alone and saves exactly what was 
       const picker = page.locator(`#effort_0_${ei}_${si}`);
       const tick = page.locator(`#st_0_${ei}_${si}`);
       await expect.poll(async () => (await tick.evaluate(el => el.classList.contains('on'))) || ((await picker.count()) > 0 && await picker.isVisible()), { timeout: 4000 }).toBe(true);
-      if (await picker.count() && await picker.isVisible()) {
+      // RPE on: the RPE answers the effort, so the reps-left choices never show.
+      const options = picker.locator('.set-effort-options');
+      if (await options.count()) expect.soft(await options.isVisible(), `exercise ${ei}: a second effort question appeared with RPE on`).toBe(single > 0);
+      if (await picker.count() && await options.isVisible()) {
         const withPicker = await measure(page);
         pickerFit.push(`${withPicker.name} spare=${withPicker.dockTop - withPicker.lastRowBottom}`);
         expect.soft(withPicker.lastRowBottom, `${withPicker.name}: last set hidden while the effort question is open`).toBeLessThanOrEqual(withPicker.dockTop);

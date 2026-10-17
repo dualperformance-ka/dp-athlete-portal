@@ -4367,6 +4367,10 @@ html.outdoor-mode #tab-progress .progress-trend-glyph b{
 .ns-peak .ns-pk-i{color:var(--pb,#a78bfa);flex-shrink:0;margin-top:1px}
 /* Progress strip: completed sessions on this exercise, oldest to newest. It
    scrolls inside itself so a long block never widens the card. */
+.ns-explain{margin-top:11px;border-top:1px dashed var(--border);padding-top:10px;font-size:var(--font-xs);line-height:1.5;color:var(--muted)}
+.ns-explain p{margin:4px 0 6px;color:var(--text)}
+.ns-explain-k{font:700 var(--font-xs) var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--dim)}
+.ns-explain ul{margin:4px 0 0;padding-left:18px}
 .ns-history{margin-top:11px;border-top:1px dashed var(--border);padding-top:10px;min-width:0}
 .ns-hlist{
   display:flex;gap:6px;margin:0;padding:0 0 2px;list-style:none;
@@ -5740,6 +5744,24 @@ html.outdoor-mode .photo-current-action{
 .strength-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.strength-review-grid>div{padding:12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface2)}.strength-review-grid small,.strength-review-grid strong{display:block}.strength-review-grid small{font-size:var(--font-xs);color:var(--dim)}.strength-review-grid strong{margin-top:4px;font:750 var(--font-md) var(--mono)}.strength-review-unlocks{margin-top:10px;padding:12px;border:1px solid var(--ok-border);border-radius:var(--radius-md);background:var(--ok-bg)}.strength-review-unlocks small,.strength-review-unlocks strong{display:block}.strength-review-unlocks small{color:var(--ok);font:700 var(--font-xs) var(--mono);text-transform:uppercase;letter-spacing:.05em}.strength-review-unlocks strong{margin-top:4px;font-size:var(--font-sm);line-height:1.4}.strength-review-unlocks.is-quiet{border-color:var(--border);background:var(--surface2)}.strength-review-unlocks.is-quiet small{color:var(--dim)}
 .strength-review-actions{display:grid;grid-template-columns:1fr 1.35fr;gap:8px;margin-top:14px}.strength-review-actions button{min-height:46px;border-radius:var(--radius-md);font:750 var(--font-sm) var(--body);cursor:pointer}.strength-review-secondary{border:1px solid var(--border-mid);background:transparent;color:var(--text)}.strength-review-primary{border:1px solid var(--run);background:var(--run);color:var(--ink-action)}.strength-review-primary:disabled{opacity:.45;cursor:default}.strength-review-hint{margin:9px 0 0;text-align:center;color:var(--dim);font-size:var(--font-xs)}
 
+/* Session progression: plain outcomes, then only the exercises whose next
+   load changes, then safety and coach items in their own block. */
+.strength-review-grid.is-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.strength-review-progression{margin-top:10px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface2)}
+.strength-review-progression>small,.strength-review-changes-k{display:block;color:var(--dim);font:700 var(--font-xs) var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.strength-review-progression ul{margin:6px 0 0;padding:0;list-style:none}
+.strength-review-progression li{font-size:var(--font-sm);line-height:1.45;color:var(--text)}
+.strength-review-changes-k{margin-top:10px}
+.strength-review-changes li{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-top:1px solid var(--border)}
+.strength-review-changes li span{min-width:0;overflow-wrap:anywhere}
+.strength-review-changes li strong{flex-shrink:0;font:650 var(--font-xs) var(--mono)}
+.strength-review-alert{margin-top:10px;padding:12px;border:2px solid var(--nsr);border-radius:var(--radius-md);background:rgba(229,103,138,.07)}
+.strength-review-alert>strong{display:block;font-size:var(--font-sm);color:var(--text)}
+.strength-review-alert ul{margin:6px 0 0;padding:0;list-style:none}
+.strength-review-alert li{font-size:var(--font-sm);line-height:1.45;color:var(--text)}
+.strength-review-alert-k{font:800 var(--font-xs) var(--mono);text-transform:uppercase;letter-spacing:.04em;color:var(--nsr)}
+.outdoor-mode .strength-review-progression{background:var(--surface2)}
+.outdoor-mode .strength-review-alert{background:#fff1f4}
 .outdoor-mode .strength-coach-change,.outdoor-mode .exercise-stats-toggle[aria-expanded="true"]{background:#eef8fc}.outdoor-mode .exercise-stats-details{background:var(--color-white);box-shadow:0 12px 28px rgba(19,46,61,.14)}.outdoor-mode .next-exercise-prompt,.outdoor-mode .strength-review-hero.is-complete,.outdoor-mode .strength-review-unlocks{background:#effaf5}.outdoor-mode .strength-review-grid>div,.outdoor-mode .strength-review-unlocks.is-quiet{background:var(--surface2)}
 @media(max-width:520px){.focus-overlay-bar{grid-template-columns:40px minmax(0,1fr) auto;padding-left:12px;padding-right:12px}.focus-overlay-meta strong{font-size:var(--fs-label)}.focus-overlay-meta small{font-size:var(--fs-label)}.focus-overlay-foot{grid-template-columns:1fr 1.15fr;gap:8px;padding-left:12px;padding-right:12px}.focus-footer-state small{display:none}.focus-done-btn{font-size:var(--font-sm)}.exercise-stats-details{min-width:176px}.strength-review-actions{grid-template-columns:1fr}}
 
@@ -6838,13 +6860,35 @@ button.chip,a.chip,.chip[role="button"]{min-height:44px;padding-inline:var(--sp-
 .exl-x{font-family:var(--exl-body);font-size:var(--fs-2);color:var(--t-4)}
 .exl-effort{font-family:var(--exl-body);font-size:var(--fs-3);color:var(--text);line-height:1.35}
 .exl-effort strong{font-weight:700}
-.exl-prompt{margin-top:6px;font-family:var(--exl-body);font-size:var(--fs-3);color:var(--readout-text);line-height:1.35}
-.exl-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:12px}
-.exl-bar i{display:block;height:5px;border-radius:var(--r-pill);background:var(--g-3)}
-.exl-bar i.on{background:var(--exl-accent)}
-.exl-bar-foot{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-top:7px;font-family:var(--exl-body);font-size:var(--fs-data);color:var(--muted);line-height:1.25}
-.exl-stage{flex-shrink:0}
-.exl-rule{text-align:right;min-width:0}
+/* Today's plan: load, then the exact rep target for each working set beside
+   it (wrapping under it when there are more sets than fit), then range and
+   effort, then the one condition that moves the load. */
+.exl-target-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;min-width:0}
+.exl-now{font-family:var(--exl-mono);font-size:var(--fs-label);font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--readout-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.exl-plan{display:flex;flex-wrap:wrap;align-items:center;column-gap:14px;row-gap:6px;margin:4px 0 6px;min-width:0}
+.exl-plan .exl-line{margin:0}
+.exl-load-word{font-family:var(--exl-display);font-size:clamp(1.25rem,6vw,1.625rem);line-height:1.05;text-transform:uppercase;color:var(--text);white-space:normal}
+.exl-role{align-self:center;font-family:var(--exl-mono);font-size:var(--fs-label);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.exl-approx{align-self:center;font-family:var(--exl-body);font-size:var(--fs-label);color:var(--muted);white-space:nowrap}
+.exl-sets{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none;min-width:0}
+.exl-set{display:flex;flex-direction:column;justify-content:center;min-width:56px;min-height:40px;padding:3px 9px;border:1px solid var(--border-mid);border-radius:var(--r-2);background:var(--g-well)}
+.exl-set-k{font-family:var(--exl-mono);font-size:var(--fs-label);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.exl-set-k b{font-weight:600;color:var(--ok)}
+.exl-set-v{font-family:var(--exl-display);font-size:1.375rem;line-height:1.05;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.exl-set-v small{font-family:var(--exl-body);font-size:var(--fs-label);font-weight:600;color:var(--muted)}
+.exl-set.is-now{border:2px solid var(--exl-accent);padding:2px 8px}
+.exl-set.is-now .exl-set-k{color:var(--readout-text)}
+.exl-set.is-done{opacity:.75}
+.exl-backoff{margin:-2px 0 6px;font-family:var(--exl-body);font-size:var(--fs-data);color:var(--muted)}
+/* One flowing line: step marks, the step in words, then the condition. */
+.exl-unlock{margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-family:var(--exl-body);font-size:var(--fs-data);color:var(--text);line-height:1.3}
+.exl-steps{display:inline-grid;grid-template-columns:repeat(3,10px);gap:3px;margin-right:6px;vertical-align:middle}
+.exl-steps i{display:block;height:5px;border-radius:var(--r-pill);background:var(--g-3)}
+.exl-steps i.on{background:var(--exl-accent)}
+.exl-stage{font-weight:700;color:var(--text)}
+.exl-stage::after{content:' · ';font-weight:400;color:var(--muted)}
+.exl-rule{color:var(--text)}
+.exl-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 
 /* ── Set table ── */
 .exl-table{margin-bottom:10px}
@@ -6892,6 +6936,21 @@ html:not(.strength-rpe-off) .exc.exl .setrow .snum{font-size:var(--fs-label);let
 .exc.exl .set-effort-options button small{display:none}
 .exc.exl .set-effort-options button strong{font-size:var(--fs-label);line-height:1.15}
 .exc.exl .set-effort-advice{margin-top:4px;padding:5px 8px}
+/* Effort is asked as clean reps left. A form/pain answer is red as well as
+   worded, so it never relies on colour alone. */
+.set-effort-options button[data-effort-code="form_pain"].active{border-color:rgba(229,103,138,.35);background:rgba(229,103,138,.08);color:var(--nsr)}
+/* RPE on: the first working set's RPE answers the effort question, so only a
+   one-line read-back and the form/pain report show. Chosen by the card's
+   data-rpe-required, so the RPE switch flips it without a re-render. */
+.set-effort-rpe{display:none;align-items:center;justify-content:space-between;gap:8px}
+.set-effort-rpe-text{flex:1 1 auto;min-width:0;font-size:var(--font-xs);line-height:1.3;color:var(--muted)}
+.set-effort-pain{flex:0 0 auto;min-height:44px;padding:0 10px;border:1px solid var(--border-mid);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:700 var(--font-xs)/1.15 var(--body);cursor:pointer}
+.set-effort-pain.active{border-color:rgba(229,103,138,.45);background:rgba(229,103,138,.08);color:var(--nsr)}
+.set-effort-pain.active::before{content:'✓ '}
+.exc[data-rpe-required="true"] .set-effort[data-rpe-capable="true"] .set-effort-rpe{display:flex}
+.exc[data-rpe-required="true"] .set-effort[data-rpe-capable="true"] .set-effort-summary,
+.exc[data-rpe-required="true"] .set-effort[data-rpe-capable="true"] .set-effort-editor{display:none}
+.outdoor-mode .set-effort-pain{background:var(--color-white)}
 .exc.exl .addset{width:100%;margin:0 0 4px;min-height:44px}
 
 /* ── Tiles ── */
@@ -6922,6 +6981,14 @@ html:not(.strength-rpe-off) .exc.exl .setrow .snum{font-size:var(--fs-label);let
 .exl-next{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
 .exl-next-action{margin-top:4px;font-family:var(--exl-display);font-size:1.75rem;line-height:1.05;text-transform:uppercase;color:var(--text)}
 .exl-next-rule{margin-top:6px;font-family:var(--exl-body);font-size:var(--fs-3);color:var(--muted);line-height:1.35}
+.exl-next-kind{color:var(--text);font-weight:700}
+.exl-next .exl-sets{margin-top:8px}
+.exl-next-effort{margin-top:6px;font-family:var(--exl-body);font-size:var(--fs-data);color:var(--text);line-height:1.35}
+.exl-next-effort strong{font-weight:700}
+.exl-next .exl-next-rule{color:var(--text)}
+/* Safety and coach outcomes are worded first and framed second. */
+.exl-next.is-safety,.exl-next.is-coach{margin-left:-6px;margin-right:-6px;padding:12px 6px 4px;border-top:2px solid var(--nsr);border-radius:0 0 var(--r-2) var(--r-2);background:rgba(229,103,138,.06)}
+.exl-next.is-coach{border-top-color:var(--exl-accent);background:transparent}
 .exl-edit{margin-top:12px;min-height:44px;padding:0 14px;border:1px solid var(--border-mid);border-radius:var(--r-pill);background:transparent;color:var(--text);font-family:var(--exl-body);font-size:var(--fs-3);font-weight:600;cursor:pointer}
 .exc.exl.exl-finished .exl-target{display:none}
 .exc.exl.exl-finished:not(.exl-show-sets) .exl-table{display:none}
@@ -7004,8 +7071,13 @@ body.exl-sheet-open{overflow:hidden}
   .exc.exl .setrow,.exc.exl .setrow-single{min-height:46px;padding-top:1px;padding-bottom:1px}
   .exc.exl .exsets{gap:2px}
   .exl-target{padding:11px 14px 10px;margin-bottom:10px}
-  .exl-line{margin:2px 0 4px}
-  .exl-bar{margin-top:9px}
+  .exl-plan{margin:2px 0 4px}
+  .exl-unlock{margin-top:5px;padding-top:5px}
+  /* While the effort question is open the athlete is answering, not planning:
+     the unlock line and the picker's repeat of the effort target step aside
+     so the final working set stays on screen. Both return once answered. */
+  .exc.exl:has(.set-effort.is-prompting:not(.is-rated)) .exl-unlock{display:none}
+  .exc.exl .set-effort-head small{display:none}
   .exl-head{margin-bottom:8px}
   .exl-tile{min-height:50px;padding:6px 12px}
   .exl-tiles{margin-bottom:8px}
@@ -7054,7 +7126,7 @@ body.exl-sheet-open{overflow:hidden}
 .exlist .exc.exl.open .exl-up-meta{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:375px){
   .exl-effort{font-size:var(--fs-data)}
-  .exl-bar-foot{font-size:var(--fs-label)}
+  .exl-unlock{font-size:var(--fs-label)}
   .exlist .exc.exl.open .exc-sum-main{padding-right:86px}
   .exlist .exc.exl.open .exl-swap{padding:0 12px}
 }
@@ -7070,7 +7142,6 @@ body.exl-sheet-open{overflow:hidden}
 .focus-overlay .strength-log-heading{display:none}
 .exlist .exc.exl.open .exl-prefs+.exl-result,.exlist .exc.exl.open .exl-prefs+.exl-result+.exl-target,.exlist .exc.exl.open .exl-prefs+.exl-result[hidden]+.exl-target{margin-top:0}
 .exlist .exc.exl.open .exl-target{padding-top:11px;padding-bottom:10px}
-.exlist .exc.exl.open .exl-bar{margin-top:9px}
 .exl-sheet [data-exl-section="swap"] .ex-picker-label{display:none}
 
 /* ── Run session pages (js/08-training-run.js) ─────────────────────────────

@@ -38,81 +38,94 @@ const press = {
   exercise: 'Incline Dumbbell Press', sets: '3', workingSets: '3', reps: '8', repRange: '8-12',
 };
 
-test('the calibration control offers four typed outcomes at the coach’s effort target', () => {
+test('the calibration control asks how many clean reps were left, at the coach’s effort target', () => {
   const context = makeContext();
   const pres = context.strengthPrescriptionFor({ ...press, targetRir: 3 }, 'Incline Dumbbell Press');
   const html = context.strengthEffortPickerHtml(0, 0, 0, '', null, 1, true, false, pres);
 
+  // The stored codes are unchanged; only the words the athlete reads moved.
   for (const code of ['on_target', 'too_easy', 'too_hard', 'form_pain']) {
     assert.match(html, new RegExp(`'${code}'`), `missing the ${code} outcome`);
   }
-  assert.match(html, /aim for 3 reps in reserve/, 'the coach’s RIR target drives the prompt');
+  assert.match(html, /How many clean reps did you have left\?/);
+  assert.match(html, /aim for about 3 clean reps left/, 'the coach’s RIR target drives the prompt');
+  assert.match(html, /<strong>5\+ clean reps left<\/strong>/);
+  assert.match(html, /<strong>About 3 reps left<\/strong>/);
+  assert.match(html, /<strong>0–2 clean reps left<\/strong>/);
+  assert.match(html, /<strong>Form or pain stopped me<\/strong>/);
+  assert.doesNotMatch(html, /On target<\/strong>|Too easy|Too hard|Under the range|close to failing/);
   assert.doesNotMatch(html, /0 RIR|technical failure/i);
   // Keyboard and screen-reader reachable, and readable without colour.
-  assert.match(html, /role="group" aria-label="First working set effort and quality"/);
+  assert.match(html, /role="group" aria-label="Clean reps left on working set 1"/);
   assert.match(html, /aria-pressed="false"/);
-  assert.match(html, /aria-label="On target — Effort as prescribed"/);
+  assert.match(html, /aria-label="About 3 reps left — On target"/);
   assert.match(html, /<button type="button"/);
 });
 
 test('the default effort target is two reps in reserve, never failure', () => {
   const context = makeContext();
   const pres = context.strengthPrescriptionFor(press, 'Incline Dumbbell Press');
-  assert.equal(context.strengthEffortTargetLabel(pres), '2 reps in reserve (RPE 8)');
+  assert.equal(context.strengthEffortTargetLabel(pres), 'about 2 clean reps left (RIR 2 · RPE 8)');
+  assert.equal(context.strengthRepsLeftPhrase(pres), 'about 2 clean reps left');
 });
 
-test('the athlete review classifies followed, adapted, building and safety outcomes live', () => {
+test('the athlete review classifies each exercise by what happens next session', () => {
   const context = makeContext();
   const pres = context.strengthPrescriptionFor(press, 'Incline Dumbbell Press');
-  const recommendation = { weightKg: 30, target: [10, 10, 10], coachReview: false };
+  const today = [{ weight: '30', reps: '12', done: true }, { weight: '30', reps: '12', done: true }, { weight: '30', reps: '12', done: true }];
+  const classify = (next, sets = today) => context.strengthRecommendationOutcome(press, pres, next, sets);
 
-  const followed = context.strengthRecommendationOutcome(press, pres, recommendation, [
-    { weight: '30', reps: '10', done: true },
-    { weight: '30', reps: '11', done: true },
-    { weight: '30', reps: '10', done: true },
-  ]);
-  assert.equal(followed.status, 'followed');
-  assert.equal(followed.targetMet, true);
-
-  const adapted = context.strengthRecommendationOutcome(press, pres, recommendation, [
-    { weight: '27.5', reps: '10', done: true },
-    { weight: '27.5', reps: '10', done: true },
-    { weight: '27.5', reps: '10', done: true },
-  ]);
-  assert.equal(adapted.status, 'adapted');
-  assert.equal(adapted.actualLoad, 27.5);
-  assert.equal(adapted.expectedLoad, 30);
-
-  const building = context.strengthRecommendationOutcome(press, pres, recommendation, [
-    { weight: '30', reps: '10', done: true },
-  ]);
-  assert.equal(building.status, 'building');
-
-  const safety = context.strengthRecommendationOutcome(press, pres, recommendation, [
-    { weight: '30', reps: '10', effort: 'form_pain', done: true },
-  ]);
-  assert.equal(safety.status, 'safety_review');
+  const up = classify({ decision: 'increase_load', weightKg: 32.5, action: 'Increase to 32.5kg' });
+  assert.equal(up.status, 'progressed');
+  assert.equal(up.direction, 'up');
+  assert.equal(classify({ decision: 'increase_load', weightKg: null }).direction, 'up', 'an unknown step still reads as up, without a number');
+  assert.equal(classify({ decision: 'load_confirmed', weightKg: 30 }).status, 'progressed');
+  const stay = classify({ decision: 'add_reps', weightKg: 30 });
+  assert.equal(stay.status, 'stay');
+  assert.equal(stay.direction, 'same');
+  assert.equal(classify({ decision: 'change_unconfirmed', weightKg: 27.5 }).status, 'consolidate');
+  const lighter = classify({ decision: 'reduce_load', weightKg: 27.5 });
+  assert.equal(lighter.status, 'lighter');
+  assert.equal(lighter.direction, 'down');
+  assert.equal(classify({ decision: 'coach_review', weightKg: 30, coachReview: true }).status, 'coach');
+  // Technique or pain outranks every other reading.
+  assert.equal(classify({ decision: 'increase_load', weightKg: 32.5 }, [{ weight: '30', reps: '12', effort: 'form_pain', done: true }]).status, 'form');
+  assert.equal(classify({ decision: 'add_reps' }, []), null, 'nothing logged, nothing classified');
 });
 
-test('the adaptive coaching recap is readable without colour and stays athlete-side', () => {
+test('the session progression recap is athlete-facing, readable without colour and stays on the device', () => {
   const context = makeContext();
   const html = context.strengthReviewOutcomesHtml({
-    total: 5, followed: 2, adapted: 1, building: 1, safety: 1, review: 0,
+    total: 10, progressed: 3, stay: 5, consolidate: 0, lighter: 0, form: 1, coach: 1,
+    changes: [{ name: 'Leg Press', direction: 'up', action: 'Increase to 65kg' }],
+    alerts: [{ name: 'Leg Curl', kind: 'form', text: 'form or pain stopped a set' }, { name: 'Pull-up', kind: 'coach', text: 'needs your coach to set the next step' }],
   });
-  assert.match(html, /Adaptive coaching/);
-  assert.match(html, /2 followed/);
-  assert.match(html, /1 adapted live/);
-  assert.match(html, /1 still building/);
-  assert.match(html, /1 safety response recorded/);
+  assert.match(html, /Session progression/);
+  assert.match(html, /3 exercises progressed/);
+  assert.match(html, /5 stay at the current load/);
+  assert.match(html, /1 adjusted for form or pain/);
+  assert.match(html, /1 needs coach review/);
+  assert.match(html, /Leg Press<\/span><strong>Up · Increase to 65kg/, 'only changed prescriptions are listed, with the direction in words');
+  assert.match(html, /role="alert"><strong>Tell your coach<\/strong>/, 'safety and coach items are unmistakable');
+  assert.match(html, /Form or pain<\/span> Leg Curl/);
+  assert.match(html, /Coach review<\/span> Pull-up/);
+  assert.doesNotMatch(html, /followed|adapted live|still building|adaptive coaching/i);
+  assert.doesNotMatch(trainingSource, /'Adaptive coaching'|adapted live|still building/);
   assert.doesNotMatch(loggingSource, /recommendationOutcome|coachInsight/);
 });
 
 test('legacy effort answers still label and still complete a saved set', () => {
   const context = makeContext();
-  assert.equal(context.strengthEffortLabel('reserve'), 'Too easy');
-  assert.equal(context.strengthEffortLabel('failure'), 'On target');
-  assert.equal(context.strengthEffortLabel('form_break'), 'Technique / niggle');
-  assert.equal(context.strengthEffortLabel('too_hard'), 'Too hard');
+  // Legacy codes keep their stored value and read as the outcome the engine
+  // gives them: reserve is too easy, failure is the at-limit band, form_break
+  // is a technique stop.
+  assert.equal(context.strengthEffortLabel('reserve'), '4+ clean reps left');
+  assert.equal(context.strengthEffortLabel('failure'), '0–1 clean reps left');
+  assert.equal(context.strengthEffortLabel('form_break'), 'Form or pain stopped me');
+  assert.equal(context.strengthEffortLabel('too_hard'), '0–1 clean reps left');
+  assert.equal(context.strengthEffortLabel('on_target'), 'About 2 reps left');
+  assert.equal(context.strengthQualityCode('failure'), 'at_limit', 'the engine reading of a legacy answer is unchanged');
+  assert.equal(context.strengthQualityCode('reserve'), 'too_easy');
   const legacy = { weight: '30', reps: '10', effort: 'failure' };
   const current = { weight: '30', reps: '10', effort: 'on_target' };
   assert.equal(context.strengthSavedSetHasRequiredInputs(legacy, false, false, true), true);
@@ -129,7 +142,12 @@ test('the card separates today’s target, the live result, next session and why
   const html = context._nsBody(rec);
 
   assert.match(html, /Today’s target/);
-  assert.match(html, /30kg × 8–12 @ 2 reps in reserve/);
+  assert.match(html, /30kg × 8–12 @ about 2 clean reps left \(RIR 2 · RPE 8\)/);
+  // Three behaviour-led steps replace the four-stage ladder.
+  assert.match(html, /class="ns-ml">Build reps</);
+  assert.match(html, /class="ns-ml">Confirm all working sets</);
+  assert.match(html, /class="ns-ml">Increase earned</);
+  assert.doesNotMatch(html, /One more rep|One more set|Increase next|>Unlocked</);
   assert.match(html, /Live result/);
   // One comparison only: total work reps against last session. The per-set
   // "target beaten" line measured something else and read as a contradiction
