@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v246'; // v246: weekly review planned distance follows the published coach weekly targets
+const CACHE_NAME = 'dp-athlete-v247'; // v247: Review and submit stays reachable at the end of the list while an exercise is open
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=195', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=196', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=131',
   '/js/02-login-goals.js?v=122',

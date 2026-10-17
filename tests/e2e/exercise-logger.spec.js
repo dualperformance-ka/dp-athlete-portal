@@ -174,6 +174,38 @@ for (const size of [{ width: 360, height: 780 }, { width: 375, height: 812 }, { 
   });
 }
 
+for (const size of [{ width: 390, height: 844 }, { width: 360, height: 780 }]) {
+  test(`a submit control is always reachable, even with an exercise open · ${size.width}×${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
+    const errors = await login(page, [row, dips], rowHistory);
+    // Entering the session opens the first exercise, which stands the footer down.
+    await expect(page.locator('#focusOverlay')).toHaveClass(/has-open-exercise/);
+    await expect(page.locator('#focusFooterAction')).toBeHidden();
+    // Log a set so there is something to send.
+    await page.locator('#w_0_0_0').fill('13.6');
+    await page.locator('#r_0_0_0').fill('12');
+    await expect(page.locator('#st_0_0_0')).toHaveClass(/\bon\b/, { timeout: 3000 });
+    // At the end of the list, where an athlete looks for it, submit is there.
+    const inline = page.locator('#sb_0');
+    await inline.scrollIntoViewIfNeeded();
+    await expect(inline).toBeVisible();
+    await expect(inline).toHaveText(/Review & submit/i);
+    const box = await inline.boundingBox();
+    expect(box.height, 'submit under 44px').toBeGreaterThanOrEqual(44);
+    await inline.click();
+    await expect(page.locator('#strengthReviewTitle')).toHaveText('Review session');
+    await page.locator('.strength-review-secondary').click();
+    // With no exercise open the footer returns and the inline copy steps back,
+    // so there is never a second, competing submit on screen.
+    await page.locator('.exc.exl.open .exc-summary').click();
+    await expect(page.locator('#focusOverlay')).not.toHaveClass(/has-open-exercise/);
+    await expect(page.locator('#focusFooterAction')).toBeVisible();
+    await expect(inline).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+}
+
 test('ticking a row logs it, advances, and the done exercise closes itself', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));

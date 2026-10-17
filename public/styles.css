@@ -7113,6 +7113,11 @@ body.exl-sheet-open{overflow:hidden}
 .exc.exl .exc-chev{display:none}
 .exc.exl .next-exercise-prompt{display:none}
 .focus-overlay.has-open-exercise .focus-overlay-foot{display:none}
+/* With the footer stood down for the open exercise's dock, the inline Review
+   & submit at the end of the list takes its place. Without this an athlete
+   mid-session (an exercise is always opened on entry) had no way to submit
+   unless they knew to tap the open exercise closed first. */
+.focus-overlay.has-open-exercise .focus-overlay-scroll .strength-submit-primary{display:block}
 /* Open exercise: its meta line sits under the name in the row itself and the
    Swap pill tucks into that row's right side, so no extra header row. */
 .exlist .exc.exl.open .exl-up{display:block;margin-top:2px}
