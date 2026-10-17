@@ -6690,6 +6690,10 @@ button.chip,a.chip,.chip[role="button"]{min-height:44px;padding-inline:var(--sp-
 .wr-endurance-sport{font-size:var(--font-xs);font-weight:650;color:var(--t-1)}
 .wr-endurance b{font-family:var(--mono);font-size:var(--font-xs);font-weight:600;color:var(--t-1);white-space:nowrap}
 .wr-endurance small{grid-column:1 / -1;font-size:var(--font-xs);line-height:1.35;color:var(--t-3)}
+/* Actual against plan: a plain statement in body text, the same weight for
+   over, under and on target, so doing more never reads as a flag. */
+.wr-endurance .wr-against{color:var(--t-2);font-weight:600}
+.wr-split .wr-recorded{font-size:var(--font-xs);color:var(--t-3);font-weight:400}
 .wr-pbs,.wr-attention{list-style:none;margin:var(--sp-2) 0 0;padding:0;display:grid;gap:6px}
 .wr-pbs li,.wr-attention li{
   display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:8px;

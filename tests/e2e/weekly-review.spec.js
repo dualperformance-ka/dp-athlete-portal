@@ -591,3 +591,49 @@ test('the summary is never written to device storage', async ({ page }) => {
   });
   expect(leaked, 'the weekly summary must stay in memory for the page session').toEqual([]);
 });
+
+// ── Planned matches the Week tab ─────────────────────────────────────────────
+
+test('coach targets read as targets, in the Week tab’s units, and session counts say what they count', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  const targeted = (id) => {
+    const base = summaryFor(id);
+    return {
+      ...base,
+      training: {
+        ...base.training, plannedSessions: 14, completedSessions: 8, completionPercent: 57,
+        byType: { running: { planned: 3, completed: 1 }, cycling: { planned: 4, completed: 1 }, swimming: { planned: 3, completed: 3 }, strength: { planned: 4, completed: 3 }, other: { planned: 0, completed: 0 } },
+      },
+      endurance: {
+        running: { plannedDistanceKm: 23.2, plannedDistanceMetres: 23200, plannedDistanceSource: 'coach', sessionTarget: 3, durationTargetMinutes: 123, actualSessions: 5, actualDistanceKm: 42.1, actualDistanceMetres: 42100, actualDurationMinutes: 217, actualSource: 'strava' },
+        cycling: { plannedDistanceKm: 153, plannedDistanceMetres: 153000, plannedDistanceSource: 'coach', sessionTarget: 4, durationTargetMinutes: 390, actualSessions: 2, actualDistanceKm: 75.7, actualDistanceMetres: 75700, actualDurationMinutes: 183, actualSource: 'strava' },
+        swimming: { plannedDistanceKm: 4.05, plannedDistanceMetres: 4050, plannedDistanceSource: 'coach', sessionTarget: 3, durationTargetMinutes: 135, actualSessions: 3, actualDistanceKm: 5.2, actualDistanceMetres: 5175, actualDurationMinutes: 119, actualSource: 'strava' },
+      },
+    };
+  };
+  await bootPortal(page, { onPortalAction: reviewStubs({ summary: targeted }) });
+  await openProgress(page);
+  const review = body(page);
+  // The same figures as the Week tab dials: 23.2 km, 153 km, 4050 m.
+  await expect(review).toContainText('23.2 km target · 3 runs');
+  await expect(review).toContainText('153 km target · 4 rides');
+  await expect(review).toContainText('4050 m target · 3 swims');
+  await expect(review).toContainText('5175 m over 3 swims');
+  await expect(review).toContainText('42.1 km over 5 runs');
+  await expect(review).not.toContainText('No planned distance');
+  await expect(review).not.toContainText('km planned');
+  // Doing more than programmed is recognised, in plain words, as is less.
+  await expect(review.locator('.wr-against')).toHaveText([
+    '18.9 km beyond the target · 2 more runs than planned',
+    '77.3 km under the target',
+    '1125 m beyond the target',
+  ]);
+  await expect(review).not.toContainText(/!|too much|overdid|warning/i);
+  // Planned-session completion is labelled as such, and five runs never read
+  // as "1 of 3" with nothing else to go on.
+  await expect(review).toContainText('Planned sessions');
+  await expect(review).toContainText('of 14 completed');
+  await expect(review.locator('.wr-split li').first()).toContainText('Running · 5 runs recorded');
+  await expect(review.locator('.wr-split li').nth(2)).not.toContainText('recorded');
+  await page.screenshot({ path: 'test-results/weekly-review-targets.png', fullPage: false });
+});

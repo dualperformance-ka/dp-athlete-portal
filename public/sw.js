@@ -1,14 +1,14 @@
-const CACHE_NAME = 'dp-athlete-v245'; // v245: strength plan card shows exact working-set targets, reps-left effort, next-session prescription
+const CACHE_NAME = 'dp-athlete-v246'; // v246: weekly review planned distance follows the published coach weekly targets
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=194', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=195', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/01-core.js?v=131',
   '/js/02-login-goals.js?v=122',
   '/js/03-nav-nudges.js?v=130',
   '/js/04-checkin.js?v=105',
   '/js/05-handbook.js?v=89',
-  '/js/06-nutrition.js?v=110',
-  '/js/07-progress.js?v=94',
+  '/js/06-nutrition.js?v=111',
+  '/js/07-progress.js?v=95',
   '/js/strava-match.js?v=10',
   '/js/08-training-interval-rest.js?v=1',
   '/js/08-training-muscle-coverage.js?v=1',

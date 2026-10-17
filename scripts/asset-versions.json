@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 194,
-    "sha": "5238fe3d98f5"
+    "version": 195,
+    "sha": "9c5add509087"
   },
   "desktop.css": {
     "version": 14,
@@ -36,12 +36,12 @@
     "sha": "d1ef64cd953c"
   },
   "js/06-nutrition.js": {
-    "version": 110,
-    "sha": "8ed2148e6130"
+    "version": 111,
+    "sha": "7a15fb5998dc"
   },
   "js/07-progress.js": {
-    "version": 94,
-    "sha": "8d78156c9f5c"
+    "version": 95,
+    "sha": "0057d39e90ba"
   },
   "js/strava-match.js": {
     "version": 10,

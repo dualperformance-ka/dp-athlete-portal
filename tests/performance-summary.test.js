@@ -93,6 +93,8 @@ const BASE_TABLES = {
   workout_splits: [],
   session_exercises: [],
   run_steps: [],
+  weekly_sport_targets: [],
+  nutrition_plans: [],
 };
 
 // ── 1. Malformed programme-week ids ──────────────────────────────────────────
@@ -609,9 +611,13 @@ test('raw Strava rows never reach the response, only aggregates', async () => {
   assert.equal(serialised.includes('sport_type'), false);
   assert.deepEqual(summary.endurance.running, {
     plannedDistanceKm: 10,
+    plannedDistanceMetres: 10000,
     plannedDistanceSource: 'title',
+    sessionTarget: null,
+    durationTargetMinutes: null,
     actualSessions: 2,
     actualDistanceKm: 18.2,
+    actualDistanceMetres: 18200,
     actualDurationMinutes: 90,
     actualSource: 'strava',
   });
