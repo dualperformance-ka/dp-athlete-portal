@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v250'; // v250: Signing out while the portal is still loading no longer throws from late login work
+const CACHE_NAME = 'dp-athlete-v251'; // v251: Retyping a load no longer rewrites the remaining sets; suggested values look different from entered ones
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=197', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=198', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/00-safe-storage.js?v=1',
   '/js/01-core.js?v=132',
@@ -16,7 +16,7 @@ const APP_SHELL = [
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
   '/js/08-training-run.js?v=2',
-  '/js/08-training.js?v=165',
+  '/js/08-training.js?v=166',
   '/js/09-logging.js?v=137',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=112',

@@ -6929,9 +6929,16 @@ html:not(.strength-rpe-off) .exc.exl .setrow .snum{font-size:var(--fs-label);let
 .exc.exl .rpe-in{font-size:var(--fs-3)}
 .exc.exl input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .exc.exl input[type=number]::-webkit-inner-spin-button,.exc.exl input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-.exc.exl .setrow.is-current .sin[id^="w_"]::placeholder,.exc.exl .setrow-single.is-current .sin[id^="w_"]::placeholder{color:var(--text);-webkit-text-fill-color:var(--text)}
-.exc.exl .sin[id^="w_"]::placeholder{color:var(--t-2);-webkit-text-fill-color:var(--t-2);opacity:1}
-.exc.exl .sin[id^="r"]::placeholder{color:var(--t-4);-webkit-text-fill-color:var(--t-4);opacity:1}
+/* Suggested vs entered. An empty box shows the plan as a hint: see-through,
+   muted, regular weight. A number the athlete typed (or a hint they adopted by
+   ticking) fills the box, bright and bold. One rule for kg and reps, so a
+   glance tells "still to do" from "done". Dashed stays reserved for warm-ups.
+   Hints use --t-3 (text-safe); --t-4 is not a text colour. The current row's
+   kg hint is one step brighter: it is the load to lift now. */
+.exc.exl .sin::placeholder{color:var(--t-3);-webkit-text-fill-color:var(--t-3);font-weight:400;opacity:1}
+.exc.exl .setrow.is-current .sin[id^="w_"]::placeholder,.exc.exl .setrow-single.is-current .sin[id^="w_"]::placeholder{color:var(--t-2);-webkit-text-fill-color:var(--t-2)}
+.exc.exl .sin:placeholder-shown:not(:focus){background:transparent;box-shadow:none;border-color:var(--border-mid)}
+.exc.exl .sin:not(:placeholder-shown){color:var(--text);-webkit-text-fill-color:var(--text);font-weight:700}
 .exc.exl .st{width:44px;height:44px;border-radius:var(--r-pill);color:var(--t-3)}
 .exc.exl .st svg{opacity:1;width:16px;height:16px;stroke:currentColor}
 .exc.exl .st.on{background:var(--dir-up)!important;border-color:var(--dir-up)!important;color:var(--readout-ink)}
