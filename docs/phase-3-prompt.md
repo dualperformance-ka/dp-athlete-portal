@@ -27,7 +27,7 @@ controls, the Progress card ordering, and literal marker strings inside `js/08-t
 **3. `api/` is at 10 files, hard ceiling 12.** New server behaviour goes in as an action on
 `/api/portal-data` (`api/write.js`, `dispatch()`).
 
-**4. Do not touch the reminder scheduler.** `pg_cron` polls it every minute and it works.
+**4. Do not touch the reminder scheduler.** `pg_cron` polls it every five minutes (docs/reminder-scheduling.md) and it works.
 
 **5. Do not reformat or rename.** Many tests assert against source text.
 

@@ -20,16 +20,16 @@
     "sha": "45ca4f48b4ee"
   },
   "js/01-core.js": {
-    "version": 132,
-    "sha": "c5aec7709e90"
+    "version": 133,
+    "sha": "c49d7406672b"
   },
   "js/02-login-goals.js": {
-    "version": 124,
-    "sha": "abea2cc3328b"
+    "version": 125,
+    "sha": "be0e42c28788"
   },
   "js/03-nav-nudges.js": {
-    "version": 131,
-    "sha": "a673356c4a90"
+    "version": 132,
+    "sha": "7bebdd2e512f"
   },
   "js/04-checkin.js": {
     "version": 105,
@@ -40,8 +40,8 @@
     "sha": "d1ef64cd953c"
   },
   "js/06-nutrition.js": {
-    "version": 111,
-    "sha": "7a15fb5998dc"
+    "version": 112,
+    "sha": "52a2b5c092fc"
   },
   "js/07-progress.js": {
     "version": 95,
@@ -72,19 +72,19 @@
     "sha": "a4a18d5c3de0"
   },
   "js/08-training.js": {
-    "version": 166,
-    "sha": "481924725901"
+    "version": 167,
+    "sha": "fdf705f5fe7d"
   },
   "js/09-logging.js": {
-    "version": 137,
-    "sha": "2a2f55c9d1b5"
+    "version": 138,
+    "sha": "df067fa0900d"
   },
   "accessibility.js": {
     "version": 3,
     "sha": "92cf32569619"
   },
   "js/10-boot.js": {
-    "version": 112,
-    "sha": "843318042f1e"
+    "version": 113,
+    "sha": "c739c8c5b728"
   }
 }

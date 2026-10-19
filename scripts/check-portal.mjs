@@ -193,9 +193,16 @@ for (const directive of ["object-src 'none'", "frame-ancestors 'none'", "base-ur
   if (!csp.includes(directive)) failures.push(`CSP is missing: ${directive}`);
 }
 
+{
+  const auth = readFileSync(join(root, 'api', '_lib', 'auth.js'), 'utf8');
+  const wrapper = auth.slice(auth.indexOf('export async function requestAthleteOr503'));
+  if (!/return await getRequestAthlete\(req\)/.test(wrapper)) failures.push('requestAthleteOr503 must delegate to getRequestAthlete');
+}
 for (const name of ['ingest.js', 'my-logs.js', 'progress-photos.js', 'reminders.js', 'strava.js', 'write.js']) {
   const source = readFileSync(join(root, 'api', name), 'utf8');
-  if (!source.includes('getRequestAthlete')) failures.push(`Protected API lost its athlete auth boundary: api/${name}`);
+  // requestAthleteOr503 is getRequestAthlete with the outage answered as 503
+  // instead of thrown (api/_lib/auth.js); either keeps the boundary.
+  if (!/\b(getRequestAthlete|requestAthleteOr503)\(req/.test(source)) failures.push(`Protected API lost its athlete auth boundary: api/${name}`);
 }
 
 // Shell integrity, for the same reason as the stylesheet check below. One

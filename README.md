@@ -25,6 +25,12 @@ Keep real values in Vercel or an ignored local `.env` file; never commit them.
 - `GHL_LOCATION_ID`: GoHighLevel location containing the coaching-call calendar
 - `GHL_CALENDAR_ID`: optional calendar override (defaults to the portal widget calendar)
 - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`: push notification credentials
+- `SUPABASE_TIMEOUT_MS`: (optional) deadline for every server-side Supabase REST call, default 8000
+- `PERF_LOG_SAMPLE_RATE`: (optional) share of healthy request timings logged as `"evt":"perf"` lines, default 0.05; failures, timeouts and slow calls always log
+
+The reminder cron's schedule, single-flight lease and rollout steps are in
+`docs/reminder-scheduling.md`; the portal's loading path, request deadlines
+and telemetry are in `docs/portal-loading.md`.
 
 `NOTION_TOKEN` is no longer used and should be deleted from the Vercel project.
 

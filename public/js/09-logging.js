@@ -1217,6 +1217,7 @@ var _confirmedLogRefreshAt=0;
 function refreshConfirmedLogDatesOnResume(){
   if(document.visibilityState==='hidden'||!currentAthleteCode())return;
   var now=Date.now();if(now-_confirmedLogRefreshAt<15000)return;
+  if(!portalResumeAllowed('confirmedLogDates',60000))return;
   _confirmedLogRefreshAt=now;
   loadConfirmedLogDates();
 }

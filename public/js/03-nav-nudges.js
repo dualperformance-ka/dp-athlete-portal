@@ -278,23 +278,51 @@ function applyCloudBookingRows(rows,authoritative){
   // future row is more authoritative and must displace that stale placeholder.
   if(currentRaw&&!currentRaw.time&&hasDatedFuture)localStorage.removeItem(prefix+currentSuffix);
 }
+// Full GoHighLevel reconciliation (booking-sync) costs three GHL calendar
+// reads, contact lookups and Supabase writes. Bookings already reach Supabase
+// through the GHL webhook and the daily /api/bookings?mode=sync cron, so the
+// portal normally READS that copy (booking-read, one indexed query). A full
+// sync runs only when this device has not had one for six hours, when a
+// placeholder booking has no time yet, or when the athlete opens the booking
+// sheet. One request at a time; resume handlers can never stack them.
+var BOOKING_SYNC_STALE_MS=6*60*60*1000,BOOKING_RESUME_MIN_MS=5*60*1000;
+var _callBookingRefreshPromise=null;
+function bookingSyncKey(){return 'dp_booking_sync_at_'+String((athlete&&athlete.code)||'').toUpperCase();}
+function bookingSyncStale(){
+  var at=0;try{at=parseInt(localStorage.getItem(bookingSyncKey())||'0',10)||0;}catch(e){}
+  return (Date.now()-at)>BOOKING_SYNC_STALE_MS;
+}
 async function refreshCallBookingsFromCloud(attempt,forceSync){
   attempt=attempt||0;
   if(!_authToken||!athlete||!athlete.code)return;
-  try{
-    var before=getCallBookedState();
-    // Repair historic placeholder rows immediately. The server resolves this
-    // authenticated athlete only and pulls their real appointment from GHL;
-    // later retries stay cheap and read Supabase only.
-    var action=(attempt===0&&(forceSync||(before.booked&&!before.displayTime)))?'booking-sync':'booking-read';
-    var result=await portalRequest(action);
-    if(action==='booking-sync')_callBookingLastSyncAt=Date.now();
-    applyCloudBookingRows(result.rows||[],action==='booking-sync');
-    var state=renderBookingPrompts();
-    if((state.booked&&state.displayTime)||(!state.booked&&state.upcoming&&state.upcoming.displayTime))return;
-    if(action==='booking-sync'&&!state.booked&&!state.upcoming)return;
-  }catch(e){console.warn('Booking time refresh failed',e);}
-  if(attempt<2){
+  if(_callBookingRefreshPromise)return _callBookingRefreshPromise;
+  var run=(async function(){
+    try{
+      var before=getCallBookedState();
+      // Repair historic placeholder rows immediately. The server resolves this
+      // authenticated athlete only and pulls their real appointment from GHL;
+      // later retries stay cheap and read Supabase only.
+      var action=(attempt===0&&(forceSync||(before.booked&&!before.displayTime)))?'booking-sync':'booking-read';
+      if(action==='booking-sync')_callBookingLastSyncAt=Date.now();
+      var result=await portalRequest(action,null,action==='booking-sync'
+        ?{timeoutMs:20000,op:'portal.bookingSync'}
+        :{timeoutMs:PORTAL_TIMEOUT_SECONDARY_MS,op:'portal.bookingRead'});
+      if(action==='booking-sync'){try{localStorage.setItem(bookingSyncKey(),String(Date.now()));}catch(e){}}
+      applyCloudBookingRows(result.rows||[],action==='booking-sync');
+      var state=renderBookingPrompts();
+      if((state.booked&&state.displayTime)||(!state.booked&&state.upcoming&&state.upcoming.displayTime))return 'done';
+      if(action==='booking-sync'&&!state.booked&&!state.upcoming)return 'done';
+    }catch(e){
+      console.warn('Booking time refresh failed',e);
+      // A struggling server is not asked again by the follow-up reads below.
+      if(portalFailureIsTransient(e))return 'done';
+    }
+    return 'retry';
+  })();
+  _callBookingRefreshPromise=run;
+  var outcome;
+  try{outcome=await run;}finally{_callBookingRefreshPromise=null;}
+  if(outcome==='retry'&&attempt<2){
     if(_callBookingRefreshTimer)clearTimeout(_callBookingRefreshTimer);
     _callBookingRefreshTimer=setTimeout(function(){refreshCallBookingsFromCloud(attempt+1,false);},attempt===0?2500:6000);
   }
@@ -312,15 +340,20 @@ function callConfirmationFresh(st){
 }
 function initCallNudge(){
   renderBookingPrompts();
-  // Always reconcile in the background on entry. This is deliberately after
-  // the primary week render, so cancellation/reschedule accuracy never blocks
-  // the athlete from seeing today's training.
-  refreshCallBookingsFromCloud(0,true);
+  // Read the mirrored booking state on entry; reconcile with GHL only when
+  // this device's last full sync is stale. Deliberately after the primary
+  // week render, so booking accuracy never blocks today's training.
+  refreshCallBookingsFromCloud(0,bookingSyncStale());
 }
+// Focus and visibility usually fire together on resume. One cheap read at
+// most every five minutes, none while the shared backoff window is open, and
+// a full sync only when the six-hour mark has passed.
 function refreshCallBookingsOnResume(){
   if(typeof document!=='undefined'&&document.visibilityState&&document.visibilityState!=='visible')return;
+  if(!athlete||!athlete.code)return;
   if(Date.now()-_callBookingLastSyncAt<30000)return;
-  refreshCallBookingsFromCloud(0,true);
+  if(!portalResumeAllowed('bookings',BOOKING_RESUME_MIN_MS))return;
+  refreshCallBookingsFromCloud(0,bookingSyncStale());
 }
 document.addEventListener('visibilitychange',refreshCallBookingsOnResume);
 window.addEventListener('focus',refreshCallBookingsOnResume);
@@ -639,7 +672,11 @@ function switchTab(requested,options){
   if(state.primary)setMobileNav(destination);
   var weekBar=document.getElementById('wbar');if(weekBar)weekBar.style.display=destination==='week'?'':'none';
   syncTodayPlacement();
-  if((destination==='today'||destination==='week')&&Date.now()-_nutLastLoad>60000)loadNutrition();
+  // Not during sign-in: doLogin switches to Today before the week has loaded,
+  // and loadNutrition reads the whole programme (programme-data) plus the
+  // week's targets. The staged secondary start-up loads it once the week is
+  // on screen; after that, tab switches refresh it as before.
+  if((destination==='today'||destination==='week')&&Date.now()-_nutLastLoad>60000&&window._portalSecondaryStarted)loadNutrition();
   if(destination==='coaching')renderCallsTab();
   if(destination==='progress')ensureProgressModule().then(function(){loadProgress();}).catch(function(){showToast('Progress is unavailable — check your connection');});
   if(!previous){
@@ -915,8 +952,8 @@ async function mutateNotificationInbox(action,id){
   if(_notificationInboxMutating)return false;
   _notificationInboxMutating=true;renderNotificationInbox();
   try{
-    var response=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:action,id:id})});
-    var data=await response.json();if(!response.ok||data.ok===false)throw new Error(data.error||'Notification update failed');
+    var fetched=await portalFetchJson('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:action,id:id})},{timeoutMs:PORTAL_TIMEOUT_CRITICAL_MS});
+    var response=fetched.response,data=fetched.data||{};if(!response.ok||data.ok===false)throw new Error(data.error||'Notification update failed');
     applyNotificationInboxResponse(data);return true;
   }catch(e){showToast(e&&e.message?e.message:'Couldn’t clear notifications','error');return false;}
   finally{_notificationInboxMutating=false;renderNotificationInbox();}
@@ -933,8 +970,8 @@ async function clearAllNotifications(){
 // push tap arriving with ?n=<id>; there is deliberately no second code path.
 async function markNotificationRead(id){
   try{
-    var response=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'read-notification',id:id})});
-    var data=await response.json();if(response.ok&&data.ok)applyNotificationInboxResponse(data);
+    var fetched=await portalFetchJson('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'read-notification',id:id})},{timeoutMs:PORTAL_TIMEOUT_CRITICAL_MS});
+    var response=fetched.response,data=fetched.data||{};if(response.ok&&data.ok)applyNotificationInboxResponse(data);
   }catch(e){}
 }
 // A push tap lands on the session with ?n=<id>. Mark it read, then take the
@@ -952,8 +989,8 @@ async function refreshNotificationInbox(){
   if(!_authToken||!athlete)return;
   await consumeNotificationReadParam();
   try{
-    var response=await fetch('/api/reminders?portal=1',{headers:authHeaders({}),cache:'no-store'});
-    var data=await response.json();if(!response.ok||data.ok===false)throw new Error(data.error||'Inbox unavailable');
+    var fetched=await dpTimed('portal.notificationInbox',function(){return portalFetchJson('/api/reminders?portal=1',{headers:authHeaders({}),cache:'no-store'},{timeoutMs:PORTAL_TIMEOUT_SECONDARY_MS});});
+    var response=fetched.response,data=fetched.data||{};if(!response.ok||data.ok===false)throw new Error(data.error||'Inbox unavailable');
     applyNotificationInboxResponse(data);
   }catch(e){
     var list=document.getElementById('notificationInboxList');if(list)list.innerHTML='<div class="notification-empty"><strong>Couldn’t load notifications</strong><span>Check your connection and try again.</span></div>';

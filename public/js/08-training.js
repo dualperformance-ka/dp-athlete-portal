@@ -77,10 +77,13 @@ var TRAINING_READ_TTL=60*1000,TRAINING_PERSIST_TTL=24*60*60*1000,_trainingReadPr
 function trainingReadCacheKey(startISO,endISO){
   return 'dp_training_week_v1_'+String((athlete&&athlete.code)||'').toUpperCase()+'_'+startISO+'_'+endISO;
 }
-function readPersistedTrainingSnapshot(startISO,endISO){
+// allowExpired: a copy past its 24h freshness is still better than a spinner
+// or an error when the server cannot answer. Only the failure path uses it.
+function readPersistedTrainingSnapshot(startISO,endISO,allowExpired){
   try{
     var cached=JSON.parse(localStorage.getItem(trainingReadCacheKey(startISO,endISO))||'null');
-    if(!cached||!cached.ts||!cached.bundle||(Date.now()-cached.ts)>TRAINING_PERSIST_TTL)return null;
+    if(!cached||!cached.ts||!cached.bundle)return null;
+    if(!allowExpired&&(Date.now()-cached.ts)>TRAINING_PERSIST_TTL)return null;
     return cached;
   }catch(e){return null;}
 }
@@ -113,10 +116,14 @@ async function loadTrainingReadSnapshot(startISO,endISO,options){
   if(_trainingReadPromise)return _trainingReadPromise;
   _trainingReadPromise=(async function(){
     var hasLibrary=typeof hydrateRunningLibraryCache==='function'&&await hydrateRunningLibraryCache();
+    // scope:'range' asks for the visible week only (plus anything moved into
+    // it and the next session after it). The whole-programme history arrives
+    // later from loadProgrammeIndex(), once Today is on screen.
     var bundle=await portalRequest('training-read',{
-      start:startISO,end:endISO,includeLibrary:!hasLibrary,
+      start:startISO,end:endISO,includeLibrary:!hasLibrary,scope:'range',
+      rescheduledIds:rescheduledIdsForRange(startISO,endISO),
       libraryRevision:(typeof _runLibraryCacheRevision!=='undefined'&&_runLibraryCacheRevision)||''
-    });
+    },{op:'portal.trainingRead'});
     window._trainingReadSnapshot={
       ts:Date.now(),code:code,start:startISO,end:endISO,bundle:bundle,
       plannedRows:bundle.planned&&Array.isArray(bundle.planned.rows)?bundle.planned.rows:null,
@@ -128,6 +135,117 @@ async function loadTrainingReadSnapshot(startISO,endISO,options){
   })();
   try{return await _trainingReadPromise;}
   finally{_trainingReadPromise=null;}
+}
+// Session ids this device has moved into [start, end] that may not have
+// reached the cloud copy yet. The server also reads its own copy.
+function rescheduledIdsForRange(startISO,endISO){
+  var ids=[];
+  try{
+    var map=JSON.parse(localStorage.getItem('dp_reschedules_'+String((athlete&&athlete.code)||''))||'{}');
+    Object.keys(map||{}).forEach(function(id){
+      var day=String(map[id]||'');
+      if(day>=startISO&&day<=endISO&&/^[A-Za-z0-9_-]{1,64}$/.test(id))ids.push(id);
+    });
+  }catch(e){}
+  return ids.slice(0,50);
+}
+// ── PROGRAMME INDEX ─────────────────────────────────────────────────────────
+// The athlete's whole published programme, without prescriptions. Streaks,
+// exercise history, PB dates, Strava matching and yesterday's log nudge read
+// sessions outside the visible week, so they need it; rendering Today does
+// not. It is fetched once Today is on screen, kept 10 minutes in memory and
+// 24 hours on the device, and merged into the week's rows by loadWeek().
+var PROGRAMME_INDEX_TTL=10*60*1000,PROGRAMME_INDEX_PERSIST_TTL=24*60*60*1000;
+var _programmeIndex=null,_programmeIndexPromise=null;
+function programmeIndexKey(){return 'dp_programme_index_v1_'+String((athlete&&athlete.code)||'').toUpperCase();}
+function readProgrammeIndex(){
+  var code=String((athlete&&athlete.code)||'').toUpperCase();
+  if(!code)return null;
+  if(_programmeIndex&&_programmeIndex.code===code)return _programmeIndex;
+  try{
+    var stored=JSON.parse(localStorage.getItem(programmeIndexKey())||'null');
+    if(stored&&stored.code===code&&Array.isArray(stored.rows)&&(Date.now()-stored.ts)<PROGRAMME_INDEX_PERSIST_TTL){
+      _programmeIndex=stored;return stored;
+    }
+  }catch(e){}
+  return null;
+}
+function withProgrammeIndex(planned){
+  if(!planned||!Array.isArray(planned.rows))return planned;
+  var index=readProgrammeIndex();
+  if(!index||!index.rows.length)return planned;
+  var seen={};
+  planned.rows.forEach(function(row){if(row&&row.id!=null)seen[String(row.id)]=true;});
+  var extra=index.rows.filter(function(row){return row&&row.id!=null&&!seen[String(row.id)];});
+  if(!extra.length)return planned;
+  var rows=planned.rows.concat(extra).sort(function(a,b){return String(a.planned_date||'').localeCompare(String(b.planned_date||''));});
+  return Object.assign({},planned,{rows:rows});
+}
+function loadProgrammeIndex(force){
+  if(!athlete||!athlete.code)return Promise.resolve(null);
+  var current=readProgrammeIndex();
+  if(!force&&current&&(Date.now()-current.ts)<PROGRAMME_INDEX_TTL)return Promise.resolve(current);
+  if(_programmeIndexPromise)return _programmeIndexPromise;
+  var code=String(athlete.code).toUpperCase();
+  _programmeIndexPromise=portalRequest('programme-sessions',null,{timeoutMs:PORTAL_TIMEOUT_SECONDARY_MS,op:'portal.programmeIndex'}).then(function(res){
+    if(!athlete||String(athlete.code).toUpperCase()!==code)return null;
+    _programmeIndex={code:code,ts:Date.now(),rows:Array.isArray(res.rows)?res.rows:[]};
+    try{localStorage.setItem(programmeIndexKey(),JSON.stringify(_programmeIndex));}catch(e){}
+    mergeProgrammeIndexIntoSessions();
+    return _programmeIndex;
+  }).catch(function(e){console.warn('Programme history read failed; keeping the visible week',e);return current;})
+    .finally(function(){_programmeIndexPromise=null;});
+  return _programmeIndexPromise;
+}
+// History sessions outside the visible week are APPENDED to allSessions in
+// place. The calendar on screen is not re-rendered: the athlete may already
+// have a session open, and none of these rows belong to the visible week
+// (anything moved into it came with the range read). Appending keeps every
+// existing allSessions index stable. Only the history readers refresh.
+function mergeProgrammeIndexIntoSessions(){
+  var index=readProgrammeIndex();
+  if(!index||!Array.isArray(index.rows)||!athlete||typeof allSessions==='undefined'||!allSessions.length)return 0;
+  var known={};
+  allSessions.forEach(function(s){if(s&&s.id!=null)known[String(s.id)]=true;});
+  var reschedules={};try{reschedules=JSON.parse(localStorage.getItem('dp_reschedules_'+athlete.code)||'{}');}catch(e){}
+  var added=0;
+  index.rows.forEach(function(row){
+    if(!row||row.id==null)return;
+    var key=String(row.notion_page_id||row.id);
+    if(known[key])return;
+    known[key]=true;
+    var session=mapPlannedSessionRow(row);
+    if(reschedules[session.id]){session.date=reschedules[session.id];session.rescheduled=session.date!==session.plannedDate;}
+    allSessions.push(session);added++;
+  });
+  if(!added)return 0;
+  try{if(typeof syncHeroStreak==='function')syncHeroStreak();}catch(e){}
+  try{if(weekOffset===0&&typeof initLogNudge==='function')initLogNudge();}catch(e){}
+  // Strava matching repaints the calendar. Never under an open session or
+  // day sheet; the next natural refresh (Strava reload, session close) picks
+  // the history up instead.
+  var focus=document.getElementById('focusOverlay'),dayPlan=document.getElementById('dayPlanOverlay');
+  var busy=(focus&&focus.classList.contains('open'))||(dayPlan&&dayPlan.classList.contains('open'));
+  try{if(!busy&&window._stravaLoadPromise&&typeof refreshStravaSessionMatches==='function')refreshStravaSessionMatches();}catch(e){}
+  return added;
+}
+// After a timeout or 5xx, one delayed re-read of the visible week (4s, 8s,
+// 16s with jitter), never an immediate burst of compatibility reads.
+var _weekRetryTimer=null,_weekRetryAttempt=0;
+function scheduleWeekRetry(){
+  if(_weekRetryTimer||_weekRetryAttempt>=3)return;
+  var delay=Math.max(portalBackoffDelay(_weekRetryAttempt,4000,30000),portalBackoffRemaining());
+  _weekRetryAttempt++;
+  _weekRetryTimer=setTimeout(function(){
+    _weekRetryTimer=null;
+    if(!athlete)return;
+    refreshWeekInBackground().then(function(ok){
+      // A section that keeps failing must not reset the counter, or a
+      // permanently broken table would retry forever.
+      var latest=window._trainingReadSnapshot&&window._trainingReadSnapshot.bundle;
+      if(ok&&!(latest&&latest.errors&&latest.errors.length))_weekRetryAttempt=0;
+    });
+  },delay);
 }
 // The week snapshot lives in localStorage. Clearing Cache Storage and updating
 // the service worker — all the Refresh button used to do — left it untouched,
@@ -146,6 +264,8 @@ function clearTrainingWeekCache(){
   }catch(e){}
   window._trainingReadSnapshot=null;
   window._trainingReadServedPersistent=false;
+  _programmeIndex=null;
+  try{localStorage.removeItem(programmeIndexKey());}catch(e){}
   return removed;
 }
 var _weekRefreshInFlight={};
@@ -205,19 +325,44 @@ async function loadWeek(){
   var _errEl=document.getElementById('loadErrEl');if(_errEl)_errEl.style.display='none';
   var _weeklyErrEl=document.getElementById('weeklyLoadErrEl');if(_weeklyErrEl)_weeklyErrEl.style.display='none';
   // One authenticated read snapshot replaces the previous library + splits +
-  // plan requests. Every section retains its original loader as a fallback, so
-  // a partial Supabase failure cannot hide an otherwise valid training plan.
+  // plan requests. The section loaders' own network reads are compatibility
+  // fallbacks for a server that does not know training-read (404/501/unknown
+  // action). A timeout, an offline device or a 5xx gets the last saved copy
+  // of this week instead: turning one failed request into three more is what
+  // used to pile onto a struggling database.
   var results,loadFor=athlete;
   try{
-    var bundle=null;
+    var bundle=null,readError=null;
     try{bundle=await loadTrainingReadSnapshot(localISO(fetchStart),localISO(fetchEnd));}
-    catch(e){console.warn('Combined training read failed; using compatibility reads',e);}
+    catch(e){readError=e;console.warn('Combined training read failed; using compatibility reads',e);}
+    var failedSections=bundle&&Array.isArray(bundle.errors)?bundle.errors:[];
+    if((readError&&readError.kind!=='unsupported')||failedSections.length){
+      var saved=readPersistedTrainingSnapshot(localISO(fetchStart),localISO(fetchEnd),true);
+      var savedBundle=(saved&&saved.bundle)||{};
+      bundle=bundle||{};
+      bundle={
+        planned:bundle.planned||savedBundle.planned||null,
+        splits:bundle.splits||savedBundle.splits||{rows:[]},
+        changes:bundle.changes||savedBundle.changes||null,
+        // Cache-only: never fetch the library here.
+        library:bundle.library||{notModified:true},
+        offlinePlanMissing:!(bundle.planned||savedBundle.planned)
+      };
+      if(readError)showPortalStaleState(readError,'week');
+      scheduleWeekRetry();
+    }
+    else if(bundle&&!window._trainingReadServedPersistent)clearPortalStaleState('week');
     registerCoachChanges(bundle&&bundle.changes);
-    results=await Promise.all([
-      loadRunningLibrary(bundle&&bundle.library),
-      loadWorkoutSplits(bundle&&bundle.splits),
-      loadPlannedSessions(localISO(fetchStart),localISO(fetchEnd),bundle&&bundle.planned)
-    ]);
+    if(bundle&&bundle.offlinePlanMissing){
+      await loadRunningLibrary(bundle.library);
+      results=[null,null,null];
+    }else{
+      results=await Promise.all([
+        loadRunningLibrary(bundle&&bundle.library),
+        loadWorkoutSplits(bundle&&bundle.splits),
+        loadPlannedSessions(localISO(fetchStart),localISO(fetchEnd),withProgrammeIndex(bundle&&bundle.planned))
+      ]);
+    }
   }catch(e){console.warn('Week load failed',e);results=[null,null,null];}
   // Signed out (or switched athlete) while the plan was loading: this response
   // belongs to a portal that is no longer on screen.
@@ -265,7 +410,13 @@ async function loadWeek(){
   updateSessionCounter();
   // On subsequent week changes refresh secondary metrics after the primary
   // calendar has yielded. The first load starts these from doLogin().
-  if(window._portalSecondaryStarted)setTimeout(function(){loadNutrition();},0);
+  // loadWeek also runs as a local re-render (after hydration, after the
+  // programme history lands). Only a different week, or a stale minute, is a
+  // reason to ask for the week's nutrition again.
+  if(window._portalSecondaryStarted&&(window._nutritionWeekLoaded!==wsISO||Date.now()-_nutLastLoad>60000)){
+    window._nutritionWeekLoaded=wsISO;
+    setTimeout(function(){if(athlete===loadFor)loadNutrition();},0);
+  }
   if(!sessions.length&&!mobileCalendar){showNoplan();return;}
   setDisplay('noplanEl','none');setDisplay('weeklyNoplanEl','none');
   renderCal(ws);
@@ -396,8 +547,13 @@ function computeWeeklyPlanKm(){
 // Week owns the plan at every viewport. The retired Today-side strip stays
 // empty until it can be removed with the old nutrition screen in step 6.
 function renderTrainingVolumeStrips(){
-  renderVolumeStrip('weeklyVolumeStrip','training');
+  // The strip reads the whole programme (programme-data) and the coach's
+  // targets. During sign-in that would compete with bootstrap and the week
+  // itself, so a cold strip waits for the secondary stage (loadNutrition
+  // renders it); a warm one renders from memory straight away.
   var retired=document.getElementById('trainingVolumeStrip');if(retired){retired.style.display='none';retired.innerHTML='';}
+  if(!window._portalSecondaryStarted&&!(typeof _programmeVolume!=='undefined'&&_programmeVolume))return;
+  renderVolumeStrip('weeklyVolumeStrip','training');
 }
 function selectWeekDay(di,trigger){
   if(isMobileTrainingCalendar()){
@@ -1059,6 +1215,7 @@ function refreshDailyReadiness(syncCloud){
   var canSync=syncCloud&&athlete&&athlete.code&&typeof loadStructuredBodyData==='function';
   var freshEnough=!dayChanged&&(Date.now()-_readinessLastCloudRefresh)<60000;
   if(!canSync||freshEnough||_readinessRefreshPromise)return;
+  if(typeof portalBackoffActive==='function'&&portalBackoffActive())return;
   _readinessLastCloudRefresh=Date.now();
   _readinessRefreshPromise=loadStructuredBodyData(athlete.code)
     .then(paintDailyReadiness)

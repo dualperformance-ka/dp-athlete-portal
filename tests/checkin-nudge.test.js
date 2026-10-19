@@ -147,14 +147,21 @@ test('timestamp-free widget confirmations cannot overwrite the cloud booking val
   assert.match(navSource, /refreshCallBookingsFromCloud\(0\)/);
   assert.match(navSource, /getElementById\('callConfirmedSub'\)/);
   assert.match(coreSource, /if\(!datedBooking\)return/);
-  assert.match(navSource, /portalRequest\(action\)/);
+  assert.match(navSource, /portalRequest\(action,null,/);
   assert.match(navSource, /\?'booking-sync':'booking-read'/);
-  assert.match(navSource, /refreshCallBookingsFromCloud\(0,true\)/);
   assert.match(navSource, /currentRaw&&!currentRaw\.time&&hasDatedFuture/);
   assert.match(navSource, /applyCloudBookingRows\(result\.rows\|\|\[\],action==='booking-sync'\)/);
-  assert.match(navSource, /refreshCallBookingsFromCloud\(0,true\);/);
+  // Portal entry and resume READ the mirrored booking state; the full GHL
+  // reconciliation runs only when this device's last sync is six hours old.
+  // (It used to run on every entry and every resume.)
+  assert.match(navSource, /refreshCallBookingsFromCloud\(0,bookingSyncStale\(\)\);/);
+  assert.doesNotMatch(navSource.slice(navSource.indexOf('function initCallNudge'), navSource.indexOf('function checkinWeekSuffix')), /refreshCallBookingsFromCloud\(0,true\)/);
+  assert.match(navSource, /BOOKING_SYNC_STALE_MS=6\*60\*60\*1000/);
   assert.match(navSource, /visibilitychange',refreshCallBookingsOnResume/);
   assert.match(navSource, /Date\.now\(\)-_callBookingLastSyncAt<30000/);
+  assert.match(navSource, /portalResumeAllowed\('bookings',BOOKING_RESUME_MIN_MS\)/);
+  // One request at a time.
+  assert.match(navSource, /if\(_callBookingRefreshPromise\)return _callBookingRefreshPromise;/);
 });
 
 test('an authoritative booking sync removes a cancelled weekly projection even when GHL omits the event', async () => {

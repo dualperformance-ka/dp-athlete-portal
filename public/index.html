@@ -1421,12 +1421,28 @@
     if(typeof node==='object'){for(var k in node){if(Object.prototype.hasOwnProperty.call(node,k))node[k]=scrubDeep(node[k],depth+1);}return node;}
     return node;
   }
+  function tracesRate(){
+    var rate=typeof SENTRY_TRACES_SAMPLE_RATE==='number'?SENTRY_TRACES_SAMPLE_RATE:0;
+    return rate>0&&rate<=0.2?rate:0;
+  }
+  // Performance spans carry no identity: the athlete tag set for error
+  // reports is removed, and only whitelisted numeric/boolean attributes ride.
+  function scrubTransaction(event){
+    try{
+      if(event.tags)delete event.tags.athlete;
+      delete event.user;
+      if(event.request){delete event.request.url;delete event.request.query_string;delete event.request.cookies;}
+      return scrubDeep(event,0);
+    }catch(e){return null;}
+  }
   function initSentry(){
     if(!(window.Sentry&&typeof SENTRY_DSN==='string'&&SENTRY_DSN))return;
     try{
+      var rate=tracesRate();
       window.Sentry.init({
         dsn:SENTRY_DSN,
-        tracesSampleRate:0,
+        tracesSampleRate:rate,
+        beforeSendTransaction:scrubTransaction,
         replaysSessionSampleRate:0,
         environment:location.hostname==='portal.dualperformance.au'?'production':'preview',
         beforeSend:function(event){
@@ -1441,6 +1457,18 @@
       });
     }catch(e){}
   }
+  // Named portal operations (see dpPerfRecord in js/01-core.js) become
+  // sampled spans when the SDK supports them and the rate is above zero.
+  window.dpPerfSpan=function(entry){
+    try{
+      var S=window.Sentry;
+      if(!S||!tracesRate()||typeof S.startInactiveSpan!=='function'||!entry)return;
+      var end=Date.now()/1000,start=end-(entry.ms/1000);
+      var span=S.startInactiveSpan({name:'dp.'+entry.op,op:'dp.portal',startTime:start,forceTransaction:true,
+        attributes:{status:String(entry.status||'ok'),timedOut:!!entry.timedOut}});
+      if(span&&typeof span.end==='function')span.end(end);
+    }catch(e){}
+  };
   // Always defined, so login can tag without knowing whether Sentry loaded.
   window.dpTagAthlete=function(code){
     try{if(window.Sentry&&window.Sentry.setTag&&code)window.Sentry.setTag('athlete',String(code));}catch(e){}
@@ -1452,12 +1480,12 @@
 </script>
 <!-- app.js split into focused modules — LOAD ORDER MATTERS: 10-boot.js runs the portal and must stay last -->
 <script src="js/00-safe-storage.js?v=1"></script>
-<script src="js/01-core.js?v=132"></script>
-<script src="js/02-login-goals.js?v=124"></script>
-<script src="js/03-nav-nudges.js?v=131"></script>
+<script src="js/01-core.js?v=133"></script>
+<script src="js/02-login-goals.js?v=125"></script>
+<script src="js/03-nav-nudges.js?v=132"></script>
 <script src="js/04-checkin.js?v=105"></script>
 <script src="js/05-handbook.js?v=89"></script>
-<script src="js/06-nutrition.js?v=111"></script>
+<script src="js/06-nutrition.js?v=112"></script>
 <span id="progressModuleAsset" data-src="/js/07-progress.js?v=95" hidden></span>
 <script type="module" src="js/strava-match.js?v=10"></script>
 <script src="js/08-training-interval-rest.js?v=1"></script>
@@ -1465,9 +1493,9 @@
 <script src="js/08-training-focus.js?v=2"></script>
 <script src="js/08-strength-engine.js?v=4"></script>
 <script src="js/08-training-run.js?v=2"></script>
-<script src="js/08-training.js?v=166"></script>
-<script src="js/09-logging.js?v=137"></script>
+<script src="js/08-training.js?v=167"></script>
+<script src="js/09-logging.js?v=138"></script>
 <script src="accessibility.js?v=3"></script>
-<script src="js/10-boot.js?v=112"></script>
+<script src="js/10-boot.js?v=113"></script>
 </body>
 </html>

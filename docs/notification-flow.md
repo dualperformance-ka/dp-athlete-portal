@@ -1,5 +1,10 @@
 # Athlete notification flow — redesign
 
+> Since 20 Oct 2026 the reminder cron runs every five minutes behind a
+> database lease, with fifteen-minute reminder windows and one batched dedupe
+> read. See `docs/reminder-scheduling.md`. `coachBody()` below was retired;
+> `buildCoachMessage()` in `api/_lib/notification-rules.js` does the naming.
+
 Status: proposal. Sections 4a and 8 are already shipped.
 Written 20 Aug 2026, against the live portal and Supabase data.
 

@@ -10,6 +10,7 @@ import { allowPortalRequest, safeError } from './_lib/http.js';
 import { dispatchCoachAction, isCoachAction, resolveCoachMode } from './_lib/coach-proxy.js';
 import { performanceSummary } from './_lib/performance-summary.js';
 import { syncBookingsForAthlete } from './bookings.js';
+import { timed } from './_lib/telemetry.js';
 import crypto from 'node:crypto';
 
 const ALLOWED_STATE_KEYS = [
@@ -345,7 +346,92 @@ export async function sessionPrescriptions(plannedRows, selectRows = select) {
   return result;
 }
 
-async function plannedSessions(code, body) {
+const PLANNED_COLUMNS = 'id,notion_page_id,title,planned_date,session_type,status,library_id,run_details,intensity,week_label,programme_week_id,distance_km,target_pace,warm_up,intervals,working_pace,rest,cool_down,notes,prescription_mode,part_of_day,day_order,estimated_minutes';
+const SESSION_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const UUID_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function quotedIds(ids) {
+  return ids.map((id) => `"${id}"`).join(',');
+}
+
+// Session ids an athlete has moved INTO [start, end]. Reschedules live in
+// athlete_data (key 'reschedules', { sessionId: 'YYYY-MM-DD' }), so a session
+// whose coach-planned date is in another week would never be selected by a
+// date filter. Both the cloud copy and ids the browser sends (a move still in
+// its outbox) count; neither can widen the athlete scope, which every
+// planned_sessions query below pins to the authenticated code.
+export function rescheduledIntoRange(map, start, end, extra = []) {
+  const ids = new Set();
+  if (map && typeof map === 'object' && !Array.isArray(map)) {
+    for (const [id, target] of Object.entries(map)) {
+      const day = date(target);
+      if (day && day >= start && day <= end && SESSION_ID.test(id)) ids.add(id);
+    }
+  }
+  (Array.isArray(extra) ? extra : []).slice(0, 50).forEach((id) => {
+    const clean = text(id, 64);
+    if (SESSION_ID.test(clean)) ids.add(clean);
+  });
+  return [...ids].slice(0, 60);
+}
+
+// The rows the visible range needs and nothing else: sessions planned in the
+// range, sessions moved into it, and the next session after it (the "up next"
+// card). Prescriptions are fetched for exactly those sessions. A cold Today
+// used to read up to 1,000 programme rows plus prescriptions for 200 sessions.
+export async function plannedSessionsInRange(code, start, end, body = {}, selectRows = select) {
+  const [inRange, nextRows, rescheduleRows] = await Promise.all([
+    selectRows('planned_sessions', {
+      athlete_code: `eq.${code}`,
+      publish_state: 'eq.published',
+      planned_date: `gte.${start}`,
+      and: `(planned_date.lte.${end})`,
+      select: PLANNED_COLUMNS,
+      order: 'planned_date.asc',
+      limit: '200',
+    }),
+    selectRows('planned_sessions', {
+      athlete_code: `eq.${code}`,
+      publish_state: 'eq.published',
+      planned_date: `gt.${end}`,
+      select: PLANNED_COLUMNS,
+      order: 'planned_date.asc',
+      limit: '1',
+    }),
+    selectRows('athlete_data', {
+      athlete_code: `eq.${code}`,
+      key: 'eq.reschedules',
+      select: 'value',
+      limit: '1',
+    }).catch(() => []),
+  ]);
+  const rows = Array.isArray(inRange) ? inRange.slice() : [];
+  const have = new Set(rows.flatMap((row) => [row.id, row.notion_page_id].filter(Boolean).map(String)));
+  const cloudMap = Array.isArray(rescheduleRows) && rescheduleRows[0] ? rescheduleRows[0].value : null;
+  const moved = rescheduledIntoRange(cloudMap, start, end, body.rescheduledIds).filter((id) => !have.has(id));
+  if (moved.length) {
+    const uuids = moved.filter((id) => UUID_ID.test(id));
+    const clauses = [`notion_page_id.in.(${quotedIds(moved)})`];
+    if (uuids.length) clauses.push(`id.in.(${quotedIds(uuids)})`);
+    const extra = await selectRows('planned_sessions', {
+      athlete_code: `eq.${code}`,
+      publish_state: 'eq.published',
+      or: `(${clauses.join(',')})`,
+      select: PLANNED_COLUMNS,
+      limit: '60',
+    });
+    for (const row of Array.isArray(extra) ? extra : []) {
+      const key = String(row.id);
+      if (have.has(key)) continue;
+      have.add(key);
+      rows.push(row);
+    }
+    rows.sort((a, b) => String(a.planned_date || '').localeCompare(String(b.planned_date || '')));
+  }
+  return { rows, next: Array.isArray(nextRows) && nextRows[0] ? nextRows[0] : null, scope: 'range' };
+}
+
+async function plannedSessions(code, body, selectRows = select) {
   const start = date(body.start);
   const end = date(body.end);
   if (!start || !end || start > end) {
@@ -354,39 +440,56 @@ async function plannedSessions(code, body) {
     throw error;
   }
 
-  // Return the athlete's programme, not only the rows whose coach-planned date
-  // falls inside the visible week. Athlete reschedules are stored separately in
-  // athlete_data, so a session moved across a week boundary must still reach the
-  // browser before that override can be applied.
+  // Current clients ask for the visible range only (scope: 'range'); the
+  // whole-programme history they also need (streaks, exercise history,
+  // Strava matching) arrives later from `programme-sessions`, off the
+  // critical path. A client built before that split sends no scope and still
+  // gets the whole programme, so an installed PWA that has not updated yet
+  // keeps working.
   //
   // publish_state filter: a coach building next week in draft mode must stay
   // invisible here. This is the only place the portal learns a session exists,
   // so filtering at the query is the whole of the draft guarantee.
-  const programme = await select('planned_sessions', {
-    athlete_code: `eq.${code}`,
-    publish_state: 'eq.published',
-    select: 'id,notion_page_id,title,planned_date,session_type,status,library_id,run_details,intensity,week_label,programme_week_id,distance_km,target_pace,warm_up,intervals,working_pace,rest,cool_down,notes,prescription_mode,part_of_day,day_order,estimated_minutes',
-    order: 'planned_date.asc',
-    limit: '1000',
-  });
-  const rows = Array.isArray(programme) ? programme : [];
-  const next = rows.find((row) => row.planned_date > end) || null;
+  let result;
+  if (body.scope === 'range') {
+    result = await plannedSessionsInRange(code, start, end, body, selectRows);
+  } else {
+    const programme = await selectRows('planned_sessions', {
+      athlete_code: `eq.${code}`,
+      publish_state: 'eq.published',
+      select: PLANNED_COLUMNS,
+      order: 'planned_date.asc',
+      limit: '1000',
+    });
+    const rows = Array.isArray(programme) ? programme : [];
+    result = { rows, next: rows.find((row) => row.planned_date > end) || null };
+  }
 
   // Never let a prescription lookup take the training plan down with it: a
   // missing prescription degrades to the legacy title-matched split, which is
   // exactly what every session used before this feature existed.
   let prescriptions = { exercises: {}, runSteps: {} };
   try {
-    prescriptions = await sessionPrescriptions(rows);
+    prescriptions = await sessionPrescriptions(result.rows, selectRows);
   } catch (error) {
     console.warn('[portal-data] prescription read failed:', error && error.message);
   }
 
-  return {
-    rows,
-    next,
-    prescriptions,
-  };
+  return { ...result, prescriptions };
+}
+
+// The athlete's whole published programme, without prescriptions: what the
+// portal's history features read (streak, exercise history dates, PB dates,
+// Strava matching, yesterday's log nudge). Loaded after Today is on screen.
+export async function programmeSessions(code, selectRows = select) {
+  const rows = await selectRows('planned_sessions', {
+    athlete_code: `eq.${code}`,
+    publish_state: 'eq.published',
+    select: PLANNED_COLUMNS,
+    order: 'planned_date.asc',
+    limit: '1000',
+  });
+  return { rows: Array.isArray(rows) ? rows : [] };
 }
 
 // Athlete-facing programme changes for the visible date range. The audit table
@@ -437,7 +540,30 @@ function libraryRevision(rows) {
   return crypto.createHash('sha1').update(JSON.stringify(rows || [])).digest('hex').slice(0, 16);
 }
 
+// A trigger-maintained counter (cache_revisions, see the 20261020091000
+// migration) bumped by every insert, update, delete or truncate on
+// session_library. One primary-key read instead of selecting and hashing the
+// whole library on every check. Null when the migration is not applied yet.
+export async function storedLibraryRevision(selectRows = select) {
+  try {
+    const rows = await selectRows('cache_revisions', {
+      name: 'eq.session_library', select: 'revision', limit: '1',
+    }, { timeoutMs: 4000 });
+    const value = Array.isArray(rows) && rows[0] ? rows[0].revision : null;
+    return value === null || value === undefined || !/^\d+$/.test(String(value)) ? null : `r${value}`;
+  } catch (error) {
+    if (error && error.kind && error.kind !== 'http') throw error;
+    return null;
+  }
+}
+
 export async function sessionLibrary(body = {}, selectRows = select) {
+  const asked = text(body.libraryRevision, 80);
+  // Read the revision BEFORE the rows. If the library changes in between, the
+  // rows are newer than the revision they are labelled with, so the next
+  // check simply refetches; the reverse order could pin a stale cache.
+  const stored = await storedLibraryRevision(selectRows);
+  if (stored && asked === stored) return { rows: [], revision: stored, notModified: true };
   const rows = await selectRows('session_library', {
     archived: 'eq.false',
     select: '*',
@@ -445,8 +571,8 @@ export async function sessionLibrary(body = {}, selectRows = select) {
     limit: '1000',
   });
   const safeRows = Array.isArray(rows) ? rows : [];
-  const revision = libraryRevision(safeRows);
-  if (text(body.libraryRevision, 80) === revision) {
+  const revision = stored || libraryRevision(safeRows);
+  if (!stored && asked === revision) {
     return { rows: [], revision, notModified: true };
   }
   return { rows: safeRows, revision, notModified: false };
@@ -1072,6 +1198,7 @@ async function dispatch(action, code, body) {
   if (action === 'state-read') return stateRead(code);
   if (action === 'state-write') return stateWrite(code, body);
   if (action === 'planned-sessions') return plannedSessions(code, body);
+  if (action === 'programme-sessions') return programmeSessions(code);
   if (action === 'workout-splits') return workoutSplits(code);
   if (action === 'session-library') return sessionLibrary(body);
   if (action === 'nutrition-week') return nutritionWeek(code, body);
@@ -1120,16 +1247,22 @@ export default async function handler(req, res) {
       return send(res, 200, { ok: true, ...result });
     }
 
-    const identity = await getRequestAthlete(req);
+    const identity = await timed('auth.request', () => getRequestAthlete(req));
     if (!identity) return send(res, 401, { ok: false, error: 'invalid_session' });
 
+    // Timing only: the action name (validated shape), duration, outcome and
+    // database round trips. Never the athlete code or the payload.
+    const op = `portal.${/^[a-z][a-z-]{0,39}$/.test(action) ? action : 'invalid'}`;
     const data = action === 'weekly-sport-targets'
-      ? await weeklySportTargetsRead(req)
-      : await dispatch(action, String(identity.athlete.code).toUpperCase(), body);
+      ? await timed(op, () => weeklySportTargetsRead(req))
+      : await timed(op, () => dispatch(action, String(identity.athlete.code).toUpperCase(), body));
     return send(res, 200, { ok: true, ...data });
   } catch (error) {
-    console.error('[portal-data]', error && error.message);
+    console.error('[portal-data]', error && (error.kind || error.message));
     const safe = safeError(error);
-    return send(res, safe.status, { ok: false, error: safe.message });
+    // A stable machine-readable reason for the two cases the browser must
+    // handle differently from a generic failure. Never the upstream message.
+    const code = error && (error.code === 'auth_unavailable' || error.code === 'upstream_timeout' || error.code === 'upstream_unavailable') ? error.code : undefined;
+    return send(res, safe.status, { ok: false, error: safe.message, code });
   }
 }

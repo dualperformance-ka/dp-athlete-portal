@@ -87,6 +87,10 @@ export async function bootPortal(page, { rows = weekRows(), outdoor = false, onP
   await page.getByLabel('Athlete access code').fill('KARL');
   await page.getByRole('button', { name: 'Enter Portal' }).click();
   await page.locator('#portalScreen').waitFor({ state: 'visible' });
+  // Secondary start-up is staged after the week renders (02-login-goals.js
+  // startPortalSecondary). Wait for its last step, the inbox refresh, so a
+  // spec never races a re-render, then the usual settle time.
+  await page.waitForFunction(() => (window.__dpPerf || []).some(e => e.op === 'portal.notificationInbox'), null, { timeout: 10000 }).catch(() => {});
   await page.waitForTimeout(1500);
   await page.evaluate(() => { const p = document.getElementById('emailUpgradePrompt'); if (p) { p.hidden = true; p.style.display = 'none'; } });
 }

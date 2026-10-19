@@ -624,6 +624,9 @@ async function renderVolumeStrip(id,mode){
 var _volumeVisibleTimer=null;
 document.addEventListener('visibilitychange',function(){
   if(document.visibilityState!=='visible'||!athlete||!_authToken)return;
+  // programme-data reads the whole programme. Once per five minutes of
+  // resumes is plenty, and never while the server is backing us off.
+  if(!portalResumeAllowed('programmeVolume',5*60*1000))return;
   clearTimeout(_volumeVisibleTimer);
   _volumeVisibleTimer=setTimeout(function(){
     loadProgrammeVolume(true).then(function(){
@@ -634,6 +637,9 @@ document.addEventListener('visibilitychange',function(){
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 
 async function loadNutrition(){
+  // Late callbacks (a week re-render's deferred load, the library revision
+  // check) can land after a sign-out has set athlete to null.
+  if(!athlete)return;
   var weekNum=getCurrentProgrammeWeek();
   var displayWeek=weekNum+nutWeekOffset;
   if(displayWeek<0) displayWeek=0;

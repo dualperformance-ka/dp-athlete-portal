@@ -39,7 +39,8 @@
  *   STRAVA_CRON_SECRET              bearer token for ?mode=drain; CRON_SECRET is
  *                                   accepted too, which is what Vercel cron sends
  */
-import { getRequestAthlete } from './_lib/auth.js';
+import { requestAthleteOr503 } from './_lib/auth.js';
+import { timed } from './_lib/telemetry.js';
 import { createPortalSession, verifyPortalSession } from './_lib/legacy-session.js';
 import { allowPortalRequest } from './_lib/http.js';
 import {
@@ -271,7 +272,7 @@ export default async function handler(req, res) {
   if (mode === 'disconnect') return handleDisconnect(req, res);
   if (mode === 'attempt')    return handleConnectAttempt(req, res);
   if (mode === 'drain')      return handleDrain(req, res);
-  return handleRead(req, res);
+  return timed('strava.read', () => handleRead(req, res));
 }
 
 // ── Mode: connect attempt ───────────────────────────────────────────────────
@@ -285,7 +286,8 @@ async function handleConnectAttempt(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const identity = await getRequestAthlete(req);
+  const identity = await requestAthleteOr503(req, res);
+  if (identity === undefined) return;
   if (!identity) return res.status(401).json({ error: 'invalid_session' });
 
   const userAgent = String((req.headers && req.headers['user-agent']) || '');
@@ -306,7 +308,8 @@ async function handleRead(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const identity = await getRequestAthlete(req);
+  const identity = await requestAthleteOr503(req, res);
+  if (identity === undefined) return;
   if (!identity) {
     // Never log the token. Whether a header arrived, and which credential shape
     // it was, is what separates "athlete never sent one" from "we rejected it".
@@ -595,7 +598,8 @@ async function handleDisconnect(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const identity = await getRequestAthlete(req);
+  const identity = await requestAthleteOr503(req, res);
+  if (identity === undefined) return;
   if (!identity) return res.status(401).json({ error: 'invalid_session' });
   const athleteCode = String(identity.athlete.code).toUpperCase();
 
