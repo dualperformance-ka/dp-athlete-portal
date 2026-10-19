@@ -24,8 +24,8 @@ async function validateRosterCode(code){
     if(result.code&&String(result.code).toUpperCase()!==String(code).toUpperCase())return null;
     if(result.access_token){
       _authToken=result.access_token;
-      localStorage.setItem('dp_legacy_session',_authToken);
-      localStorage.setItem('dp_auth_method','code');
+      safeStorageSet('dp_legacy_session',_authToken);
+      safeStorageSet('dp_auth_method','code');
       writePortalOfflineState('dp_auth_token',_authToken);
     }
     return result;
@@ -40,7 +40,7 @@ function showPausedScreen(name){
   el.style.display='flex';
 }
 function pausedBackToLogin(){
-  localStorage.removeItem('dp_auth_code');
+  safeStorageRemove('dp_auth_code');
   var el=document.getElementById('pausedScreen');if(el) el.style.display='none';
   var inp=document.getElementById('codeInput');if(inp) inp.value='';
   renderCode();
@@ -74,13 +74,14 @@ function saveProfileCache(code,profile){try{localStorage.setItem('dp_profile_'+c
 var _emailUpgradeRoster=null;
 function emailUpgradePromptKey(code){return 'dp_email_upgrade_prompt_v1_'+sanitizeCode(code);}
 function maybeShowEmailUpgradePrompt(roster){
-  if(!roster||localStorage.getItem('dp_auth_method')!=='code')return;
+  if(!roster||safeStorageGet('dp_auth_method')!=='code')return;
   if(String(roster.auth_mode||'').toLowerCase()!=='both'||!roster.email)return;
   var key=emailUpgradePromptKey(roster.code||'');
-  if(!key||localStorage.getItem(key))return;
+  if(!key||safeStorageGet(key))return;
   // Record the impression before painting it. A refresh, crash or dismissal can
   // therefore never turn this gentle migration suggestion into a repeated nag.
-  localStorage.setItem(key,'shown');
+  // If the impression cannot be recorded, do not paint it at all.
+  if(!safeStorageSet(key,'shown'))return;
   _emailUpgradeRoster={code:sanitizeCode(roster.code||''),email:String(roster.email).trim().toLowerCase()};
   var prompt=document.getElementById('emailUpgradePrompt');
   if(prompt){prompt.hidden=false;prompt.style.display='flex';}
@@ -95,11 +96,11 @@ async function acceptEmailUpgrade(){
   var email=_emailUpgradeRoster.email;
   track('email_upgrade_accepted');
   dismissEmailUpgradePrompt();
-  localStorage.setItem('dp_auth_email',email);
+  safeStorageSet('dp_auth_email',email);
   _authToken=null;
   await removePortalOfflineState('dp_auth_token');
   logoutToLogin(true);
-  localStorage.setItem('dp_auth_method','email');
+  safeStorageSet('dp_auth_method','email');
   showEmailLogin(true);
   var input=document.getElementById('emailInput');
   if(input)input.value=email;
@@ -130,8 +131,10 @@ async function hydratePortalData(code){
   await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);await loadStructuredNutritionData(code);})(),loadSessionLogs(),loadConfirmedLogDates()]);
 }
 function hydrateLocalPortalState(code){
-  ticked=JSON.parse(localStorage.getItem('dp_ticked_'+code)||'{}');
-  logs=JSON.parse(localStorage.getItem('dp_logs_'+code)||'{}');
+  // Part of sign-in: unreadable device storage means an empty device copy,
+  // and cloud hydration fills it in, rather than an aborted login.
+  ticked=JSON.parse(safeStorageGet('dp_ticked_'+code)||'{}');
+  logs=JSON.parse(safeStorageGet('dp_logs_'+code)||'{}');
   // One-time repair for devices carrying full Strava activity payloads from an
   // older build. Rewrite the local copy immediately so the next save is small
   // enough for the server to accept, without waiting for a sync round trip.
@@ -140,8 +143,8 @@ function hydrateLocalPortalState(code){
   if(_prunedOnLoad){
     try{localStorage.setItem('dp_logs_'+code,JSON.stringify(logs));}catch(e){}
   }
-  stravaMatchRejections=JSON.parse(localStorage.getItem('dp_strava_match_rejections_'+code)||'{}');
-  exPicks=JSON.parse(localStorage.getItem('dp_ex_picks_'+code)||'{}');
+  stravaMatchRejections=JSON.parse(safeStorageGet('dp_strava_match_rejections_'+code)||'{}');
+  exPicks=JSON.parse(safeStorageGet('dp_ex_picks_'+code)||'{}');
   var picksChanged=false;
   Object.keys(exPicks).forEach(function(programmed){
     var canonical=canonicalExerciseName(exPicks[programmed]);
@@ -151,7 +154,7 @@ function hydrateLocalPortalState(code){
   // both the device and cloud preference so the removed UI choice cannot return
   // on the next hydration or on another device.
   if(picksChanged){
-    localStorage.setItem('dp_ex_picks_'+code,JSON.stringify(exPicks));
+    safeStorageSet('dp_ex_picks_'+code,JSON.stringify(exPicks));
     if(athlete&&athlete.code===code)portalStateWrite('ex_picks',exPicks).catch(function(){});
   }
 }
@@ -172,12 +175,12 @@ async function doLogin(code,prevalidatedRoster){
   athlete=fresh;saveProfileCache(code,fresh);
   await writePortalOfflineState('dp_auth_athlete_code',String(code).toUpperCase());
   if(window.dpTagAthlete)window.dpTagAthlete(code);
-  track(localStorage.getItem('dp_auth_method')==='email'?'login_email':'login_code');
+  track(safeStorageGet('dp_auth_method')==='email'?'login_email':'login_code');
   resetBtn();
-  localStorage.setItem('dp_auth_code',code);
+  safeStorageSet('dp_auth_code',code);
   // Supabase remains the identity provider for email OTP only; portal data
   // always flows through the authenticated server gateway.
-  if(localStorage.getItem('dp_auth_method')==='email')await ensureSupabaseClient();
+  if(safeStorageGet('dp_auth_method')==='email')await ensureSupabaseClient();
   // Render from device state immediately. Cloud history is reconciled below in
   // parallel with the current-week request instead of blocking portal entry.
   hydrateLocalPortalState(code);
@@ -187,7 +190,7 @@ async function doLogin(code,prevalidatedRoster){
   // Coaches authenticate with an athlete access code; clients use email OTP.
   // Keep sign-out available to coaches inside Contact without exposing it in
   // the athlete experience.
-  var isCoachSession=localStorage.getItem('dp_auth_method')==='code';
+  var isCoachSession=safeStorageGet('dp_auth_method')==='code';
   var coachLogout=document.getElementById('coachLogoutBtn');
   if(coachLogout)coachLogout.style.display=isCoachSession?'flex':'none';
   var prefsSignOut=document.getElementById('preferencesSignOut');

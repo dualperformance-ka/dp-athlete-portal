@@ -17,7 +17,7 @@ test('athletes never receive a header logout control', () => {
 
 test('Contact sign-out is hidden by default and revealed only for access-code coaches', () => {
   assert.match(index, /id="coachLogoutBtn"[^>]*style="display:none"/);
-  assert.match(loginGoals, /localStorage\.getItem\('dp_auth_method'\)==='code'/);
+  assert.match(loginGoals, /var isCoachSession=safeStorageGet\('dp_auth_method'\)==='code'/);
   assert.match(loginGoals, /getElementById\('coachLogoutBtn'\)[\s\S]{0,120}isCoachSession\?'flex':'none'/);
   assert.doesNotMatch(boot, /coachLogoutBtn/);
 });

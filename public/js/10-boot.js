@@ -25,7 +25,7 @@ async function bootPortal(){
   }
   if(urlCode){
     _authToken=null;
-    localStorage.removeItem('dp_legacy_session');
+    safeStorageRemove('dp_legacy_session');
     removePortalOfflineState('dp_auth_token');
     removePortalOfflineState('dp_auth_athlete_code');
     doLogin(sanitizeCode(urlCode));
@@ -33,8 +33,10 @@ async function bootPortal(){
   }
   // Fast path: no persisted auth session in storage → skip loading supabase-js
   // before boot, so legacy athletes start exactly as fast as before.
-  var hasStoredSession=false;
-  try{hasStoredSession=!!localStorage.getItem('dp-portal-auth');}catch(e){}
+  // Storage reads on this path go through safeStorage* (00-safe-storage.js):
+  // blocked or disabled storage reads as "nothing remembered" and boot falls
+  // through to the normal logged-out login screen.
+  var hasStoredSession=!!safeStorageGet('dp-portal-auth');
   try{
     var session=hasStoredSession?await getAuthSession():null;
     if(session){
@@ -55,16 +57,16 @@ async function bootPortal(){
       // still choose the access-code fallback from the primary email screen.
     }
   }catch(e){console.warn('Auth boot failed, falling back to legacy login',e);}
-  var legacyToken=localStorage.getItem('dp_legacy_session');
+  var legacyToken=safeStorageGet('dp_legacy_session');
   if(legacyToken){
     _authToken=legacyToken;
     writePortalOfflineState('dp_auth_token',_authToken);
     var legacyMe=await resolveAuthedAthlete();
     if(legacyMe&&legacyMe.ok&&legacyMe.code){doLogin(legacyMe.code,legacyMe);return;}
-    _authToken=null;localStorage.removeItem('dp_legacy_session');removePortalOfflineState('dp_auth_token');
+    _authToken=null;safeStorageRemove('dp_legacy_session');removePortalOfflineState('dp_auth_token');
   }
-  var savedCode=localStorage.getItem('dp_auth_code');
-  var savedMethod=localStorage.getItem('dp_auth_method');
+  var savedCode=safeStorageGet('dp_auth_code');
+  var savedMethod=safeStorageGet('dp_auth_method');
   // A previously authenticated access-code client stays signed in even after
   // its short-lived server token expires: doLogin exchanges the remembered
   // code for a fresh signed session. Explicit logout clears both values.
@@ -72,8 +74,15 @@ async function bootPortal(){
   // Pre-migration remembered codes (which have no method marker) retain the old
   // automatic behaviour only when email auth is not the primary login.
   if(savedCode&&!emailPrimary){doLogin(savedCode);return;}
-  if(typeof showPrimaryLogin==='function')showPrimaryLogin();
-  document.getElementById('loginScreen').style.display='block';
+  showLoggedOutLogin();
+}
+// Logged-out fallback shared by the normal boot path and an unexpected boot
+// failure. Never throws: it is the last thing standing between a broken boot
+// and a blank screen.
+function showLoggedOutLogin(){
+  try{if(typeof showPrimaryLogin==='function')showPrimaryLogin();}catch(e){}
+  var loginScreen=document.getElementById('loginScreen');
+  if(loginScreen)loginScreen.style.display='block';
 }
 // ── ANALYTICS LOADER ─────────────────────────────────────────────────────────
 // Vercel Web Analytics lives at the same-origin path /_vercel/insights/script.js,
@@ -94,7 +103,13 @@ function loadVercelAnalytics(){
     document.head.appendChild(el);
   }catch(e){}
 }
-bootPortal().finally(function(){loadVercelAnalytics();});
+// An unexpected boot failure must not become an unhandled rejection (Sentry's
+// onunhandledrejection) or leave the login screen hidden. Warn once, show the
+// normal logged-out login, then start analytics either way.
+bootPortal().catch(function(error){
+  console.warn('Portal boot failed; showing login',error&&error.message?error.message:error);
+  showLoggedOutLogin();
+}).finally(function(){loadVercelAnalytics();});
 
 // Mobile portal header: keep the full-width brand bar at the top, then turn it
 // into a compact glass surface once content is moving underneath it.

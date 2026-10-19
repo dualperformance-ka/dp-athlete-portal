@@ -1,9 +1,10 @@
-const CACHE_NAME = 'dp-athlete-v247'; // v247: Review and submit stays reachable at the end of the list while an exercise is open
+const CACHE_NAME = 'dp-athlete-v248'; // v248: Portal boot survives disabled or throwing browser storage and always reaches the login screen
 const APP_SHELL = [
   '/index.html', '/styles.css?v=196', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
-  '/js/01-core.js?v=131',
-  '/js/02-login-goals.js?v=122',
+  '/js/00-safe-storage.js?v=1',
+  '/js/01-core.js?v=132',
+  '/js/02-login-goals.js?v=123',
   '/js/03-nav-nudges.js?v=130',
   '/js/04-checkin.js?v=105',
   '/js/05-handbook.js?v=89',
@@ -18,7 +19,7 @@ const APP_SHELL = [
   '/js/08-training.js?v=164',
   '/js/09-logging.js?v=137',
   '/accessibility.js?v=3',
-  '/js/10-boot.js?v=111',
+  '/js/10-boot.js?v=112',
   '/login.js?v=50', '/icons.css?v=4',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
