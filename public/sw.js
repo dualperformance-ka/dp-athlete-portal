@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v252'; // v252: Bounded request deadlines, no failure fan-out, staged secondary start-up, range-scoped training read
+const CACHE_NAME = 'dp-athlete-v253'; // v253: Macros stay on screen from the last good read when the server cannot answer
 const APP_SHELL = [
   '/index.html', '/styles.css?v=198', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -8,7 +8,7 @@ const APP_SHELL = [
   '/js/03-nav-nudges.js?v=132',
   '/js/04-checkin.js?v=105',
   '/js/05-handbook.js?v=89',
-  '/js/06-nutrition.js?v=112',
+  '/js/06-nutrition.js?v=113',
   '/js/07-progress.js?v=95',
   '/js/strava-match.js?v=10',
   '/js/08-training-interval-rest.js?v=1',
