@@ -1645,6 +1645,8 @@ function maybeCelebrateStrengthProgression(card,live){
 function refreshStrengthFeedback(i,splitKey){
   var exercises=getSplit(splitKey);var s=sessions[i];
   exercises.forEach(function(ex,ei){
+    // Mid-way through typing a load: keep the card as it is until it settles.
+    if(strengthLoadIsSettling(i,ei))return;
     var resolvedEx=exPicks[ex.exercise]||ex.exercise;
     var currentEffort=collectExerciseSets(i,ei,true);
     var prevEffort=getExercisePreviousEffort(s.id,resolvedEx);
@@ -1655,11 +1657,12 @@ function refreshStrengthFeedback(i,splitKey){
     // live-load decision may replace it when the athlete deliberately changes a
     // working load; partial rep totals never do, and warm-ups stay out.
     var history=getExerciseHistory(s.id,resolvedEx);
-    var rec=_nsRecommendation(ex,prevEffort,resolvedEx,history);
+    var rec=_nsRecommendation(ex,prevEffort,resolvedEx,history),planRec=rec;
     var live=_nsLiveProgress(ex,currentEffort,rec,resolvedEx,history,prevEffort);
     rec=_nsApplyLiveLoadRecommendation(rec,live);rec.live=live;
     var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
     if(card){
+      resetStrengthPlanHints(i,ei,ex,planRec,prevEffort);
       card.setAttribute('data-ns-action',rec.action);card.setAttribute('data-ns-tone',rec.tone);
       var blk=card.querySelector('.ns-block');if(blk) blk.outerHTML=_nsBody(rec);
       _exlPaint(card,{i:i,ei:ei,ex:ex,resolvedEx:resolvedEx,rec:rec,live:live,pres:rec.prescription||strengthPrescriptionFor(ex,resolvedEx),history:history,prevEffort:prevEffort,current:currentEffort,warm:parseInt(ex.warmupSets,10)||0,work:parseInt(ex.workingSets||ex.sets,10)||0,next:null});
@@ -1983,6 +1986,24 @@ function _nsApplyLiveLoadRecommendation(rec,live){
   out.approx=false;out.estimated=false;out.milestone=null;out.beaten=null;
   out.liveLoadChange=true;out.painFlag=!!change.painFlag;out.coachReview=!!change.coachReview;
   return out;
+}
+// Rows still showing the plan (no kg typed, not ticked) get their hints back
+// from the plan on every pass, before any live change is layered on top. So a
+// load typed and then corrected (45, back to 50) returns the remaining sets to
+// the plan instead of leaving the abandoned load behind. Rows with a kg value,
+// including ones the effort answer filled, keep their own hints.
+function resetStrengthPlanHints(i,ei,ex,rec,prevEffort){
+  var n=parseInt(ex.sets,10)||2;
+  for(var si=0;si<n;si++){
+    var tick=document.getElementById('st_'+i+'_'+ei+'_'+si);if(tick&&tick.classList.contains('on'))continue;
+    var w=document.getElementById('w_'+i+'_'+ei+'_'+si);if(!w||String(w.value||'').trim()!=='')continue;
+    var ps=prevEffort&&prevEffort[si]?prevEffort[si]:null;
+    w.placeholder=_nsRowLoadPlaceholder(rec,ex,si,ps);
+    [['r_',null],['rL_','left'],['rR_','right']].forEach(function(pair){
+      var el=document.getElementById(pair[0]+i+'_'+ei+'_'+si);
+      if(el&&String(el.value||'').trim()==='')el.placeholder=_nsRowRepPlaceholder(rec,ex,si,ps,pair[1]||undefined);
+    });
+  }
 }
 // Update only hints on the changed and remaining unfinished working rows. Input
 // values — especially completed sets — are never rewritten by a manual change.
@@ -3757,8 +3778,29 @@ function promptStrengthCalibration(i,ei,si,readRpe){
   panel.classList.add('is-prompting');return true;
 }
 function draftStrengthSet(i,ei,si,splitKey){
+  noteStrengthLoadTyping(i,ei,si,splitKey);
   draftGym(i,splitKey);promptStrengthCalibration(i,ei,si);
   _exlScheduleAutoTick(i,ei,si);
+}
+// A working load is read once the athlete pauses or leaves the kg box, never
+// per keystroke: clearing 50 to retype it passes through "5", and reading that
+// as a deliberate drop to 5kg rewrote every remaining set's hint to 5kg x 8.
+// Same rule as the RPE box (promptStrengthCalibration). The log still saves on
+// every keystroke; only the recommendation waits.
+var _strengthLoadSettle={},STRENGTH_LOAD_SETTLE_MS=900;
+function noteStrengthLoadTyping(i,ei,si,splitKey){
+  var el=document.activeElement;
+  if(!el||el.id!=='w_'+i+'_'+ei+'_'+si)return;
+  var key=i+'_'+ei;
+  if(_strengthLoadSettle[key])clearTimeout(_strengthLoadSettle[key]);
+  _strengthLoadSettle[key]=setTimeout(function(){delete _strengthLoadSettle[key];refreshStrengthFeedback(i,splitKey);},STRENGTH_LOAD_SETTLE_MS);
+}
+function strengthLoadIsSettling(i,ei){return !!_strengthLoadSettle[i+'_'+ei];}
+function flushStrengthLoadTyping(i,ei){
+  var key=i+'_'+ei;if(!_strengthLoadSettle[key])return;
+  clearTimeout(_strengthLoadSettle[key]);delete _strengthLoadSettle[key];
+  var card=document.querySelector('.exc[data-session-index="'+i+'"][data-exercise-index="'+ei+'"]');
+  refreshStrengthFeedback(i,(card&&card.getAttribute('data-split-key'))||'Upper A');
 }
 // A row ticks itself once its reps are in and the athlete pauses typing, so
 // there is nothing to press between sets. The pause keeps "1" of "12" from
@@ -3794,6 +3836,8 @@ function _exlAutoTick(i,ei,si){
 function autoCompleteStrengthSet(i,ei,si){
   var row=document.getElementById('sr_'+i+'_'+ei+'_'+si),btn=document.getElementById('st_'+i+'_'+ei+'_'+si);
   if(!row||!btn)return;
+  // Leaving the kg box settles the load at once rather than after the pause.
+  flushStrengthLoadTyping(i,ei);
   var pending=_exlAutoTimers[i+'_'+ei+'_'+si];if(pending){clearTimeout(pending);delete _exlAutoTimers[i+'_'+ei+'_'+si];}
   if(row.closest&&row.closest('.exc.exl')&&!btn.classList.contains('on')&&_exlRowHasReps(row))_exlAdoptLoadHint(i,ei,row);
   if(promptStrengthCalibration(i,ei,si,true))return;

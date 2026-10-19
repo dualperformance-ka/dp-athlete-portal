@@ -201,7 +201,11 @@ test('an RPE-derived answer is stored with its source and legacy logs are not to
   assert.match(training, /row\.getAttribute\('data-effort-required'\)!=='true'\)return false;\n  if\(!strengthRowUsesRpeEffort\(row\)\)return false;/);
   // Read on change or a pause, never per keystroke: "1" of "10" must not act.
   assert.match(training, /if\(promptStrengthCalibration\(i,ei,si,true\)\)return;/);
-  assert.match(training, /function draftStrengthSet\(i,ei,si,splitKey\)\{\n  draftGym\(i,splitKey\);promptStrengthCalibration\(i,ei,si\);/);
+  // The kg box follows the same rule: noteStrengthLoadTyping defers the
+  // recommendation until the load settles, so "5" of "50" never moves the
+  // remaining sets (tests/e2e/set-entry-hints.spec.js).
+  assert.match(training, /function draftStrengthSet\(i,ei,si,splitKey\)\{\n  noteStrengthLoadTyping\(i,ei,si,splitKey\);\n  draftGym\(i,splitKey\);promptStrengthCalibration\(i,ei,si\);/);
+  assert.match(training, /if\(strengthLoadIsSettling\(i,ei\)\)return;/);
 });
 
 test('form or pain can be reported in both modes', () => {
