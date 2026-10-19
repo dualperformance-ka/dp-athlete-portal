@@ -2,12 +2,21 @@
 // POST (from portal client): save/remove push subscription, mark inbox read,
 //   or soft-dismiss one/all inbox notifications for the signed-in athlete.
 //   The client includes its timezone; the durable inbox works without push.
-// GET  ?portal=1          : return due state and the athlete's notification inbox.
+// GET  ?portal=1          : return the athlete's notification inbox. The old
+//   per-request "due" computation (nine reads the portal never rendered) now
+//   runs only when ?due=1 is asked for explicitly.
 // GET  (scheduled)        : authorised with REMINDERS_CRON_SECRET or CRON_SECRET.
-//   Triggered every minute by Supabase pg_cron (job: send-athlete-reminders) and
-//   once daily by Vercel cron as a backstop. Each run only sends to athletes whose
-//   LOCAL time matches 05:30 morning or 19:30 logging windows. All push types
-//   obey the 21:00–05:30 quiet period and three-per-local-day cap.
+//   Triggered every FIVE minutes by Supabase pg_cron (job:
+//   send-athlete-reminders, versioned in supabase/migrations) and once daily
+//   by Vercel cron as a backstop. Each run:
+//     1. wins a database lease or exits immediately (no overlapping runs),
+//     2. works out which athletes are inside a reminder window locally,
+//     3. loads that window's inputs once per run, in batches,
+//     4. builds candidate messages, then reads existing inbox rows for ALL
+//        candidates in one query (dedupe + daily cap), and
+//     5. writes and pushes only what is new.
+//   See api/_lib/reminder-plan.js and docs/reminder-scheduling.md. Quiet hours
+//   (21:00-05:30) and the daily cap apply exactly as before.
 //
 // Delivery is decided per ATHLETE, not per subscription row. Stale endpoints
 // pile up faster than Apple retires them, so every run first collapses an
@@ -20,66 +29,23 @@ import { getRequestAthlete } from './_lib/auth.js';
 import { allowPortalRequest, safeError } from './_lib/http.js';
 import { clearInbox, dismissInboxNotification, listInbox, markInboxRead } from './_lib/notification-inbox.js';
 import { groupByAthlete, mergeLastSent, resolvePrefs, selectLiveDevices } from './_lib/push-devices.js';
+import { DAILY_PUSH_CAP, isCapExempt } from './_lib/notification-rules.js';
 import {
-  CAP_EXEMPT_TYPES,
-  CHECKIN_OVERDUE_DOW,
-  CHECKIN_OVERDUE_HOUR,
-  CHECKIN_OVERDUE_MINUTE,
-  DAILY_PUSH_CAP,
-  FUEL_HOUR,
-  FUEL_MINUTE,
-  HELD_MESSAGE_HOURS,
-  READINESS_HOUR,
-  READINESS_MINUTE,
-  STRAVA_FRESH_HOURS,
-  STRAVA_PUSH_SPORTS,
-  isCapExempt,
-  LOGGING_HOUR,
-  LOGGING_MINUTE,
-  MORNING_HOUR,
-  MORNING_MINUTE,
-  WEEKLY_REVIEW_DOW,
-  WEEKLY_REVIEW_HOUR,
-  WEEKLY_REVIEW_MINUTE,
-  buildCallMessage,
-  buildCheckinOverdueMessage,
-  buildCoachMessage,
-  buildFuelMessage,
-  buildNextWeekMessage,
-  buildReadinessMessage,
-  buildStravaMessage,
-  buildLoggingMessage,
-  buildMorningMessage,
-  buildWeeklyReviewMessage,
-  isQuietTime,
-  minuteMatches,
-  partitionCoachChanges,
-} from './_lib/notification-rules.js';
+  buildAthleteMessages,
+  dedupeKeyFor,
+  deliveryAction,
+  loadDeliveryState,
+  loadReminderInputs,
+  localNow,
+  placeAthletes,
+  safeTz,
+} from './_lib/reminder-plan.js';
+import { REMINDER_JOB, REMINDER_LEASE_SECONDS, acquireLease, newLeaseOwner, releaseLease } from './_lib/job-lease.js';
+import { emitPerf, outcomeOf, safeCounts, timed } from './_lib/telemetry.js';
 
-const DONE_STATUS = /^(done|completed?|complete|skipped|missed)$/i;
-const DEFAULT_TZ = 'Australia/Adelaide';
-
-// Which categories a managed athlete receives lives in _lib/push-devices.js
-// alongside resolvePrefs(), so the delivery rules stay testable without pulling
-// web-push into the test process.
-//
-// Athletes carrying their own preferences. Anyone missing from the table, or
-// with the column unset, is managed — the default has to be "receives
-// everything", or a new athlete would silently get nothing.
-async function loadUnmanagedAthletes(codes) {
-  if (!codes.length) return new Set();
-  try {
-    const rows = await select('athletes', {
-      code: inList(codes),
-      notifications_managed: 'is.false',
-      select: 'code',
-    });
-    return new Set((rows || []).map((row) => String(row.code).toUpperCase()));
-  } catch (error) {
-    // A missing column must not take reminders down: fall back to managed.
-    return new Set();
-  }
-}
+// Stop starting new deliveries after this long. vercel.json caps the function
+// at 60s and the lease at 120s, so a run can never outlive its lease.
+const RUN_BUDGET_MS = 45000;
 
 function send(res, status, payload) {
   return res.status(status).json(payload);
@@ -93,276 +59,6 @@ function configureVapid() {
   webpush.setVapidDetails(subject, publicKey, privateKey);
 }
 
-// Local date / weekday / hour for a timezone. Returns null for invalid zones.
-function localNow(tz) {
-  try {
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-      weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-    }).formatToParts(new Date());
-    const get = (t) => { const p = parts.find((x) => x.type === t); return p ? p.value : null; };
-    return {
-      tz,
-      iso: `${get('year')}-${get('month')}-${get('day')}`,
-      dow: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(get('weekday')),
-      hour: parseInt(get('hour'), 10),
-      minute: parseInt(get('minute'), 10),
-    };
-  } catch (e) { return null; }
-}
-
-function safeTz(tz) {
-  return (tz && localNow(tz)) ? tz : DEFAULT_TZ;
-}
-
-function inList(values) {
-  return `in.(${[...new Set(values)].map((v) => `"${String(v).replace(/"/g, '')}"`).join(',')})`;
-}
-
-// For each athlete code, work out which reminder types are due on this local day.
-async function computeDue(codes, { iso, dow, hour, minute, tz = DEFAULT_TZ }) {
-  const due = {};
-  codes.forEach((c) => { due[c] = {
-    iso, sessions: [], unlogged: [], checkin: false, photos: false, coach: [],
-    callsToday: [], callsSoon: [], noCallBooked: false,
-    readiness: false, fuel: false, checkinOverdue: false, strava: [], heldMessages: [],
-  }; });
-  const now = { iso, dow, hour, minute };
-  const list = inList(codes);
-
-  // 1. Training sessions planned today (local) and not already completed.
-  const sessions = await select('planned_sessions', {
-    athlete_code: list, planned_date: `eq.${iso}`, publish_state: 'eq.published',
-    select: 'athlete_code,title,session_type,status,part_of_day,estimated_minutes',
-  });
-  for (const row of sessions || []) {
-    if (row.status && DONE_STATUS.test(String(row.status).trim())) continue;
-    if (due[row.athlete_code]) due[row.athlete_code].sessions.push(row);
-  }
-
-  // 2. Weekly check-in: Sunday morning, if nothing submitted in the last 6 days.
-  if (dow === 0) {
-    const since = new Date(Date.now() - 6 * 864e5).toISOString();
-    const done = await select('weekly_checkins', {
-      athlete_code: list, submitted_at: `gte.${since}`, select: 'athlete_code',
-    });
-    const submitted = new Set((done || []).map((r) => r.athlete_code));
-    codes.forEach((c) => { if (!submitted.has(c)) due[c].checkin = true; });
-  }
-
-  // 3. Progress photos: requested weekly — every Monday, start of the week.
-  if (dow === 1) {
-    codes.forEach((c) => { due[c].photos = true; });
-  }
-
-  // 4. Coach updates: any coach-side change logged in the last 24h.
-  //    (DB triggers on planned_sessions, nutrition_plans, workout_splits and
-  //    session_overrides write to coach_change_log, ignoring athlete-driven
-  //    fields like session status.)
-  const since24 = new Date(Date.now() - 24 * 36e5).toISOString();
-  const changes = await select('coach_change_log', {
-    athlete_code: list, changed_at: `gte.${since24}`, select: 'athlete_code,source,changed_at,detail',
-  });
-  for (const c of changes || []) {
-    const d = due[c.athlete_code];
-    if (d) d.coach.push({ source: c.source, at: c.changed_at, detail: c.detail });
-  }
-
-  // 5. Evening logging reminder. Any structured log or Strava activity today
-  // counts as completed work; never nag an athlete who has already recorded it.
-  const [loggedRows, activityRows] = await Promise.all([
-    select('training_session_logs', {
-      athlete_code: list, session_date: `eq.${iso}`, select: 'athlete_code', limit: '1000',
-    }),
-    select('strava_activities', {
-      athlete_code: list,
-      start_date_local: `gte.${iso}T00:00:00`,
-      select: 'athlete_code,start_date_local', limit: '1000',
-    }),
-  ]);
-  const logged = new Set((loggedRows || []).map((row) => row.athlete_code));
-  for (const row of activityRows || []) {
-    if (String(row.start_date_local || '').slice(0, 10) === iso) logged.add(row.athlete_code);
-  }
-  codes.forEach((code) => {
-    if (!logged.has(code)) due[code].unlogged = due[code].sessions.slice();
-  });
-
-  // 6. Calls are already synchronised into Supabase athlete_data by the GHL
-  // webhook/backfill. The reminder cron reads only that durable copy.
-  const bookingRows = await select('athlete_data', {
-    athlete_code: list, key: 'like.call_booked_*', select: 'athlete_code,key,value', limit: '1000',
-  });
-  const nowMs = Date.now();
-  const weekEndMs = nowMs + 7 * 86400000;
-  const hasUpcoming = new Set();
-  for (const row of bookingRows || []) {
-    const startsAt = row?.value?.startsAt || row?.value?.startTime || row?.value?.start_time;
-    const startMs = Date.parse(startsAt || '');
-    if (!Number.isFinite(startMs) || startMs < nowMs - 6 * 3600000) continue;
-    const target = due[row.athlete_code];
-    if (!target) continue;
-    if (startMs <= weekEndMs) hasUpcoming.add(row.athlete_code);
-    const call = { startsAt: new Date(startMs).toISOString(), displayTime: row?.value?.time || row?.value?.displayTime || 'time in the portal' };
-    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(startMs));
-    const part = (name) => parts.find((entry) => entry.type === name)?.value || '';
-    if (`${part('year')}-${part('month')}-${part('day')}` === iso) {
-      target.callsToday.push(call);
-    }
-    const minutesAway = (startMs - nowMs) / 60000;
-    if (minutesAway >= 118 && minutesAway <= 122) target.callsSoon.push(call);
-  }
-  if (dow === 0) codes.forEach((code) => { due[code].noCallBooked = !hasUpcoming.has(code); });
-
-  // Each of these reads only runs in its own minute, so the every-minute cron
-  // does not pay for them the rest of the day.
-  await addDailyNudges(due, codes, now, list);
-  await addStravaSynced(due, codes, now, list);
-  if (!isQuietTime(now)) await addHeldMessages(due, list);
-
-  return due;
-}
-
-// 7. Readiness (10:00, today's body check missing), fuel (20:30, on macros
-// with nothing logged today) and an overdue check-in (Monday 12:00).
-async function addDailyNudges(due, codes, now, list, read = select) {
-  if (minuteMatches(now, READINESS_HOUR, READINESS_MINUTE)) {
-    const rows = await read('daily_body_logs', {
-      athlete_code: list, log_date: `eq.${now.iso}`, select: 'athlete_code', limit: '1000',
-    });
-    const logged = new Set((rows || []).map((row) => String(row.athlete_code).toUpperCase()));
-    codes.forEach((code) => { due[code].readiness = !logged.has(code); });
-  }
-  if (minuteMatches(now, FUEL_HOUR, FUEL_MINUTE)) {
-    const [plans, logs] = await Promise.all([
-      read('nutrition_plans', {
-        athlete_code: list, calories: 'not.is.null', select: 'athlete_code', limit: '2000',
-      }),
-      read('daily_nutrition_logs', {
-        athlete_code: list, log_date: `eq.${now.iso}`, select: 'athlete_code', limit: '1000',
-      }),
-    ]);
-    const onMacros = new Set((plans || []).map((row) => String(row.athlete_code).toUpperCase()));
-    const logged = new Set((logs || []).map((row) => String(row.athlete_code).toUpperCase()));
-    codes.forEach((code) => { due[code].fuel = onMacros.has(code) && !logged.has(code); });
-  }
-  if (now.dow === CHECKIN_OVERDUE_DOW && minuteMatches(now, CHECKIN_OVERDUE_HOUR, CHECKIN_OVERDUE_MINUTE)) {
-    const since = new Date(Date.now() - 7 * 864e5).toISOString();
-    const rows = await read('weekly_checkins', {
-      athlete_code: list, submitted_at: `gte.${since}`, select: 'athlete_code',
-    });
-    const submitted = new Set((rows || []).map((row) => String(row.athlete_code).toUpperCase()));
-    codes.forEach((code) => { due[code].checkinOverdue = !submitted.has(code); });
-  }
-}
-
-// 8. Strava activities synced in the last 45 minutes. Each activity is
-// announced at most once (its dedupe key is the Strava id). An activity that
-// started long ago, from a backfill or a first connect, is never announced.
-async function addStravaSynced(due, codes, now, list, read = select, nowMs = Date.now()) {
-  const rows = await read('strava_activities', {
-    athlete_code: list,
-    synced_at: `gte.${new Date(nowMs - 45 * 60000).toISOString()}`,
-    select: 'strava_activity_id,athlete_code,start_date_local,sport_type,distance_m,moving_time_s,elapsed_time_s',
-    limit: '200',
-  });
-  // start_date_local is the athlete's wall-clock time stored with a +00 label,
-  // so it is compared against the athlete's wall clock, not against UTC.
-  const wallNow = Date.parse(`${now.iso}T${String(now.hour).padStart(2, '0')}:${String(now.minute).padStart(2, '0')}:00Z`);
-  for (const row of rows || []) {
-    const target = due[String(row.athlete_code || '').toUpperCase()];
-    if (!target || !STRAVA_PUSH_SPORTS.includes(String(row.sport_type || ''))) continue;
-    const started = Date.parse(String(row.start_date_local || '').slice(0, 19) + 'Z');
-    if (!Number.isFinite(started) || !Number.isFinite(wallNow)) continue;
-    if (wallNow - started > STRAVA_FRESH_HOURS * 3600000 || started - wallNow > 3600000) continue;
-    target.strava.push(row);
-  }
-}
-
-// 9. A coach's personal message that arrived in quiet hours is pushed once they
-// end, unless the athlete already opened or cleared it.
-async function addHeldMessages(due, list, read = select, nowMs = Date.now()) {
-  const rows = await read('athlete_notifications', {
-    athlete_code: list,
-    type: 'eq.custom',
-    pushed_at: 'is.null',
-    read_at: 'is.null',
-    dismissed_at: 'is.null',
-    created_at: `gte.${new Date(nowMs - HELD_MESSAGE_HOURS * 3600000).toISOString()}`,
-    select: 'id,athlete_code,type,title,body,url,pushed_at,dismissed_at',
-    limit: '200',
-  });
-  for (const row of rows || []) {
-    const target = due[String(row.athlete_code || '').toUpperCase()];
-    if (target) target.heldMessages.push(row);
-  }
-}
-
-export const _test = { addDailyNudges, addStravaSynced, addHeldMessages };
-
-// "Tue 14 Jul" from a YYYY-MM-DD planned date (locale-independent).
-function formatChangeDate(iso) {
-  const d = new Date(String(iso) + 'T00:00:00Z');
-  if (isNaN(d.getTime())) return null;
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return days[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + months[d.getUTCMonth()];
-}
-
-// Build the coach-update body from change details: name up to three changes
-// ("Tempo Run (Tue 14 Jul) updated - Long Run added"), falling back to
-// per-area counts when there are too many or details are missing.
-function coachBody(changes) {
-  const seen = new Set();
-  const named = [];
-  for (const c of changes) { // newest first
-    const det = c.detail || {};
-    if (!det.item) continue;
-    const key = det.action + '|' + det.item + '|' + (det.date || '');
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const date = det.date ? formatChangeDate(det.date) : null;
-    named.push(det.item + (date ? ' (' + date + ')' : '') + ' ' + (det.action || 'updated'));
-  }
-  const allNamed = named.length && named.length === seen.size && changes.every((c) => c.detail && c.detail.item);
-  if (allNamed && named.length <= 3) {
-    const body = named.join(' \u00b7 ');
-    if (body.length <= 140) return body + ' \u2014 open the portal for details.';
-  }
-  // Fallback: counts per area, e.g. "4 training changes \u00b7 nutrition updated".
-  const bySource = {};
-  for (const c of changes) bySource[c.source] = (bySource[c.source] || 0) + 1;
-  const parts = Object.entries(bySource)
-    .map(([src, n]) => (n > 1 ? n + ' ' + src + ' changes' : src + ' updated'));
-  return 'Your coach made changes: ' + parts.join(' \u00b7 ') + ' \u2014 see the portal.';
-}
-
-function buildMessages(dueForAthlete, prefs, allowed, coachChanges) {
-  const messages = [];
-  if (allowed.morning && prefs.sessions && dueForAthlete.sessions.length) {
-    messages.push({
-      type: 'sessions', title: 'Training today',
-      body: dueForAthlete.sessions.join(' · ') + ' — open the portal for the full prescription.',
-    });
-  }
-  if (allowed.morning && prefs.checkins && dueForAthlete.checkin) {
-    messages.push({
-      type: 'checkins', title: 'Weekly check-in due',
-      body: 'Take three minutes to review your week before it resets tomorrow.',
-    });
-  }
-  if (allowed.morning && prefs.photos && dueForAthlete.photos) {
-    messages.push({
-      type: 'photos', title: 'Progress photo week',
-      body: 'New week — grab your four angles. Same time, same lighting.',
-    });
-  }
-  if (allowed.coach && prefs.coach && coachChanges && coachChanges.length) {
-    messages.push({ type: 'coach', title: 'Coach update', body: coachBody(coachChanges) });
-  }
-  return messages;
-}
-
 export async function saveInboxMessage(code, message, localDate, write = upsert) {
   const rows = await write('athlete_notifications', {
     athlete_code: code,
@@ -370,29 +66,10 @@ export async function saveInboxMessage(code, message, localDate, write = upsert)
     title: String(message.title || 'Dual Performance').slice(0, 120),
     body: String(message.body || '').slice(0, 1000),
     url: String(message.url || '/').slice(0, 500),
-    dedupe_key: String(message.dedupeKey || `${message.type}:${localDate}`).slice(0, 240),
+    dedupe_key: dedupeKeyFor(message, localDate),
     local_date: localDate,
   }, 'athlete_code,dedupe_key');
   return Array.isArray(rows) ? rows[0] : null;
-}
-
-// Counts only the pushes the cap governs. Coach messages, programme changes,
-// call reminders and the weekly review never use up an athlete's allowance.
-async function pushedToday(code, iso) {
-  const rows = await select('athlete_notifications', {
-    athlete_code: `eq.${code}`, local_date: `eq.${iso}`, pushed_at: 'not.is.null',
-    type: `not.in.(${CAP_EXEMPT_TYPES.join(',')})`,
-    select: 'id', limit: String(DAILY_PUSH_CAP + 1),
-  });
-  return Array.isArray(rows) ? rows.length : 0;
-}
-
-async function unreadSuppressed(code, iso) {
-  const rows = await select('athlete_notifications', {
-    athlete_code: `eq.${code}`, local_date: `lt.${iso}`, pushed_at: 'is.null', read_at: 'is.null', dismissed_at: 'is.null',
-    select: 'id', limit: '25',
-  });
-  return Array.isArray(rows) ? rows.length : 0;
 }
 
 // The service worker has no auth token, so it cannot mark a notification read
@@ -423,7 +100,7 @@ async function pushInboxMessage(athlete, row, message) {
       await webpush.sendNotification(
         { endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
         payload,
-        { TTL: 12 * 3600 }
+        { TTL: 12 * 3600, timeout: 8000 }
       );
       reached = true; sent++;
     } catch (error) {
@@ -432,7 +109,8 @@ async function pushInboxMessage(athlete, row, message) {
         athlete.devices = athlete.devices.filter((item) => item.id !== device.id);
         removed++;
       } else {
-        athlete.errors.push({ athlete: athlete.code, type: message.type, error: String(error.message || error).slice(0, 200) });
+        // No athlete code, endpoint or provider message: only what failed.
+        athlete.errors.push({ type: message.type, stage: 'push', status: Number(error.statusCode) || 0 });
       }
     }
   }
@@ -511,18 +189,164 @@ async function handleSubscribe(req, res, identity) {
   return send(res, 200, { ok: true, devices: reconciled.devices, retired: reconciled.retired });
 }
 
+// Compatibility: the reminder state for one athlete "as of now", every window
+// treated as open. Only computed when ?due=1 is asked for; the portal itself
+// renders the inbox and never read this.
+async function computeDueForAthlete(code, tz) {
+  const now = localNow(tz);
+  const athlete = {
+    code, tz, now, devices: [], lastSent: {},
+    prefs: resolvePrefs([], { managed: true }),
+    windows: { morning: true, logging: true, readiness: true, fuel: true, weeklyReview: false, quiet: false, checkinOverdue: now.dow === 1 },
+  };
+  const due = (await loadReminderInputs([athlete], { read: select }))[code];
+  return {
+    ...due,
+    coach: [...new Set((due.coach || []).map((c) => c.source))],
+    strava: undefined,
+    heldMessages: undefined,
+  };
+}
+
 async function handleDueCheck(req, res, identity) {
   const code = String(identity.athlete.code).toUpperCase();
-  const subs = await select('push_subscriptions', { athlete_code: `eq.${code}`, select: 'timezone', limit: '1' });
-  const tz = safeTz(subs && subs[0] && subs[0].timezone);
-  const due = await computeDue([code], localNow(tz));
-  const d = due[code];
-  d.coach = [...new Set((d.coach || []).map((c) => c.source))];
-  // Server-side delivery bookkeeping, not something the portal renders.
-  delete d.strava;
-  delete d.heldMessages;
-  const inbox = await listInbox(code);
-  return send(res, 200, { ok: true, timezone: tz, due: d, ...inbox });
+  if (String(req.query?.due || '') === '1') {
+    const subs = await select('push_subscriptions', { athlete_code: `eq.${code}`, select: 'timezone', limit: '1' });
+    const tz = safeTz(subs && subs[0] && subs[0].timezone);
+    const [due, inbox] = await Promise.all([computeDueForAthlete(code, tz), listInbox(code)]);
+    return send(res, 200, { ok: true, timezone: tz, due, ...inbox });
+  }
+  const inbox = await timed('portal.notificationInbox', () => listInbox(code), { counts: (value) => ({ items: value.notifications.length }) });
+  return send(res, 200, { ok: true, ...inbox });
+}
+
+// ── The scheduled run ────────────────────────────────────────────────────────
+
+// Roster + live devices. Two reads per run whatever the athlete count.
+export async function loadRoster({ read = select } = {}) {
+  const [subs, activeRows] = await Promise.all([
+    read('push_subscriptions', { order: 'created_at.asc' }),
+    read('athletes', { active: 'eq.true', select: 'code,notifications_managed', limit: '500' }),
+  ]);
+  const subscriptions = Array.isArray(subs) ? subs : [];
+  const grouped = groupByAthlete(subscriptions);
+  // The inbox covers the full active roster, including athletes who never
+  // installed the PWA or whose push permission is blocked.
+  const roster = [];
+  const retire = [];
+  for (const rosterRow of activeRows || []) {
+    const code = String(rosterRow.code || '').toUpperCase();
+    if (!code) continue;
+    const rows = grouped.get(code) || [];
+    const { keep, drop } = selectLiveDevices(rows);
+    retire.push(...drop);
+    roster.push({
+      code, devices: keep, lastSent: mergeLastSent(rows),
+      tz: safeTz(keep[0]?.timezone), errors: [],
+      prefs: resolvePrefs(rows, { managed: rosterRow.notifications_managed !== false }),
+    });
+  }
+  return { roster, retire, subscriptions: subscriptions.length };
+}
+
+// Everything up to (not including) delivery. `stage(name, fn)` lets the
+// handler time each step; tests call it with a counting fake `read`.
+export async function planReminderRun({ read = select, at = new Date(), stage = (name, fn) => fn() } = {}) {
+  const nowMs = at.getTime();
+  const { roster, retire, subscriptions } = await stage('reminders.roster', () => loadRoster({ read }));
+  const placement = placeAthletes(roster, at);
+  const due = await stage('reminders.inputs', () => loadReminderInputs(placement.placed, { read, nowMs }));
+  const candidates = await stage('reminders.compute', async () => placement.placed
+    .map((athlete) => ({
+      athlete,
+      messages: buildAthleteMessages(athlete, due[athlete.code], { nowMs }),
+      heldMessages: due[athlete.code].heldMessages || [],
+    }))
+    .filter((candidate) => candidate.messages.length || candidate.heldMessages.length));
+  // Athletes with no candidate message never reach athlete_notifications.
+  const delivery = await stage('reminders.dedupe', () => loadDeliveryState(
+    candidates.filter((candidate) => candidate.messages.length), { read }));
+  return {
+    roster, retire, subscriptions, candidates, delivery,
+    stats: {
+      athletes: roster.length,
+      timezones: placement.zones,
+      activeZones: placement.activeZones,
+      skippedZones: placement.skippedZones,
+      candidates: candidates.length,
+      messages: candidates.reduce((sum, c) => sum + c.messages.length, 0),
+    },
+  };
+}
+
+async function deliverReminders(plan, { deadline }) {
+  let vapidReady = true;
+  try { configureVapid(); } catch { vapidReady = false; }
+  let sent = 0, notified = 0, inboxed = 0, suppressed = 0, removed = 0, deduped = 0, partial = false;
+  const errors = [];
+
+  for (const { athlete, messages, heldMessages } of plan.candidates) {
+    if (Date.now() > deadline) { partial = true; break; }
+    const now = athlete.now;
+    const quiet = athlete.windows.quiet;
+    const lastSent = athlete.lastSent;
+    let pushCount = plan.delivery.pushed.get(`${athlete.code}|${now.iso}`) || 0;
+    let delivered = false;
+
+    for (const message of messages.filter(Boolean)) {
+      const existing = plan.delivery.existing.get(`${athlete.code}|${dedupeKeyFor(message, now.iso)}`);
+      const action = deliveryAction(message, existing, { quiet, canPush: vapidReady && athlete.devices.length > 0 });
+      if (action === 'skip') { deduped++; continue; }
+      // One message the inbox cannot store (a schema constraint, a transient
+      // PostgREST error) must not abort every athlete after this one. It is
+      // reported in `errors` and the loop carries on.
+      let row = existing;
+      if (action === 'insert') {
+        try {
+          row = await saveInboxMessage(athlete.code, message, now.iso);
+        } catch (error) {
+          errors.push({ type: message.type, stage: 'inbox', kind: outcomeOf(error) });
+          continue;
+        }
+        if (!row) continue;
+        inboxed++;
+      }
+      const exempt = isCapExempt(message.type);
+      const mayPush = message.push !== false && !quiet && (exempt || pushCount < DAILY_PUSH_CAP) && vapidReady && athlete.devices.length;
+      if (!mayPush) { suppressed++; continue; }
+      const result = await pushInboxMessage(athlete, row, message);
+      sent += result.sent || 0;
+      removed += result.removed || 0;
+      if (result.reached) {
+        if (!exempt) pushCount++;
+        notified++; delivered = true;
+        if (message.historyKey) lastSent[message.historyKey] = message.historyValue || now.iso;
+      }
+    }
+    // Coach messages held through quiet hours go out now. The row already
+    // exists, so it is pushed as-is rather than written again.
+    if (!quiet && vapidReady && athlete.devices.length) {
+      for (const held of heldMessages || []) {
+        const result = await pushInboxMessage(athlete, held, {
+          type: 'custom', title: held.title, body: held.body, url: held.url || '/', tag: `dp-coach-msg-${held.id}`,
+        });
+        sent += result.sent || 0;
+        removed += result.removed || 0;
+        if (result.reached) { notified++; }
+      }
+    }
+    errors.push(...athlete.errors);
+
+    // One shared history across the athlete's devices, so a phone that comes
+    // back online later inherits it instead of replaying today.
+    if (delivered && athlete.devices.length) {
+      const stamp = new Date().toISOString();
+      for (const device of athlete.devices) {
+        await patch('push_subscriptions', { id: `eq.${device.id}` }, { last_sent: lastSent, updated_at: stamp }).catch(() => {});
+      }
+    }
+  }
+  return { sent, notified, inboxed, suppressed, removed, deduped, partial, errors };
 }
 
 async function handleCronSend(req, res) {
@@ -532,198 +356,62 @@ async function handleCronSend(req, res) {
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!secrets.includes(token)) return send(res, 401, { ok: false, error: 'Unauthorized' });
 
-  const [subs, activeRows] = await Promise.all([
-    select('push_subscriptions', { order: 'created_at.asc' }),
-    select('athletes', { active: 'eq.true', select: 'code,notifications_managed', limit: '500' }),
-  ]);
-  const subscriptions = Array.isArray(subs) ? subs : [];
-  const grouped = groupByAthlete(subscriptions);
-  let vapidReady = true;
-  try { configureVapid(); } catch { vapidReady = false; }
-
-  // The inbox covers the full active roster, including athletes who never
-  // installed the PWA or whose push permission is blocked.
-  let retired = 0;
-  const roster = [];
-  for (const rosterRow of activeRows || []) {
-    const code = String(rosterRow.code || '').toUpperCase();
-    if (!code) continue;
-    const rows = grouped.get(code) || [];
-    const { keep, drop } = selectLiveDevices(rows);
-    for (const row of drop) {
-      await supabaseRequest(tablePath('push_subscriptions', { id: `eq.${row.id}` }), { method: 'DELETE' }).catch(() => {});
-      retired++;
-    }
-    roster.push({
-      code, rows, devices: keep, lastSent: mergeLastSent(rows),
-      tz: safeTz(keep[0]?.timezone), errors: [],
-      prefs: resolvePrefs(rows, { managed: rosterRow.notifications_managed !== false }),
-    });
-  }
-  if (!roster.length) return send(res, 200, { ok: true, sent: 0, retired, note: 'No active athletes' });
-
-  // Group athletes by timezone; only process zones in an active window.
-  const groups = new Map();
-  for (const athlete of roster) {
-    if (!groups.has(athlete.tz)) groups.set(athlete.tz, []);
-    groups.get(athlete.tz).push(athlete);
-  }
-
-  let sent = 0, notified = 0, inboxed = 0, suppressed = 0, removed = 0, skippedZones = 0;
-  const errors = [];
-
-  for (const [tz, zoneAthletes] of groups) {
-    const now = localNow(tz);
-    if (!now) { skippedZones++; continue; }
-    const morning = minuteMatches(now, MORNING_HOUR, MORNING_MINUTE);
-    const logging = minuteMatches(now, LOGGING_HOUR, LOGGING_MINUTE);
-    // Monday 07:00 in the athlete's OWN zone, reviewing the week just gone.
-    // localNow() resolves through Intl with the stored timezone, so this stays
-    // 7am across South Australia's October daylight-saving switch instead of
-    // drifting an hour like a fixed UTC schedule would.
-    const weeklyReview = now.dow === WEEKLY_REVIEW_DOW
-      && minuteMatches(now, WEEKLY_REVIEW_HOUR, WEEKLY_REVIEW_MINUTE);
-    const quiet = isQuietTime(now);
-    const due = await computeDue(zoneAthletes.map((a) => a.code), now);
-
-    for (const athlete of zoneAthletes) {
-      const lastSent = athlete.lastSent;
-      const athleteDue = due[athlete.code] || { iso: now.iso, sessions: [], unlogged: [], coach: [] };
-      const messages = [];
-
-      if (morning) {
-        const missed = await unreadSuppressed(athlete.code, now.iso);
-        const morningDue = {
-          ...athleteDue,
-          sessions: athlete.prefs.sessions ? athleteDue.sessions : [],
-          checkin: athlete.prefs.checkins && athleteDue.checkin,
-          photos: athlete.prefs.photos && athleteDue.photos,
-          callsToday: athlete.prefs.calls ? athleteDue.callsToday : [],
-          noCallBooked: athlete.prefs.calls && athleteDue.noCallBooked,
-          missedSummary: missed ? `${missed} coaching update${missed === 1 ? '' : 's'} waiting in your inbox` : '',
-        };
-        const message = buildMorningMessage(morningDue);
-        if (message && lastSent.morning !== now.iso) messages.push({ ...message, historyKey: 'morning' });
-      }
-      if (logging && athlete.prefs.logging) {
-        const message = buildLoggingMessage(athleteDue.unlogged, now.iso);
-        if (message && lastSent.logging !== now.iso) messages.push({ ...message, historyKey: 'logging' });
-      }
-      if (athlete.prefs.calls) {
-        for (const call of athleteDue.callsSoon || []) messages.push({ ...buildCallMessage(call, now.iso), historyKey: 'calls' });
-      }
-      // Sent whether or not the week has anything in it. An athlete who logged
-      // nothing is the one most worth reaching, and the card states that
-      // plainly rather than scolding — so silence here would go quiet on
-      // exactly the people it should not.
-      if (weeklyReview && athlete.prefs.weekly_review) {
-        const message = buildWeeklyReviewMessage(now.iso);
-        if (message && lastSent.weeklyReview !== now.iso) {
-          messages.push({ ...message, historyKey: 'weeklyReview' });
-        }
-      }
-
-      if (athleteDue.readiness && athlete.prefs.readiness && lastSent.readiness !== now.iso) {
-        messages.push({ ...buildReadinessMessage(now.iso), historyKey: 'readiness' });
-      }
-      if (athleteDue.fuel && athlete.prefs.fuel && lastSent.fuel !== now.iso) {
-        messages.push({ ...buildFuelMessage(now.iso), historyKey: 'fuel' });
-      }
-      if (athleteDue.checkinOverdue && athlete.prefs.checkins && lastSent.checkinOverdue !== now.iso) {
-        messages.push({ ...buildCheckinOverdueMessage(now.iso), historyKey: 'checkinOverdue' });
-      }
-      if (athlete.prefs.strava) {
-        for (const activity of athleteDue.strava || []) {
-          const message = buildStravaMessage(activity);
-          if (message) messages.push({ ...message, tag: `dp-strava-${activity.strava_activity_id}`, historyKey: null });
-        }
-      }
-
-      // A coach edit is processed once it is two minutes old, so a save burst
-      // becomes one useful batch. Only the next seven days can spend a push;
-      // future block publication remains durable in the inbox.
-      const coachEntries = athleteDue.coach || [];
-      const lastCoach = lastSent.coach ? new Date(lastSent.coach).getTime() : 0;
-      const freshChanges = coachEntries.filter((c) => new Date(c.at).getTime() > lastCoach);
-      const newest = freshChanges.length ? Math.max(...freshChanges.map((c) => new Date(c.at).getTime())) : 0;
-      const coachChanges = (freshChanges.length && Date.now() - newest >= 2 * 60 * 1000)
-        ? freshChanges.slice().sort((a, b) => new Date(b.at) - new Date(a.at)) : [];
-      if (athlete.prefs.coach && coachChanges.length) {
-        const partitioned = partitionCoachChanges(coachChanges, now.iso);
-        const near = buildCoachMessage([...partitioned.near, ...partitioned.undated], now.iso);
-        const nextWeek = buildNextWeekMessage(partitioned.nextWeek, now.iso);
-        const future = buildCoachMessage(partitioned.future, now.iso, { future: true });
-        if (near) messages.push({ ...near, historyKey: 'coach', historyValue: new Date(newest).toISOString() });
-        if (nextWeek) messages.push({ ...nextWeek, historyKey: 'coach', historyValue: new Date(newest).toISOString() });
-        if (future) messages.push({ ...future, historyKey: null, push: false });
-      }
-
-      let pushCount = await pushedToday(athlete.code, now.iso);
-      let delivered = false;
-      for (const message of messages.filter(Boolean)) {
-        // One message the inbox cannot store (a schema constraint, a transient
-        // PostgREST error) must not abort every athlete after this one in the
-        // zone. It is reported in `errors` and the loop carries on.
-        let row;
-        try {
-          row = await saveInboxMessage(athlete.code, message, now.iso);
-        } catch (error) {
-          errors.push({ athlete: athlete.code, type: message.type, stage: 'inbox', error: String(error?.message || error).slice(0, 300) });
-          continue;
-        }
-        if (!row) continue;
-        inboxed++;
-        const exempt = isCapExempt(message.type);
-        const mayPush = message.push !== false && !quiet && (exempt || pushCount < DAILY_PUSH_CAP) && vapidReady && athlete.devices.length;
-        if (!mayPush) { suppressed++; continue; }
-        const result = await pushInboxMessage(athlete, row, message);
-        sent += result.sent || 0;
-        removed += result.removed || 0;
-        if (result.reached) {
-          if (!exempt) pushCount++;
-          notified++; delivered = true;
-          if (message.historyKey) lastSent[message.historyKey] = message.historyValue || now.iso;
-        }
-      }
-      // Coach messages held through quiet hours go out now. The row already
-      // exists, so it is pushed as-is rather than written again.
-      if (!quiet && vapidReady && athlete.devices.length) {
-        for (const held of athleteDue.heldMessages || []) {
-          const result = await pushInboxMessage(athlete, held, {
-            type: 'custom', title: held.title, body: held.body, url: held.url || '/', tag: `dp-coach-msg-${held.id}`,
-          });
-          sent += result.sent || 0;
-          removed += result.removed || 0;
-          if (result.reached) { notified++; }
-        }
-      }
-      errors.push(...athlete.errors);
-
-      // One shared history across the athlete's devices, so a phone that comes
-      // back online later inherits it instead of replaying today.
-      if (delivered && athlete.devices.length) {
-        const stamp = new Date().toISOString();
-        for (const device of athlete.devices) {
-          await patch('push_subscriptions', { id: `eq.${device.id}` }, { last_sent: lastSent, updated_at: stamp }).catch(() => {});
-        }
-      }
-    }
-  }
-
-  return send(res, 200, {
-    ok: true,
-    subscriptions: subscriptions.length,
-    athletes: roster.length,
-    timezones: groups.size,
-    notifications: notified,
-    inboxed,
-    suppressed,
-    sent,
-    retired,
-    removed,
-    skippedZones,
-    errors,
+  const started = Date.now();
+  const owner = newLeaseOwner();
+  const lease = await timed('reminders.lease', () => acquireLease(REMINDER_JOB, owner, REMINDER_LEASE_SECONDS), {
+    always: true,
+    counts: (value) => ({ acquired: !!value.acquired, contended: value.reason === 'held' }),
   });
+  if (!lease.acquired) {
+    // Another run owns the lease (or the database could not grant one): do no
+    // reminder work at all and answer 200 so pg_cron does not log a failure.
+    return send(res, 200, { ok: true, skipped: lease.reason === 'held' ? 'lease_held' : 'lease_unavailable' });
+  }
+
+  let outcome = 'error';
+  let counts = {};
+  try {
+    const plan = await planReminderRun({
+      at: new Date(),
+      stage: (name, fn) => timed(name, fn, { always: true }),
+    });
+    for (const row of plan.retire) {
+      await supabaseRequest(tablePath('push_subscriptions', { id: `eq.${row.id}` }), { method: 'DELETE' }).catch(() => {});
+    }
+    const delivery = await timed('reminders.send', () => deliverReminders(plan, { deadline: started + RUN_BUDGET_MS }), {
+      always: true,
+      counts: (value) => ({ notified: value.notified, inboxed: value.inboxed, deduped: value.deduped, errors: value.errors.length }),
+    });
+    outcome = delivery.partial ? 'partial' : 'ok';
+    counts = safeCounts({
+      ...plan.stats,
+      subscriptions: plan.subscriptions,
+      retired: plan.retire.length,
+      notifications: delivery.notified,
+      inboxed: delivery.inboxed,
+      suppressed: delivery.suppressed,
+      deduped: delivery.deduped,
+      sent: delivery.sent,
+      removed: delivery.removed,
+      errors: delivery.errors.length,
+    });
+    return send(res, 200, {
+      ok: true,
+      ...counts,
+      partial: delivery.partial,
+      lease: lease.degraded || 'held',
+      // Error shape only (type, stage, kind/status). No athlete codes: pg_net
+      // keeps response bodies in net._http_response.
+      errors: delivery.errors.slice(0, 20),
+    });
+  } catch (error) {
+    outcome = outcomeOf(error);
+    throw error;
+  } finally {
+    const durationMs = Date.now() - started;
+    emitPerf({ op: 'reminders.run', ms: durationMs, status: outcome, counts }, { always: true });
+    if (!lease.degraded) await releaseLease(REMINDER_JOB, owner, outcome, { ...counts, durationMs });
+  }
 }
 
 export default async function handler(req, res) {
@@ -755,7 +443,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET') return await handleCronSend(req, res);
     return send(res, 405, { ok: false, error: 'Method not allowed' });
   } catch (error) {
-    console.error('[reminders]', error && error.message);
+    console.error('[reminders]', error && (error.kind || error.message));
     const safe = safeError(error, 'Reminders are temporarily unavailable');
     return send(res, safe.status, { ok: false, error: safe.message });
   }

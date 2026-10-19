@@ -167,7 +167,8 @@ test('the queue drain runs on a schedule', () => {
 test('the drain mode is routed before the default read', () => {
   const handler = stravaApi.slice(stravaApi.indexOf('export default async function handler'));
   const drain = handler.indexOf("mode === 'drain'");
-  const fallthrough = handler.indexOf('return handleRead(req, res)');
+  // The default read is wrapped in a timing span; it is still the fallthrough.
+  const fallthrough = handler.indexOf("return timed('strava.read', () => handleRead(req, res))");
   assert.ok(drain >= 0, 'handler must route ?mode=drain');
   assert.ok(drain < fallthrough, 'the drain branch must come before the default read');
 });

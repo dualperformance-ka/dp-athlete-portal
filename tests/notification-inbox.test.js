@@ -67,7 +67,9 @@ test('read and dismiss reject malformed ids before touching Supabase', async () 
 });
 
 test('reminder delivery and dashboard reporting honour athlete dismissal', () => {
-  const reminders = readFileSync(new URL('../api/reminders.js', import.meta.url), 'utf8');
+  // Delivery lives in reminders.js; the batched reads moved to reminder-plan.js.
+  const reminders = readFileSync(new URL('../api/reminders.js', import.meta.url), 'utf8')
+    + readFileSync(new URL('../api/_lib/reminder-plan.js', import.meta.url), 'utf8');
   const migration = readFileSync(new URL('../supabase/migrations/20260827142411_client_notification_dismissals.sql', import.meta.url), 'utf8');
   assert.match(reminders, /row\.pushed_at \|\| row\.dismissed_at/);
   assert.match(reminders, /dismissed_at: 'is\.null'/);

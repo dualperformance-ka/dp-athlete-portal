@@ -24,5 +24,11 @@ const EMAIL_AUTH_UI = true;
 // ingestion, same as the anon and VAPID public keys above). Empty disables
 // Sentry entirely; the portal behaves identically either way.
 const SENTRY_DSN = 'https://0955632881a5832770a252ace04ccb57@o4511975088390144.ingest.us.sentry.io/4511975097761792';
+// Share of named portal operations (auth, bootstrap, training read, inbox,
+// Strava, push) sent to Sentry as performance spans. Low on purpose: 0.02 is
+// 2%. 0 turns span reporting off; the in-browser timing ring
+// (window.__dpPerf) keeps working either way. Spans carry the operation name,
+// duration, status and a timed-out flag only, never athlete identity.
+const SENTRY_TRACES_SAMPLE_RATE = 0.02;
 var GYM_KEYS = ['Upper A','Upper B','Lower A','Lower B']; // extended at runtime from Supabase workout_splits
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];

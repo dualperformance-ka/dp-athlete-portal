@@ -140,13 +140,15 @@ test('every managed athlete gets it with no migration and no re-consent', () => 
 });
 
 test('the cron gate, the preference and the once-per-day guard are all wired', () => {
-  const reminders = readFileSync(join(root, 'api', 'reminders.js'), 'utf8');
-  // Monday AND 7am, both.
-  assert.match(reminders, /now\.dow === WEEKLY_REVIEW_DOW\s*\n\s*&& minuteMatches\(now, WEEKLY_REVIEW_HOUR, WEEKLY_REVIEW_MINUTE\)/);
+  // The window rules moved to the planning module when the cron went to a
+  // five-minute cadence; delivery stayed in reminders.js.
+  const reminders = readFileSync(join(root, 'api', '_lib', 'reminder-plan.js'), 'utf8');
+  // Monday AND 7am, both, over the widened reminder window.
+  assert.match(reminders, /now\.dow === WEEKLY_REVIEW_DOW\s*\n\s*&& minuteMatches\(now, WEEKLY_REVIEW_HOUR, WEEKLY_REVIEW_MINUTE, windowMinutes\)/);
   // Gated on the athlete's preference.
-  assert.match(reminders, /if \(weeklyReview && athlete\.prefs\.weekly_review\)/);
-  // The 2-minute window means the cron can match twice; the history key is what
-  // stops a second push landing in the same minute-and-a-bit.
+  assert.match(reminders, /if \(weeklyReview && prefs\.weekly_review\)/);
+  // The 15-minute window means the cron can match three times; the history key
+  // and the batched dedupe read are what stop a second push.
   assert.match(reminders, /lastSent\.weeklyReview !== now\.iso/);
   assert.match(reminders, /historyKey: 'weeklyReview'/);
 });

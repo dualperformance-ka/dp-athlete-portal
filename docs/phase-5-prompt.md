@@ -24,7 +24,7 @@ platform cap; the budget is deliberate and enforced in two places (`scripts/chec
 `tests/strava.test.js`). The repo convention still stands: prefer a `?mode=` branch or an
 `/api/portal-data` action over a new function file.
 
-**4. Do not touch the reminder scheduler.** `pg_cron` polls it every minute.
+**4. Do not touch the reminder scheduler.** `pg_cron` polls it every five minutes (docs/reminder-scheduling.md).
 
 **5. Playwright must stay green.** Native wrapping in particular can break it.
 

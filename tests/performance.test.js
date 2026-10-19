@@ -86,7 +86,7 @@ test('secondary metrics and Progress code stay off the primary render path', () 
   assert.match(loginSource, /var hydrationPromise=hydratePortalData\(code\)/);
   assert.match(loginSource, /var initialWeekPromise=Promise\.resolve\(loadWeek\(\)\)/);
   assert.match(loginSource, /window\._stravaLoadPromise=window\.initStrava/);
-  assert.ok(loginSource.indexOf('var initialWeekPromise=Promise.resolve(loadWeek())') < loginSource.indexOf('syncPushSubscription();'));
+  assert.ok(loginSource.indexOf('var initialWeekPromise=Promise.resolve(loadWeek())') < loginSource.indexOf('syncPushSubscription({routine:true});'));
   assert.ok(loginSource.indexOf('var initialWeekPromise=Promise.resolve(loadWeek())') < loginSource.indexOf('retryPendingCoachWrites(true);'));
   assert.doesNotMatch(indexSource, /<script src="js\/07-progress\.js/);
   const progressAsset = indexSource.match(/data-src="\/js\/07-progress\.js\?v=(\d+)"/);
@@ -99,4 +99,28 @@ test('a resolved session athlete is reused instead of authenticated twice', () =
   assert.match(bootSource, /doLogin\(legacyMe\.code,legacyMe\)/);
   assert.match(loginSource, /async function doLogin\(code,prevalidatedRoster\)/);
   assert.match(loginSource, /var roster=prevalidatedRoster\|\|await validateRosterCode\(code\)/);
+});
+
+test('the library revision is a one-row counter read; unchanged libraries are never selected', async () => {
+  const reads = [];
+  const selectRows = async (table, query) => {
+    reads.push(table);
+    if (table === 'cache_revisions') {
+      assert.equal(query.name, 'eq.session_library');
+      return [{ revision: 41 }];
+    }
+    return [{ id: 'run-1', name: 'Easy Run' }];
+  };
+  const unchanged = await sessionLibrary({ libraryRevision: 'r41' }, selectRows);
+  assert.deepEqual(unchanged, { rows: [], revision: 'r41', notModified: true });
+  assert.deepEqual(reads, ['cache_revisions'], 'no session_library select, no hashing');
+  reads.length = 0;
+  const changed = await sessionLibrary({ libraryRevision: 'r40' }, selectRows);
+  assert.equal(changed.revision, 'r41');
+  assert.equal(changed.rows.length, 1);
+  assert.deepEqual(reads, ['cache_revisions', 'session_library'], 'revision read BEFORE the rows');
+  // Before the migration is applied the old hash still works.
+  const missing = Object.assign(new Error('relation does not exist'), { kind: 'http' });
+  const fallback = await sessionLibrary({}, async (table) => { if (table === 'cache_revisions') throw missing; return [{ id: 'a' }]; });
+  assert.match(fallback.revision, /^[0-9a-f]{16}$/);
 });

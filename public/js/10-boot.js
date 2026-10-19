@@ -52,6 +52,13 @@ async function bootPortal(){
         doLogin(me.code,me);
         return;
       }
+      // The server could not answer in time. The session is still valid, so
+      // open the portal from the device copy (cached plan + stale notice)
+      // rather than bouncing a signed-in athlete to the login screen.
+      if(me&&me.error==='unavailable'){
+        var cachedEmailRoster=cachedRosterFromProfile(safeStorageGet('dp_auth_code'));
+        if(cachedEmailRoster){doLogin(cachedEmailRoster.code,cachedEmailRoster);return;}
+      }
       if(me&&(me.error==='invalid_session'||me.error==='no_linked_athlete')) await authSignOut();
       // no_linked_athlete: clear the unresolved session so the athlete can
       // still choose the access-code fallback from the primary email screen.
@@ -63,6 +70,12 @@ async function bootPortal(){
     writePortalOfflineState('dp_auth_token',_authToken);
     var legacyMe=await resolveAuthedAthlete();
     if(legacyMe&&legacyMe.ok&&legacyMe.code){doLogin(legacyMe.code,legacyMe);return;}
+    if(legacyMe&&legacyMe.error==='unavailable'){
+      // Same rule for access-code sessions: an outage is not an expiry. Keep
+      // the token; it is still valid when the server recovers.
+      var cachedLegacyRoster=cachedRosterFromProfile(safeStorageGet('dp_auth_code'));
+      if(cachedLegacyRoster){doLogin(cachedLegacyRoster.code,cachedLegacyRoster);return;}
+    }
     _authToken=null;safeStorageRemove('dp_legacy_session');removePortalOfflineState('dp_auth_token');
   }
   var savedCode=safeStorageGet('dp_auth_code');
@@ -513,9 +526,19 @@ window.closeEnhancedModal = closeEnhancedModal;
     window._stravaAthCode = athleteCode;
     if(!_authToken) return;
     try {
-      var state = await portalRequest('state-read');
-      var ackRow = (state.rows||[]).find(function(row){ return row.key === 'strava_ack'; });
-      if (!ackRow || !ackRow.value || !ackRow.value.acked) {
+      // The bootstrap already carried every state row; read the ack from
+      // that copy. Only when hydration has not landed (it failed, or this is
+      // an older session) is the state fetched, on the secondary deadline.
+      var code = String(athleteCode || '').toUpperCase();
+      var cached = window._portalStravaAck && window._portalStravaAck.code === code ? window._portalStravaAck : null;
+      var ackValue = null;
+      if (cached) ackValue = cached.value;
+      else {
+        var state = await portalRequest('state-read', null, { timeoutMs: PORTAL_TIMEOUT_SECONDARY_MS, op: 'portal.stravaAck' });
+        var ackRow = (state.rows||[]).find(function(row){ return row.key === 'strava_ack'; });
+        ackValue = ackRow ? ackRow.value : null;
+      }
+      if (!ackValue || !ackValue.acked) {
         var banner = document.getElementById('strava-ack-banner');
         if (banner) banner.style.display = 'flex';
         if (typeof syncWeekCardState === 'function') syncWeekCardState();
@@ -528,13 +551,17 @@ window.closeEnhancedModal = closeEnhancedModal;
   async function load(options){
     var silent = !!(options && options.silent), res, data = {};
     try {
-      res = await fetch('/api/strava', { headers: authHeaders({}), cache: 'no-store' });
+      // Secondary deadline: Strava status never holds up the portal, and a
+      // stalled /api/strava now ends in the retryable state below.
+      var fetched = await dpTimed('strava.refresh', function(){
+        return portalFetchJson('/api/strava', { headers: authHeaders({}), cache: 'no-store' }, { timeoutMs: 12000 });
+      });
+      res = fetched.response; data = fetched.data || {};
     } catch(e) {
-      window._stravaDebug = { status:'network-error', error:String(e&&e.message||e), at:new Date().toISOString() };
-      if(!silent) showUnavailable({ friendly:'Strava \u2014 tap to retry', debug:'Strava network error' }, 'Could not reach the portal. Tap to try again.');
+      window._stravaDebug = { status:(e&&e.kind)||'network-error', error:String(e&&e.message||e), at:new Date().toISOString() };
+      if(!silent) showUnavailable({ friendly:'Strava \u2014 tap to retry', debug:'Strava ' + ((e&&e.kind)||'network') + ' error' }, 'Could not reach the portal. Tap to try again.');
       return { connected:false, activities:[] };
     }
-    try { data = await res.json(); } catch(e) { data = {}; }
 
     if (res.status === 401) {
       // The session is gone, so the server cannot sign a state token. Anything
@@ -674,7 +701,9 @@ window.acknowledgeStrava = async function() {
   if (typeof syncWeekCardState === 'function') syncWeekCardState();
   if (_authToken && window._stravaAthCode) {
     try {
-      await portalStateWrite('strava_ack',{ acked: true, acked_at: new Date().toISOString() });
+      var ack = { acked: true, acked_at: new Date().toISOString() };
+      window._portalStravaAck = { code: String(window._stravaAthCode).toUpperCase(), value: ack };
+      await portalStateWrite('strava_ack', ack);
     } catch(e) { console.warn('Strava ack save failed', e); }
   }
 };
@@ -706,7 +735,13 @@ function setPushStatus(msg,ok){
   var el=document.getElementById('pushStatus');
   if(el){el.textContent='Notifications: '+msg;el.style.color=ok?'var(--ok)':'var(--muted)';}
 }
-async function syncPushSubscription(){
+// options.routine: the start-up refresh. It re-posts the same subscription
+// at most once a day per device (or when the endpoint or timezone changes);
+// the server upsert and device reconcile behind it are several writes, and
+// every sign-in used to repeat them. Taps on Enable notifications always post.
+var PUSH_RESYNC_MS=24*60*60*1000;
+async function syncPushSubscription(options){
+  options=options||{};
   try{
     if(!athlete||!athlete.code)return;
     if(!('serviceWorker'in navigator)){setPushStatus('not supported in this browser',false);return;}
@@ -740,9 +775,20 @@ async function syncPushSubscription(){
       return;
     }
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(VAPID_PUBLIC_KEY)});
-    var resp=await fetch('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'subscribe',subscription:sub.toJSON(),userAgent:navigator.userAgent,timezone:(Intl.DateTimeFormat().resolvedOptions().timeZone||'')})});
-    var data=await resp.json().catch(function(){return{};});
-    if(resp.ok&&data.ok){setPushStatus('active on this device ✓',true);}
+    var tz=(Intl.DateTimeFormat().resolvedOptions().timeZone||'');
+    var syncKey='dp_push_synced_'+String(athlete.code).toUpperCase(),fingerprint=sub.endpoint+'|'+tz,last=null;
+    try{last=JSON.parse(localStorage.getItem(syncKey)||'null');}catch(e){last=null;}
+    if(options.routine&&last&&last.fp===fingerprint&&(Date.now()-last.at)<PUSH_RESYNC_MS){
+      setPushStatus('active on this device ✓',true);return;
+    }
+    var fetched=await dpTimed('push.subscribe',function(){
+      return portalFetchJson('/api/reminders',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({action:'subscribe',subscription:sub.toJSON(),userAgent:navigator.userAgent,timezone:tz})},{timeoutMs:PORTAL_TIMEOUT_SECONDARY_MS});
+    });
+    var resp=fetched.response,data=fetched.data||{};
+    if(resp.ok&&data.ok){
+      setPushStatus('active on this device ✓',true);
+      try{localStorage.setItem(syncKey,JSON.stringify({fp:fingerprint,at:Date.now()}));}catch(e){}
+    }
     else{setPushStatus('server rejected: '+(data.error||resp.status),false);}
   }catch(e){setPushStatus('error: '+String(e&&e.message||e).slice(0,80),false);}
 }

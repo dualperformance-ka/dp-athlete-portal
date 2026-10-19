@@ -8,10 +8,23 @@ import {
   buildCheckinOverdueMessage, buildFuelMessage, buildNextWeekMessage, buildReadinessMessage,
   buildStravaMessage, isCapExempt, isQuietTime, partitionCoachChanges,
 } from '../api/_lib/notification-rules.js';
-import { _test } from '../api/reminders.js';
+import {
+  addDailyNudges, addHeldMessages, addStravaSynced, emptyDue, loadDeliveryState, zoneWindows,
+} from '../api/_lib/reminder-plan.js';
+import { resolvePrefs } from '../api/_lib/push-devices.js';
 
 const root = decodeURIComponent(new URL('..', import.meta.url).pathname);
 const reminders = readFileSync(join(root, 'api', 'reminders.js'), 'utf8');
+const plan = readFileSync(join(root, 'api', '_lib', 'reminder-plan.js'), 'utf8');
+
+// A roster athlete placed at a local wall-clock time, the shape the planning
+// module works on.
+function placed(code, now, extra = {}) {
+  return {
+    code, tz: 'Australia/Adelaide', now, windows: zoneWindows(now),
+    prefs: resolvePrefs([], { managed: true }), lastSent: {}, devices: [{ id: 'd1' }], errors: [], ...extra,
+  };
+}
 const notify = readFileSync(join(root, 'api', 'notify.js'), 'utf8');
 const loginGoals = readFileSync(join(root, 'public', 'js', '02-login-goals.js'), 'utf8');
 
@@ -25,9 +38,17 @@ test('coach messages, programme changes, calls and the weekly review are never c
   assert.equal(DAILY_PUSH_CAP, 5);
 });
 
-test('the daily count ignores exempt pushes and the loop never charges them', () => {
-  const counter = reminders.slice(reminders.indexOf('async function pushedToday'), reminders.indexOf('async function unreadSuppressed'));
-  assert.match(counter, /type: `not\.in\.\(\$\{CAP_EXEMPT_TYPES\.join\(','\)\}\)`/);
+test('the daily count ignores exempt pushes and the loop never charges them', async () => {
+  // One batched read replaces pushedToday(): exempt types never count.
+  const state = await loadDeliveryState([
+    { athlete: placed('KARL', { iso: '2026-09-28', dow: 1, hour: 12, minute: 0 }), messages: [{ type: 'readiness', dedupeKey: 'readiness:2026-09-28' }] },
+  ], { read: async () => [
+    { athlete_code: 'KARL', type: 'sessions', local_date: '2026-09-28', pushed_at: '2026-09-28T00:00:00Z', dedupe_key: 'morning:2026-09-28' },
+    { athlete_code: 'KARL', type: 'coach', local_date: '2026-09-28', pushed_at: '2026-09-28T01:00:00Z', dedupe_key: 'coach:x' },
+    { athlete_code: 'KARL', type: 'custom', local_date: '2026-09-28', pushed_at: '2026-09-28T02:00:00Z', dedupe_key: 'custom:y' },
+  ] });
+  assert.equal(state.pushed.get('KARL|2026-09-28'), 1);
+  assert.match(plan, /!CAP_EXEMPT_TYPES\.includes\(String\(row\.type \|\| ''\)\)/);
   assert.match(reminders, /const exempt = isCapExempt\(message\.type\);/);
   assert.match(reminders, /\(exempt \|\| pushCount < DAILY_PUSH_CAP\)/);
   assert.match(reminders, /if \(!exempt\) pushCount\+\+;/);
@@ -44,10 +65,13 @@ test('a coach message from the dashboard is not held back by the cap', () => {
 test('held coach messages are read only outside quiet hours and pushed as the existing row', async () => {
   let seen;
   const due = { KARL: { heldMessages: [] } };
-  await _test.addHeldMessages(due, 'in.("KARL")', async (table, query) => {
-    seen = { table, query };
-    return [{ id: 'n1', athlete_code: 'KARL', type: 'custom', title: 'Great work', body: 'Nailed it', url: '/' }];
-  }, Date.parse('2026-09-28T20:00:00Z'));
+  await addHeldMessages(due, [placed('KARL', { iso: '2026-09-29', dow: 2, hour: 6, minute: 0 })], {
+    read: async (table, query) => {
+      seen = { table, query };
+      return [{ id: 'n1', athlete_code: 'KARL', type: 'custom', title: 'Great work', body: 'Nailed it', url: '/' }];
+    },
+    nowMs: Date.parse('2026-09-28T20:00:00Z'),
+  });
   assert.equal(seen.table, 'athlete_notifications');
   assert.equal(seen.query.type, 'eq.custom');
   assert.equal(seen.query.pushed_at, 'is.null');
@@ -55,15 +79,16 @@ test('held coach messages are read only outside quiet hours and pushed as the ex
   assert.equal(seen.query.dismissed_at, 'is.null');
   assert.equal(seen.query.created_at, 'gte.2026-09-28T08:00:00.000Z', 'twelve hours back, no further');
   assert.equal(due.KARL.heldMessages.length, 1);
-  assert.match(reminders, /if \(!isQuietTime\(now\)\) await addHeldMessages\(due, list\);/);
-  assert.match(reminders, /for \(const held of athleteDue\.heldMessages \|\| \[\]\)[\s\S]{0,120}pushInboxMessage\(athlete, held,/);
+  // Only athletes outside quiet hours with a device are asked about.
+  assert.match(plan, /addHeldMessages\(due, athletes\.filter\(\(a\) => !a\.windows\.quiet && a\.devices\.length\)/);
+  assert.match(reminders, /for \(const held of heldMessages \|\| \[\]\)[\s\S]{0,120}pushInboxMessage\(athlete, held,/);
 });
 
 // ── Readiness, fuel, overdue check-in ────────────────────────────────────────
 
 function dueFor(codes) {
   const due = {};
-  codes.forEach((code) => { due[code] = { readiness: false, fuel: false, checkinOverdue: false }; });
+  codes.forEach((code) => { due[code] = emptyDue('2026-09-28'); });
   return due;
 }
 
@@ -72,12 +97,19 @@ test('the body-check nudge fires at 10am only for athletes with nothing logged',
   const reads = [];
   const read = async (table, query) => { reads.push(table); return table === 'daily_body_logs' ? [{ athlete_code: 'THOMAS' }] : []; };
   let due = dueFor(codes);
-  await _test.addDailyNudges(due, codes, { iso: '2026-09-28', dow: 1, hour: 9, minute: 59 }, 'list', read);
-  assert.deepEqual(reads, [], 'no read outside its minute');
+  let now = { iso: '2026-09-28', dow: 1, hour: 9, minute: 59 };
+  await addDailyNudges(due, codes.map((c) => placed(c, now)), { read });
+  assert.deepEqual(reads, [], 'no read outside its window');
   due = dueFor(codes);
-  await _test.addDailyNudges(due, codes, { iso: '2026-09-28', dow: 1, hour: READINESS_HOUR, minute: 0 }, 'list', read);
+  now = { iso: '2026-09-28', dow: 1, hour: READINESS_HOUR, minute: 0 };
+  await addDailyNudges(due, codes.map((c) => placed(c, now)), { read });
   assert.equal(due.KARL.readiness, true);
   assert.equal(due.THOMAS.readiness, false);
+  // Already sent today: not asked about again.
+  reads.length = 0;
+  due = dueFor(codes);
+  await addDailyNudges(due, codes.map((c) => placed(c, now, { lastSent: { readiness: '2026-09-28' } })), { read });
+  assert.deepEqual(reads, []);
 });
 
 test('the fuel nudge is only for athletes on macros with nothing logged today', async () => {
@@ -88,7 +120,8 @@ test('the fuel nudge is only for athletes on macros with nothing logged today', 
     return [];
   };
   const due = dueFor(codes);
-  await _test.addDailyNudges(due, codes, { iso: '2026-09-28', dow: 1, hour: FUEL_HOUR, minute: FUEL_MINUTE }, 'list', read);
+  const now = { iso: '2026-09-28', dow: 1, hour: FUEL_HOUR, minute: FUEL_MINUTE };
+  await addDailyNudges(due, codes.map((c) => placed(c, now)), { read });
   assert.equal(due.KARL.fuel, true);
   assert.equal(due.THOMAS.fuel, false, 'already logged');
   assert.equal(due.JOJO.fuel, false, 'no macros set');
@@ -99,11 +132,13 @@ test('the overdue check-in fires Monday midday only when last week is not in', a
   const codes = ['KARL', 'THOMAS'];
   const read = async () => [{ athlete_code: 'THOMAS' }];
   let due = dueFor(codes);
-  await _test.addDailyNudges(due, codes, { iso: '2026-09-28', dow: 1, hour: 12, minute: 0 }, 'list', read);
+  let now = { iso: '2026-09-28', dow: 1, hour: 12, minute: 0 };
+  await addDailyNudges(due, codes.map((c) => placed(c, now)), { read });
   assert.equal(due.KARL.checkinOverdue, true);
   assert.equal(due.THOMAS.checkinOverdue, false);
   due = dueFor(codes);
-  await _test.addDailyNudges(due, codes, { iso: '2026-09-29', dow: 2, hour: 12, minute: 0 }, 'list', read);
+  now = { iso: '2026-09-29', dow: 2, hour: 12, minute: 0 };
+  await addDailyNudges(due, codes.map((c) => placed(c, now)), { read });
   assert.equal(due.KARL.checkinOverdue, false, 'Tuesday is not Monday');
 });
 
@@ -126,15 +161,18 @@ const WALL = { iso: '2026-09-28', dow: 1, hour: 7, minute: 30 };
 test('a fresh run synced from Strava is announced; strength and old activities are not', async () => {
   const due = { THOMAS: { strava: [] } };
   let query;
-  await _test.addStravaSynced(due, ['THOMAS'], WALL, 'list', async (table, q) => {
-    query = { table, q };
-    return [
-      { strava_activity_id: 1, athlete_code: 'THOMAS', sport_type: 'Run', start_date_local: '2026-09-28T06:10:00+00:00', distance_m: 11200 },
-      { strava_activity_id: 2, athlete_code: 'THOMAS', sport_type: 'WeightTraining', start_date_local: '2026-09-28T06:00:00+00:00' },
-      { strava_activity_id: 3, athlete_code: 'THOMAS', sport_type: 'Run', start_date_local: '2026-09-20T06:00:00+00:00' },
-      { strava_activity_id: 4, athlete_code: 'SOMEONE', sport_type: 'Run', start_date_local: '2026-09-28T06:00:00+00:00' },
-    ];
-  }, Date.parse('2026-09-27T22:00:00Z'));
+  await addStravaSynced(due, [placed('THOMAS', WALL)], {
+    read: async (table, q) => {
+      query = { table, q };
+      return [
+        { strava_activity_id: 1, athlete_code: 'THOMAS', sport_type: 'Run', start_date_local: '2026-09-28T06:10:00+00:00', distance_m: 11200 },
+        { strava_activity_id: 2, athlete_code: 'THOMAS', sport_type: 'WeightTraining', start_date_local: '2026-09-28T06:00:00+00:00' },
+        { strava_activity_id: 3, athlete_code: 'THOMAS', sport_type: 'Run', start_date_local: '2026-09-20T06:00:00+00:00' },
+        { strava_activity_id: 4, athlete_code: 'SOMEONE', sport_type: 'Run', start_date_local: '2026-09-28T06:00:00+00:00' },
+      ];
+    },
+    nowMs: Date.parse('2026-09-27T22:00:00Z'),
+  });
   assert.equal(query.table, 'strava_activities');
   assert.equal(query.q.synced_at, 'gte.2026-09-27T21:15:00.000Z', 'only rows synced in the last 45 minutes');
   assert.doesNotMatch(query.q.select, /summary|detail/, 'the raw Strava payload is never read here');
@@ -172,7 +210,7 @@ test('sessions published for next week push; a block further out stays in the in
   assert.match(message.body, /5 Oct/);
   assert.notEqual(message.push, false);
   assert.equal(buildNextWeekMessage([], '2026-09-26'), null);
-  assert.match(reminders, /const nextWeek = buildNextWeekMessage\(partitioned\.nextWeek, now\.iso\);/);
+  assert.match(plan, /const nextWeek = buildNextWeekMessage\(partitioned\.nextWeek, now\.iso\);/);
 });
 
 test('no new message uses an em dash', () => {

@@ -103,6 +103,8 @@ test('the old seven-type constraint is what broke the weekly review', async () =
 test('one failed inbox write does not abort the rest of the reminder run', () => {
   const source = fs.readFileSync(path.join(root, 'api/reminders.js'), 'utf8');
   const loop = source.slice(source.indexOf('for (const message of messages.filter(Boolean))'));
-  assert.match(loop.slice(0, 800), /try \{\s*row = await saveInboxMessage/);
-  assert.match(loop.slice(0, 800), /errors\.push\(\{ athlete: athlete\.code, type: message\.type, stage: 'inbox'/);
+  assert.match(loop.slice(0, 1200), /try \{\s*row = await saveInboxMessage/);
+  // The error records what failed, never which athlete: pg_net keeps the
+  // response body in net._http_response.
+  assert.match(loop.slice(0, 1200), /errors\.push\(\{ type: message\.type, stage: 'inbox'/);
 });

@@ -218,6 +218,145 @@ function authHeaders(base){
   if(_authToken)h['Authorization']='Bearer '+_authToken;
   return h;
 }
+// ── REQUEST DEADLINES, FAILURE CLASSES, BACKOFF, TIMING ────────────────────
+// Every portal request has a deadline that ABORTS the fetch, body included.
+// Supabase on shared compute has held requests for 110-190s; without a
+// deadline the athlete watched a spinner for that long. A failure is
+// classified so callers can choose the right recovery:
+//   timeout  deadline hit, or a 504/408 from the server
+//   offline  the device says it has no network
+//   network  fetch failed for another reason
+//   auth     401/403: the session really is gone
+//   unsupported  404/501, or an older server that does not know the action
+//   server   5xx/429 (including 503 auth_unavailable): keep the session, use
+//            cached data, back off before asking again
+//   client   any other 4xx
+var PORTAL_TIMEOUT_CRITICAL_MS=9000,PORTAL_TIMEOUT_SECONDARY_MS=6000;
+function portalRequestError(kind,status,message){
+  var error=new Error(message||'Request failed');
+  error.kind=kind;error.status=status||0;
+  return error;
+}
+function classifyPortalStatus(status,data){
+  if(status===401||status===403)return 'auth';
+  if(status===404||status===501)return 'unsupported';
+  if(status===400&&data&&/unknown (portal )?action/i.test(String(data.error||'')))return 'unsupported';
+  if(status===408||status===504)return 'timeout';
+  if(status===429||status>=500)return 'server';
+  if(status>=400)return 'client';
+  return 'ok';
+}
+function portalFailureIsTransient(error){
+  var kind=error&&error.kind;
+  return kind==='timeout'||kind==='offline'||kind==='network'||kind==='server';
+}
+// fetch + JSON with a deadline. Resolves {response,data}; throws a classified
+// error only when no HTTP response arrived (timeout/offline/network).
+async function portalFetchJson(url,init,options){
+  options=options||{};
+  var timeoutMs=options.timeoutMs||PORTAL_TIMEOUT_CRITICAL_MS;
+  var controller=typeof AbortController==='function'?new AbortController():null;
+  var timedOut=false;
+  var timer=controller?setTimeout(function(){timedOut=true;try{controller.abort();}catch(e){}},timeoutMs):null;
+  try{
+    var response=await fetch(url,Object.assign({},init||{},controller?{signal:controller.signal}:{}));
+    var data={};
+    try{var text=await response.text();data=text?JSON.parse(text):{};}catch(e){
+      if(timedOut)throw e;
+      data={};
+    }
+    return {response:response,data:data};
+  }catch(e){
+    if(timedOut)throw portalRequestError('timeout',0,'The portal took too long to respond');
+    if(typeof navigator!=='undefined'&&navigator.onLine===false)throw portalRequestError('offline',0,'You are offline');
+    throw portalRequestError('network',0,'Could not reach the portal');
+  }finally{if(timer)clearTimeout(timer);}
+}
+// Bounded exponential backoff with equal jitter: half the window fixed, half
+// random, so devices that failed together do not retry together.
+function portalBackoffDelay(attempt,baseMs,maxMs){
+  var cap=Math.min(maxMs||60000,(baseMs||2000)*Math.pow(2,Math.max(0,attempt||0)));
+  return Math.round(cap/2+Math.random()*cap/2);
+}
+// One shared backoff window. Transient failures widen it; any success closes
+// it. Background refreshes (resume handlers, secondary sync) skip while it is
+// open, so a struggling database is not hit by every device at once.
+var _portalFailureCount=0,_portalBackoffUntil=0;
+function notePortalSuccess(){
+  if(_portalFailureCount||_portalBackoffUntil){_portalFailureCount=0;_portalBackoffUntil=0;}
+}
+function notePortalFailure(error){
+  if(!portalFailureIsTransient(error))return;
+  _portalBackoffUntil=Date.now()+portalBackoffDelay(_portalFailureCount,2000,60000);
+  _portalFailureCount=Math.min(_portalFailureCount+1,8);
+}
+function portalBackoffActive(){return Date.now()<_portalBackoffUntil;}
+function portalBackoffRemaining(){return Math.max(0,_portalBackoffUntil-Date.now());}
+// Concise stale/offline state on the existing sync pill, per data source
+// ('week', 'state'). Each source clears its own flag when its data next
+// loads, so a quick unrelated success cannot hide a plan that is still old.
+var _portalStaleKeys={};
+function showPortalStaleState(error,key){
+  _portalStaleKeys[key||'portal']=true;
+  try{
+    var offline=error&&error.kind==='offline';
+    if(typeof setSaveState==='function')setSaveState('offline',offline?'Offline · showing saved plan':'Connection slow · showing saved plan');
+  }catch(e){}
+}
+function clearPortalStaleState(key){
+  if(!_portalStaleKeys[key||'portal'])return;
+  delete _portalStaleKeys[key||'portal'];
+  if(Object.keys(_portalStaleKeys).length)return;
+  try{if(typeof setSaveState==='function')setSaveState('saved');}catch(e){}
+}
+// Throttle for focus/visibility handlers: at most one run per interval per
+// name, and none while the shared backoff window is open.
+var _portalResumeAt={};
+function portalResumeAllowed(name,minIntervalMs){
+  var now=Date.now();
+  if(portalBackoffActive())return false;
+  if(_portalResumeAt[name]&&now-_portalResumeAt[name]<minIntervalMs)return false;
+  _portalResumeAt[name]=now;
+  return true;
+}
+// Privacy-safe timing for named operations: name, duration, status, whether
+// a deadline fired, and optional numeric counts. No athlete codes, names,
+// tokens or programme content. Kept in a small in-memory ring (window.__dpPerf)
+// and as performance marks; sent to Sentry only as a sampled span when
+// SENTRY_TRACES_SAMPLE_RATE is set above zero in config.js.
+var DP_PERF_LIMIT=60;
+function dpPerfRecord(name,startedAt,status,extra){
+  var entry={op:String(name).slice(0,60),ms:Math.round((typeof performance!=='undefined'&&performance.now?performance.now():Date.now())-startedAt),status:status||'ok',at:Date.now()};
+  if(extra&&typeof extra==='object'){
+    Object.keys(extra).forEach(function(key){
+      var value=extra[key];
+      if(typeof value==='number'&&isFinite(value))entry[key]=value;
+      else if(typeof value==='boolean')entry[key]=value;
+    });
+  }
+  try{
+    var ring=window.__dpPerf||(window.__dpPerf=[]);
+    ring.push(entry);if(ring.length>DP_PERF_LIMIT)ring.shift();
+    if(typeof performance!=='undefined'&&performance.measure&&performance.mark){
+      try{performance.measure('dp:'+entry.op,{start:startedAt,duration:entry.ms});}catch(e){}
+    }
+    if(window.dpPerfSpan)window.dpPerfSpan(entry);
+  }catch(e){}
+  return entry;
+}
+function dpPerfStart(){return typeof performance!=='undefined'&&performance.now?performance.now():Date.now();}
+async function dpTimed(name,fn,extra){
+  var started=dpPerfStart();
+  try{
+    var value=await fn();
+    dpPerfRecord(name,started,'ok',typeof extra==='function'?extra(value):extra);
+    return value;
+  }catch(error){
+    dpPerfRecord(name,started,(error&&error.kind)||'error',{timedOut:!!(error&&error.kind==='timeout')});
+    throw error;
+  }
+}
+
 // Access-code sessions are deliberately short-lived server-signed tokens, but
 // the portal has always remembered a successful access-code login on this
 // device. Transparently exchange that remembered credential for a fresh token
@@ -231,13 +370,13 @@ function renewLegacySession(){
   if(_legacyRenewPromise)return _legacyRenewPromise;
   _legacyRenewPromise=(async function(){
     try{
-      var r=await fetch('/api/auth-athlete',{
+      var fetched=await portalFetchJson('/api/auth-athlete',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action:'legacy-login',code:code}),
         cache:'no-store'
-      });
-      var result={};try{result=await r.json();}catch(e){}
+      },{timeoutMs:PORTAL_TIMEOUT_CRITICAL_MS});
+      var r=fetched.response,result=fetched.data||{};
       if(!r.ok||!result.access_token||String(result.code||'').toUpperCase()!==String(code).toUpperCase()){
         // A definitive credential/account rejection must not loop forever.
         // Keep remembered state on network/5xx failures so a later retry can
@@ -259,33 +398,56 @@ function renewLegacySession(){
   })().finally(function(){_legacyRenewPromise=null;});
   return _legacyRenewPromise;
 }
+// options.timeoutMs        deadline (default 9s; secondary callers pass less)
+// options.keepalive        survive page unload (writes flushed on hide)
+// options.op               telemetry name (defaults to the action)
+// Nothing here retries a request on its own. Writes in particular are never
+// replayed here; the outbox owns that, with its own idempotent keys. The one
+// replay is after a 401 renewal, where the server provably did nothing.
 async function portalRequest(action,payload,options){
+  options=options||{};
   if(!_authToken){
     var restored=await renewLegacySession();
-    if(!restored)throw new Error('Your session has expired. Please sign in again.');
+    if(!restored)throw portalRequestError('auth',401,'Your session has expired. Please sign in again.');
   }
   var body=Object.assign({action:action},payload||{});
   var encodedBody=JSON.stringify(body);
+  var started=dpPerfStart();
   function send(){
-    return fetch('/api/portal-data',{
+    return portalFetchJson('/api/portal-data',{
       method:'POST',
       headers:authHeaders({'Content-Type':'application/json'}),
       body:encodedBody,
       cache:'no-store',
-      keepalive:!!(options&&options.keepalive)
-    });
+      keepalive:!!options.keepalive
+    },{timeoutMs:options.timeoutMs||PORTAL_TIMEOUT_CRITICAL_MS});
   }
-  var response=await send();
+  var fetched;
+  try{fetched=await send();}
+  catch(error){
+    notePortalFailure(error);
+    dpPerfRecord(options.op||('portal.'+action),started,error.kind,{timedOut:error.kind==='timeout'});
+    throw error;
+  }
+  var response=fetched.response,data=fetched.data||{};
   // A code-login token may expire while the PWA remains open. Renew once and
   // replay the request; Supabase email sessions refresh through supabase-js.
   if(response.status===401&&safeStorageGet('dp_auth_method')==='code'){
     var renewed=await renewLegacySession();
-    if(renewed)response=await send();
+    if(renewed){
+      try{fetched=await send();response=fetched.response;data=fetched.data||{};}
+      catch(error){notePortalFailure(error);throw error;}
+    }
   }
-  var data={};
-  try{data=await response.json();}catch(e){}
-  if(response.status===401){handleAuthSessionLost();throw new Error('Your session has expired. Please sign in again.');}
-  if(!response.ok||data.ok===false)throw new Error(data.error||('Sync failed '+response.status));
+  var kind=classifyPortalStatus(response.status,data);
+  dpPerfRecord(options.op||('portal.'+action),started,kind==='ok'&&data.ok!==false?'ok':kind,{httpStatus:response.status,timedOut:kind==='timeout'});
+  if(response.status===401){handleAuthSessionLost();throw portalRequestError('auth',401,'Your session has expired. Please sign in again.');}
+  if(!response.ok||data.ok===false){
+    var error=portalRequestError(kind==='ok'?'server':kind,response.status,data.error||('Sync failed '+response.status));
+    notePortalFailure(error);
+    throw error;
+  }
+  notePortalSuccess();
   return data;
 }
 // STRAVA MATCH PAYLOAD TRIMMING
@@ -398,12 +560,15 @@ async function getAuthSession(){
 async function resolveAuthedAthlete(){
   if(!_authToken)return null;
   try{
-    var r=await fetch('/api/auth-athlete',{headers:authHeaders({}),cache:'no-store'});
+    var fetched=await dpTimed('auth.resolve',function(){return portalFetchJson('/api/auth-athlete',{headers:authHeaders({}),cache:'no-store'},{timeoutMs:PORTAL_TIMEOUT_CRITICAL_MS});});
+    var r=fetched.response;
     if(r.status===403)return {error:'no_linked_athlete'};
     if(r.status===401)return {error:'invalid_session'};
-    if(!r.ok)return null;
-    return await r.json();
-  }catch(e){return null;}
+    // A slow or failing server is NOT a lost session. Say so, so boot can
+    // open the portal from the device copy instead of the login screen.
+    if(!r.ok)return {error:'unavailable',kind:classifyPortalStatus(r.status,fetched.data)};
+    return fetched.data;
+  }catch(e){return {error:'unavailable',kind:e&&e.kind};}
 }
 async function authSignOut(){
   try{var client=await ensureSupabaseClient();if(client&&client.auth)await client.auth.signOut();}catch(e){}
@@ -945,8 +1110,15 @@ async function retryPendingCoachWrites(silent,trigger){
   if(totalSynced&&!silent) showToast(totalSynced+' pending coach update'+(totalSynced>1?'s':'')+' synced');
   await updatePendingQueueIndicator();
 }
-document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){retryPendingCoachWrites(true,'visibility');retryPendingPortalStateWrites(true,'visibility');}});
-window.addEventListener('pageshow',function(){retryPendingCoachWrites(true,'visibility');retryPendingPortalStateWrites(true,'visibility');});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')retryPendingOnResume();});
+window.addEventListener('pageshow',retryPendingOnResume);
+// visibilitychange and pageshow arrive together on resume. Drain the outbox
+// once per 30 seconds of resumes, and not while the server is backing off;
+// the 'online' event above is not throttled.
+function retryPendingOnResume(){
+  if(!portalResumeAllowed('outbox',30000))return;
+  retryPendingCoachWrites(true,'visibility');retryPendingPortalStateWrites(true,'visibility');
+}
 if('serviceWorker'in navigator){
   navigator.serviceWorker.addEventListener('message',function(event){
     var data=event.data||{};
@@ -969,25 +1141,29 @@ async function loadPlannedSessions(startISO,endISO,preloaded){
     // downstream resolution can already see them.
     try{registerSessionPrescriptions(result.prescriptions,plannedRows);}
     catch(e){console.warn('Prescription registration failed; falling back to named splits',e);}
-    return plannedRows.map(function(r){
-      var key=r.notion_page_id||r.id;
-      if(r.distance_km!=null||r.target_pace||r.warm_up||r.intervals||r.working_pace||r.rest||r.cool_down||r.notes){
-        _sessionOverrides[key]={notion_page_id:key,name:null,
-          distance_km:r.distance_km,target_pace:r.target_pace,warm_up:r.warm_up,
-          intervals:r.intervals,working_pace:r.working_pace,rest:r.rest,
-          cool_down:r.cool_down,notes:r.notes};
-      }
-      return{id:key,name:r.title||'Session',date:r.planned_date||'',plannedDate:r.planned_date||'',
-        sessionType:r.session_type||'',status:r.status||'Planned',
-        runningSession:'',runningSessionIds:[],
-        runningLibraryIds:r.library_id?[r.library_id]:[],
-        runDetails:r.run_details||'',intensity:r.intensity||'',week:r.week_label||'',
-        programmeWeekIdentifier:r.programme_week_id||null,
-        prescriptionMode:r.prescription_mode||'legacy',
-        partOfDay:r.part_of_day||'',dayOrder:r.day_order||0,
-        estimatedMinutes:r.estimated_minutes||null};
-    });
+    return plannedRows.map(mapPlannedSessionRow);
   }catch(e){ console.warn('Planned sessions load failed',e); return null; }
+}
+// One planned_sessions row -> the portal's session object, registering its
+// coach overrides on the way. Shared by the week load and by the programme
+// history merge (08-training.js), so both produce identical sessions.
+function mapPlannedSessionRow(r){
+  var key=r.notion_page_id||r.id;
+  if(r.distance_km!=null||r.target_pace||r.warm_up||r.intervals||r.working_pace||r.rest||r.cool_down||r.notes){
+    _sessionOverrides[key]={notion_page_id:key,name:null,
+      distance_km:r.distance_km,target_pace:r.target_pace,warm_up:r.warm_up,
+      intervals:r.intervals,working_pace:r.working_pace,rest:r.rest,
+      cool_down:r.cool_down,notes:r.notes};
+  }
+  return{id:key,name:r.title||'Session',date:r.planned_date||'',plannedDate:r.planned_date||'',
+    sessionType:r.session_type||'',status:r.status||'Planned',
+    runningSession:'',runningSessionIds:[],
+    runningLibraryIds:r.library_id?[r.library_id]:[],
+    runDetails:r.run_details||'',intensity:r.intensity||'',week:r.week_label||'',
+    programmeWeekIdentifier:r.programme_week_id||null,
+    prescriptionMode:r.prescription_mode||'legacy',
+    partOfDay:r.part_of_day||'',dayOrder:r.day_order||0,
+    estimatedMinutes:r.estimated_minutes||null};
 }
 
 async function loadCloudData(code,preloaded){
@@ -1002,6 +1178,9 @@ async function loadCloudData(code,preloaded){
     // Build a set of keys that exist in Supabase
     var cloudKeys={};
     rows.forEach(function(row){cloudKeys[row.key]=row.value;});
+    // Strava's one-time acknowledgement banner reads this instead of fetching
+    // the whole state blob a second time.
+    window._portalStravaAck={code:String(code||'').toUpperCase(),value:cloudKeys.strava_ack||null};
     // Programme length (set by coaches in the dashboard Nutrition tab)
     var pw=parseInt(cloudKeys['programme_weeks'],10);
     if(!isNaN(pw)&&pw>0&&pw<=52) programmeWeeks=pw;
@@ -1801,6 +1980,7 @@ function logoutToLogin(preserveEmail){
   }
   if(athlete&&athlete.code)safeStorageRemove('dp_profile_'+athlete.code);
   athlete=null;sessions=[];allSessions=[];ticked={};logs={};exPicks={};
+  window._portalSecondaryStarted=false;window._nutritionWeekLoaded=null;
   document.getElementById('portalScreen').style.display='none';
   document.getElementById('codeInput').value='';
   clearLoginError();

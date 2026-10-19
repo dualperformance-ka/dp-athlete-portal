@@ -1,14 +1,14 @@
-const CACHE_NAME = 'dp-athlete-v251'; // v251: Retyping a load no longer rewrites the remaining sets; suggested values look different from entered ones
+const CACHE_NAME = 'dp-athlete-v252'; // v252: Bounded request deadlines, no failure fan-out, staged secondary start-up, range-scoped training read
 const APP_SHELL = [
   '/index.html', '/styles.css?v=198', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/00-safe-storage.js?v=1',
-  '/js/01-core.js?v=132',
-  '/js/02-login-goals.js?v=124',
-  '/js/03-nav-nudges.js?v=131',
+  '/js/01-core.js?v=133',
+  '/js/02-login-goals.js?v=125',
+  '/js/03-nav-nudges.js?v=132',
   '/js/04-checkin.js?v=105',
   '/js/05-handbook.js?v=89',
-  '/js/06-nutrition.js?v=111',
+  '/js/06-nutrition.js?v=112',
   '/js/07-progress.js?v=95',
   '/js/strava-match.js?v=10',
   '/js/08-training-interval-rest.js?v=1',
@@ -16,10 +16,10 @@ const APP_SHELL = [
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
   '/js/08-training-run.js?v=2',
-  '/js/08-training.js?v=166',
-  '/js/09-logging.js?v=137',
+  '/js/08-training.js?v=167',
+  '/js/09-logging.js?v=138',
   '/accessibility.js?v=3',
-  '/js/10-boot.js?v=112',
+  '/js/10-boot.js?v=113',
   '/login.js?v=50', '/icons.css?v=4',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

@@ -234,15 +234,18 @@ test('an optional source failing returns 200 with a partial summary and no raw e
   assert.equal(JSON.stringify(state.payload).includes('internal detail'), false);
 });
 
-test('a mandatory read failing is a safe 500, not a partial', async () => {
+// An upstream 5xx is reported as 503 (transient: the browser keeps its cached
+// copy and backs off) rather than 500, still with no upstream detail.
+test('a mandatory read failing is a safe 503, not a partial', async () => {
   const { res, state } = mockResponse();
   await withFetch(mockFetch(TABLES, { failFor: new Set(['planned_sessions']) }), () => handler(
     request({ action: 'performance-summary', period: 'week', programmeWeekId: WEEK_ID }, { token: createPortalSession('KARL') }),
     res,
   ));
-  assert.equal(state.statusCode, 500);
+  assert.equal(state.statusCode, 503);
   assert.equal(state.payload.ok, false);
   assert.equal(state.payload.error, 'Request failed');
+  assert.equal(state.payload.code, 'upstream_unavailable');
   assert.equal(JSON.stringify(state.payload).includes('internal detail'), false);
 });
 

@@ -7,6 +7,9 @@ function login(){
 }
 // Authenticate through the server. Email sessions are resolved from their JWT;
 // access-code sessions exchange the code for a short-lived signed portal token.
+// A server that is slow or failing is not a rejected code: the athlete who has
+// signed in on this device before gets the portal from the device copy
+// (cachedRosterFromProfile) instead of "code not recognised".
 async function validateRosterCode(code){
   try{
     var options={cache:'no-store'};
@@ -17,9 +20,10 @@ async function validateRosterCode(code){
       options.headers={'Content-Type':'application/json'};
       options.body=JSON.stringify({action:'legacy-login',code:code});
     }
-    var r=await fetch('/api/auth-athlete',options);
-    var result={};try{result=await r.json();}catch(e){}
+    var fetched=await dpTimed('auth.validate',function(){return portalFetchJson('/api/auth-athlete',options,{timeoutMs:PORTAL_TIMEOUT_CRITICAL_MS});});
+    var r=fetched.response,result=fetched.data||{};
     if(r.status===403)return {exists:true,active:false,name:result.name||''};
+    if(r.status>=500||r.status===429||r.status===408)return cachedRosterFromProfile(code)||{unavailable:true};
     if(!r.ok)return null;
     if(result.code&&String(result.code).toUpperCase()!==String(code).toUpperCase())return null;
     if(result.access_token){
@@ -29,7 +33,22 @@ async function validateRosterCode(code){
       writePortalOfflineState('dp_auth_token',_authToken);
     }
     return result;
-  }catch(e){return null;}
+  }catch(e){return cachedRosterFromProfile(code)||{unavailable:true};}
+}
+// The roster fields doLogin needs, rebuilt from the profile this device saved
+// on its last successful sign-in. Only ever used while the server cannot
+// answer, and only for a code this device already signed in with. Every data
+// request is still authenticated server-side, so this grants nothing; it only
+// lets the athlete see their saved plan instead of a login error.
+function cachedRosterFromProfile(code){
+  var clean=sanitizeCode(code||'');
+  if(!clean||safeStorageGet('dp_auth_code')!==clean)return null;
+  var profile=null;
+  try{profile=JSON.parse(safeStorageGet('dp_profile_'+clean)||'null');}catch(e){profile=null;}
+  if(!profile||!profile.name)return null;
+  return {exists:true,active:true,code:clean,name:profile.name,
+    start_date:profile.startDate&&profile.startDate!=='\u2014'?profile.startDate:null,
+    race_target:profile.goalRace||'',stale:true};
 }
 function showPausedScreen(name){
   var el=document.getElementById('pausedScreen');if(!el)return;
@@ -107,28 +126,57 @@ async function acceptEmailUpgrade(){
   await sendEmailCode();
 }
 async function hydratePortalData(code){
+  var bootstrap;
   try{
-    var bootstrap=await portalRequest('bootstrap');
-    // Preserve the established hydration order: compatibility state first,
-    // then canonical structured body rows. This keeps cloud/local precedence
-    // identical while removing two browser/server round trips.
-    await loadCloudData(code,bootstrap.state);
-    await loadStructuredBodyData(code,bootstrap.bodyLogs);
-    // Older deployments have no nutritionLogs in the bootstrap; passing
-    // undefined makes the loader fetch it itself rather than skip silently.
-    await loadStructuredNutritionData(code,bootstrap.nutritionLogs);
-    await loadSessionLogs(bootstrap.sessionLogs);
-    // Which daily logs the coaches actually hold. Absent on older deployments,
-    // in which case the dock falls back to its own read below.
-    if(bootstrap.dailyLogged) hydrateConfirmedLogDates(bootstrap.dailyLogged);
-    else await loadConfirmedLogDates();
-    return;
+    bootstrap=await portalRequest('bootstrap');
   }catch(e){
-    console.warn('Combined portal bootstrap failed; using compatibility reads',e);
+    // Only an endpoint that genuinely does not know `bootstrap` (an older
+    // deployment answering 404/501/unknown action) gets the legacy reads.
+    // A timeout or 5xx means the database is struggling: five more requests
+    // would make that worse, so keep the device copy that already rendered,
+    // say it is stale, and ask again once after a backoff.
+    if(e&&e.kind==='unsupported'){
+      console.warn('Combined portal bootstrap failed; using compatibility reads',e);
+      await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);await loadStructuredNutritionData(code);})(),loadSessionLogs(),loadConfirmedLogDates()]);
+      return;
+    }
+    if(e&&e.kind!=='auth'){showPortalStaleState(e,'state');schedulePortalHydrationRetry(code);}
+    throw e;
   }
-  // Safe rollout/failure path: older deployments and transient bootstrap
-  // failures retain the exact request sequence used before this optimisation.
-  await Promise.all([(async function(){await loadCloudData(code);await loadStructuredBodyData(code);await loadStructuredNutritionData(code);})(),loadSessionLogs(),loadConfirmedLogDates()]);
+  // Preserve the established hydration order: compatibility state first,
+  // then canonical structured body rows. This keeps cloud/local precedence
+  // identical while removing two browser/server round trips.
+  await loadCloudData(code,bootstrap.state);
+  await loadStructuredBodyData(code,bootstrap.bodyLogs);
+  // Older deployments have no nutritionLogs in the bootstrap; passing
+  // undefined makes the loader fetch it itself rather than skip silently.
+  await loadStructuredNutritionData(code,bootstrap.nutritionLogs);
+  await loadSessionLogs(bootstrap.sessionLogs);
+  // Which daily logs the coaches actually hold. Absent on older deployments,
+  // in which case the dock falls back to its own read below.
+  if(bootstrap.dailyLogged) hydrateConfirmedLogDates(bootstrap.dailyLogged);
+  else await loadConfirmedLogDates();
+  clearPortalStaleState('state');
+}
+// One delayed retry chain per sign-in: 4s, 8s, 16s (with jitter), then stop
+// and leave it to the next resume or manual refresh.
+var _portalHydrationRetryTimer=null,_portalHydrationAttempt=0;
+function schedulePortalHydrationRetry(code){
+  if(_portalHydrationRetryTimer||_portalHydrationAttempt>=3)return;
+  var delay=Math.max(portalBackoffDelay(_portalHydrationAttempt,4000,30000),portalBackoffRemaining());
+  _portalHydrationAttempt++;
+  _portalHydrationRetryTimer=setTimeout(function(){
+    _portalHydrationRetryTimer=null;
+    if(!athlete||athlete.code!==code)return;
+    hydratePortalData(code).then(function(){
+      _portalHydrationAttempt=0;
+      if(!athlete||athlete.code!==code)return;
+      hydrateLocalPortalState(code);
+      if(typeof renderBookingPrompts==='function')renderBookingPrompts();
+      initCheckinNudge();
+      if(window._trainingReadSnapshot)loadWeek();
+    }).catch(function(){});
+  },delay);
 }
 function hydrateLocalPortalState(code){
   // Part of sign-in: unreadable device storage means an empty device copy,
@@ -167,12 +215,14 @@ async function doLogin(code,prevalidatedRoster){
   var showWelcome=manualLoginIntent;
   manualLoginIntent=false;
   var roster=prevalidatedRoster||await validateRosterCode(code);
+  if(roster&&roster.unavailable){resetBtn();showLoginError('We can\u2019t reach the portal right now. Check your connection and try again in a moment.');renderCode();return;}
   if(!roster){resetBtn();showLoginError('Access code not recognised or your session has expired');renderCode();return;}
   if(roster.active===false){resetBtn();showPausedScreen(roster.name);return;}
   var fresh=await fetchAthleteProfile(code,roster);
   if(!fresh){resetBtn();showLoginError('Unable to load your athlete profile');renderCode();return;}
   if(showWelcome)showLoginSuccess(fresh.name);
-  athlete=fresh;saveProfileCache(code,fresh);
+  athlete=fresh;if(!roster.stale)saveProfileCache(code,fresh);
+  _portalHydrationAttempt=0;
   await writePortalOfflineState('dp_auth_athlete_code',String(code).toUpperCase());
   if(window.dpTagAthlete)window.dpTagAthlete(code);
   track(safeStorageGet('dp_auth_method')==='email'?'login_email':'login_code');
@@ -223,23 +273,9 @@ async function doLogin(code,prevalidatedRoster){
   initialWeekPromise.finally(function(){
     if(!loginStillCurrent())return;
     window._portalSecondaryStarted=true;
-    window._stravaLoadPromise=window.initStrava ? window.initStrava(athlete.code) : Promise.resolve({connected:false,activities:[]});
-    window._stravaLoadPromise.then(function(){
-      if(typeof refreshStravaSessionMatches==='function')refreshStravaSessionMatches();
-    }).catch(function(){});
-    loadNutrition();
-    if(typeof refreshRunningLibraryRevision==='function')setTimeout(refreshRunningLibraryRevision,0);
-    // Writes, booking repair and push setup are important but must not compete
-    // with the first current-week response on a cold connection.
-    setTimeout(function(){
-      retryPendingCoachWrites(true);
-      initCallNudge();
-      syncPushSubscription();
-      if(typeof refreshNotificationInbox==='function')refreshNotificationInbox();
-      // Installed PWAs get one friendly in-app explanation first. The native
-      // permission sheet is still opened only by the athlete's button tap.
-      if(typeof maybePromptPwaNotifications==='function')setTimeout(maybePromptPwaNotifications,700);
-    },0);
+    // Today and the current week are on screen. Everything below is
+    // secondary and starts in stages, on idle time, never as one burst.
+    startPortalSecondary(loginStillCurrent);
     var deepParams=new URLSearchParams(location.search),deepTab=deepParams.get('tab'),deepDate=deepParams.get('date');
     if(['today','week','progress','coaching','goals','handbook','comms','training','weekly','checkin','calls'].indexOf(deepTab)>=0){
       setTimeout(function(){
@@ -269,6 +305,67 @@ async function doLogin(code,prevalidatedRoster){
   });
   if(typeof renderBookingPrompts==='function')renderBookingPrompts();
   initCheckinNudge();
+}
+
+// ── SECONDARY START-UP ──────────────────────────────────────────────────────
+// Runs once per sign-in, after loadWeek() has painted Today and the current
+// week. Three stages on idle time so a cold login is not followed by a burst
+// of a dozen requests the moment the plan appears:
+//   1. what Today shows next: Strava matches and today's fuel targets
+//   2. programme history (streak, exercise history) and library freshness
+//   3. nothing visible on the first screen: retry queue, booked call state,
+//      push subscription, notification inbox
+// While the shared backoff window is open (a recent timeout or 5xx) every
+// stage waits it out first.
+function portalWhenIdle(fn,timeout){
+  if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(function(){fn();},{timeout:timeout||1500});
+  else setTimeout(fn,Math.min(timeout||1500,250));
+}
+function startPortalSecondary(stillCurrent){
+  function run(name,fn){
+    if(!stillCurrent())return;
+    var started=dpPerfStart();
+    try{fn();dpPerfRecord('secondary.'+name,started,'ok');}
+    catch(e){dpPerfRecord('secondary.'+name,started,'error');console.warn('Secondary start-up stage failed',name,e);}
+  }
+  function stage(name,delay,fn){
+    // Stage 1 starts in the same tick the week finished, as it always has:
+    // its Strava match repaint redraws the calendar, and doing that after an
+    // athlete has already opened a session would redraw it under them.
+    if(delay===0&&!portalBackoffActive()){run(name,fn);return;}
+    setTimeout(function(){
+      portalWhenIdle(function(){
+        if(!stillCurrent())return;
+        if(portalBackoffActive()){stage(name,Math.max(1,portalBackoffRemaining()),fn);return;}
+        run(name,fn);
+      });
+    },delay);
+  }
+  stage('today',0,function(){
+    window._stravaLoadPromise=window.initStrava ? window.initStrava(athlete.code) : Promise.resolve({connected:false,activities:[]});
+    window._stravaLoadPromise.then(function(){
+      if(typeof refreshStravaSessionMatches==='function')refreshStravaSessionMatches();
+    }).catch(function(){});
+    // A re-render of the week may already have asked for this week's
+    // nutrition (08-training.js loadWeek); ask once, not twice.
+    var nutritionWeek=(typeof getWS==='function'&&typeof localISO==='function')?localISO(getWS()):null;
+    if(!nutritionWeek||window._nutritionWeekLoaded!==nutritionWeek){window._nutritionWeekLoaded=nutritionWeek;loadNutrition();}
+  });
+  stage('history',700,function(){
+    if(typeof refreshRunningLibraryRevision==='function')refreshRunningLibraryRevision();
+    if(typeof loadProgrammeIndex==='function')loadProgrammeIndex();
+  });
+  // Writes, booking state and push setup are important but must not compete
+  // with the first current-week response on a cold connection.
+  stage('sync',1800,function(){
+    retryPendingCoachWrites(true);
+    initCallNudge();
+    syncPushSubscription({routine:true});
+    if(typeof refreshNotificationInbox==='function')refreshNotificationInbox();
+    // Installed PWAs get one friendly in-app explanation first. The native
+    // permission sheet is still opened only by the athlete's button tap.
+    if(typeof maybePromptPwaNotifications==='function')setTimeout(maybePromptPwaNotifications,700);
+  });
 }
 
 function populateStatic(){

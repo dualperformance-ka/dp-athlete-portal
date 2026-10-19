@@ -31,7 +31,7 @@ DOM nodes in the HTML source.
 behaviour goes in as an **action on the existing `/api/portal-data`** route (`api/write.js`,
 dispatched in the `dispatch()` function around line 671).
 
-**4. Do not touch the reminder scheduler.** `api/reminders.js` is polled every minute by Supabase
+**4. Do not touch the reminder scheduler.** `api/reminders.js` is polled every five minutes by Supabase
 `pg_cron` and works. Leave `minuteMatches()`, `MORNING_HOUR`, `LOGGING_HOUR` and the cron config alone.
 
 **5. Third-party and network failures must never block the UI.** Everything degrades quietly.

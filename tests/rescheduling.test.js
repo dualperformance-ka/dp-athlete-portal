@@ -69,8 +69,50 @@ test('saved run and gym dates promote the chosen log date to a schedule override
   assert.match(loggingSource, /if\(gymDate!==s\.date\)setSessionDateOverride\(s\.id,gymDate,\{silent:true\}\)/);
 });
 
-test('cloud hydration restores reschedules and the API returns the whole programme', () => {
+// The visible-range read used to return the whole programme so a moved
+// session could reach the browser. It now returns the range plus exactly the
+// sessions rescheduled INTO it, and the whole programme arrives separately
+// (programme-sessions) after Today is on screen.
+test('cloud hydration restores reschedules and the range read includes sessions moved into it', async () => {
   assert.match(coreSource, /row\.key==='reschedules'.*dp_reschedules_/);
-  assert.match(apiSource, /limit: '1000'/);
-  assert.doesNotMatch(apiSource.slice(apiSource.indexOf('async function plannedSessions'), apiSource.indexOf('async function workoutSplits')), /planned_date: `gte\.\$\{start\}`/);
+  const { plannedSessionsInRange, programmeSessions } = await import('../api/write.js');
+  const programme = [
+    { id: 'aaaaaaaa-0000-4000-8000-000000000001', notion_page_id: null, planned_date: '2026-08-03', title: 'In range' },
+    { id: 'aaaaaaaa-0000-4000-8000-000000000002', notion_page_id: 'legacy-page-2', planned_date: '2026-07-27', title: 'Moved in (cloud)' },
+    { id: 'aaaaaaaa-0000-4000-8000-000000000003', notion_page_id: null, planned_date: '2026-08-20', title: 'Moved in (device)' },
+    { id: 'aaaaaaaa-0000-4000-8000-000000000004', notion_page_id: null, planned_date: '2026-08-12', title: 'Next' },
+    { id: 'aaaaaaaa-0000-4000-8000-000000000005', notion_page_id: null, planned_date: '2026-07-01', title: 'History' },
+  ];
+  const queries = [];
+  const selectRows = async (table, query) => {
+    queries.push({ table, query });
+    assert.equal(query.athlete_code, 'eq.KARL', `${table} must stay athlete-scoped`);
+    if (table === 'athlete_data') return [{ value: { 'legacy-page-2': '2026-08-05', 'aaaaaaaa-0000-4000-8000-000000000005': '2026-09-30' } }];
+    assert.equal(query.publish_state, 'eq.published', 'drafts stay invisible');
+    if (query.or) {
+      return programme.filter((row) => query.or.includes(`"${row.id}"`) || (row.notion_page_id && query.or.includes(`"${row.notion_page_id}"`)));
+    }
+    if (query.planned_date === 'gt.2026-08-09') return [programme[3]];
+    if (query.planned_date === 'gte.2026-08-03') return [programme[0]];
+    throw new Error('unexpected query');
+  };
+  const result = await plannedSessionsInRange('KARL', '2026-08-03', '2026-08-09',
+    { rescheduledIds: ['aaaaaaaa-0000-4000-8000-000000000003', 'bad id;drop'] }, selectRows);
+  assert.deepEqual(result.rows.map((row) => row.title), ['Moved in (cloud)', 'In range', 'Moved in (device)']);
+  assert.equal(result.next.title, 'Next');
+  assert.ok(!result.rows.some((row) => row.title === 'History'), 'a session moved OUT of the range is not fetched');
+  const ranged = queries.find((q) => q.query.planned_date === 'gte.2026-08-03');
+  assert.equal(ranged.query.and, '(planned_date.lte.2026-08-09)');
+  assert.ok(Number(ranged.query.limit) <= 200, 'never the 1,000-row programme for Today');
+  assert.doesNotMatch(queries.find((q) => q.query.or).query.or, /bad id/, 'client ids are validated');
+
+  // The whole programme is still available, off the critical path.
+  let whole;
+  await programmeSessions('KARL', async (table, query) => { whole = { table, query }; return programme; });
+  assert.equal(whole.table, 'planned_sessions');
+  assert.equal(whole.query.limit, '1000');
+  assert.equal(whole.query.publish_state, 'eq.published');
+  assert.equal(whole.query.planned_date, undefined);
+  // A client built before the split sends no scope and still gets everything.
+  assert.match(apiSource, /if \(body\.scope === 'range'\)/);
 });

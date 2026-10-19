@@ -55,7 +55,7 @@ test('the reminder list describes what arrives rather than offering switches', (
 });
 
 test('the client sends no preferences, so an exempt athlete keeps their choice', () => {
-  const syncStart = boot.indexOf('async function syncPushSubscription()');
+  const syncStart = boot.indexOf('async function syncPushSubscription(');
   const syncSource = boot.slice(syncStart, boot.indexOf('async function hardRefreshPortal()'));
   assert.match(syncSource, /action:'subscribe'/);
   assert.doesNotMatch(syncSource, /prefs:/, 'subscribe payload must not carry prefs');

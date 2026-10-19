@@ -12,7 +12,7 @@
 // Env required: SUPABASE_URL, SUPABASE_SERVICE_KEY.
 // Env required for GHL check-in tagging (best-effort): GHL_API_KEY.
 import { upsert } from './_lib/supabase-rest.js';
-import { getRequestAthlete } from './_lib/auth.js';
+import { requestAthleteOr503 } from './_lib/auth.js';
 import { allowPortalRequest } from './_lib/http.js';
 
 function send(res, status, payload) {
@@ -431,7 +431,10 @@ export default async function handler(req, res) {
   // shape sent by older cached clients. targetUrl (the old Notion mirror target)
   // is ignored — everything is persisted to Supabase.
   let payload = body.payload || body;
-  const identity = await getRequestAthlete(req);
+  // A database outage answers 503 (the outbox keeps the write and retries
+  // later), never 401, which would sign the athlete out.
+  const identity = await requestAthleteOr503(req, res);
+  if (identity === undefined) return;
   if (!identity) return send(res, 401, { ok: false, stage: 'auth', error: 'invalid_session' });
   payload = {
     ...payload,

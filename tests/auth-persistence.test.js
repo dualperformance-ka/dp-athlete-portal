@@ -19,7 +19,9 @@ test('access-code sessions are transparently renewed from authenticated device s
 
 test('an expired access-code API request renews once and is replayed', () => {
   assert.match(core, /if\(response\.status===401&&safeStorageGet\('dp_auth_method'\)==='code'\)/);
-  assert.match(core, /var renewed=await renewLegacySession\(\);\s*if\(renewed\)response=await send\(\);/);
+  // The replay is the one place portalRequest re-sends: a 401 proves the
+  // server did nothing, so replaying cannot duplicate a write.
+  assert.match(core, /var renewed=await renewLegacySession\(\);\s*if\(renewed\)\{\s*try\{fetched=await send\(\);/);
 });
 
 test('cold boot restores an authenticated access-code client after token expiry', () => {

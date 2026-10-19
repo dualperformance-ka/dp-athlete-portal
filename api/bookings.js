@@ -56,10 +56,26 @@ function authorized(req, secrets) {
 async function ghl(path, version) {
   const token = process.env.GHL_API_TOKEN;
   if (!token) throw new Error('GHL_API_TOKEN not configured');
-  const response = await fetch(`${GHL_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, Version: version, Accept: 'application/json' },
-  });
-  const text = await response.text();
+  // GHL has no SLA we can lean on. Abort a stalled call instead of holding
+  // the function (and the athlete's booking refresh) open indefinitely.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  let response;
+  let text;
+  try {
+    response = await fetch(`${GHL_BASE}${path}`, {
+      headers: { Authorization: `Bearer ${token}`, Version: version, Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    text = await response.text();
+  } catch (error) {
+    const failure = new Error(controller.signal.aborted ? 'GHL request timed out' : 'GHL request failed');
+    failure.kind = controller.signal.aborted ? 'timeout' : 'network';
+    failure.status = controller.signal.aborted ? 504 : 503;
+    throw failure;
+  } finally {
+    clearTimeout(timer);
+  }
   const data = text ? JSON.parse(text) : null;
   if (!response.ok) {
     throw new Error(`GHL ${response.status}: ${(data && (data.message || data.error)) || 'request failed'}`);
