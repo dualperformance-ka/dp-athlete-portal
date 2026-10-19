@@ -1,11 +1,11 @@
-const CACHE_NAME = 'dp-athlete-v248'; // v248: Portal boot survives disabled or throwing browser storage and always reaches the login screen
+const CACHE_NAME = 'dp-athlete-v249'; // v249: An owed weekly check-in leads the Coaching tab with its due day and the only filled action
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=196', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=197', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/00-safe-storage.js?v=1',
   '/js/01-core.js?v=132',
   '/js/02-login-goals.js?v=123',
-  '/js/03-nav-nudges.js?v=130',
+  '/js/03-nav-nudges.js?v=131',
   '/js/04-checkin.js?v=105',
   '/js/05-handbook.js?v=89',
   '/js/06-nutrition.js?v=111',

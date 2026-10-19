@@ -601,7 +601,8 @@ test('9. the Calls tab routes to the one check-in rather than asking again', asy
   await page.evaluate(() => switchTab('coaching'));
   const calls = page.locator('#callsSurface');
   await expect(calls).toContainText('Weekly check-in');
-  await expect(calls).toContainText('Not yet');
+  // An owed check-in names its due day instead of a quiet "Not yet".
+  await expect(calls.locator('.calls-due-chip')).toHaveText(/^Due (Sunday|tomorrow|today)$/);
   await expect(page.locator('#callsPrep0')).toHaveCount(0);
 
   await calls.getByRole('button', { name: 'Complete your check-in' }).click();

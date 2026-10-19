@@ -5802,6 +5802,19 @@ html.outdoor-mode .photo-current-action{
 .calls-action-text{flex:1;font-size:var(--fs-3);color:var(--t-1)}
 .calls-action.is-done .calls-bullet{background:var(--done)}
 .calls-action.is-done .calls-action-text{color:var(--t-3);text-decoration:line-through}
+/* An owed weekly check-in: first card, action-blue edge, a due-day chip, and
+   the screen's only filled button, in the Log button's --c2. Text on it is
+   --action-ink (ink on filled keys), which daylight flips to white: on the
+   deeper daylight --c2 dark ink is 4.06:1, white 4.61:1. Scoped under
+   .calls-surface so it outranks the shared button contract. */
+.calls-surface .calls-card.calls-checkin-due{border-color:color-mix(in srgb,var(--c2) 60%,transparent);background-image:radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--c2) 14%,transparent),transparent 55%)}
+.calls-due-chip{font-family:var(--mono);font-size:var(--fs-label);letter-spacing:var(--tracking-label);text-transform:uppercase;font-weight:600;line-height:1;padding:5px 9px;border-radius:var(--r-pill);background:var(--c2);color:var(--action-ink);white-space:nowrap}
+.calls-due-chip.is-today{background:var(--watch);color:var(--ink-action)}
+.calls-checkin-title{font-size:var(--fs-2);font-weight:700;line-height:1.25;color:var(--t-1);margin-bottom:var(--sp-2)}
+.calls-checkin-sub{font-size:var(--fs-3);line-height:1.5;color:var(--t-2);margin-bottom:var(--sp-4)}
+.calls-surface .calls-btn.calls-btn-cta,.calls-surface .calls-btn.calls-btn-cta:active{background:var(--c2);border-color:var(--c2);color:var(--action-ink);box-shadow:0 10px 26px color-mix(in srgb,var(--c2) 30%,transparent)}
+.calls-surface .calls-btn.calls-btn-cta:active{box-shadow:none}
+.calls-checkin .calls-well{margin-bottom:var(--sp-3)}
 @media(min-width:900px){
   .calls-surface{padding:0;max-width:640px}
 }

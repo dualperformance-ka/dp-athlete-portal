@@ -1263,9 +1263,23 @@ try{
 // tab now reports the check-in's status instead of collecting a second,
 // competing answer to the same questions.
 function callsCheckinState(){
-  var done=false;
+  var done=false,draft=false;
   try{done=!!localStorage.getItem(checkinWeekKey());}catch(e){done=false;}
-  return {done:done};
+  // A half-filled form is saved on the device but the coaches cannot see it.
+  // Say so, rather than letting it read as handled.
+  if(!done&&typeof ciDraftKey==='function'){
+    try{
+      var saved=JSON.parse(localStorage.getItem(ciDraftKey())||'null');
+      draft=!!saved&&Object.keys(saved).some(function(k){return k!=='_savedAt'&&saved[k]!=null&&saved[k]!=='';});
+    }catch(e){draft=false;}
+  }
+  return {done:done,draft:draft};
+}
+// The check-in week runs Monday to Sunday (checkinWeekSuffix) and the reminder
+// push goes out on Sunday, so Sunday is the day it is due.
+function checkinDueLabel(date){
+  var day=(date||new Date()).getDay();
+  return day===0?'Due today':day===6?'Due tomorrow':'Due Sunday';
 }
 function syncCoachingBadge(){
   var next=(typeof getCallBookedState==='function')?getCallBookedState():{booked:true};
@@ -1306,6 +1320,29 @@ function renderCallsTab(){
   var data=fetchCallsSurfaceData();
   var next=data.next||{},count=callsCountdown(next.startsAt);
   var html='';
+  var checkin=data.checkin||{done:false,draft:false};
+
+  // One weekly ritual, one place. The card routes to the check-in rather than
+  // reproducing any of its questions here. While it is still owed it is the
+  // first card and carries the screen's only filled action, so it reads as
+  // the thing to do rather than one option among four equal buttons.
+  var checkinHtml;
+  if(checkin.done){
+    checkinHtml='<div class="calls-card calls-checkin"><div class="calls-head"><span class="calls-label">Weekly check-in</span><span class="calls-label calls-label-ok">Submitted</span></div>'+
+      '<div class="calls-well">Karl and Alex have your week. They\'ll work from it on the call.</div>'+
+      '<div class="calls-actions"><button type="button" class="calls-btn" onclick="openCheckinSheet()">Review your check-in</button></div></div>';
+  }else{
+    var dueLabel=checkinDueLabel();
+    checkinHtml='<div class="calls-card calls-checkin calls-checkin-due"><div class="calls-head"><span class="calls-label">Weekly check-in</span>'+
+      '<span class="calls-due-chip'+(dueLabel==='Due today'?' is-today':'')+'">'+dueLabel+'</span></div>'+
+      '<div class="calls-checkin-title">'+(checkin.draft?'Started but not sent':'Your coaches need this before your call')+'</div>'+
+      '<div class="calls-checkin-sub">'+(checkin.draft
+        ?'Your answers are saved on this phone. Karl and Alex can\'t see them until you submit.'
+        :'Send it before your call so the 30 minutes go on decisions, not catch-up.')+'</div>'+
+      '<div class="calls-actions"><button type="button" class="calls-btn calls-btn-primary calls-btn-cta" onclick="openCheckinSheet()">'+
+      (checkin.draft?'Finish and send':'Complete your check-in')+'</button></div></div>';
+    html+=checkinHtml;
+  }
 
   html+='<div class="calls-card calls-next">';
   html+='<div class="calls-head"><span class="calls-label">Next call</span><span class="calls-label calls-label-dim">Karl &amp; Alex</span></div>';
@@ -1325,18 +1362,7 @@ function renderCallsTab(){
   }
   html+='</div>';
 
-  // One weekly ritual, one place. The card routes to the check-in rather than
-  // reproducing any of its questions here.
-  var checkin=data.checkin||{done:false};
-  html+='<div class="calls-card"><div class="calls-head"><span class="calls-label">Weekly check-in</span>'+
-        (checkin.done?'<span class="calls-label calls-label-ok">Submitted</span>':'<span class="calls-label calls-label-dim">Not yet</span>')+'</div>';
-  html+='<div class="calls-well'+(checkin.done?'':' calls-empty')+'">'+
-        (checkin.done
-          ? 'Karl and Alex have your week. They\'ll work from it on the call.'
-          : 'Fill this in before your call so the 30 minutes go on decisions, not catch-up.')+'</div>';
-  html+='<div class="calls-actions"><button type="button" class="calls-btn'+(checkin.done?'':' calls-btn-primary')+'" onclick="openCheckinSheet()">'+
-        (checkin.done?'Review your check-in':'Complete your check-in')+'</button></div>';
-  html+='</div>';
+  if(checkin.done)html+=checkinHtml;
 
   html+='<div class="calls-card"><div class="calls-head"><span class="calls-label">Coach access</span></div>'+
         '<div class="calls-actions"><button type="button" class="calls-btn calls-btn-primary" onclick="openCoachNote()">Message your coaches</button>'+
