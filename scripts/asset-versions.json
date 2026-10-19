@@ -15,13 +15,17 @@
     "version": 50,
     "sha": "fe00d2ebfa23"
   },
+  "js/00-safe-storage.js": {
+    "version": 1,
+    "sha": "45ca4f48b4ee"
+  },
   "js/01-core.js": {
-    "version": 131,
-    "sha": "a558a81778df"
+    "version": 132,
+    "sha": "c5aec7709e90"
   },
   "js/02-login-goals.js": {
-    "version": 122,
-    "sha": "4ca6e484fc45"
+    "version": 123,
+    "sha": "918d64ebe2ac"
   },
   "js/03-nav-nudges.js": {
     "version": 130,
@@ -80,7 +84,7 @@
     "sha": "92cf32569619"
   },
   "js/10-boot.js": {
-    "version": 111,
-    "sha": "a497fd406062"
+    "version": 112,
+    "sha": "843318042f1e"
   }
 }

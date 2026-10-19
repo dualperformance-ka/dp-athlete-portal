@@ -197,14 +197,14 @@ function initAuthStateListener(){
   if(_authListenerBound||!sbClient||!sbClient.auth)return;
   _authListenerBound=true;
   sbClient.auth.onAuthStateChange(function(event,session){
-    var method=localStorage.getItem('dp_auth_method');
+    var method=safeStorageGet('dp_auth_method');
     if(session&&session.access_token){_authToken=session.access_token;writePortalOfflineState('dp_auth_token',_authToken);}
     else if(method==='email'){_authToken=null;removePortalOfflineState('dp_auth_token');}
     // Refresh failed / signed out elsewhere while the portal is open: fall
     // back to the login screen's email panel with a friendly recovery path
     // ("send a new code") instead of silently 401-ing in the background.
     if(event==='SIGNED_OUT'
-       &&localStorage.getItem('dp_auth_method')==='email'
+       &&safeStorageGet('dp_auth_method')==='email'
        &&document.getElementById('portalScreen')
        &&document.getElementById('portalScreen').style.display!=='none'){
       handleAuthSessionLost();
@@ -226,7 +226,7 @@ function authHeaders(base){
 var _legacyRenewPromise=null;
 function renewLegacySession(){
   var method='',code='';
-  try{method=localStorage.getItem('dp_auth_method')||'';code=localStorage.getItem('dp_auth_code')||'';}catch(e){}
+  method=safeStorageGet('dp_auth_method')||'';code=safeStorageGet('dp_auth_code')||'';
   if(method!=='code'||!code)return Promise.resolve(null);
   if(_legacyRenewPromise)return _legacyRenewPromise;
   _legacyRenewPromise=(async function(){
@@ -243,15 +243,15 @@ function renewLegacySession(){
         // Keep remembered state on network/5xx failures so a later retry can
         // recover without asking the client to sign in again.
         if(r.status===401||r.status===403){
-          localStorage.removeItem('dp_legacy_session');
-          localStorage.removeItem('dp_auth_code');
-          localStorage.removeItem('dp_auth_method');
+          safeStorageRemove('dp_legacy_session');
+          safeStorageRemove('dp_auth_code');
+          safeStorageRemove('dp_auth_method');
         }
         return null;
       }
       _authToken=result.access_token;
-      localStorage.setItem('dp_legacy_session',_authToken);
-      localStorage.setItem('dp_auth_method','code');
+      safeStorageSet('dp_legacy_session',_authToken);
+      safeStorageSet('dp_auth_method','code');
       writePortalOfflineState('dp_auth_token',_authToken);
       writePortalOfflineState('dp_auth_athlete_code',String(code).toUpperCase());
       return result;
@@ -278,7 +278,7 @@ async function portalRequest(action,payload,options){
   var response=await send();
   // A code-login token may expire while the PWA remains open. Renew once and
   // replay the request; Supabase email sessions refresh through supabase-js.
-  if(response.status===401&&localStorage.getItem('dp_auth_method')==='code'){
+  if(response.status===401&&safeStorageGet('dp_auth_method')==='code'){
     var renewed=await renewLegacySession();
     if(renewed)response=await send();
   }
@@ -408,12 +408,12 @@ async function resolveAuthedAthlete(){
 async function authSignOut(){
   try{var client=await ensureSupabaseClient();if(client&&client.auth)await client.auth.signOut();}catch(e){}
   _authToken=null;
-  try{localStorage.removeItem('dp_legacy_session');}catch(e){}
+  safeStorageRemove('dp_legacy_session');
   await removePortalOfflineState('dp_auth_token');
   await removePortalOfflineState('dp_auth_athlete_code');
 }
 function handleAuthSessionLost(){
-  var method=localStorage.getItem('dp_auth_method');
+  var method=safeStorageGet('dp_auth_method');
   logoutToLogin(true);
   if(typeof isEmailLoginEnabled==='function'&&isEmailLoginEnabled()&&typeof showPrimaryLogin==='function'){
     var notice=method==='email'
@@ -491,8 +491,17 @@ window.addEventListener('pagehide',_flushAllSb);
 window.addEventListener('online',function(){setSaveState('saving');_flushAllSb();Promise.all([retryPendingCoachWrites(true,'online'),retryPendingPortalStateWrites(true,'online')]).then(function(){setSaveState('saved');});});
 window.addEventListener('offline',function(){setSaveState('offline');});
 (function(){
-  var _orig=localStorage.setItem.bind(localStorage);
-  localStorage.setItem=function(key,value){
+  // Native storage may be missing, null, throw on access, or refuse to be
+  // patched (privacy modes, blocked site data). Then skip interception
+  // entirely: writes simply are not auto-synced, and nothing else breaks.
+  // A throw here used to abort the rest of 01-core.js at load time.
+  var store,_orig;
+  try{
+    store=window.localStorage;
+    if(!store||typeof store.setItem!=='function')return;
+    _orig=store.setItem.bind(store);
+  }catch(e){return;}
+  var interceptSetItem=function(key,value){
     _orig(key,value);
     if(_skipSbSync||!_authToken||!key.startsWith('dp_')) return;
     var code=(athlete&&athlete.code)||'';if(!code) return;
@@ -522,6 +531,7 @@ window.addEventListener('offline',function(){setSaveState('offline');});
       _scheduleSbSync(code,sbKey,parsedValue);
     }catch(e){}
   };
+  try{store.setItem=interceptSetItem;}catch(e){}
 })();
 
 function pendingCoachWritesKey(code){return 'dp_pending_writes_'+code;}
@@ -1782,14 +1792,14 @@ function sortSessionsForDisplay(list){
 function logoutToLogin(preserveEmail){
   if(typeof invalidateProgrammeVolume==='function')invalidateProgrammeVolume();
   window._trainingReadSnapshot=null;
-  localStorage.removeItem('dp_auth_code');
-  localStorage.removeItem('dp_legacy_session');
+  safeStorageRemove('dp_auth_code');
+  safeStorageRemove('dp_legacy_session');
   removePortalOfflineState('dp_auth_token');
   removePortalOfflineState('dp_auth_athlete_code');
   if(!preserveEmail){
-    try{localStorage.removeItem('dp_auth_method');localStorage.removeItem('dp_auth_email');}catch(e){}
+    safeStorageRemove('dp_auth_method');safeStorageRemove('dp_auth_email');
   }
-  if(athlete&&athlete.code){try{localStorage.removeItem('dp_profile_'+athlete.code);}catch(e){}}
+  if(athlete&&athlete.code)safeStorageRemove('dp_profile_'+athlete.code);
   athlete=null;sessions=[];allSessions=[];ticked={};logs={};exPicks={};
   document.getElementById('portalScreen').style.display='none';
   document.getElementById('codeInput').value='';
