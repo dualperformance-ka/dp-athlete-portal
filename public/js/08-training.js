@@ -207,7 +207,7 @@ async function loadWeek(){
   // One authenticated read snapshot replaces the previous library + splits +
   // plan requests. Every section retains its original loader as a fallback, so
   // a partial Supabase failure cannot hide an otherwise valid training plan.
-  var results;
+  var results,loadFor=athlete;
   try{
     var bundle=null;
     try{bundle=await loadTrainingReadSnapshot(localISO(fetchStart),localISO(fetchEnd));}
@@ -219,6 +219,9 @@ async function loadWeek(){
       loadPlannedSessions(localISO(fetchStart),localISO(fetchEnd),bundle&&bundle.planned)
     ]);
   }catch(e){console.warn('Week load failed',e);results=[null,null,null];}
+  // Signed out (or switched athlete) while the plan was loading: this response
+  // belongs to a portal that is no longer on screen.
+  if(!athlete||athlete!==loadFor)return;
   // A plan that came out of the persisted snapshot can be up to a day behind
   // the coach. Re-read this week in the background — before the early returns
   // below, because an empty week is exactly the case that needs it.

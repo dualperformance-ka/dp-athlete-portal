@@ -208,13 +208,20 @@ async function doLogin(code,prevalidatedRoster){
   // metrics start only after today's session has rendered; they update their
   // existing mounts asynchronously and never gate portal entry.
   window._portalSecondaryStarted=false;
+  // Everything below finishes after an await. If the athlete signs out (or an
+  // expired session logs them out) while it is in flight, logoutToLogin has
+  // already set athlete=null; the late work must stop rather than paint a
+  // signed-out screen or read athlete.code off null.
+  function loginStillCurrent(){return athlete===fresh;}
   var hydrationPromise=hydratePortalData(code).then(function(){
+    if(!loginStillCurrent())return;
     hydrateLocalPortalState(code);
     if(typeof renderBookingPrompts==='function')renderBookingPrompts();
     initCheckinNudge();
   }).catch(function(e){console.warn('Background portal hydration failed',e);});
   var initialWeekPromise=Promise.resolve(loadWeek());
   initialWeekPromise.finally(function(){
+    if(!loginStillCurrent())return;
     window._portalSecondaryStarted=true;
     window._stravaLoadPromise=window.initStrava ? window.initStrava(athlete.code) : Promise.resolve({connected:false,activities:[]});
     window._stravaLoadPromise.then(function(){
@@ -256,6 +263,7 @@ async function doLogin(code,prevalidatedRoster){
   // and completion state using the in-memory snapshot. This is a local rerender,
   // not another request.
   Promise.allSettled([hydrationPromise,weekRefreshPromise]).then(function(){
+    if(!loginStillCurrent())return;
     hydrateLocalPortalState(code);
     if(window._trainingReadSnapshot)loadWeek();
   });

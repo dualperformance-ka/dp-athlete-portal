@@ -24,8 +24,8 @@
     "sha": "c5aec7709e90"
   },
   "js/02-login-goals.js": {
-    "version": 123,
-    "sha": "918d64ebe2ac"
+    "version": 124,
+    "sha": "abea2cc3328b"
   },
   "js/03-nav-nudges.js": {
     "version": 131,
@@ -72,8 +72,8 @@
     "sha": "a4a18d5c3de0"
   },
   "js/08-training.js": {
-    "version": 164,
-    "sha": "c3b2b5f22c0c"
+    "version": 165,
+    "sha": "d8b2c848c5d0"
   },
   "js/09-logging.js": {
     "version": 137,
