@@ -149,3 +149,26 @@ test('an expired saved week is shown when the server fails, instead of an error'
   await expect(page.getByText('Long Run 18km').first()).toBeAttached();
   expect(errors).toEqual([]);
 });
+
+test('macros stay on screen from the last good read when the nutrition read fails', async ({ page }) => {
+  const errors = watchErrors(page);
+  let failNutrition = false;
+  const plan = { week_label: 'Week 12', calories: 2600, protein: 180, carbs: 300, fats: 75, fibre: 35 };
+  await bootPortal(page, {
+    onPortalAction: async (action) => {
+      if (action !== 'nutrition-week') return undefined;
+      if (failNutrition) return { status: 503, json: { ok: false, error: 'Request failed', code: 'upstream_unavailable' } };
+      return { json: { ok: true, plan, planned: [] } };
+    },
+  });
+  const fuel = page.locator('#todayFuelTarget');
+  await expect(fuel).toContainText('180');
+  failNutrition = true;
+  await page.reload();
+  await page.locator('#portalScreen').waitFor({ state: 'visible' });
+  await page.waitForFunction(() => (window.__dpPerf || []).some((e) => e.op === 'portal.nutrition-week' && e.status !== 'ok'), null, { timeout: 10000 });
+  await expect(fuel).toBeVisible();
+  await expect(fuel).toContainText('180');
+  await expect(page.locator('#saveStatePill')).toContainText('showing saved plan');
+  expect(errors).toEqual([]);
+});

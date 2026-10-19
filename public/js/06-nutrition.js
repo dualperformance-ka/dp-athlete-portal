@@ -636,6 +636,24 @@ document.addEventListener('visibilitychange',function(){
 });
 // ── LOAD NUTRITION + KM TRACKER ───────────────────────────────────────────────
 
+// Last nutrition-week answer per athlete and programme week, so a timeout or
+// 5xx keeps the coach's macro targets on screen. Targets are set weekly by the
+// coaches, so a copy from earlier in the week is still the right number; it is
+// replaced by the next successful read and ignored after 14 days.
+var NUTRITION_WEEK_CACHE_TTL=14*24*60*60*1000;
+function nutritionWeekCacheKey(weekLabel){
+  return 'dp_nutrition_week_v1_'+String((athlete&&athlete.code)||'').toUpperCase()+'_'+String(weekLabel||'').replace(/\s+/g,'_');
+}
+function saveNutritionWeekCache(weekLabel,plan,planned){
+  try{localStorage.setItem(nutritionWeekCacheKey(weekLabel),JSON.stringify({ts:Date.now(),plan:plan||null,planned:Array.isArray(planned)?planned:[]}));}catch(e){}
+}
+function readNutritionWeekCache(weekLabel){
+  try{
+    var cached=JSON.parse(localStorage.getItem(nutritionWeekCacheKey(weekLabel))||'null');
+    if(!cached||!cached.ts||(Date.now()-cached.ts)>NUTRITION_WEEK_CACHE_TTL)return null;
+    return {plan:cached.plan||null,planned:Array.isArray(cached.planned)?cached.planned:[]};
+  }catch(e){return null;}
+}
 async function loadNutrition(){
   // Late callbacks (a week re-render's deferred load, the library revision
   // check) can land after a sign-out has set athlete to null.
@@ -674,8 +692,20 @@ async function loadNutrition(){
         var res=await portalRequest('nutrition-week',{weekLabel:weekLabel});
         row=res.plan||null;
         nutritionPlanned=res.planned||[];
+        saveNutritionWeekCache(weekLabel,row,nutritionPlanned);
+        if(typeof clearPortalStaleState==='function')clearPortalStaleState('nutrition');
       }
-    }catch(e){console.warn('nutrition_plans load failed',e);}
+    }catch(e){
+      console.warn('nutrition_plans load failed',e);
+      // A failed read is not "no plan this week". When the server cannot
+      // answer, show the macros this device last received for this week
+      // rather than clearing them.
+      var cached=readNutritionWeekCache(weekLabel);
+      if(cached){
+        row=cached.plan;nutritionPlanned=cached.planned;
+        if(typeof showPortalStaleState==='function')showPortalStaleState(e,'nutrition');
+      }
+    }
   }
 
   _nutLastLoad=Date.now();
