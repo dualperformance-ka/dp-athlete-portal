@@ -279,8 +279,8 @@ test('a page pan by Safari still leaves the session header and the strip on scre
   expect(await onScreen(page, '#r_0_0_1')).toEqual({ ok: true });
   // RPE logging is on here: the strip shows the RPE equivalent of the target
   // so it reads against the RPE the athlete types, labelled as the target.
-  await expect(page.locator('#focusOverlay .exl-cue')).toContainText('Target RIR 2');
-  await expect(page.locator('#focusOverlay .exl-cue')).toContainText('RPE 8');
+  await expect(page.locator('#focusOverlay .exl-cue-k')).toHaveText('Target');
+  await expect(page.locator('#focusOverlay .exl-cue-effort')).toHaveText('RIR 2 · RPE 8');
   expect(errors).toEqual([]);
 });
 
@@ -297,36 +297,55 @@ test('no box in the logger is small enough for iOS to zoom the page on focus', a
 test('the strip follows each exercise’s own progression model, word for word with its card', async ({ page }) => {
   const phone = PHONES[1];
   const errors = await openSession(page, phone, { rpe: false });
+  // slot = which working set the box belongs to. history = the engine has
+  // something to set a per-set rep target from.
   const cases = [
-    { ei: 0, first: '#w_0_0_1', name: 'Incline Dumbbell Press', rx: '2 × 8–12 reps', effort: 'Target RIR 2' },
-    { ei: 1, first: '#w_0_1_0', name: 'Leg Press', rx: '3 × 10 reps', effort: 'Target RIR' },
-    { ei: 2, first: '#w_0_2_0', name: 'Assisted Pull-up', rx: '2 × 8–12 reps', effort: 'Target RIR', load: 'assist' },
-    { ei: 3, first: '#w_0_3_0', name: 'Bulgarian Split Squat', rx: '2 × 8–12 reps', effort: 'Target RIR' },
+    { ei: 0, first: '#w_0_0_1', slot: 0, name: 'Incline Dumbbell Press', history: true },
+    { ei: 0, first: '#r_0_0_2', slot: 1, name: 'Incline Dumbbell Press', history: true },
+    { ei: 1, first: '#w_0_1_0', slot: 0, name: 'Leg Press', history: true },
+    { ei: 2, first: '#w_0_2_0', slot: 0, name: 'Assisted Pull-up', history: true, load: 'assist' },
+    { ei: 3, first: '#w_0_3_0', slot: 0, name: 'Bulgarian Split Squat', history: false },
   ];
+  const norm = t => t.replace(/\s+/g, ' ').trim();
   for (const c of cases) {
     const card = page.locator(`.exc[data-exercise-index="${c.ei}"]`);
     if (!(await card.getAttribute('class')).includes('open')) await card.locator('.exc-summary').click();
     await expect(card).toHaveClass(/\bopen\b/);
-    const rule = (await cardRule(page, c.ei)).replace(/\s+/g, ' ').trim();
+    const rule = norm(await cardRule(page, c.ei));
+    const chips = card.locator('.exl-target .exl-set .exl-set-v');
+    const chipReps = (await chips.count()) ? norm(await chips.nth(c.slot).innerText()).match(/^\d+/)[0] : null;
+    const cardLoad = (await card.locator('.exl-target .exl-big').count()) ? norm(await card.locator('.exl-target .exl-big').innerText()) : null;
     await typeInto(page, c.first, phone.keyboard);
     const cue = page.locator('#focusOverlay .exl-cue');
     await expect(cue).toBeVisible();
     await expect(cue.locator('.exl-cue-name')).toHaveText(c.name);
-    await expect(cue.locator('.exl-cue-rx')).toContainText(c.rx);
-    await expect(cue.locator('.exl-cue-rx')).toContainText(c.effort);
+    await expect(cue.locator('.exl-cue-row')).toHaveText(`Work ${c.slot + 1}`);
+    await expect(cue.locator('.exl-cue-k')).toHaveText('Target');
+    const big = norm(await cue.locator('.exl-cue-big').innerText());
+    if (c.history) {
+      // The engine's per-set target leads; the range drops to the line below.
+      expect(chipReps, 'card should have a per-set target').not.toBeNull();
+      expect(big).toMatch(new RegExp(`(^|× ?)${chipReps} ?reps$`));
+      await expect(cue.locator('.exl-cue-range')).toHaveText(/Range 8–12|Exactly 10 reps/);
+    } else {
+      expect(big).toMatch(/8–12 ?reps$/);
+    }
+    if (cardLoad) expect(big.startsWith(cardLoad)).toBe(true);
+    if (c.load) expect(big).toContain(c.load);
+    await expect(cue.locator('.exl-cue-effort')).toHaveText('RIR 2');
     // The rule is the card's own sentence, never a second wording.
-    expect((await cue.locator('.exl-cue-rule .exl-cue-text').innerText()).replace(/\s+/g, ' ').trim()).toBe(rule);
-    if (c.load) await expect(cue.locator('.exl-cue-load')).toContainText(c.load);
+    expect(norm(await cue.locator('.exl-cue-rule .exl-cue-text').innerText())).toBe(rule);
     expect(await onScreen(page, c.first)).toEqual({ ok: true });
     await page.locator(c.first).blur();
     await page.evaluate(() => window.__kb.close());
     await page.waitForTimeout(80);
   }
-  // A warm-up row: the load beside it is labelled as the working load.
+  // A warm-up row: no per-set target, the working plan is labelled as such.
   await page.locator('.exc[data-exercise-index="0"] .exc-summary').click();
   await expect(page.locator('.exc[data-exercise-index="0"]')).toHaveClass(/\bopen\b/);
   await typeInto(page, '#w_0_0_0', phone.keyboard);
-  await expect(page.locator('#focusOverlay .exl-cue-load')).toHaveText(/^WU 1 · Work \d/i);
+  await expect(page.locator('#focusOverlay .exl-cue-row')).toHaveText('WU 1');
+  await expect(page.locator('#focusOverlay .exl-cue-k')).toHaveText('Work sets');
   await page.locator('#w_0_0_0').blur();
   await page.evaluate(() => window.__kb.close());
   await page.waitForTimeout(80);
@@ -336,6 +355,25 @@ test('the strip follows each exercise’s own progression model, word for word w
   await page.evaluate(() => { document.getElementById('focusOverlayScroll').scrollTop -= 200; });
   await page.waitForTimeout(80);
   expect(await onScreen(page, '#focusOverlay .exl-cue')).toEqual({ ok: true });
+  expect(errors).toEqual([]);
+});
+
+// With the keyboard up, the session reaches all the way down under the
+// keyboard (a glass keyboard must not show the page behind it), and nothing
+// from the list shows below the pinned rest timer.
+test('keyboard up: no page behind the keyboard, no row peeking under the rest timer', async ({ page }) => {
+  const phone = PHONES[1];
+  const errors = await openSession(page, phone, { rpe: false });
+  await typeInto(page, '#w_0_0_1', phone.keyboard);
+  const m = await page.evaluate(() => {
+    const area = window.__kb.area();
+    const under = document.elementFromPoint(window.innerWidth / 2, area.bottom + 40);
+    const sc = document.getElementById('focusOverlayScroll').getBoundingClientRect();
+    const dock = document.querySelector('.exc.open .exl-dock').getBoundingClientRect();
+    return { underIsOverlay: !!(under && under.closest('#focusOverlay')) || under === document.getElementById('focusOverlay'), gap: Math.round(sc.bottom - dock.bottom) };
+  });
+  expect(m.underIsOverlay).toBe(true);
+  expect(m.gap).toBeLessThanOrEqual(0);
   expect(errors).toEqual([]);
 });
 
