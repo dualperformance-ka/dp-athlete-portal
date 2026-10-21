@@ -2862,28 +2862,51 @@ function _exlCueRowLabel(input){
   var row=_exlCueRow(input),tag=row&&row.querySelector('.snum');
   return tag?tag.textContent.trim():'';
 }
-// The prescribed effort, said as a target so it never reads as something the
-// athlete logged. With RPE logging on, the RPE equivalent sits beside it so
-// it can be read against the RPE box on the row.
+// The prescribed effort. It sits on the strip's Target line, so it never reads
+// as something the athlete logged. With RPE logging on, the RPE equivalent
+// sits beside it so it can be read against the RPE box on the row.
 function _exlCueEffortText(pres){
   var t=_strTargetRir(pres);
-  if(!pres||!/^(range|exact)$/.test(pres.repMode)||t<=0)return 'Effort as your coach set';
-  var text='Target RIR '+_nsTrim(t);
-  if(typeof strengthRpeEnabled==='function'&&strengthRpeEnabled())text+=' (RPE '+_nsTrim(pres.targetRpe!=null?pres.targetRpe:10-t)+')';
+  if(!pres||!/^(range|exact)$/.test(pres.repMode)||t<=0)return 'Coach-set effort';
+  var text='RIR '+_nsTrim(t);
+  if(typeof strengthRpeEnabled==='function'&&strengthRpeEnabled())text+=' · RPE '+_nsTrim(pres.targetRpe!=null?pres.targetRpe:10-t);
   return text;
 }
+// Which working set (0-based) a box belongs to, or null for a warm-up or
+// bonus row. Same numbering as the set chips on Today's plan.
+function _exlCueSlot(ctx,input){
+  var m=/_(\d+)$/.exec((input&&input.id)||''),row=m?parseInt(m[1],10):NaN,warm=ctx.warm||0;
+  var n=(ctx.pres&&ctx.pres.workingSets)||ctx.work||0;
+  return !isNaN(row)&&row>=warm&&row<warm+n?row-warm:null;
+}
+// The load for one working set: the top set or a back-off set on a ramped
+// plan, otherwise the plan's working load, exactly as Today's plan shows it.
+function _exlCueLoad(rec,pres,slot){
+  if(rec.ramped&&rec.perSet&&slot!=null){
+    var role=rec.perSet.filter(function(r){return r.role===(slot===0?'top':'backoff');})[0];
+    if(role&&role.loadKg!=null)return {value:_nsBare(role.loadKg),unit:_exlUnit(rec)};
+  }
+  return _exlLoadDisplay(rec,pres);
+}
+// Target line: this set's load × this set's reps. Once there is history the
+// engine sets a rep target per working set (the chips on Today's plan) and
+// that number leads, with the range kept small underneath. Without one, or
+// on a warm-up or bonus row, the range itself is the target.
 function _exlCueHtml(ctx,input){
-  var rec=ctx.rec||{},pres=ctx.pres,stage=_exlStage(ctx),row=_exlCueRow(input),rowLabel=_exlCueRowLabel(input);
-  var reps=_exlRepText(pres,ctx.ex),n=(pres&&pres.workingSets)||ctx.work||0;
-  var rx=(reps.unit&&n?n+' × ':'')+reps.value+(reps.unit?' '+reps.unit:'');
-  var load=_exlLoadDisplay(rec,pres),loadText=load.word||(load.value+' '+load.unit);
-  // On a warm-up row the load shown is the working load, and says so.
-  if(row&&row.classList.contains('is-warmup')&&!load.word)loadText='Work '+loadText;
+  var rec=ctx.rec||{},pres=ctx.pres,stage=_exlStage(ctx),rowLabel=_exlCueRowLabel(input);
+  var slot=_exlCueSlot(ctx,input),target=(slot!=null&&rec.target&&rec.target[slot]!=null)?rec.target[slot]:null;
+  var load=_exlCueLoad(rec,pres,slot),reps=_exlRepText(pres,ctx.ex);
+  var big='';
+  if(!load.word)big+=esc(load.value)+'<small>'+esc(load.unit)+'</small><i>×</i>';
+  if(target!=null)big+=esc(String(target))+'<small>'+(pres&&pres.repMode==='seconds'?'sec':'reps')+'</small>';
+  else big+=esc(reps.value)+(reps.unit?'<small>'+esc(reps.unit)+'</small>':'');
+  var key=slot!=null?'Target':'Work sets';
+  var side=load.word?'<span class="exl-cue-load">'+esc(load.word)+'</span>':'';
+  var range=target!=null?'<span class="exl-cue-range">'+esc(_exlRangeText(pres))+'</span>':'';
   var stageName=stage?_exlStageName(stage,pres):(rec.liveLoadChange?(rec.status||''):'');
-  return '<div class="exl-cue-top"><span class="exl-cue-name">'+esc(ctx.resolvedEx)+'</span>'+
-      '<span class="exl-cue-load">'+(rowLabel?'<b>'+esc(rowLabel)+'</b> · ':'')+esc(loadText)+'</span></div>'+
-    '<div class="exl-cue-rx"><strong>'+esc(rx)+'</strong><span class="exl-cue-effort">'+esc(_exlCueEffortText(pres))+'</span></div>'+
-    '<div class="exl-cue-rule">'+(stageName?'<span class="exl-cue-stage">'+esc(stageName)+'</span>':'')+'<span class="exl-cue-text">'+esc(_exlUnlockText(ctx,stage))+'</span></div>';
+  return '<div class="exl-cue-top"><span class="exl-cue-name">'+esc(ctx.resolvedEx)+'</span>'+(rowLabel?'<span class="exl-cue-row">'+esc(rowLabel)+'</span>':'')+'</div>'+
+    '<div class="exl-cue-rx"><span class="exl-cue-k">'+key+'</span><span class="exl-cue-big">'+big+'</span><span class="exl-cue-effort">'+esc(_exlCueEffortText(pres))+'</span>'+side+'</div>'+
+    '<div class="exl-cue-rule">'+range+(stageName?'<span class="exl-cue-stage">'+esc(stageName)+'</span>':'')+'<span class="exl-cue-text">'+esc(_exlUnlockText(ctx,stage))+'</span></div>';
 }
 // The same context _exlPaint completes before drawing Today's plan.
 function _exlCueCtx(card){

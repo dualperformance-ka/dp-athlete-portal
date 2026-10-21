@@ -6996,21 +6996,25 @@ html:not(.strength-rpe-off) .exc.exl .setrow .snum{font-size:var(--fs-label);let
 
 /* ── Coaching strip (a set box has focus) ──
    One strip under the session header, outside the scroller, so it can never
-   sit on top of a kg, reps or tick box. Name and load, then range and target
-   effort, then the rule that moves the load: the same words as Today's plan. */
-.exl-cue{flex:0 0 auto;padding:8px 16px 9px;background:var(--surface);border-bottom:1px solid var(--exl-accent)}
+   sit on top of a kg, reps or tick box. Baby-blue tint and edge so it reads
+   as the plan at a glance: name and row, then this set's target in the same
+   display numerals as Today's plan, then range, stage and rule. */
+.exl-cue{flex:0 0 auto;padding:9px 16px 10px 19px;background:color-mix(in srgb,var(--exl-accent) 16%,var(--bg));border-bottom:2px solid var(--exl-accent);box-shadow:inset 3px 0 0 var(--exl-accent)}
 .exl-cue[hidden]{display:none}
 .exl-cue-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
 .exl-cue-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--exl-mono);font-size:var(--fs-label);font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--readout-text)}
-.exl-cue-load{flex-shrink:0;font-family:var(--exl-mono);font-size:var(--fs-label);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
-.exl-cue-load b{font-weight:600;color:var(--text)}
-.exl-cue-rx{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px;margin-top:3px;font-family:var(--exl-body);font-size:var(--fs-3);line-height:1.3;color:var(--text)}
-.exl-cue-rx strong{font-weight:700;white-space:nowrap}
-.exl-cue-rx strong::after{content:' ·';font-weight:400;color:var(--muted)}
-.exl-cue-effort{font-weight:600;white-space:nowrap}
-.exl-cue-rule{margin-top:3px;font-family:var(--exl-body);font-size:var(--fs-data);line-height:1.3;color:var(--text)}
+.exl-cue-row{flex-shrink:0;font-family:var(--exl-mono);font-size:var(--fs-label);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text);white-space:nowrap}
+.exl-cue-rx{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;row-gap:4px;margin-top:5px}
+.exl-cue-k{font-family:var(--exl-mono);font-size:var(--fs-label);font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--readout-text)}
+.exl-cue-big{font-family:var(--exl-display);font-size:1.75rem;line-height:1;color:var(--text);letter-spacing:.005em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.exl-cue-big small{margin-left:3px;font-family:var(--exl-body);font-size:var(--fs-3);font-weight:600;letter-spacing:0;color:var(--muted)}
+.exl-cue-big i{margin:0 7px;font-style:normal;font-family:var(--exl-body);font-size:var(--fs-2-sm);color:var(--t-4)}
+.exl-cue-effort{padding:3px 10px;border:1px solid var(--exl-accent);border-radius:var(--r-pill);font-family:var(--exl-mono);font-size:var(--fs-label);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--readout-text);white-space:nowrap}
+.exl-cue-load{font-family:var(--exl-body);font-size:var(--fs-data);color:var(--muted)}
+.exl-cue-rule{margin-top:6px;font-family:var(--exl-body);font-size:var(--fs-data);line-height:1.3;color:var(--text)}
+.exl-cue-range{color:var(--muted)}
+.exl-cue-range::after,.exl-cue-stage::after{content:' · ';font-weight:400;color:var(--muted)}
 .exl-cue-stage{font-weight:700}
-.exl-cue-stage::after{content:' · ';font-weight:400;color:var(--muted)}
 /* Keyboard up: the overlay is fitted to the visible part of the screen (set
    from visualViewport in 08-training.js), and the dock drops its home-bar
    padding because the keyboard is covering the home bar. */
@@ -7020,6 +7024,12 @@ html:not(.strength-rpe-off) .exc.exl .setrow .snum{font-size:var(--fs-label);let
 /* The "Set saved" note floats just above the dock, which with the keyboard up
    is exactly where the next row sits. The green tick already says it saved. */
 .focus-overlay.kb-open .exl-dock-note{display:none}
+/* The overlay now ends at the keyboard; carry its background on underneath
+   so the glass keyboard does not show the page behind the session. */
+.focus-overlay.kb-open::after{content:'';position:absolute;left:0;right:0;top:100%;height:100vh;background:var(--bg)}
+/* The list's bottom padding left a gap under the pinned rest timer where the
+   next row showed through. */
+.focus-overlay.kb-open .focus-overlay-scroll{padding-bottom:0}
 .exc.exl .rest-timer{display:none!important}
 
 /* ── Finished state: one result card ── */

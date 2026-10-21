@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v254'; // v254: Coaching strip keeps the set plan on screen while the phone keyboard is up
+const CACHE_NAME = 'dp-athlete-v255'; // v255: Coaching strip leads with the set target and stands out more
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=199', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=200', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/00-safe-storage.js?v=1',
   '/js/01-core.js?v=133',
@@ -16,7 +16,7 @@ const APP_SHELL = [
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
   '/js/08-training-run.js?v=2',
-  '/js/08-training.js?v=168',
+  '/js/08-training.js?v=169',
   '/js/09-logging.js?v=138',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=113',
