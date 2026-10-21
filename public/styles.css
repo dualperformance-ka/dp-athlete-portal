@@ -6993,6 +6993,33 @@ html:not(.strength-rpe-off) .exc.exl .setrow .snum{font-size:var(--fs-label);let
 .exl-dock-empty{padding:0 16px calc(env(safe-area-inset-bottom));border-top:0;min-height:0}
 .exl-dock-note{position:absolute;left:16px;right:16px;bottom:100%;margin-bottom:8px;padding:8px 12px;border-radius:var(--r-2);background:var(--toast-surface);color:var(--t-1);font-family:var(--exl-body);font-size:var(--fs-3);text-align:center;opacity:0;transform:translateY(6px);pointer-events:none;transition:opacity var(--dur-reveal),transform var(--dur-reveal)}
 .exl-dock-note.show{opacity:1;transform:none}
+
+/* ── Coaching strip (a set box has focus) ──
+   One strip under the session header, outside the scroller, so it can never
+   sit on top of a kg, reps or tick box. Name and load, then range and target
+   effort, then the rule that moves the load: the same words as Today's plan. */
+.exl-cue{flex:0 0 auto;padding:8px 16px 9px;background:var(--surface);border-bottom:1px solid var(--exl-accent)}
+.exl-cue[hidden]{display:none}
+.exl-cue-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
+.exl-cue-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--exl-mono);font-size:var(--fs-label);font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--readout-text)}
+.exl-cue-load{flex-shrink:0;font-family:var(--exl-mono);font-size:var(--fs-label);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.exl-cue-load b{font-weight:600;color:var(--text)}
+.exl-cue-rx{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px;margin-top:3px;font-family:var(--exl-body);font-size:var(--fs-3);line-height:1.3;color:var(--text)}
+.exl-cue-rx strong{font-weight:700;white-space:nowrap}
+.exl-cue-rx strong::after{content:' ·';font-weight:400;color:var(--muted)}
+.exl-cue-effort{font-weight:600;white-space:nowrap}
+.exl-cue-rule{margin-top:3px;font-family:var(--exl-body);font-size:var(--fs-data);line-height:1.3;color:var(--text)}
+.exl-cue-stage{font-weight:700}
+.exl-cue-stage::after{content:' · ';font-weight:400;color:var(--muted)}
+/* Keyboard up: the overlay is fitted to the visible part of the screen (set
+   from visualViewport in 08-training.js), and the dock drops its home-bar
+   padding because the keyboard is covering the home bar. */
+.focus-overlay.kb-open{top:var(--kb-top,0px);bottom:auto;height:var(--kb-h,100%)}
+.focus-overlay.kb-open .exl-dock:not(.exl-dock-empty){padding-bottom:10px}
+.focus-overlay.kb-open .exl-dock-empty{padding-bottom:0}
+/* The "Set saved" note floats just above the dock, which with the keyboard up
+   is exactly where the next row sits. The green tick already says it saved. */
+.focus-overlay.kb-open .exl-dock-note{display:none}
 .exc.exl .rest-timer{display:none!important}
 
 /* ── Finished state: one result card ── */
