@@ -2730,6 +2730,7 @@ function _exlPaint(card,ctx){
   card.querySelectorAll('.setrow,.setrow-single').forEach(function(row,ix){
     var last=row.querySelector('.slast');if(last)last.innerHTML=_exlLastHtml(prev[ix]);
   });
+  _exlCueRepaint(card,ctx);
 }
 function _exlCtxFor(i,ei,card){
   var s=sessions[i];if(!s)return null;
@@ -2841,6 +2842,141 @@ function _exlSyncOverlay(){
   var ov=document.getElementById('focusOverlay');if(!ov||typeof ov.querySelector!=='function')return;
   ov.classList.toggle('has-open-exercise',!!ov.querySelector('.exc.exl.open'));
 }
+// ── Coaching strip while the keyboard is up ─────────────────────────────────
+// On a phone the keyboard covers the lower half of the screen and the browser
+// scrolls the focused box up to sit on top of it, which pushes Today's plan
+// off the top. While a set box has focus, one compact strip under the session
+// header repeats what the athlete needs mid-set: the rep range, the target
+// effort, today's load and the rule that moves it. It is not a second plan:
+// every word comes from the helpers that draw Today's plan, so the two can
+// never disagree, and the strip goes the moment the keyboard is dismissed.
+// It sits outside the scroller, so it can never cover a kg, reps or tick box.
+var _exlCue={card:null};
+var EXL_CUE_INPUT=/^(w|r|rL|rR|rpe)_\d+_\d+_\d+$/;
+function _exlCueInput(el){
+  return !!(el&&el.tagName==='INPUT'&&EXL_CUE_INPUT.test(el.id||'')&&el.closest&&el.closest('#focusOverlay .exc.exl'));
+}
+function _exlCueEl(){var ov=document.getElementById('focusOverlay');return ov&&ov.querySelector?ov.querySelector('.exl-cue'):null;}
+function _exlCueRow(input){return input&&input.closest?input.closest('.setrow,.setrow-single'):null;}
+function _exlCueRowLabel(input){
+  var row=_exlCueRow(input),tag=row&&row.querySelector('.snum');
+  return tag?tag.textContent.trim():'';
+}
+// The prescribed effort, said as a target so it never reads as something the
+// athlete logged. With RPE logging on, the RPE equivalent sits beside it so
+// it can be read against the RPE box on the row.
+function _exlCueEffortText(pres){
+  var t=_strTargetRir(pres);
+  if(!pres||!/^(range|exact)$/.test(pres.repMode)||t<=0)return 'Effort as your coach set';
+  var text='Target RIR '+_nsTrim(t);
+  if(typeof strengthRpeEnabled==='function'&&strengthRpeEnabled())text+=' (RPE '+_nsTrim(pres.targetRpe!=null?pres.targetRpe:10-t)+')';
+  return text;
+}
+function _exlCueHtml(ctx,input){
+  var rec=ctx.rec||{},pres=ctx.pres,stage=_exlStage(ctx),row=_exlCueRow(input),rowLabel=_exlCueRowLabel(input);
+  var reps=_exlRepText(pres,ctx.ex),n=(pres&&pres.workingSets)||ctx.work||0;
+  var rx=(reps.unit&&n?n+' × ':'')+reps.value+(reps.unit?' '+reps.unit:'');
+  var load=_exlLoadDisplay(rec,pres),loadText=load.word||(load.value+' '+load.unit);
+  // On a warm-up row the load shown is the working load, and says so.
+  if(row&&row.classList.contains('is-warmup')&&!load.word)loadText='Work '+loadText;
+  var stageName=stage?_exlStageName(stage,pres):(rec.liveLoadChange?(rec.status||''):'');
+  return '<div class="exl-cue-top"><span class="exl-cue-name">'+esc(ctx.resolvedEx)+'</span>'+
+      '<span class="exl-cue-load">'+(rowLabel?'<b>'+esc(rowLabel)+'</b> · ':'')+esc(loadText)+'</span></div>'+
+    '<div class="exl-cue-rx"><strong>'+esc(rx)+'</strong><span class="exl-cue-effort">'+esc(_exlCueEffortText(pres))+'</span></div>'+
+    '<div class="exl-cue-rule">'+(stageName?'<span class="exl-cue-stage">'+esc(stageName)+'</span>':'')+'<span class="exl-cue-text">'+esc(_exlUnlockText(ctx,stage))+'</span></div>';
+}
+// The same context _exlPaint completes before drawing Today's plan.
+function _exlCueCtx(card){
+  var i=parseInt(card.getAttribute('data-session-index'),10),ei=parseInt(card.getAttribute('data-exercise-index'),10);
+  var ctx=isNaN(i)||isNaN(ei)?null:_exlCtxFor(i,ei,card);if(!ctx)return null;
+  ctx.complete=strengthExerciseIsComplete(card);ctx.nowRow=_exlNowRowIndex(card);
+  if(ctx.complete)ctx.next=_nsRecommendation(ctx.ex,ctx.current,ctx.resolvedEx,ctx.history);
+  return ctx;
+}
+// The strip sits above the scroller, so a change in its height would slide the
+// list (and the focused row) up or down. Measure how far the list content
+// actually moved and scroll it back by exactly that, so everything stays
+// where the athlete is looking. (Measured, not computed from the strip's
+// height: at the bottom of the list the browser clamps the scroll itself.)
+function _exlCueSet(cue,html){
+  var scroller=document.getElementById('focusOverlayScroll'),anchor=scroller&&scroller.firstElementChild;
+  var y0=anchor?anchor.getBoundingClientRect().top:0;
+  if(html==null){cue.hidden=true;cue.innerHTML='';}else{cue.innerHTML=html;cue.hidden=false;}
+  if(anchor){var dy=anchor.getBoundingClientRect().top-y0;if(Math.abs(dy)>0.5)scroller.scrollTop+=dy;}
+}
+function _exlCueShow(input){
+  var cue=_exlCueEl(),card=input.closest('.exc.exl');if(!cue||!card)return;
+  var ctx=_exlCueCtx(card);if(!ctx)return;
+  _exlCue.card=card;
+  _exlCueSet(cue,_exlCueHtml(ctx,input));
+  _exlKeyboardSync();
+}
+function _exlCueHide(){
+  _exlCue.card=null;
+  var cue=_exlCueEl();if(cue&&!cue.hidden)_exlCueSet(cue,null);
+  _exlKeyboardSync();
+}
+function _exlCueRepaint(card,ctx){
+  if(_exlCue.card!==card)return;
+  var cue=_exlCueEl(),el=document.activeElement;
+  if(cue&&!cue.hidden&&_exlCueInput(el)&&card.contains(el))_exlCueSet(cue,_exlCueHtml(ctx,el));
+}
+// iOS Safari never resizes the page for the keyboard: no viewport setting or
+// CSS unit (dvh, interactive-widget) changes that there. The fixed overlay
+// stays full height under the keyboard and Safari pans the page to reach the
+// box, taking the session header and the strip off the top. So, only while
+// the keyboard is up, the overlay is fitted to the visual viewport: the part
+// of the screen the athlete can actually see.
+function _exlKeyboardSync(){
+  var ov=document.getElementById('focusOverlay'),vv=window.visualViewport;
+  if(!ov||!ov.classList)return;
+  var up=!!(vv&&ov.classList.contains('open')&&Math.abs((vv.scale||1)-1)<0.01&&window.innerHeight-vv.height>120);
+  ov.classList.toggle('kb-open',up);
+  if(up){ov.style.setProperty('--kb-top',Math.max(0,vv.offsetTop||0)+'px');ov.style.setProperty('--kb-h',vv.height+'px');}
+  else{ov.style.removeProperty('--kb-top');ov.style.removeProperty('--kb-h');}
+  _exlKeepFocusInView();
+}
+// Keep the focused row between the strip and the keyboard (or the rest-timer
+// dock pinned above it). Only moves when the row is actually out of view.
+function _exlKeepFocusInView(){
+  var el=document.activeElement,scroller=document.getElementById('focusOverlayScroll');
+  if(!el||!scroller||el===scroller||!scroller.contains(el)||!el.getBoundingClientRect)return;
+  var target=(el.closest&&el.closest('.setrow,.setrow-single'))||el;
+  var box=scroller.getBoundingClientRect(),r=target.getBoundingClientRect();
+  var card=el.closest&&el.closest('.exc.exl.open'),dock=card?card.querySelector('.exl-dock'):null;
+  var top=box.top+6,bottom=Math.min(box.bottom,dock?dock.getBoundingClientRect().top:box.bottom)-6;
+  if(r.bottom>bottom)scroller.scrollTop+=Math.min(r.bottom-bottom,r.top-top);
+  else if(r.top<top)scroller.scrollTop-=top-r.top;
+}
+// Moving straight from kg to reps (or to the next row) keeps the strip up; it
+// only goes when focus has left the set boxes, e.g. the keyboard's Done.
+// A tap that takes focus away (the effort answer, Swap, a tick) is let finish
+// first: hiding the strip moves the list, and doing that between press and
+// release would land the release on a different control and lose the tap.
+var _exlPointerHeld=false;
+function _exlCueSettle(){if(_exlCue.card&&!_exlPointerHeld&&!_exlCueInput(document.activeElement))_exlCueHide();}
+function _exlPointerRelease(){
+  if(!_exlPointerHeld)return;
+  _exlPointerHeld=false;
+  var done=false,timer=null;
+  var go=function(){if(done)return;done=true;clearTimeout(timer);document.removeEventListener('click',go,true);setTimeout(_exlCueSettle,0);};
+  document.addEventListener('click',go,true);timer=setTimeout(go,400);
+}
+document.addEventListener('pointerdown',function(){_exlPointerHeld=true;},true);
+document.addEventListener('pointerup',_exlPointerRelease,true);
+document.addEventListener('pointercancel',_exlPointerRelease,true);
+document.addEventListener('focusin',function(e){
+  if(_exlCueInput(e.target)){_exlCueShow(e.target);return;}
+  _exlCueSettle();
+});
+document.addEventListener('focusout',function(e){
+  if(!_exlCueInput(e.target))return;
+  setTimeout(_exlCueSettle,0);
+});
+if(window.visualViewport&&window.visualViewport.addEventListener){
+  window.visualViewport.addEventListener('resize',_exlKeyboardSync);
+  window.visualViewport.addEventListener('scroll',_exlKeyboardSync);
+}
 function openExlCard(card){
   if(!card)return;
   var list=card.closest?card.closest('.exlist'):null;
@@ -2857,6 +2993,7 @@ function openExlCard(card){
 function closeExlCard(card,quiet){
   if(!card)return;
   closeExlSheet();
+  if(_exlCue.card===card)_exlCueHide();
   card.classList.remove('open');
   var summary=card.querySelector('.exc-summary');if(summary)summary.setAttribute('aria-expanded','false');
   _exlSyncOverlay();
@@ -3669,7 +3806,7 @@ function ensureFocusOverlay(){
   var ov=document.getElementById('focusOverlay');
   if(ov)return ov;
   ov=document.createElement('div');ov.id='focusOverlay';ov.className='focus-overlay';
-  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" onclick="requestCloseFocusedSession()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong><div class="focus-progress" aria-hidden="true"><i id="focusProgressFill"></i></div></div><div class="focus-overlay-meta"><strong id="focusOverlayMeta"></strong><small id="focusOverlayTime"></small></div></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><div class="focus-footer-state"><strong id="focusFooterTitle">Session in progress</strong><small id="focusFooterDetail">Your entries save as you go.</small></div><button class="focus-done-btn" id="focusFooterAction" data-submit="false" onclick="handleFocusedSessionAction()">Back to plan</button><div class="exl-key" aria-label="Next time key: arrow up means the load goes up, equals means hold, arrow down means it comes down"><span><b class="is-up">↑</b> up</span><span><b class="is-hold">=</b> hold</span><span><b class="is-down">↓</b> down</span></div></div>';
+  ov.innerHTML='<div class="focus-overlay-bar"><button class="focus-close" onclick="requestCloseFocusedSession()" aria-label="Close session">&times;</button><div class="focus-overlay-title"><small>Session</small><strong id="focusOverlayName">Workout</strong><div class="focus-progress" aria-hidden="true"><i id="focusProgressFill"></i></div></div><div class="focus-overlay-meta"><strong id="focusOverlayMeta"></strong><small id="focusOverlayTime"></small></div></div><div class="exl-cue" role="note" aria-label="Plan for this set" hidden></div><div class="focus-overlay-scroll" id="focusOverlayScroll"></div><div class="focus-overlay-foot"><div class="focus-footer-state"><strong id="focusFooterTitle">Session in progress</strong><small id="focusFooterDetail">Your entries save as you go.</small></div><button class="focus-done-btn" id="focusFooterAction" data-submit="false" onclick="handleFocusedSessionAction()">Back to plan</button><div class="exl-key" aria-label="Next time key: arrow up means the load goes up, equals means hold, arrow down means it comes down"><span><b class="is-up">↑</b> up</span><span><b class="is-hold">=</b> hold</span><span><b class="is-down">↓</b> down</span></div></div>';
   document.body.appendChild(ov);
   return ov;
 }
@@ -3733,6 +3870,7 @@ function closeFocusedSession(){
     }
   }
   var ov=document.getElementById('focusOverlay');if(ov)ov.classList.remove('open','has-open-exercise','is-run','is-endurance');
+  _exlCueHide();
   var footerAction=document.getElementById('focusFooterAction');
   if(footerAction){if(typeof setButtonBusy==='function')setButtonBusy(footerAction,false);footerAction.classList.remove('is-sent','is-sending');footerAction.disabled=false;}
   document.body.classList.remove('focus-session-open');focusedSessionIndex=null;focusedSessionGenerated=false;focusedSessionReturnFocus=null;
