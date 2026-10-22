@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v255'; // v255: Coaching strip leads with the set target and stands out more
+const CACHE_NAME = 'dp-athlete-v256'; // v256: Reveal final set while answering effort
 const APP_SHELL = [
   '/index.html', '/styles.css?v=200', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -16,7 +16,7 @@ const APP_SHELL = [
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
   '/js/08-training-run.js?v=2',
-  '/js/08-training.js?v=169',
+  '/js/08-training.js?v=170',
   '/js/09-logging.js?v=138',
   '/accessibility.js?v=3',
   '/js/10-boot.js?v=113',
