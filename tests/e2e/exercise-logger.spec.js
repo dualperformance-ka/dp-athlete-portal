@@ -146,7 +146,7 @@ for (const { rpe, ...size } of fits) {
   });
 }
 
-for (const size of [{ width: 360, height: 780 }, { width: 375, height: 812 }, { width: 390, height: 844 }]) {
+for (const size of [{ width: 360, height: 740 }, { width: 390, height: 800 }, { width: 360, height: 780 }, { width: 375, height: 812 }, { width: 390, height: 844 }]) {
   test(`the final working set stays on screen while the effort question is open · ${size.width}×${size.height}`, async ({ page }) => {
     await page.setViewportSize(size);
     await page.addInitScript(() => localStorage.setItem('dp_strength_rpe_enabled', 'false'));
@@ -155,6 +155,8 @@ for (const size of [{ width: 360, height: 780 }, { width: 375, height: 812 }, { 
       await page.locator(`#r_0_0_${si}`).fill(reps);
       await page.locator(`#r_0_0_${si}`).blur();
     }
+    // Include shorter viewports: the picker must not leave later sets
+    // behind the sticky rest dock after focus leaves the set inputs.
     const options = page.locator('#effort_0_0_2 .set-effort-options');
     await expect(options).toBeVisible();
     await page.waitForTimeout(400);

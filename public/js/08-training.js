@@ -2963,7 +2963,17 @@ function _exlKeyboardSync(){
 // dock pinned above it). Only moves when the row is actually out of view.
 function _exlKeepFocusInView(){
   var el=document.activeElement,scroller=document.getElementById('focusOverlayScroll');
-  if(!el||!scroller||el===scroller||!scroller.contains(el)||!el.getBoundingClientRect)return;
+  if(!scroller)return;
+  // Once the keyboard/strip closes, the effort picker can push later sets
+  // under the sticky rest dock. Reveal the last set after the athlete leaves
+  // the inputs; while typing, keep the focused row in view as before.
+  if(!_exlCueInput(el)&&!_exlPointerHeld){
+    var prompting=scroller.querySelector('.exc.exl.open .set-effort.is-prompting:not(.is-rated)');
+    var openCard=prompting&&prompting.closest('.exc.exl.open');
+    var rows=openCard&&openCard.querySelectorAll('.setrow,.setrow-single');
+    if(rows&&rows.length)el=rows[rows.length-1];
+  }
+  if(!el||el===scroller||!scroller.contains(el)||!el.getBoundingClientRect)return;
   var target=(el.closest&&el.closest('.setrow,.setrow-single'))||el;
   var box=scroller.getBoundingClientRect(),r=target.getBoundingClientRect();
   var card=el.closest&&el.closest('.exc.exl.open'),dock=card?card.querySelector('.exl-dock'):null;
