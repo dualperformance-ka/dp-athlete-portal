@@ -3433,7 +3433,9 @@ function buildBody(s,i,type){
     var _runMatch=typeof getStravaSessionMatch==='function'?getStravaSessionMatch(s):null;
     var _runActivity=(_runMatch&&_runMatch.activity)||(sl.__stravaMatch&&sl.__stravaMatch.activity)||null;
     var pages;
-    if(sl.__stravaMatch&&hasSaved&&_runActivity&&typeof runStravaHeroHtml==='function'){
+    // A received activity needs its check-in even when the separate receipt
+    // submission is pending or its marker was not restored on this device.
+    if(sl.__stravaMatch&&_runActivity&&typeof runStravaHeroHtml==='function'){
       pages=[
         {key:'result',label:'Result',hint:'Swipe for splits and the plan',html:runStravaHeroHtml(s,i,_runActivity)+runCheckinHtml(s,i)},
         {key:'detail',label:'Splits + plan',html:runSplitsHtml(_runActivity)+planHtml}

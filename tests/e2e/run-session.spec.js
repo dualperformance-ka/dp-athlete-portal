@@ -166,3 +166,26 @@ test('a race attempt reads as a race', async ({ page }) => {
   await expect(badges).toContainText('9/10 RPE');
   await expect(badges).toContainText('Race Pace');
 });
+
+// A restored Strava receipt can arrive without the separate submission marker.
+// Receiving an activity must still expose the review needed to submit it.
+test('restored Strava receipt without submission marker still exposes check-in', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await bootPortal(page, { rows: [runRow()], strava: { connected: true, activities: [activity], activitiesAvailable: true } });
+  await page.evaluate(() => {
+    delete logs['run-1'].__submittedAt;
+    sessionLoggedCache = {};
+    if (isSessionLogged('run-1')) throw new Error('Expected an unsubmitted receipt');
+  });
+  await openRun(page);
+  const overlay = page.locator('#focusOverlay');
+  await expect(overlay.locator('.run-tab')).toHaveText([/Result/, /Splits \+ plan/]);
+  await expect(overlay.locator('.run-hero')).toContainText('6.9 km');
+  await expect(page.locator('#focusFooterDetail')).toHaveText('2 answers left');
+  await overlay.locator('.run-chip', { hasText: /^8$/ }).click();
+  await overlay.getByRole('button', { name: 'No pain' }).click();
+  await page.screenshot({ path: 'test-results/run-restored-receipt-390.png' });
+  await page.locator('#focusFooterAction').click();
+  await expect(overlay).not.toHaveClass(/\bopen\b/);
+  expect(await page.evaluate(() => !!logs['run-1'].__stravaFeedbackAt)).toBe(true);
+});
