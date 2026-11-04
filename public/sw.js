@@ -1,10 +1,10 @@
-const CACHE_NAME = 'dp-athlete-v257'; // v257: Keep received Strava runs reviewable before submission
+const CACHE_NAME = 'dp-athlete-v258'; // v258: Garmin Connect (connect, sync, disconnect)
 const APP_SHELL = [
   '/index.html', '/styles.css?v=200', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/00-safe-storage.js?v=1',
   '/js/01-core.js?v=133',
-  '/js/02-login-goals.js?v=125',
+  '/js/02-login-goals.js?v=126',
   '/js/03-nav-nudges.js?v=132',
   '/js/04-checkin.js?v=105',
   '/js/05-handbook.js?v=89',
@@ -19,7 +19,7 @@ const APP_SHELL = [
   '/js/08-training.js?v=171',
   '/js/09-logging.js?v=138',
   '/accessibility.js?v=3',
-  '/js/10-boot.js?v=113',
+  '/js/10-boot.js?v=114',
   '/login.js?v=50', '/icons.css?v=4',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

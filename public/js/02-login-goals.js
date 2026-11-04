@@ -346,6 +346,8 @@ function startPortalSecondary(stillCurrent){
     window._stravaLoadPromise.then(function(){
       if(typeof refreshStravaSessionMatches==='function')refreshStravaSessionMatches();
     }).catch(function(){});
+    // Garmin status is independent of Strava and never holds up the page.
+    if(window.initGarmin)window.initGarmin(athlete.code);
     // A re-render of the week may already have asked for this week's
     // nutrition (08-training.js loadWeek); ask once, not twice.
     var nutritionWeek=(typeof getWS==='function'&&typeof localISO==='function')?localISO(getWS()):null;

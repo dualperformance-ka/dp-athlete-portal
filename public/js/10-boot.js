@@ -711,6 +711,197 @@ window.acknowledgeStrava = async function() {
 // END STRAVA CONNECT BUTTON
 // ============================================================================
 
+// ============================================================================
+// GARMIN CONNECT
+// ============================================================================
+// Same rule as Strava: the connect URL is minted by /api/garmin and carries a
+// signed state that also seeds the PKCE verifier, so the client never builds
+// one. Until the server says Garmin is available to this athlete (keys set,
+// athlete inside GARMIN_ALLOWED_ATHLETES) nothing Garmin is shown at all.
+//
+// The hero pill connects. Disconnecting lives in Preferences, behind a second
+// tap, because it deletes the athlete's synced Garmin data.
+(function(){
+  var pill = document.getElementById('dp-garmin-btn');
+  var pref = document.getElementById('garminPreference');
+  var prefStatus = document.getElementById('garminPrefStatus');
+  var prefAction = document.getElementById('garminPrefAction');
+  var REMINT_MS = 5 * 60 * 1000; // inside the state token's 10-minute TTL
+  var athleteCode = null, mintedAt = 0, current = null, confirmTimer = null, bound = false;
+
+  function hideAll(){
+    if(pill){ pill.style.display = 'none'; pill.removeAttribute('href'); }
+    if(pref) pref.style.display = 'none';
+  }
+
+  function relative(iso){
+    var t = Date.parse(iso || '');
+    if(!isFinite(t)) return '';
+    var mins = Math.round((Date.now() - t) / 60000);
+    if(mins < 2) return 'just now';
+    if(mins < 60) return mins + ' min ago';
+    var hours = Math.round(mins / 60);
+    if(hours < 36) return hours + (hours === 1 ? ' hour ago' : ' hours ago');
+    return Math.round(hours / 24) + ' days ago';
+  }
+
+  function resetConfirm(){
+    if(confirmTimer){ clearTimeout(confirmTimer); confirmTimer = null; }
+    if(prefAction) prefAction.removeAttribute('data-confirm');
+  }
+
+  function render(data){
+    current = data || null;
+    resetConfirm();
+    if(!data || !data.available){ hideAll(); return; }
+    if(pref) pref.style.display = 'grid';
+
+    if(data.connected){
+      var reconnectUrl = data.reconnectRecommended ? data.reconnectUrl : null;
+      if(pill){
+        if(reconnectUrl){
+          pill.setAttribute('href', reconnectUrl);
+          mintedAt = Date.now();
+          pill.textContent = 'Reconnect Garmin';
+          pill.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:transparent;color:var(--t-1);border-color:var(--control-line);box-shadow:none;text-decoration:none;font-weight:700;';
+          pill.title = 'Your Garmin data is still syncing. Reconnect to keep history and workouts working.';
+        } else {
+          pill.removeAttribute('href');
+          pill.innerHTML = '<span class="btn-ic"><svg class="icon"><use href="#i-check"/></svg></span>Garmin connected';
+          pill.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:var(--done-text);border-color:color-mix(in srgb,var(--done) 35%,transparent);box-shadow:none;text-decoration:none;pointer-events:none;';
+          pill.title = 'Garmin is connected';
+        }
+        pill.setAttribute('aria-label', pill.title);
+      }
+      if(prefStatus){
+        var synced = data.lastSyncAt ? relative(data.lastSyncAt) : '';
+        prefStatus.textContent = synced
+          ? 'Connected. Last sync ' + synced + '.'
+          : 'Connected. Your next watch sync will appear here within a few minutes.';
+      }
+      if(prefAction){ prefAction.textContent = 'Disconnect Garmin'; prefAction.disabled = false; }
+      return;
+    }
+
+    if(!data.connectUrl){ hideAll(); return; }
+    mintedAt = Date.now();
+    if(pill){
+      pill.setAttribute('href', data.connectUrl);
+      pill.textContent = 'Connect Garmin';
+      pill.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:transparent;color:var(--t-1);border-color:var(--control-line);box-shadow:none;text-decoration:none;font-weight:700;';
+      pill.title = 'Connect your Garmin account';
+      pill.setAttribute('aria-label', pill.title);
+    }
+    if(prefStatus) prefStatus.textContent = 'Not connected. Sync your Garmin activities, daily calories and sleep to your coaches.';
+    if(prefAction){ prefAction.textContent = 'Connect Garmin'; prefAction.disabled = false; }
+  }
+
+  async function load(){
+    if(!athleteCode) return { available:false };
+    try {
+      var fetched = await portalFetchJson('/api/garmin', { headers: authHeaders({}), cache: 'no-store' }, { timeoutMs: 12000 });
+      var data = fetched.data || {};
+      if(!fetched.response.ok){
+        window._garminDebug = { status: fetched.response.status, error: data.error || null, at: new Date().toISOString() };
+        hideAll();
+        return { available:false };
+      }
+      render(data);
+      return data;
+    } catch(e) {
+      window._garminDebug = { status: (e && e.kind) || 'network-error', error: String(e && e.message || e), at: new Date().toISOString() };
+      hideAll();
+      return { available:false };
+    }
+  }
+
+  // A state token older than its TTL lands on "The connection link expired",
+  // so a stale link is re-minted before following it. Same window, never a new
+  // tab: installed iOS PWAs can strand a target=_blank OAuth hand-off.
+  async function connect(){
+    var url = current && (current.connectUrl || current.reconnectUrl);
+    if(!url || Date.now() - mintedAt >= REMINT_MS){
+      var fresh = await load();
+      url = fresh && (fresh.connectUrl || fresh.reconnectUrl);
+    }
+    if(url) window.location.assign(url);
+  }
+
+  async function disconnect(){
+    if(prefAction){ prefAction.disabled = true; prefAction.textContent = 'Disconnecting…'; }
+    try {
+      var res = await fetch('/api/garmin-disconnect', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        cache: 'no-store',
+      });
+      var data = {};
+      try { data = await res.json(); } catch(e) { data = {}; }
+      if(!res.ok) throw new Error((data && data.error) || ('http_' + res.status));
+      render(data);
+      if(typeof showToast === 'function') showToast('Garmin disconnected. Your Garmin data has been deleted.');
+    } catch(e) {
+      console.warn('[garmin] disconnect failed', e);
+      if(prefAction){ prefAction.disabled = false; prefAction.textContent = 'Disconnect Garmin'; }
+      if(prefStatus) prefStatus.textContent = 'Could not disconnect just now. Try again, or email data@dualperformance.au.';
+    }
+  }
+
+  // Disconnect deletes data, so it takes two taps. Not confirm(): a native
+  // dialog blocks the page and is easy to dismiss by accident on mobile.
+  window.garminPreferenceAction = function(){
+    if(!current || !current.available) return;
+    if(!current.connected){ connect(); return; }
+    if(prefAction && prefAction.getAttribute('data-confirm') === '1'){
+      resetConfirm();
+      disconnect();
+      return;
+    }
+    if(prefAction){
+      prefAction.setAttribute('data-confirm', '1');
+      prefAction.textContent = 'Tap again to disconnect and delete Garmin data';
+      confirmTimer = setTimeout(function(){
+        if(prefAction) prefAction.textContent = 'Disconnect Garmin';
+        resetConfirm();
+      }, 5000);
+    }
+  };
+
+  function onPillClick(e){
+    e.preventDefault();
+    if(current && current.connected && !current.reconnectRecommended) return;
+    connect();
+  }
+
+  // Returning from Garmin's consent page. The callback page already explained
+  // any failure, so only success gets a toast; both params are cleaned up.
+  function consumeReturnParam(){
+    try {
+      var url = new URL(window.location.href);
+      var outcome = url.searchParams.get('garmin');
+      if(!outcome) return;
+      url.searchParams.delete('garmin');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+      if(outcome === 'connected' && typeof showToast === 'function'){
+        showToast('Garmin connected. Your last 30 days will appear over the next few minutes.');
+      }
+    } catch(e) { /* old browser: leave the URL alone */ }
+  }
+
+  window.initGarmin = function(code){
+    if(!code) return Promise.resolve({ available:false });
+    athleteCode = code;
+    hideAll();
+    if(pill && !bound){ pill.addEventListener('click', onPillClick); bound = true; }
+    consumeReturnParam();
+    window._garminLoadPromise = load();
+    return window._garminLoadPromise;
+  };
+})();
+// ============================================================================
+// END GARMIN CONNECT
+// ============================================================================
+
 
 // ── PUSH REMINDERS ───────────────────────────────────────────────────────────
 // Registers this device for coaching reminders. Subscriptions are stored in

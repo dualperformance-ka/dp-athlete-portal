@@ -149,6 +149,18 @@
       "destination": "/api/strava?mode=disconnect"
     },
     {
+      "source": "/api/garmin-callback",
+      "destination": "/api/garmin?mode=callback"
+    },
+    {
+      "source": "/api/garmin-webhook",
+      "destination": "/api/garmin?mode=webhook"
+    },
+    {
+      "source": "/api/garmin-disconnect",
+      "destination": "/api/garmin?mode=disconnect"
+    },
+    {
       "source": "/api/portal-data",
       "destination": "/api/write?mode=portal"
     }
