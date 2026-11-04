@@ -42,8 +42,10 @@ export function weekRows() {
  *    default stub. Lets a spec fail, delay or shape one action without
  *    reimplementing the whole backend.
  *  - strava — the /api/strava response (default: not connected).
+ *  - garmin — (pathname, method) => response for /api/garmin*, or undefined
+ *    to keep the default stub (Garmin not available to this athlete).
  */
-export async function bootPortal(page, { rows = weekRows(), outdoor = false, onPortalAction = null, strava = null } = {}) {
+export async function bootPortal(page, { rows = weekRows(), outdoor = false, onPortalAction = null, strava = null, garmin = null } = {}) {
   await page.addInitScript(() => {
     window.supabase = { createClient: () => ({ auth: {
       onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; },
@@ -62,6 +64,7 @@ export async function bootPortal(page, { rows = weekRows(), outdoor = false, onP
     let json = { ok: true };
     if (url.pathname === '/api/auth-athlete') json = url.searchParams.get('action') === 'eligibility' ? { ok: true, enabled: true, eligible: true, active: true } : athlete;
     else if (url.pathname.startsWith('/api/strava')) json = strava || { connected: false, activities: [] };
+    else if (url.pathname.startsWith('/api/garmin')) json = (garmin && garmin(url.pathname, route.request().method())) || { available: false };
     else if (url.pathname === '/api/reminders') json = { ok: true, notifications: [], unread: 0 };
     else if (url.pathname === '/api/portal-data') {
       if (onPortalAction) {

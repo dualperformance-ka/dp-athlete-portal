@@ -132,7 +132,8 @@ test('the export is scoped to the authenticated athlete on every table', async (
   });
   assert.deepEqual(tables.sort(), [
     'athlete_data', 'athlete_goals', 'athletes', 'daily_body_logs',
-    'daily_nutrition_logs', 'progress_photos', 'session_logs',
+    'daily_nutrition_logs', 'garmin_activities', 'garmin_dailies',
+    'garmin_sleeps', 'progress_photos', 'session_logs',
     'training_session_logs', 'weekly_checkins',
   ]);
   assert.equal(result.export.athlete_code, 'ABC123');
@@ -147,6 +148,14 @@ test('the export never returns the Strava OAuth credential', async () => {
     return [];
   });
   assert.equal(stateQuery.key, 'neq.strava_tokens');
+});
+
+test('the export never reads the Garmin OAuth credential table', async () => {
+  const tables = [];
+  const result = await exportData('ABC123', async (table) => { tables.push(table); return []; });
+  assert.ok(!tables.includes('garmin_connections'), 'garmin_connections holds tokens and must never be exported');
+  assert.deepEqual(Object.keys(result.export.garmin).sort(), ['activities', 'dailies', 'sleeps']);
+  assert.ok(result.export.excluded.some((line) => line.startsWith('garmin_connections')));
 });
 
 test('one unreachable table degrades to an empty list and is named', async () => {

@@ -915,7 +915,8 @@ export async function exportData(code, selectRows = select) {
   );
   const scoped = (extra) => ({ athlete_code: `eq.${code}`, limit: '5000', ...extra });
 
-  const [profile, goals, state, checkins, body, nutrition, sessionLogs, trainingLogs, photos] = await Promise.all([
+  const [profile, goals, state, checkins, body, nutrition, sessionLogs, trainingLogs, photos,
+    garminActivities, garminDailies, garminSleeps] = await Promise.all([
     read('athletes', { code: `eq.${code}`, select: EXPORT_ATHLETE_FIELDS, limit: '1' }),
     read('athlete_goals', scoped({ select: '*' })),
     read('athlete_data', scoped({ key: 'neq.strava_tokens', select: 'key,value,updated_at', order: 'key.asc' })),
@@ -927,6 +928,11 @@ export async function exportData(code, selectRows = select) {
     // References only. The image bytes live in private storage and are served
     // through the authenticated photo route, not inlined into a JSON file.
     read('progress_photos', scoped({ select: 'week_number,slot,storage_path,mime_type,size_bytes,width,height,created_at', order: 'week_number.desc' })),
+    // Garmin data the athlete synced. garmin_connections is deliberately not
+    // read: it holds OAuth tokens, a credential rather than data about them.
+    read('garmin_activities', scoped({ select: '*', order: 'start_time.desc' })),
+    read('garmin_dailies', scoped({ select: '*', order: 'calendar_date.desc' })),
+    read('garmin_sleeps', scoped({ select: '*', order: 'calendar_date.desc' })),
   ]);
 
   return {
@@ -942,9 +948,11 @@ export async function exportData(code, selectRows = select) {
       session_logs: sessionLogs,
       training_session_logs: trainingLogs,
       progress_photos: photos,
+      garmin: { activities: garminActivities, dailies: garminDailies, sleeps: garminSleeps },
       // Named so the file itself explains what is not in it.
       excluded: [
         'strava_tokens (OAuth credential, not athlete data)',
+        'garmin_connections (OAuth credential, not athlete data)',
         'progress photo image files (served through the authenticated photo route)',
         'internal system identifiers',
       ],

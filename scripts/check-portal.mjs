@@ -198,7 +198,7 @@ for (const directive of ["object-src 'none'", "frame-ancestors 'none'", "base-ur
   const wrapper = auth.slice(auth.indexOf('export async function requestAthleteOr503'));
   if (!/return await getRequestAthlete\(req\)/.test(wrapper)) failures.push('requestAthleteOr503 must delegate to getRequestAthlete');
 }
-for (const name of ['ingest.js', 'my-logs.js', 'progress-photos.js', 'reminders.js', 'strava.js', 'write.js']) {
+for (const name of ['garmin.js', 'ingest.js', 'my-logs.js', 'progress-photos.js', 'reminders.js', 'strava.js', 'write.js']) {
   const source = readFileSync(join(root, 'api', name), 'utf8');
   // requestAthleteOr503 is getRequestAthlete with the outage answered as 503
   // instead of thrown (api/_lib/auth.js); either keeps the boundary.
