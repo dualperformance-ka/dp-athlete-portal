@@ -6,6 +6,10 @@ const steps=[{id:'w',step_order:1,step_type:'warmup',duration_sec:600},{id:'r',s
 test('convert warmup, repeat intervals, recovery and cooldown in coach order',()=>{
  const w=buildRunningWorkout(session,steps);assert.equal(w.sport,'RUNNING');assert.equal(w.segments[0].steps[1].type,'WorkoutRepeatStep');assert.equal(w.segments[0].steps[1].repeatValue,6);const interval=w.segments[0].steps[1].steps[0];assert.equal(interval.durationValue,1000);assert.equal(interval.targetType,'PACE');assert.equal(interval.targetValueLow,1000/285);assert.equal(interval.targetValueHigh,1000/270);
 });
+test('accept the running types coaches programme and refuse mixed or non-running sessions',()=>{
+ for(const type of ['Run','running','Easy Effort','Easy','Tempo','Speed','Long Run','Recovery','race','Threshold','VO2','Intervals','Fartlek','Hills','MP','Time Trial'])assert.equal(buildRunningWorkout({...session,session_type:type},steps).sport,'RUNNING',type);
+ for(const type of [null,'','Strength','Run + Strength','Brick','Optional','Weekly KM Total','Swim','Cycling','discovery'])assert.throws(()=>buildRunningWorkout({...session,session_type:type},steps),/Only running sessions/,String(type));
+});
 test('reject text-only prescriptions rather than guessing workout steps',()=>assert.throws(()=>buildRunningWorkout({...session,prescription_mode:'legacy'},[]),/structured/i));
 test('reject malformed, cyclic, orphaned or overlong step trees',()=>{
  for(const invalid of [[...steps,{id:'orphan',parent_step_id:'missing',step_type:'run',duration_sec:60}],steps.map(s=>s.id==='r'?{...s,repeat_count:1000}:s),[{id:'x',parent_step_id:'x',step_type:'repeat',repeat_count:2}],steps.map(s=>s.id==='i'?{...s,pace_min:'bad'}:s)])assert.throws(()=>buildRunningWorkout(session,invalid));
