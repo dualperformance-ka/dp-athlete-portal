@@ -186,7 +186,7 @@ async function loadProgrammeVolume(force){
       }catch(e){console.warn('Programme volume mapping failed',e);}
     }
     var strava=null;
-    try{strava=window._stravaLoadPromise?await window._stravaLoadPromise:null;}catch(e){}
+    try{strava=window.loadConnectedActivities?await window.loadConnectedActivities():(window._stravaLoadPromise?await window._stravaLoadPromise:null);}catch(e){}
     var hasStrava=!!(strava&&strava.connected&&strava.activitiesAvailable!==false),activities=(strava&&strava.activities)||[];
     var firstStravaBySport={running:null,cycling:null,swimming:null};
     if(hasStrava){

@@ -87,3 +87,40 @@ test('returning from Garmin cleans the URL and confirms the connection', async (
   await expect(page.locator('#garminPrefStatus')).toContainText('within a few minutes');
   expect(errors).toEqual([]);
 });
+
+test('Garmin and Strava show one recording with Garmin attribution and no provider log writes', async ({ page }) => {
+  const errors = watchErrors(page);
+  const consoleErrors = [];
+  page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+  const start = new Date().toISOString();
+  const localDate = new Intl.DateTimeFormat('en-CA', {timeZone:'Australia/Adelaide'}).format(new Date());
+  const writes = [];
+  await page.setViewportSize({width:390,height:844});
+  await bootPortal(page, {
+    strava: {connected:true, activities:[{id:99,name:'Morning run',type:'Run',sport_type:'Run',start_date:start,start_date_local:localDate+'T08:00:00',distance:10000,moving_time:3600,elapsed_time:3600}]},
+    garmin: () => ({available:true,connected:true,activities:[{id:'g99',name:'Morning run',type:'RUNNING',startTime:start,localDate,distanceM:10000,durationS:3600,device:'Forerunner 965'}]}),
+    onPortalAction(action, body) { if (action === 'coach-write') writes.push(body); },
+  });
+  const feed = page.locator('#connectedActivities');
+  await expect(feed).toBeVisible();
+  await expect(feed.locator('li')).toHaveCount(1);
+  await expect(feed).toContainText('Garmin Forerunner 965');
+  expect(await page.evaluate(async () => (await loadConnectedActivities()).activities.reduce((sum,a)=>sum+a.distance,0))).toBe(10000);
+  await feed.scrollIntoViewIfNeeded();
+  await page.screenshot({path:test.info().outputPath('garmin-combined-mobile.png')});
+  expect(writes.filter(body=>JSON.stringify(body).includes('garmin:'))).toEqual([]);
+  expect(errors).toEqual([]);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('Garmin alone supplies activity display and an in-memory session result', async ({ page }) => {
+  const errors = watchErrors(page);
+  const start = new Date().toISOString();
+  const date = new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Adelaide'}).format(new Date());
+  await bootPortal(page, {garmin:()=>({available:true,connected:true,activities:[{id:'g1',type:'RUNNING',name:'Garmin run',startTime:start,localDate:date,distanceM:10000,durationS:3600}]})});
+  await expect(page.locator('#connectedActivities')).toContainText('Garmin run');
+  const result = await page.evaluate(date => garminSessionResultHtml({id:'display-test',name:'Easy Run',type:'Run',sessionType:'Run',date,plannedKm:10}),date);
+  expect(result).toContain('Your run from Garmin');
+  expect(result).toContain('10.0 km');
+  expect(errors).toEqual([]);
+});

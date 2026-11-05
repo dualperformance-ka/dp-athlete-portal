@@ -839,6 +839,8 @@ window.acknowledgeStrava = async function() {
       try { data = await res.json(); } catch(e) { data = {}; }
       if(!res.ok) throw new Error((data && data.error) || ('http_' + res.status));
       render(data);
+      window._garminLoadPromise=Promise.resolve(data);
+      if(window.renderConnectedActivities)window.renderConnectedActivities();
       if(typeof showToast === 'function') showToast('Garmin disconnected. Your Garmin data has been deleted.');
     } catch(e) {
       console.warn('[garmin] disconnect failed', e);

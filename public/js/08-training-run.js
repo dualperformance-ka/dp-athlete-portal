@@ -135,6 +135,8 @@ function _runPagerMark(i,ix){
 }
 
 function runStravaHeroHtml(s,i,activity){
+  var garminHtml=window.garminSessionResultHtml?window.garminSessionResultHtml(s):'';
+  if(garminHtml)return garminHtml;
   var st=runStravaStats(activity),stat=function(label,value){
     return value?'<div class="run-hero-stat"><span>'+_runEsc(label)+'</span><strong>'+_runEsc(value)+'</strong></div>':'';
   };

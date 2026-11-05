@@ -447,6 +447,8 @@ function stravaMatchableSession(session){
 function stravaSessionSportLabel(session){var type=getType(session);return type==='swim'?'Swim':type==='ride'?'Ride':'Run';}
 function stravaLogoSvg(){return '<svg width="11" height="11" viewBox="0 0 24 24" fill="#FC4C02" aria-hidden="true"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg>';}
 function stravaMatchHtml(session,i,context){
+  var garminHtml=window.garminSessionResultHtml?window.garminSessionResultHtml(session):'';
+  if(garminHtml)return garminHtml;
   var match=getStravaSessionMatch(session);
   if(!match||!match.activity){
     if(stravaSessionNeedsManualLog(session&&session.id)){
