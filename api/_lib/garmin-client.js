@@ -102,6 +102,7 @@ function garminError(message, res, body) {
 async function tokenRequest(form, fetchImpl) {
   const res = await fetchImpl(GARMIN_TOKEN, {
     method: 'POST',
+    signal: AbortSignal.timeout(10000),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
     body: new URLSearchParams(form).toString(),
   });
@@ -170,6 +171,7 @@ export function refreshRequiresReconnect(error) {
 async function apiRequest(path, token, { method = 'GET', fetchImpl = fetch } = {}) {
   const res = await fetchImpl(`${GARMIN_API}${path}`, {
     method,
+    signal: AbortSignal.timeout(10000),
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
   });
   const text = await res.text();

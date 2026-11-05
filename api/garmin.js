@@ -73,6 +73,8 @@ import {
   saveRecords,
 } from './_lib/garmin-store.js';
 
+import { lockedAccessToken, loadWorkoutPrescription, sendPrescribedWorkout, workoutReceipt, refreshIdleGarminConnections } from './_lib/garmin-workout-service.js';
+
 function portalUrl() {
   const configured = process.env.PORTAL_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
@@ -129,6 +131,7 @@ export async function getAccessToken(connection, deps = {}) {
     now = Date.now,
   } = deps;
   if (!connection || !connection.access_token) return null;
+  if (!Object.keys(deps).length) return lockedAccessToken(connection);
   if (accessTokenFresh(connection, now())) return connection.access_token;
 
   const refreshed = await refresh(connection.refresh_token);
@@ -229,6 +232,8 @@ export async function processNotification(body, deps = {}) {
 
 export default async function handler(req, res) {
   const mode = String((req.query && req.query.mode) || '').toLowerCase();
+  if (mode === 'workout') return handleWorkout(req, res);
+  if (mode === 'refresh') return handleRefresh(req, res);
   if (mode === 'callback')   return handleCallback(req, res);
   if (mode === 'webhook')    return handleWebhook(req, res);
   if (mode === 'disconnect') return handleDisconnect(req, res);
@@ -298,6 +303,8 @@ async function handleRead(req, res) {
       connectedAt: connection.connected_at,
       lastSyncAt: connection.last_push_at || null,
       permissions: connection.permissions || [],
+      workoutsAvailable: process.env.GARMIN_WORKOUTS_ENABLED === 'true',
+      workoutConnectUrl: buildConnectUrl(athleteCode),
       historyRequested: !!connection.backfill_requested_at,
       activities: rows.map(rowToActivity).filter(Boolean),
       latestDaily: daily ? {
@@ -513,4 +520,46 @@ async function handleCallback(req, res) {
     console.error('[garmin-callback]', err);
     return res.status(500).send(errorPage(err.message));
   }
+}
+
+
+// Workout contents and dates are always re-read from the athlete's published
+// coach prescription; a browser cannot send arbitrary Garmin workout payloads.
+async function handleWorkout(req, res) {
+  if (!allowPortalRequest(req,res,'GET, POST, OPTIONS')) return;
+  if (req.method==='OPTIONS') return res.status(200).end();
+  if (!['GET','POST'].includes(req.method)) return res.status(405).json({error:'Method not allowed'});
+  const identity=await requestAthleteOr503(req,res);
+  if(identity===undefined)return;
+  if(!identity)return res.status(401).json({error:'invalid_session'});
+  const code=String(identity.athlete.code).toUpperCase();
+  if(!garminAvailableFor(code)||process.env.GARMIN_WORKOUTS_ENABLED!=='true')return res.status(404).json({error:'Garmin workouts are not enabled.'});
+  try {
+    const connection=await getConnection(code);
+    if(!connection)return res.status(409).json({error:'Connect Garmin before sending workouts.'});
+    const key=req.method==='POST'?req.body?.sessionId:req.query?.sessionId;
+    if(req.method==='GET') {
+      const prescribed=await loadWorkoutPrescription(code,key);
+      const receipt=await workoutReceipt(code,prescribed.session.id,connection.garmin_user_id);
+      return res.status(200).json({workout:prescribed.workout,date:prescribed.date,canSend:(connection.permissions||[]).includes('WORKOUT_IMPORT'),reconnectUrl:buildConnectUrl(code),receipt:receipt?{state:receipt.state,date:receipt.scheduled_date,sentAt:receipt.sent_at}:null});
+    }
+    const receipt=await sendPrescribedWorkout(code,key,connection);
+    return res.status(200).json({sent:true,date:receipt.scheduled_date,sentAt:receipt.sent_at});
+  } catch(error) {
+    const status=Number(error.status);
+    const message=error.publicMessage || (status===401||status===412?'Reconnect Garmin and allow workout import.':status===429?'Garmin is busy. Try again later.':'Could not confirm delivery. Check Garmin Connect before trying again.');
+    return res.status(error.publicMessage?status:status===429?429:status===401||status===412?412:502).json({error:message});
+  }
+}
+
+async function handleRefresh(req,res) {
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
+  const secret=process.env.CRON_SECRET;
+  if(!secret)return res.status(503).json({error:'Cron secret is not configured'});
+  if(req.headers?.authorization!=='Bearer '+secret)return res.status(401).json({error:'Unauthorized'});
+  try {
+    const counts=await refreshIdleGarminConnections({available:garminAvailableFor});
+    return res.status(200).json({ok:true,...counts});
+  }catch{return res.status(503).json({error:'Garmin token maintenance is temporarily unavailable'});}
 }
