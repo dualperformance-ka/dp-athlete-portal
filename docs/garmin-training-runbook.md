@@ -26,6 +26,12 @@ not receipt on the watch.
 7. Tap again or change the coach prescription/date and send again. Confirm the
    existing workout/calendar entry updates without creating another copy.
 
+Running session types (Run, Easy Effort, Tempo, Speed, Long Run, Recovery,
+race, Threshold, VO2, Intervals, Fartlek, Hills, MP, Time Trial) can be sent.
+Mixed or admin rows (Brick, Run + Strength, Optional, Weekly KM Total) and
+untyped sessions cannot. The list is GARMIN_RUN_SESSION_TYPES in
+api/_lib/garmin-workouts.js and must match the coaches dashboard builder.
+
 Older free-text/library sessions require structured coach steps before sending.
 The converter does not infer interval durations or pace targets from prose.
 RPE/effort remain instructions; Garmin gets an open target for these steps.
