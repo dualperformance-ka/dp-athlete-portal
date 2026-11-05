@@ -14,8 +14,15 @@ export function validWorkoutDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value)) || new Date(value+'T12:00:00Z').toISOString().slice(0,10) !== value) throw workoutError('The session needs a valid calendar date.');
   return value;
 }
+// Running session types the coaches dashboard programmes. The planner stores
+// the run's purpose as its type (Easy Effort, Tempo, Long Run...), so an exact
+// "run" match refused almost every real run. Mixed or admin rows (Brick,
+// Run + Strength, Optional, Weekly KM Total) are not one running workout and
+// stay out. Keep in step with GARMIN_RUN_SESSION_TYPES in the dashboard's
+// public/run-workout.js.
+export const GARMIN_RUN_SESSION_TYPES = new Set(['run','running','easy','easy effort','recovery','long','long run','tempo','threshold','speed','interval','intervals','vo2','fartlek','hills','mp','race','time trial']);
 export function buildRunningWorkout(session, rows) {
-  if (!session || !/^(run|running)$/i.test(text(session.session_type))) throw workoutError('Only running sessions can be sent to Garmin.');
+  if (!session || !GARMIN_RUN_SESSION_TYPES.has(text(session.session_type).toLowerCase())) throw workoutError('Only running sessions can be sent to Garmin.');
   if (session.prescription_mode !== 'structured' || !Array.isArray(rows) || !rows.length) throw workoutError('Ask your coach to add structured run steps before sending this session to Garmin.');
   if (rows.length > 100) throw workoutError('Garmin supports at most 100 workout steps.');
   const ids = new Set(rows.map(row=>String(row.id)));
