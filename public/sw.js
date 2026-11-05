@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dp-athlete-v260'; // v260: Garmin workout preview, send and scheduling
+const CACHE_NAME = 'dp-athlete-v262'; // v262: Garmin ride attribution and results
 const APP_SHELL = [
   '/index.html', '/styles.css?v=202', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
@@ -10,7 +10,7 @@ const APP_SHELL = [
   '/js/05-handbook.js?v=90',
   '/js/06-nutrition.js?v=114',
   '/js/07-progress.js?v=95',
-  '/js/connected-activities.js?v=1',
+  '/js/connected-activities.js?v=3',
   '/js/strava-match.js?v=10',
   '/js/08-training-interval-rest.js?v=1',
   '/js/08-training-muscle-coverage.js?v=1',
@@ -18,10 +18,10 @@ const APP_SHELL = [
   '/js/08-strength-engine.js?v=4',
   '/js/garmin-workouts.js?v=1',
   '/js/08-training-run.js?v=3',
-  '/js/08-training.js?v=172',
+  '/js/08-training.js?v=174',
   '/js/09-logging.js?v=139',
   '/accessibility.js?v=3',
-  '/js/10-boot.js?v=116',
+  '/js/10-boot.js?v=117',
   '/login.js?v=50', '/icons.css?v=4',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'

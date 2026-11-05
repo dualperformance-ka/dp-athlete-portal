@@ -8,9 +8,9 @@
  * Contract (Garmin Connect Developer Program, OAuth 2.0 with PKCE):
  *   authorize   GET  https://connect.garmin.com/oauth2Confirm
  *   token       POST https://connectapi.garmin.com/di-oauth2-service/oauth/token
- *   user id     GET  https://apis.garmin.com/wellness-api/rest/user/id
- *   permissions GET  https://apis.garmin.com/wellness-api/rest/user/permissions
- *   deregister  DEL  https://apis.garmin.com/wellness-api/rest/user/registration
+ *   user id     GET  https://apis.garmin.com/partner-gateway/rest/user/id
+ *   permissions GET  https://apis.garmin.com/partner-gateway/rest/user/permissions
+ *   deregister  DEL  https://apis.garmin.com/partner-gateway/rest/user/registration
  *   backfill    GET  https://apis.garmin.com/wellness-api/rest/backfill/{type}
  *
  * Access tokens last about 24 hours and Garmin asks that at least 600 seconds
@@ -181,19 +181,19 @@ async function apiRequest(path, token, { method = 'GET', fetchImpl = fetch } = {
 }
 
 export async function fetchUserId(token, fetchImpl = fetch) {
-  const body = await apiRequest('/wellness-api/rest/user/id', token, { fetchImpl });
+  const body = await apiRequest('/partner-gateway/rest/user/id', token, { fetchImpl });
   const id = body && body.userId;
   if (!id) throw new Error('Garmin did not return a user id');
   return String(id);
 }
 
 export async function fetchPermissions(token, fetchImpl = fetch) {
-  const body = await apiRequest('/wellness-api/rest/user/permissions', token, { fetchImpl });
+  const body = await apiRequest('/partner-gateway/rest/user/permissions', token, { fetchImpl });
   return normalisePermissions(body);
 }
 
 export async function deregister(token, fetchImpl = fetch) {
-  return apiRequest('/wellness-api/rest/user/registration', token, { method: 'DELETE', fetchImpl });
+  return apiRequest('/partner-gateway/rest/user/registration', token, { method: 'DELETE', fetchImpl });
 }
 
 /**

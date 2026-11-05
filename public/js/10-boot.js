@@ -770,7 +770,7 @@ window.acknowledgeStrava = async function() {
           pill.removeAttribute('href');
           pill.innerHTML = '<span class="btn-ic"><svg class="icon"><use href="#i-check"/></svg></span>Garmin connected';
           pill.style.cssText = 'display:inline-flex;align-items:center;background:transparent;color:var(--done-text);border-color:color-mix(in srgb,var(--done) 35%,transparent);box-shadow:none;text-decoration:none;pointer-events:none;';
-          pill.title = 'Garmin is connected';
+          pill.title = data.activities&&data.activities.length ? 'Garmin connected — '+data.activities.length+' activities received' : 'Garmin account linked — waiting for the first activity';
         }
         pill.setAttribute('aria-label', pill.title);
       }
@@ -778,7 +778,7 @@ window.acknowledgeStrava = async function() {
         var synced = data.lastSyncAt ? relative(data.lastSyncAt) : '';
         prefStatus.textContent = synced
           ? 'Connected. Last sync ' + synced + '.'
-          : 'Connected. Your next watch sync will appear here within a few minutes.';
+          : 'Account linked. No Garmin data received yet. Record a new activity and sync Garmin Connect; older runs may remain from Strava.';
       }
       if(prefAction){ prefAction.textContent = 'Disconnect Garmin'; prefAction.disabled = false; }
       return;

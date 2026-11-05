@@ -48,8 +48,8 @@
     "sha": "0057d39e90ba"
   },
   "js/connected-activities.js": {
-    "version": 1,
-    "sha": "ec7a325b21e4"
+    "version": 3,
+    "sha": "d8147eaa06b2"
   },
   "js/strava-match.js": {
     "version": 10,
@@ -80,8 +80,8 @@
     "sha": "2a82dde13395"
   },
   "js/08-training.js": {
-    "version": 172,
-    "sha": "9bc74be7eab3"
+    "version": 174,
+    "sha": "d35f29b36912"
   },
   "js/09-logging.js": {
     "version": 139,
@@ -92,7 +92,7 @@
     "sha": "92cf32569619"
   },
   "js/10-boot.js": {
-    "version": 116,
-    "sha": "93911bfa0239"
+    "version": 117,
+    "sha": "7003a5e8f3de"
   }
 }
