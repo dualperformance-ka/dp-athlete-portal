@@ -916,7 +916,7 @@ export async function exportData(code, selectRows = select) {
   const scoped = (extra) => ({ athlete_code: `eq.${code}`, limit: '5000', ...extra });
 
   const [profile, goals, state, checkins, body, nutrition, sessionLogs, trainingLogs, photos,
-    garminActivities, garminDailies, garminSleeps] = await Promise.all([
+    garminActivities, garminDailies, garminSleeps, garminWorkoutDeliveries] = await Promise.all([
     read('athletes', { code: `eq.${code}`, select: EXPORT_ATHLETE_FIELDS, limit: '1' }),
     read('athlete_goals', scoped({ select: '*' })),
     read('athlete_data', scoped({ key: 'neq.strava_tokens', select: 'key,value,updated_at', order: 'key.asc' })),
@@ -933,6 +933,7 @@ export async function exportData(code, selectRows = select) {
     read('garmin_activities', scoped({ select: '*', order: 'start_time.desc' })),
     read('garmin_dailies', scoped({ select: '*', order: 'calendar_date.desc' })),
     read('garmin_sleeps', scoped({ select: '*', order: 'calendar_date.desc' })),
+    read('garmin_workout_deliveries', scoped({ select: 'planned_session_id,workout_id,schedule_id,scheduled_date,state,sent_at', order: 'sent_at.desc' })),
   ]);
 
   return {
@@ -948,7 +949,7 @@ export async function exportData(code, selectRows = select) {
       session_logs: sessionLogs,
       training_session_logs: trainingLogs,
       progress_photos: photos,
-      garmin: { activities: garminActivities, dailies: garminDailies, sleeps: garminSleeps },
+      garmin: { activities: garminActivities, dailies: garminDailies, sleeps: garminSleeps, workout_deliveries: garminWorkoutDeliveries },
       // Named so the file itself explains what is not in it.
       excluded: [
         'strava_tokens (OAuth credential, not athlete data)',

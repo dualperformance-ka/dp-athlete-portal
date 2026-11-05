@@ -64,7 +64,7 @@ export async function bootPortal(page, { rows = weekRows(), outdoor = false, onP
     let json = { ok: true };
     if (url.pathname === '/api/auth-athlete') json = url.searchParams.get('action') === 'eligibility' ? { ok: true, enabled: true, eligible: true, active: true } : athlete;
     else if (url.pathname.startsWith('/api/strava')) json = strava || { connected: false, activities: [] };
-    else if (url.pathname.startsWith('/api/garmin')) json = (garmin && garmin(url.pathname, route.request().method())) || { available: false };
+    else if (url.pathname.startsWith('/api/garmin')) json = (garmin && garmin(url.pathname, route.request().method(), url)) || { available: false };
     else if (url.pathname === '/api/reminders') json = { ok: true, notifications: [], unread: 0 };
     else if (url.pathname === '/api/portal-data') {
       if (onPortalAction) {

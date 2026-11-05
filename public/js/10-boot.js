@@ -752,6 +752,7 @@ window.acknowledgeStrava = async function() {
 
   function render(data){
     current = data || null;
+    window._garminWorkoutState = data || null;
     resetConfirm();
     if(!data || !data.available){ hideAll(); return; }
     if(pref) pref.style.display = 'grid';

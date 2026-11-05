@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 201,
-    "sha": "2f3277894cf8"
+    "version": 202,
+    "sha": "cd1d15ad1fc8"
   },
   "desktop.css": {
     "version": 14,
@@ -71,13 +71,17 @@
     "version": 4,
     "sha": "cafd28bcda3f"
   },
+  "js/garmin-workouts.js": {
+    "version": 1,
+    "sha": "071a8bd20fb8"
+  },
   "js/08-training-run.js": {
     "version": 3,
     "sha": "2a82dde13395"
   },
   "js/08-training.js": {
-    "version": 171,
-    "sha": "aa03063fce7f"
+    "version": 172,
+    "sha": "9bc74be7eab3"
   },
   "js/09-logging.js": {
     "version": 139,
@@ -88,7 +92,7 @@
     "sha": "92cf32569619"
   },
   "js/10-boot.js": {
-    "version": 115,
-    "sha": "3131d74f080a"
+    "version": 116,
+    "sha": "93911bfa0239"
   }
 }

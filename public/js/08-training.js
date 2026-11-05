@@ -3430,6 +3430,7 @@ function buildBody(s,i,type){
     // check-in lead; after a hand-logged run the saved log leads; before a run
     // the plan leads and logging sits on the second page.
     var planHtml=h.slice(_runCardStart);h=h.slice(0,_runCardStart);
+    if(window.garminWorkoutHtml)planHtml+=window.garminWorkoutHtml(s,i);
     var _runMatch=typeof getStravaSessionMatch==='function'?getStravaSessionMatch(s):null;
     var _runActivity=(_runMatch&&_runMatch.activity)||(sl.__stravaMatch&&sl.__stravaMatch.activity)||null;
     var pages;

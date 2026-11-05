@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v259'; // v259: combined Garmin and Strava activity displays
+const CACHE_NAME = 'dp-athlete-v260'; // v260: Garmin workout preview, send and scheduling
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=201', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=202', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/00-safe-storage.js?v=1',
   '/js/01-core.js?v=133',
@@ -16,11 +16,12 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
+  '/js/garmin-workouts.js?v=1',
   '/js/08-training-run.js?v=3',
-  '/js/08-training.js?v=171',
+  '/js/08-training.js?v=172',
   '/js/09-logging.js?v=139',
   '/accessibility.js?v=3',
-  '/js/10-boot.js?v=115',
+  '/js/10-boot.js?v=116',
   '/login.js?v=50', '/icons.css?v=4',
   '/dual_performance_one_line_filled_logo_black_preview.png',
   '/dp_baby_blue_transparent_512x512.png'
