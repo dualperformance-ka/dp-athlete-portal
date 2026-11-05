@@ -278,15 +278,28 @@ async function handleRead(req, res) {
     // does not stop the data, only history requests and (later) workout push.
     // That is a "reconnect when convenient", not a broken connection.
     let reconnectRecommended = false;
+    let accessToken = null;
     try {
-      await getAccessToken(connection);
+      accessToken = await getAccessToken(connection);
     } catch (error) {
       if (!refreshRequiresReconnect(error)) throw error;
       reconnectRecommended = true;
       warn({ message: 'Garmin refresh token rejected; reconnect recommended', route: '/api/garmin', requestId: requestId(req), garminStatus: error.status });
     }
 
-    if (!reconnectRecommended && !connection.backfill_requested_at) {
+    let permissions = connection.permissions || [];
+    let permissionsVerified = false;
+    if(accessToken){
+      try {
+        permissions = await fetchPermissions(accessToken);
+        permissionsVerified = true;
+        if(JSON.stringify(permissions)!==JSON.stringify(connection.permissions||[]))await patchConnection(athleteCode,{permissions});
+      } catch(error) {
+        warn({message:'Garmin permissions could not be verified',route:'/api/garmin',garminStatus:error.status||null});
+      }
+    }
+    const historyAvailable = permissionsVerified && permissions.includes('HISTORICAL_DATA_EXPORT');
+    if (!reconnectRecommended && historyAvailable && !connection.backfill_requested_at) {
       try {
         await requestHistory(connection);
       } catch (error) {
@@ -302,7 +315,9 @@ async function handleRead(req, res) {
       connected: true,
       connectedAt: connection.connected_at,
       lastSyncAt: connection.last_push_at || null,
-      permissions: connection.permissions || [],
+      permissions,
+      permissionsVerified,
+      historyAvailable,
       workoutsAvailable: process.env.GARMIN_WORKOUTS_ENABLED === 'true',
       workoutConnectUrl: buildConnectUrl(athleteCode),
       historyRequested: !!connection.backfill_requested_at,

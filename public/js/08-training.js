@@ -648,7 +648,18 @@ function calendarKmLabel(km){
 }
 function monthSessionDetail(s){
   var type=getType(s);
+  if(type==='ride'&&typeof window!=='undefined'&&window.getGarminRideActivity){
+    var garminRide=window.getGarminRideActivity(s);
+    if(garminRide&&garminRide.distance>0)return calendarKmLabel(garminRide.distance/1000)+' · Garmin';
+  }
   if(type==='run'){
+    var connectedMatch=typeof window!=='undefined'&&window.getConnectedSessionMatch?window.getConnectedSessionMatch(s):null;
+    // Source attribution comes from the live feed, never a persisted log payload.
+    var liveActivity=connectedMatch&&connectedMatch.activity;
+    if(connectedMatch&&connectedMatch.confidence==='high'&&liveActivity&&liveActivity.provider==='Garmin'){
+      var garminKm=Number(liveActivity.distance)/1000;
+      if(Number.isFinite(garminKm)&&garminKm>0)return calendarKmLabel(garminKm)+' · Garmin';
+    }
     var actualKm=calendarStravaDistanceKm(s);
     if(actualKm)return calendarKmLabel(actualKm)+' · Strava';
     var resolved=resolveRunDisplay(s),meta=resolved.meta||{},distance=meta.distance||'',duration=meta.duration||'',intensity=meta.intensity||s.intensity||'';
@@ -768,7 +779,8 @@ function buildCard(s,i){
   // attribution strip avoids repeating logged run/swim details in the body.
   var _stravaSport=type==='run'||type==='swim'||type==='ride';
   var _heroShown=_stravaSport&&logs[s.id]&&logs[s.id].__stravaMatch&&isSessionLogged(s.id);
-  if(_stravaSport&&typeof stravaMatchHtml==='function'&&!_heroShown)h+=stravaMatchHtml(s,i,'session');
+  var _garminRideShown=type==='ride'&&window.getGarminRideActivity&&window.getGarminRideActivity(s);
+  if(_stravaSport&&typeof stravaMatchHtml==='function'&&!_heroShown&&!_garminRideShown)h+=stravaMatchHtml(s,i,'session');
   h+=buildBody(s,i,type)+'</div></div>';
   return h;
 }
@@ -3256,16 +3268,21 @@ function endurancePrescriptionHtml(s,type,i){
   var note=String(override.notes||'').trim();
   var parts=prescription.split(/\.\s+(?=[A-Z0-9])/).map(function(part){return part.trim().replace(/\.$/,'');}).filter(Boolean);
   var entry=logs[s.id]||{},liveMatch=typeof getStravaSessionMatch==='function'?getStravaSessionMatch(s):null;
-  var activity=(liveMatch&&liveMatch.activity)||(entry.__stravaMatch&&entry.__stravaMatch.activity);
+  var garminRide=type==='ride'&&typeof window!=='undefined'&&window.getGarminRideActivity&&window.getGarminRideActivity(s);
+  var activity=garminRide||(liveMatch&&liveMatch.activity)||(entry.__stravaMatch&&entry.__stravaMatch.activity);
   var h='<div class="endurance-details '+type+'">';
   if(activity&&typeof stravaActivitySummary==='function'){
     var summary=stravaActivitySummary(activity),distance=type==='swim'?Math.round(summary.distance*1000)+' m':summary.distance.toFixed(1).replace(/\.0$/,'')+' km';
-    h+='<section class="endurance-result" aria-label="Completed '+sport.toLowerCase()+' from Strava">';
-    h+='<span class="endurance-result-source">'+(typeof stravaLogoSvg==='function'?stravaLogoSvg():'')+'Synced from Strava</span>';
+    var source=garminRide?'Garmin':'Strava';
+    var attribution=garminRide
+      ? esc(garminRide.device ? 'Garmin '+String(garminRide.device).replace(/^Garmin\s*/i,'') : 'Garmin')
+      : (typeof stravaLogoSvg==='function'?stravaLogoSvg():'')+'Synced from Strava';
+    h+='<section class="endurance-result" aria-label="Completed '+sport.toLowerCase()+' from '+source+'">';
+    h+='<span class="endurance-result-source">'+attribution+'</span>';
     h+='<div><strong>'+esc(distance)+'</strong><span>'+esc(Math.round(summary.duration)+' min')+'</span></div>';
     h+='</section>';
   }
-  if(activity&&entry.__stravaMatch&&typeof enduranceStravaReviewHtml==='function')h+=enduranceStravaReviewHtml(type,activity);
+  if(activity&&!garminRide&&entry.__stravaMatch&&typeof enduranceStravaReviewHtml==='function')h+=enduranceStravaReviewHtml(type,activity);
   if(activity&&entry.__stravaMatch&&typeof runCheckinHtml==='function')h+=runCheckinHtml(s,i);
   h+='<section class="endurance-prescription" aria-label="'+sport+' workout">';
   h+='<div class="endurance-prescription-head"><div><span>Coach prescription</span><strong>'+sport+' workout</strong></div><div class="endurance-prescription-tags">';
@@ -3801,7 +3818,17 @@ function focusedSessionSubmitState(i,progress){
   // Strava-backed endurance sessions are not finished until the athlete has
   // reviewed the result and added RPE and pain/niggle feedback.
   var sessionType=getType(session);
-  if((sessionType==='run'||sessionType==='swim'||sessionType==='ride')&&typeof runFocusState==='function')return runFocusState(session,i);
+  if((sessionType==='run'||sessionType==='swim'||sessionType==='ride')&&typeof runFocusState==='function'){
+    var enduranceState=runFocusState(session,i);
+    if(sessionType==='ride'&&window.getGarminRideActivity&&window.getGarminRideActivity(session)){
+      if(enduranceState.run==='feedback')enduranceState.title='Ride received from Garmin';
+      else if(enduranceState.title==='Not completed yet'){
+        enduranceState.title='Ride received from Garmin';
+        enduranceState.detail='Review the ride and log your session.';
+      }
+    }
+    return enduranceState;
+  }
   var changed=!!(submitted&&entry.__submittedSig&&gymLogSignature(entry)!==entry.__submittedSig);
   if(changed)return {title:'Changes saved as a draft',detail:'Review the update before sending it.',action:'Review update',submit:true};
   if(submitted)return {title:'Sent to your coaches',detail:'This session is fully submitted.',action:'Back to plan',submit:false};

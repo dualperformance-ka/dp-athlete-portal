@@ -56,8 +56,8 @@ test('callback: the verifier sent to Garmin matches the challenge in the authori
   const stub = stubFetch([
     [(c) => c.url.startsWith('https://connectapi.garmin.com/di-oauth2-service/oauth/token'),
       () => json({ access_token: 'acc', refresh_token: 'ref', expires_in: 86400, refresh_token_expires_in: 7775998, scope: 'PARTNER_READ' })],
-    [(c) => c.url === 'https://apis.garmin.com/wellness-api/rest/user/id', () => json({ userId: 'garmin-user-7' })],
-    [(c) => c.url === 'https://apis.garmin.com/wellness-api/rest/user/permissions', () => json(['ACTIVITY_EXPORT', 'HEALTH_EXPORT'])],
+    [(c) => c.url === 'https://apis.garmin.com/partner-gateway/rest/user/id', () => json({ userId: 'garmin-user-7' })],
+    [(c) => c.url === 'https://apis.garmin.com/partner-gateway/rest/user/permissions', () => json(['ACTIVITY_EXPORT', 'HEALTH_EXPORT'])],
     [(c) => c.url.startsWith('https://db.test/rest/v1/garmin_connections?garmin_user_id='), () => json([])],
     [(c) => c.method === 'POST' && c.url.startsWith('https://db.test/rest/v1/garmin_connections'),
       (c) => { saved = JSON.parse(c.body)[0]; return json([saved], 201); }],

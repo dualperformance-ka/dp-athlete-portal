@@ -84,7 +84,7 @@ test('returning from Garmin cleans the URL and confirms the connection', async (
   });
   await expect.poll(() => page.evaluate(() => location.search)).not.toContain('garmin=');
   await page.evaluate(() => openPreferences());
-  await expect(page.locator('#garminPrefStatus')).toContainText('within a few minutes');
+  await expect(page.locator('#garminPrefStatus')).toContainText('No Garmin data received yet');
   expect(errors).toEqual([]);
 });
 
