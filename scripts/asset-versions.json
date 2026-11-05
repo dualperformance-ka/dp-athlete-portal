@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 200,
-    "sha": "4cc88443fd36"
+    "version": 201,
+    "sha": "2f3277894cf8"
   },
   "desktop.css": {
     "version": 14,
@@ -24,8 +24,8 @@
     "sha": "c49d7406672b"
   },
   "js/02-login-goals.js": {
-    "version": 126,
-    "sha": "7c044f819e0c"
+    "version": 127,
+    "sha": "f19b2a88e6e4"
   },
   "js/03-nav-nudges.js": {
     "version": 132,
@@ -36,16 +36,20 @@
     "sha": "32220dec1a06"
   },
   "js/05-handbook.js": {
-    "version": 89,
-    "sha": "d1ef64cd953c"
+    "version": 90,
+    "sha": "bcac1f353c8c"
   },
   "js/06-nutrition.js": {
-    "version": 113,
-    "sha": "b09e484e65eb"
+    "version": 114,
+    "sha": "c3525cee2d71"
   },
   "js/07-progress.js": {
     "version": 95,
     "sha": "0057d39e90ba"
+  },
+  "js/connected-activities.js": {
+    "version": 1,
+    "sha": "ec7a325b21e4"
   },
   "js/strava-match.js": {
     "version": 10,
@@ -68,23 +72,23 @@
     "sha": "cafd28bcda3f"
   },
   "js/08-training-run.js": {
-    "version": 2,
-    "sha": "a4a18d5c3de0"
+    "version": 3,
+    "sha": "2a82dde13395"
   },
   "js/08-training.js": {
     "version": 171,
     "sha": "aa03063fce7f"
   },
   "js/09-logging.js": {
-    "version": 138,
-    "sha": "df067fa0900d"
+    "version": 139,
+    "sha": "dd5eb1b6ea93"
   },
   "accessibility.js": {
     "version": 3,
     "sha": "92cf32569619"
   },
   "js/10-boot.js": {
-    "version": 114,
-    "sha": "2f6d20bea6e4"
+    "version": 115,
+    "sha": "3131d74f080a"
   }
 }

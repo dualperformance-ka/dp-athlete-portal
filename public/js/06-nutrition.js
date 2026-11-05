@@ -24,11 +24,11 @@ function renderKmTracker(kmData){
     progress.setAttribute('aria-valuenow',String(done));
     if(hasTarget) progress.setAttribute('aria-valuemax',String(target));
     else progress.removeAttribute('aria-valuemax');
-    progress.setAttribute('aria-valuetext',hasTarget?(fmt(done)+' of '+fmt(target)+' kilometres'):(fmt(done)+' kilometres synced from Strava'));
+    progress.setAttribute('aria-valuetext',hasTarget?(fmt(done)+' of '+fmt(target)+' kilometres'):(fmt(done)+' kilometres from connected activities'));
   }
   if(progressFill) progressFill.style.width=pct+'%';
   var srcEl=document.getElementById('kmSrcStrava');
-  if(srcEl) srcEl.style.display=(kmData.source==='strava')?'':'none';
+  if(srcEl){srcEl.style.display=(kmData.source==='strava')?'':'none';srcEl.textContent=window._connectedActivityFeed&&window._connectedActivityFeed.activities.some(function(a){return a.provider==='Garmin';})?'Garmin + Strava':'Strava';}
   bar.classList.toggle('km-hit',hasTarget&&done>=target);
   if(progress) progress.classList.toggle('metric-track-empty',!hasTarget);
   bar.style.display='';
@@ -171,7 +171,7 @@ function fmtKmVal(n){
   if(isNaN(n)) return '0';
   return (Math.round(n*10)/10).toFixed(1).replace(/\.0$/,'');
 }
-var WKM_SOURCE_LABEL={strava:'Synced from Strava',portal:'From your logged sessions',local:'From your logged sessions',plan:'From your planned sessions'};
+var WKM_SOURCE_LABEL={strava:'Synced activities',portal:'From your logged sessions',local:'From your logged sessions',plan:'From your planned sessions'};
 function weeklyKmCardHtml(data){
   var target=Number(data.target),done=Number(data.completed||0);
   if(isNaN(done)||done<0) done=0;
@@ -612,6 +612,7 @@ async function renderVolumeStrip(id,mode){
   var html=data?volumeStripHtml(data,mode,collapsible):'';
   if(!html){el.style.display='none';el.innerHTML='';return;}
   el.innerHTML=html;
+  if(window._connectedActivityFeed&&window._connectedActivityFeed.activities.some(function(a){return a.provider==='Garmin';}))el.insertAdjacentHTML('afterbegin','<p class="connected-attribution">Includes activity data supplied by Garmin.</p>');
   el.classList.toggle('is-collapsible',collapsible);
   var open=!collapsible;
   el.classList.toggle('is-open',open);
@@ -796,7 +797,7 @@ async function loadNutrition(){
   var trackerCompleted=await trackerPromise;
   var localCompleted=deriveCompletedKmFromSessions(sessions);
   var stravaResult=null;
-  try{stravaResult=window._stravaLoadPromise ? await window._stravaLoadPromise : null;}catch(e){}
+  try{stravaResult=window.loadConnectedActivities ? await window.loadConnectedActivities() : (window._stravaLoadPromise ? await window._stravaLoadPromise : null);}catch(e){}
   var hasStrava=!!(stravaResult&&stravaResult.connected&&stravaResult.activitiesAvailable!==false);
   var stravaCompleted=hasStrava?deriveCompletedKmFromStrava(stravaResult.activities,nutWeekOffset):null;
   // One source only: Strava wins when connected, then submitted portal logs,
