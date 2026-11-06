@@ -1,13 +1,13 @@
 import { select, upsert } from './supabase-rest.js';
 import { acquireLease, releaseLease, newLeaseOwner } from './job-lease.js';
-import { buildRunningWorkout, deliverWorkout, validWorkoutDate, workoutError } from './garmin-workouts.js';
+import { buildRunningWorkout, deliverWorkout, validWorkoutDate, workoutError, workoutFingerprint } from './garmin-workouts.js';
 import { getConnection, patchConnection } from './garmin-store.js';
 import { fetchPermissions, accessTokenFresh, refreshGarminToken, tokenFields } from './garmin-client.js';
 
 export async function withGarminLease(job, action) {
   const owner=newLeaseOwner();
   const result=await acquireLease(job,owner,120);
-  if (!result.acquired || result.degraded) throw workoutError('Garmin is busy. Wait a moment and try again.',409);
+  if (!result.acquired || result.degraded) throw workoutError('This workout is already being sent. Wait a moment, then review it again.',409,'busy');
   try { return await action(); } finally { await releaseLease(job,owner,'complete'); }
 }
 
@@ -18,9 +18,11 @@ export async function lockedAccessToken(connection) {
   if (accessTokenFresh(connection)) return connection.access_token;
   return withGarminLease('garmin-token:'+connection.athlete_code,async()=>{
     const fresh=await getConnection(connection.athlete_code);
-    if (!fresh) throw workoutError('Reconnect Garmin before sending workouts.',409);
+    if (!fresh) throw workoutError('Connect Garmin in Preferences before sending workouts.',409,'not_connected');
     if (accessTokenFresh(fresh)) { Object.assign(connection,fresh); return fresh.access_token; }
-    const refreshed=await refreshGarminToken(fresh.refresh_token);
+    let refreshed;
+    try { refreshed=await refreshGarminToken(fresh.refresh_token); }
+    catch (error) { error.garminRefresh=true; throw error; }
     const fields=tokenFields(refreshed);
     if (!fields.refresh_token) fields.refresh_token=fresh.refresh_token;
     await patchConnection(connection.athlete_code,fields);
@@ -31,8 +33,8 @@ export async function lockedAccessToken(connection) {
 
 export async function trainingRequest(path, token, method='GET', body, fetchImpl=fetch) {
   // Paths are generated exclusively by the service, never supplied by a client.
-  if (!/^\/(?:workoutportal\/workout\/v2|training-api\/(?:workout\/v2\/\d+|schedule\/(?:\d+)?))$/.test(path)) throw new Error('Invalid Garmin Training API path');
-  const response=await fetchImpl('https://apis.garmin.com'+path,{method,headers:{Authorization:'Bearer '+token,Accept:'application/json','Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(10000)});
+  if (!/^\/(?:workoutportal\/workout\/v2|training-api\/(?:workout\/v2\/\d+|schedule\/(?:\d+)?|schedule\?startDate=\d{4}-\d{2}-\d{2}&endDate=\d{4}-\d{2}-\d{2}))$/.test(path)) throw new Error('Invalid Garmin Training API path');
+  const response=await fetchImpl('https://apis.garmin.com'+path,{method,headers:{Authorization:'Bearer '+token,Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(10000)});
   const value=await response.text();
   if (!response.ok) { const error=new Error('Garmin Training API request failed');error.status=response.status;throw error; }
   if (!value) return null;
@@ -49,25 +51,32 @@ export async function loadWorkoutPrescription(code,key) {
   const moved=state?.[0]?.value?.[session.notion_page_id || session.id];
   const date=validWorkoutDate(moved || session.planned_date);
   const workout=buildRunningWorkout(session,steps);
-  return {session,steps,date,workout};
+  // coach_notes are never selected above, so private notes cannot reach the
+  // preview or Garmin. The fingerprint is what the athlete reviewed.
+  return {session,steps,date,workout,fingerprint:workoutFingerprint(workout,date)};
 }
 
 export async function workoutReceipt(code,sessionId,userId) {
-  const rows=await select('garmin_workout_deliveries',{athlete_code:'eq.'+code,planned_session_id:'eq.'+sessionId,garmin_user_id:'eq.'+userId,select:'workout_id,owner_id,schedule_id,scheduled_date,fingerprint,state,sent_at',limit:'1'});
+  const rows=await select('garmin_workout_deliveries',{athlete_code:'eq.'+code,planned_session_id:'eq.'+sessionId,garmin_user_id:'eq.'+userId,select:'workout_id,owner_id,schedule_id,scheduled_date,fingerprint,state,sent_at,updated_at',limit:'1'});
   return rows?.[0] || null;
 }
 
-export async function sendPrescribedWorkout(code,key,connection) {
-  const prescription=await loadWorkoutPrescription(code,key);
-  return withGarminLease('garmin-workout:'+code+':'+prescription.session.id,async()=>{
+export async function sendPrescribedWorkout(code,key,connection,reviewed) {
+  // Resolve the alias to the canonical session id first: the lease and the
+  // receipt are keyed by it, so an alias and an id cannot race each other.
+  const first=await loadWorkoutPrescription(code,key);
+  return withGarminLease('garmin-workout:'+code+':'+first.session.id,async()=>{
+    // Re-read inside the lease: what is sent is the current prescription and
+    // date, and only if it is exactly what the athlete reviewed.
+    const prescription=await loadWorkoutPrescription(code,first.session.id);
+    if (!reviewed || reviewed!==prescription.fingerprint) throw Object.assign(workoutError('This session changed since you reviewed it. Check the updated workout, then send it.',409,'stale_preview'),{preview:prescription});
     const token=await lockedAccessToken(connection);
     const permissions=await fetchPermissions(token);
     await patchConnection(code,{permissions});
-    if (!permissions.includes('WORKOUT_IMPORT')) throw workoutError('Reconnect Garmin and allow workout import before sending this session.',412);
+    if (!permissions.includes('WORKOUT_IMPORT')) throw workoutError('Garmin hasn’t allowed DP to add workouts. Reconnect Garmin and tick workout import.',412,'reconnect');
     return deliverWorkout({...prescription,athleteCode:code},{
       read:()=>workoutReceipt(code,prescription.session.id,connection.garmin_user_id),
       save:changes=>upsert('garmin_workout_deliveries',{
-        ...(changes.state==='creating'?{workout_id:null,owner_id:null,schedule_id:null,scheduled_date:null,fingerprint:null,sent_at:null}:{}),
         ...changes,athlete_code:code,planned_session_id:prescription.session.id,garmin_user_id:connection.garmin_user_id,updated_at:new Date().toISOString(),
       },'athlete_code,planned_session_id'),
       request:(path,method,body)=>trainingRequest(path,token,method,body),
