@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 202,
-    "sha": "cd1d15ad1fc8"
+    "version": 203,
+    "sha": "b962cb718900"
   },
   "desktop.css": {
     "version": 14,
@@ -72,8 +72,8 @@
     "sha": "cafd28bcda3f"
   },
   "js/garmin-workouts.js": {
-    "version": 1,
-    "sha": "071a8bd20fb8"
+    "version": 2,
+    "sha": "970b1bbe1048"
   },
   "js/08-training-run.js": {
     "version": 3,

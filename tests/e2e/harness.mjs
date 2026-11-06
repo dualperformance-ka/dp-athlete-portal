@@ -42,7 +42,8 @@ export function weekRows() {
  *    default stub. Lets a spec fail, delay or shape one action without
  *    reimplementing the whole backend.
  *  - strava — the /api/strava response (default: not connected).
- *  - garmin — (pathname, method) => response for /api/garmin*, or undefined
+ *  - garmin — (pathname, method) => response for /api/garmin*, or undefined;
+ *    return { __http: { status, body } } to answer with an HTTP error
  *    to keep the default stub (Garmin not available to this athlete).
  */
 export async function bootPortal(page, { rows = weekRows(), outdoor = false, onPortalAction = null, strava = null, garmin = null } = {}) {
@@ -87,6 +88,8 @@ export async function bootPortal(page, { rows = weekRows(), outdoor = false, onP
       if (body.action === 'bootstrap') json = { ok: true, state: { rows: [], checkins: [] }, bodyLogs: { rows: [] }, nutritionLogs: { rows: [] }, sessionLogs: { rows: [] }, dailyLogged: { body: [], nutrition: [] }, ...common };
       else json = { ok: true, rows: [], checkins: [], body: [], nutrition: [], ...common };
     }
+    // A mock may answer with an HTTP error by returning { status, body }.
+    if (json && json.__http) { await route.fulfill({ status: json.__http.status, contentType: 'application/json', body: JSON.stringify(json.__http.body) }); return; }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json) });
   });
 

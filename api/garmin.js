@@ -282,9 +282,14 @@ async function handleRead(req, res) {
     try {
       accessToken = await getAccessToken(connection);
     } catch (error) {
-      if (!refreshRequiresReconnect(error)) throw error;
-      reconnectRecommended = true;
-      warn({ message: 'Garmin refresh token rejected; reconnect recommended', route: '/api/garmin', requestId: requestId(req), garminStatus: error.status });
+      // Another request is refreshing this token right now. Not a broken
+      // connection: show the card and let the next load verify permissions.
+      if (error && error.code === 'busy') accessToken = null;
+      else if (!refreshRequiresReconnect(error)) throw error;
+      else {
+        reconnectRecommended = true;
+        warn({ message: 'Garmin refresh token rejected; reconnect recommended', route: '/api/garmin', requestId: requestId(req), garminStatus: error.status });
+      }
     }
 
     let permissions = connection.permissions || [];
@@ -371,7 +376,10 @@ async function handleWebhook(req, res) {
 
   try {
     const counts = await processNotification(body);
-    info({ message: 'Garmin notification applied', route: '/api/garmin-webhook', requestId: requestId(req), ...counts });
+    // Summary type names only (e.g. activityDetails), never their contents, so
+    // a missing activity can be told apart from a type that is not stored.
+    const ignoredKeys = counts.ignoredTypes ? parseNotification(body).ignored.slice(0, 10).map((key) => String(key).slice(0, 40)) : undefined;
+    info({ message: 'Garmin notification applied', route: '/api/garmin-webhook', requestId: requestId(req), ...counts, ignoredKeys });
     return res.status(200).json({ received: true, ...counts });
   } catch (error) {
     // A non-200 makes Garmin redeliver, which is the only way a summary that
@@ -540,30 +548,74 @@ async function handleCallback(req, res) {
 
 // Workout contents and dates are always re-read from the athlete's published
 // coach prescription; a browser cannot send arbitrary Garmin workout payloads.
+// The only things a request carries are the session id and the fingerprint of
+// the preview the athlete reviewed.
+function receiptView(receipt, fingerprint) {
+  if (!receipt) return null;
+  return {
+    state: receipt.state,
+    date: receipt.scheduled_date || null,
+    sentAt: receipt.sent_at || null,
+    upToDate: receipt.state === 'sent' && receipt.fingerprint === fingerprint,
+  };
+}
+
+function previewBody(prescribed, connection, code, receipt) {
+  return {
+    sessionId: prescribed.session.id,
+    workout: prescribed.workout,
+    date: prescribed.date,
+    fingerprint: prescribed.fingerprint,
+    canSend: (connection.permissions || []).includes('WORKOUT_IMPORT'),
+    reconnectUrl: buildConnectUrl(code),
+    receipt: receiptView(receipt, prescribed.fingerprint),
+  };
+}
+
+export function workoutFailure(error) {
+  const status = Number(error && error.status);
+  const reconnect = (error && error.code === 'reconnect') || status === 401 || status === 403 || status === 412
+    || (error && error.garminRefresh && refreshRequiresReconnect(error));
+  if (error && error.publicMessage && !reconnect) return { status, code: error.code || 'invalid', message: error.publicMessage };
+  if (reconnect) return { status: 412, code: 'reconnect', message: (error && error.code === 'reconnect' && error.publicMessage) || 'Garmin needs you to reconnect and allow workout import before DP can add workouts.' };
+  if (status === 400) return { status: 422, code: 'rejected', message: 'Garmin rejected this workout, so nothing was added. Ask your coach to check the session steps.' };
+  if (status === 429) return { status: 429, code: 'rate_limited', message: 'Garmin is limiting requests right now. Nothing new was added. Try again in a few minutes.' };
+  if (error && error.code === 'schedule_unconfirmed') return { status: 502, code: 'schedule_unconfirmed', message: 'Your workout is in Garmin Connect, but the calendar entry wasn’t confirmed. Try again: DP checks your Garmin calendar before adding it.' };
+  return { status: 502, code: 'unconfirmed', message: 'Garmin didn’t confirm the workout. Check your Garmin Connect calendar before trying again.' };
+}
+
 async function handleWorkout(req, res) {
   if (!allowPortalRequest(req,res,'GET, POST, OPTIONS')) return;
   if (req.method==='OPTIONS') return res.status(200).end();
   if (!['GET','POST'].includes(req.method)) return res.status(405).json({error:'Method not allowed'});
+  res.setHeader('Cache-Control','no-store');
   const identity=await requestAthleteOr503(req,res);
   if(identity===undefined)return;
   if(!identity)return res.status(401).json({error:'invalid_session'});
   const code=String(identity.athlete.code).toUpperCase();
-  if(!garminAvailableFor(code)||process.env.GARMIN_WORKOUTS_ENABLED!=='true')return res.status(404).json({error:'Garmin workouts are not enabled.'});
+  if(!garminAvailableFor(code)||process.env.GARMIN_WORKOUTS_ENABLED!=='true')return res.status(404).json({error:'Garmin workouts are not enabled.',code:'not_enabled'});
   try {
     const connection=await getConnection(code);
-    if(!connection)return res.status(409).json({error:'Connect Garmin before sending workouts.'});
+    if(!connection)return res.status(409).json({error:'Connect Garmin in Preferences before sending workouts.',code:'not_connected'});
     const key=req.method==='POST'?req.body?.sessionId:req.query?.sessionId;
     if(req.method==='GET') {
       const prescribed=await loadWorkoutPrescription(code,key);
       const receipt=await workoutReceipt(code,prescribed.session.id,connection.garmin_user_id);
-      return res.status(200).json({workout:prescribed.workout,date:prescribed.date,canSend:(connection.permissions||[]).includes('WORKOUT_IMPORT'),reconnectUrl:buildConnectUrl(code),receipt:receipt?{state:receipt.state,date:receipt.scheduled_date,sentAt:receipt.sent_at}:null});
+      return res.status(200).json(previewBody(prescribed,connection,code,receipt));
     }
-    const receipt=await sendPrescribedWorkout(code,key,connection);
-    return res.status(200).json({sent:true,date:receipt.scheduled_date,sentAt:receipt.sent_at});
+    const reviewed=typeof req.body?.fingerprint==='string'?req.body.fingerprint.slice(0,64):'';
+    const receipt=await sendPrescribedWorkout(code,key,connection,reviewed);
+    info({message:'Garmin workout saved to calendar',route:'/api/garmin',requestId:requestId(req),athleteCode:code,unchanged:!!receipt.unchanged});
+    return res.status(200).json({sent:true,state:'saved',date:receipt.scheduled_date,sentAt:receipt.sent_at,unchanged:!!receipt.unchanged});
   } catch(error) {
-    const status=Number(error.status);
-    const message=error.publicMessage || (status===401||status===412?'Reconnect Garmin and allow workout import.':status===429?'Garmin is busy. Try again later.':'Could not confirm delivery. Check Garmin Connect before trying again.');
-    return res.status(error.publicMessage?status:status===429?429:status===401||status===412?412:502).json({error:message});
+    const failure=workoutFailure(error);
+    if(failure.status>=500||failure.code==='delivery_uncertain')warn({message:'Garmin workout not confirmed',route:'/api/garmin',requestId:requestId(req),athleteCode:code,code:failure.code,garminStatus:Number(error&&error.status)||null});
+    const body={error:failure.message,code:failure.code};
+    if(failure.code==='reconnect')body.reconnectUrl=buildConnectUrl(code);
+    if(failure.code==='stale_preview'&&error.preview){
+      try{const connection=await getConnection(code);if(connection){const receipt=await workoutReceipt(code,error.preview.session.id,connection.garmin_user_id);body.preview=previewBody(error.preview,connection,code,receipt);}}catch{/* the athlete can review again */}
+    }
+    return res.status(failure.status).json(body);
   }
 }
 

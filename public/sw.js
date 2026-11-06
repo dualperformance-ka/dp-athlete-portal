@@ -1,6 +1,6 @@
-const CACHE_NAME = 'dp-athlete-v262'; // v262: Garmin ride attribution and results
+const CACHE_NAME = 'dp-athlete-v263'; // v263: Send to Garmin review, stale-preview and status wording
 const APP_SHELL = [
-  '/index.html', '/styles.css?v=202', '/desktop.css?v=14', '/config.js',
+  '/index.html', '/styles.css?v=203', '/desktop.css?v=14', '/config.js',
   '/manifest.json', '/icon-192.png?v=3', '/icon-512.png?v=3', '/apple-touch-icon.png?v=3',
   '/js/00-safe-storage.js?v=1',
   '/js/01-core.js?v=133',
@@ -16,7 +16,7 @@ const APP_SHELL = [
   '/js/08-training-muscle-coverage.js?v=1',
   '/js/08-training-focus.js?v=2',
   '/js/08-strength-engine.js?v=4',
-  '/js/garmin-workouts.js?v=1',
+  '/js/garmin-workouts.js?v=2',
   '/js/08-training-run.js?v=3',
   '/js/08-training.js?v=174',
   '/js/09-logging.js?v=139',
