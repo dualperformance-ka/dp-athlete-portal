@@ -57,6 +57,11 @@ export async function bootPortal(page, { rows = weekRows(), outdoor = false, onP
   }, outdoor);
   await page.route('**/_vercel/**', r => r.abort());
   await page.route('https://**', r => r.abort());
+  // Keep optional page assets offline without producing browser console errors.
+  await page.route('https://fonts.googleapis.com/**', route =>
+    route.fulfill({ contentType: 'text/css', body: '' }));
+  await page.route('https://browser.sentry-cdn.com/**', route =>
+    route.fulfill({ contentType: 'application/javascript', body: '' }));
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
     let body = {}; try { body = route.request().postDataJSON() || {}; } catch (e) {}
