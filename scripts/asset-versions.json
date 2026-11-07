@@ -44,8 +44,8 @@
     "sha": "c3525cee2d71"
   },
   "js/07-progress.js": {
-    "version": 95,
-    "sha": "0057d39e90ba"
+    "version": 96,
+    "sha": "48eb6dd9462e"
   },
   "js/connected-activities.js": {
     "version": 3,
@@ -72,8 +72,8 @@
     "sha": "cafd28bcda3f"
   },
   "js/garmin-workouts.js": {
-    "version": 2,
-    "sha": "970b1bbe1048"
+    "version": 3,
+    "sha": "20e54cb68136"
   },
   "js/08-training-run.js": {
     "version": 3,
@@ -92,7 +92,7 @@
     "sha": "92cf32569619"
   },
   "js/10-boot.js": {
-    "version": 117,
-    "sha": "7003a5e8f3de"
+    "version": 118,
+    "sha": "c03b8680387b"
   }
 }

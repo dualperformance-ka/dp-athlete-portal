@@ -28,6 +28,7 @@
  */
 
 import { select } from './supabase-rest.js';
+import { garminAvailableFor, mergeGarminWithStrava } from './garmin-client.js';
 
 export const SUMMARY_VERSION = 1;
 
@@ -1413,6 +1414,8 @@ export async function performanceSummary(code, body = {}, deps = {}) {
   const previousStart = addDaysISO(startDate, -7);
   const previousEnd = addDaysISO(startDate, -1);
 
+  const garminActivitySource = (deps.garminAvailable || garminAvailableFor)(code);
+
   // ── Optional sources. Each one degrades on its own.
   const missingSources = [];
   const optional = (name, promise, fallback) => promise.then(
@@ -1465,6 +1468,7 @@ export async function performanceSummary(code, body = {}, deps = {}) {
     runStepRows,
     targetRows,
     nutritionRows,
+    garminRows,
   ] = await Promise.all([
     // Scoped to THIS week's keys rather than reading the whole log. An
     // unbounded read caps at some limit and truncates arbitrarily once an
@@ -1570,7 +1574,29 @@ export async function performanceSummary(code, body = {}, deps = {}) {
         limit: '100',
       }), null)
       : Promise.resolve([]),
+    // Garmin activities, only for an athlete on the Garmin allowlist who is
+    // connected. Everyone else makes no Garmin read and gets exactly the
+    // Strava-or-logs review they had. Aggregate columns only; local_date is
+    // already the athlete's calendar day.
+    garminActivitySource
+      ? optional('garmin_activities', selectRows('garmin_connections', {
+        athlete_code: `eq.${code}`, select: 'athlete_code', limit: '1',
+      }).then((connections) => (Array.isArray(connections) && connections.length
+        ? selectRows('garmin_activities', {
+          athlete_code: `eq.${code}`,
+          and: `(local_date.gte.${startDate},local_date.lte.${endDate})`,
+          select: 'summary_id,start_time,local_date,activity_type,distance_m,duration_s,offset:summary->startTimeOffsetInSeconds',
+          order: 'start_time.asc',
+          limit: '200',
+        })
+        : null)), null)
+      : Promise.resolve(null),
   ]);
+
+  // Garmin and Strava merged, each recording once and Garmin preferred, then
+  // fed through the same shared rules as Strava rows.
+  const stravaAnswer = Array.isArray(stravaRows) ? stravaRows : null;
+  const enduranceRows = Array.isArray(garminRows) ? mergeGarminWithStrava(stravaAnswer, garminRows) : stravaAnswer;
 
   const structured = new Map();
   structuredIds.forEach((id) => structured.set(id, { exercises: 0, runSteps: 0 }));
@@ -1603,8 +1629,7 @@ export async function performanceSummary(code, body = {}, deps = {}) {
   // against an empty past and every set would look like a record.
   const personalBestsStatus = strengthHistoryRows === null ? 'not_calculated' : 'calculated';
 
-  return {
-    summary: buildSummary({
+  const summary = buildSummary({
       programmeWeek,
       plannedRows: planned,
       loggedKeys,
@@ -1613,7 +1638,7 @@ export async function performanceSummary(code, body = {}, deps = {}) {
       bodyLogs: Array.isArray(bodyRows) ? bodyRows : [],
       previousWeekBodyLogs: Array.isArray(previousBodyRows) ? previousBodyRows : null,
       checkInRows: Array.isArray(checkInRows) ? checkInRows : [],
-      stravaRows: Array.isArray(stravaRows) ? stravaRows : null,
+      stravaRows: enduranceRows,
       gymKeys,
       structured,
       coachTargets: coachTargetsFromRows(targetRows),
@@ -1623,6 +1648,31 @@ export async function performanceSummary(code, body = {}, deps = {}) {
       missingSources,
       warnings,
       personalBestsStatus,
-    }),
-  };
+    });
+  if (Array.isArray(garminRows)) labelConnectedSources(summary.endurance, enduranceRows, stravaAnswer !== null, startDate, endDate);
+  return { summary };
+}
+
+/**
+ * Says which service measured each sport when Garmin was read. The shared rules
+ * label every connected-activity number 'strava'; here that becomes 'garmin',
+ * 'garmin_strava' (both contributed) or stays 'strava'. A sport with nothing
+ * recorded names the services that answered. Other labels are left alone.
+ */
+export function labelConnectedSources(endurance, rows, stravaAnswered, startDate, endDate) {
+  if (!endurance || typeof endurance !== 'object') return endurance;
+  Object.keys(endurance).forEach((sport) => {
+    const entry = endurance[sport];
+    if (!entry || entry.actualSource !== 'strava') return;
+    const providers = new Set();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const date = toIsoDate(row.start_date_local);
+      if (!date || date < startDate || date > endDate || sportForStravaActivity(row) !== sport) return;
+      providers.add(row.provider === 'garmin' ? 'garmin' : 'strava');
+    });
+    if (!providers.size) { providers.add('garmin'); if (stravaAnswered) providers.add('strava'); }
+    entry.actualSource = providers.has('garmin') && providers.has('strava') ? 'garmin_strava'
+      : providers.has('garmin') ? 'garmin' : 'strava';
+  });
+  return endurance;
 }

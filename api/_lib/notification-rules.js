@@ -237,7 +237,10 @@ function formatDuration(seconds) {
 }
 export function buildStravaMessage(activity = {}) {
   const id = String(activity.strava_activity_id || '').trim();
-  if (!/^\d+$/.test(id)) return null;
+  // A Garmin-allowlisted athlete's activity carries a provider-neutral key so
+  // the same recording from Garmin and Strava is one push.
+  const connectedKey = /^synced:[a-z]+:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(activity.dedupe_key || '')) ? String(activity.dedupe_key) : null;
+  if (!connectedKey && !/^\d+$/.test(id)) return null;
   const date = String(activity.start_date_local || '').slice(0, 10);
   const km = Number(activity.distance_m) > 0 ? Math.round(Number(activity.distance_m) / 100) / 10 : null;
   const time = formatDuration(activity.moving_time_s || activity.elapsed_time_s);
@@ -248,7 +251,7 @@ export function buildStravaMessage(activity = {}) {
     title: km ? `${label} synced · ${km} km` : `${label} synced`,
     body: `${facts ? `${facts}. ` : ''}Open it to add how it felt while it is fresh.`,
     url: /^\d{4}-\d{2}-\d{2}$/.test(date) ? `/?tab=training&date=${date}` : '/?tab=training',
-    dedupeKey: `strava:${id}`,
+    dedupeKey: connectedKey || `strava:${id}`,
   };
 }
 
