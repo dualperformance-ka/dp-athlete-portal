@@ -405,7 +405,7 @@ function wrSportLabel(sport){
   return {running:'Running',cycling:'Cycling',swimming:'Swimming',strength:'Strength',other:'Other'}[sport]||sport;
 }
 function wrSourceLabel(source){
-  return {strava:'from Strava',portal_logs:'from your logs',unavailable:'no source available'}[source]||'';
+  return {strava:'from Strava',garmin:'from Garmin',garmin_strava:'from Garmin and Strava',portal_logs:'from your logs',unavailable:'no source available'}[source]||'';
 }
 
 // ── Review weeks ─────────────────────────────────────────────────────────────

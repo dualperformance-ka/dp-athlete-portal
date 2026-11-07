@@ -60,7 +60,7 @@ One row per athlete and canonical planned-session id in
 | `creating` | Workout POST in flight or its answer was lost | **Blocked.** See "Uncertain create" |
 | `retryable` | Garmin definitively refused the create (4xx) | Creates again |
 | `ready` | Workout id saved, no confirmed calendar entry | Schedules with the saved id |
-| `scheduling` | Calendar POST in flight for `scheduled_date` | Lists that day's schedules, adopts an entry for this workout, otherwise posts |
+| `scheduling` | Calendar POST in flight for `scheduled_date` | Lists that day's schedules (a month either side if no date was recorded, as on receipts from before 6 Nov 2026), adopts an entry for this workout, otherwise posts |
 | `sent` | Workout and calendar entry confirmed | Unchanged: checks the entry still exists. Changed: PUTs both |
 
 - The send is single-flight per athlete and session (database lease), so a
@@ -92,7 +92,10 @@ coach. To clear it:
    look for the session's workout name (provider "Dual Performance").
 2. If it is there, delete it in Garmin Connect (or keep it and ask the athlete
    to schedule it by hand; do not do both).
-3. Reset the receipt so the next send creates exactly one workout:
+3. Reset the receipt so the next send creates exactly one workout. In the
+   coaches dashboard, open the run: its status reads **Needs coach check**;
+   select **Clear the block** (it only ever touches a `creating` receipt).
+   Without the dashboard, the same reset in SQL:
 
 ```sql
 update public.garmin_workout_deliveries
@@ -122,16 +125,58 @@ Never delete a receipt simply to retry: that is how duplicates are made.
   calls, and the coaches dashboard's `api/analyse.js` reads none of the
   `garmin_*` tables.
 
+## Activity import and the activity source
+
+Starter access (Garmin Developer Program Start Guide 2.0, 15 Oct 2026, §2.1
+and §2.3): up to 1,000 connected users, **push-only** delivery, **no
+historical data**, one client ID. So:
+
+- Only activities synced after an athlete connects arrive; the backfill
+  endpoint answers 412 and the portal no longer calls it.
+- A push Garmin never sends cannot be re-requested. Garmin retries a failed
+  push hourly for up to 7 days when our endpoint does not answer 200
+  (Activity API 2.1 §4); the webhook returns 500 on a storage failure so that
+  retry happens.
+- Every webhook call is logged as "Garmin notification applied" with
+  `saved`, `ignoredTypes` and, since v263, `ignoredKeys` (summary type names
+  only). A missing activity with no log line at all means Garmin never called
+  us.
+
+If a Garmin-recorded activity is missing, check in Garmin's endpoint tool
+(https://apis.garmin.com/tools/endpoints, signed in with the app's client ID
+and secret, which only the account owner should enter):
+
+1. **Activities** and **Manually Updated Activities** are enabled, set to
+   PUSH, URL `https://portal.dualperformance.au/api/garmin-webhook`.
+2. Neither is **On Hold**.
+3. Summary types the portal does not store (Activity Details, Activity Files,
+   Epochs, Stress, etc.) can be unticked; they only produce `ignoredKeys`.
+   Tick **Dailies** and **Sleeps** if daily calories and sleep should arrive
+   (none have so far).
+4. Then email connect-support@developer.garmin.com with the athlete's Garmin
+   user ID, the activity start time (UTC) and the endpoint URL, asking whether
+   a push was attempted.
+
+Weekly review and reminders: for an athlete in `GARMIN_ALLOWED_ATHLETES`
+**who is connected**, the weekly review's actual km and the evening "not
+logged" nudge and "synced" push also read `garmin_activities`. A recording
+both services hold (same sport, start within 10 minutes, distance within 3%)
+counts once, as Garmin; the card says "from Garmin", "from Garmin and Strava"
+or "from Strava". Everyone else makes no Garmin read and gets exactly the
+review and reminders they had. The rules block shared with the coach card is
+unchanged, and no Garmin data reaches any AI input.
+
 ## Deploy
 
-1. Merge the portal PR (CI green). Production then serves cache `v263`.
+1. Merge the portal PR (CI green). Production then serves cache `v264`.
 2. Vercel → dp-athlete-portal → Settings → Environment Variables
    (Production). Confirm these exist, without opening their values:
    `GARMIN_CLIENT_ID`, `GARMIN_CLIENT_SECRET`, `CRON_SECRET`, `PORTAL_URL`,
    `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `GARMIN_ALLOWED_ATHLETES=KARL`.
    Add `GARMIN_WORKOUTS_ENABLED=true` if it is missing, then redeploy.
 3. No database migration is needed. `garmin_workout_deliveries`,
-   `acquire_job_lease` and the dashboard's `replace_run_steps` are live.
+   `acquire_job_lease` and the dashboard's `replace_run_steps` and
+   `save_run_session` are live.
 
 ## Pilot (test athlete KARL only)
 
@@ -157,9 +202,15 @@ Never delete a receipt simply to retry: that is how duplicates are made.
    null from garmin_workout_deliveries where athlete_code = 'KARL';`
    (`sent`, the new date, true, true).
 
-## Gate for widening `GARMIN_ALLOWED_ATHLETES`
+## Evidence gates
 
-Widen beyond KARL only when **all** of these hold:
+**Gate A, before widening `GARMIN_ALLOWED_ATHLETES` for activity import:**
+seven consecutive days in which every Garmin-recorded KARL activity (Strava
+rows whose device is "Garmin …") also arrived in `garmin_activities`, with any
+delay explained, and KARL's weekly review km matching between Garmin and
+Strava for that week.
+
+**Gate B, before enabling Send to Garmin for clients:**
 
 - Pilot steps 1–8 passed on the test watch, with the evidence recorded.
 - The calendar entry was confirmed in Garmin Connect **and** the workout was
@@ -168,7 +219,12 @@ Widen beyond KARL only when **all** of these hold:
 - Seven days of Vercel logs show no `Garmin workout not confirmed` warnings
   that were not explained, and the hourly refresh cron is returning 200.
 - The coach has published structured runs (not text-only) for the athletes
-  being added; each must reconnect Garmin and tick workout import.
+  being added (the dashboard's "Garmin · next 14 days" line shows them as
+  Garmin-ready); each athlete connects Garmin and ticks workout import.
+
+Also before inviting clients: the privacy page still describes Garmin as not
+yet live, and Garmin's Starter terms require a published privacy policy and
+compliance with its integration and UX requirements (Start Guide §2.1).
 
 Then add athlete codes one or two at a time, comma separated, and redeploy.
 Use `*` only after a full training week with no unexplained failures.

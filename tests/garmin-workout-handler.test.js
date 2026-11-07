@@ -49,7 +49,7 @@ function fixture({permission=true,found=true,sessionDate='2026-11-10',reschedule
    else if(key==='POST /training-api/schedule/'){const s=++garmin.next;garmin.schedules.set(s,{scheduleId:s,...body});value={scheduleId:s};}
    else if(key==='PUT /training-api/schedule/:id'){if(!garmin.schedules.has(tail))return new Response('',{status:404});garmin.schedules.set(tail,body);value=body;}
    else if(key==='GET /training-api/schedule/:id'){if(!garmin.schedules.has(tail))return new Response('',{status:404});value=garmin.schedules.get(tail);}
-   else if(key==='GET /training-api/schedule'){const day=url.searchParams.get('startDate');value=[...garmin.schedules.values()].filter(s=>s.date===day);}
+   else if(key==='GET /training-api/schedule'){const from=url.searchParams.get('startDate'),to=url.searchParams.get('endDate');value=[...garmin.schedules.values()].filter(s=>s.date>=from&&s.date<=to);}
    else throw new Error('Unexpected Garmin request '+method+' '+url);
   }else if(url.pathname.endsWith('/rpc/acquire_job_lease')){if(leases.has(body.p_job))value=false;else{leases.add(body.p_job);value=true;}}
   else if(url.pathname.endsWith('/rpc/release_job_lease')){leases.delete(body.p_job);value=true;}
@@ -246,4 +246,20 @@ test('the webhook log names summary types it does not store, never their content
   assert.equal(r.code,200);const line=lines.find(l=>l.includes('Garmin notification applied'));assert.ok(line,lines.join('\n'));
   assert.deepEqual(JSON.parse(line).ignoredKeys,['activityDetails','epochs']);assert.doesNotMatch(line,/secret-summary|heartRate/);
  }finally{console.info=log;f.restore();}
+});
+test('a receipt left mid-calendar by the old code (no date recorded) finds the entry instead of adding a second',async()=>{
+ // Live case, 6 Nov 2026: the workout and its calendar entry reached Garmin,
+ // the receipt stayed 'scheduling' with no scheduled_date and no schedule_id.
+ const f=fixture({sessionDate:'2026-11-07'});try{
+  const workoutId=1753010277;f.garmin.workouts.set(workoutId,{workoutName:'Run: Long Easy'});
+  f.garmin.schedules.set(1831972919,{scheduleId:1831972919,workoutId,date:'2026-11-07'});
+  f.db.receipt={athlete_code:'KARL',planned_session_id:id,garmin_user_id:'g1',state:'scheduling',workout_id:String(workoutId),owner_id:'22',schedule_id:null,scheduled_date:null,fingerprint:null,sent_at:null};
+  const p=await f.preview();assert.equal(p.body.receipt.state,'scheduling');
+  const s=await f.send(p.body.fingerprint);assert.equal(s.code,200,JSON.stringify(s.body));
+  assert.equal(f.garminCalls(/^POST \/training-api\/schedule/).length,0,'no second calendar entry');
+  assert.equal(f.garminCalls(/^POST \/workoutportal/).length,0,'no second workout');
+  const lookup=f.garminCalls(/^GET \/training-api\/schedule$/)[0];
+  assert.equal(lookup.url.searchParams.get('startDate'),'2026-10-07');assert.equal(lookup.url.searchParams.get('endDate'),'2026-12-08');
+  assert.equal(f.onCalendar().length,1);assert.equal(f.db.receipt.state,'sent');assert.equal(f.db.receipt.schedule_id,'1831972919');assert.equal(f.db.receipt.scheduled_date,'2026-11-07');
+ }finally{f.restore();}
 });
