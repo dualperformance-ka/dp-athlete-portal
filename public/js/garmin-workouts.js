@@ -30,8 +30,17 @@
     return [h?h+' h':'',m?m+' min':'',r?r+' s':''].filter(Boolean).join(' ');
   }
   function distance(metres){var m=Number(metres);return m>=1000?(Math.round(m/10)/100)+' km':Math.round(m)+' m';}
+  // Only shown to an athlete Garmin is offered to (the allowlist), and only
+  // when workout sending is switched on. Not connected, or connected without
+  // workout import, gets a one-tap way to fix it instead of the Review button.
+  function setupHtml(title,body,label){
+    return '<section class="garmin-workout" aria-label="Get this run on your Garmin"><strong>'+escape(title)+'</strong><p>'+escape(body)+'</p><button type="button" class="savebtn" onclick="if(window.garminConnect)window.garminConnect()">'+escape(label)+'</button></section>';
+  }
   window.garminWorkoutHtml=function(s,i){
-    if(!s||getType(s)!=='run'||!sendsToGarmin(s)||!window._garminWorkoutState||!window._garminWorkoutState.connected||!window._garminWorkoutState.workoutsAvailable)return '';
+    var state=window._garminWorkoutState;
+    if(!s||getType(s)!=='run'||!sendsToGarmin(s)||!state||!state.available||!state.workoutsAvailable)return '';
+    if(!state.connected)return setupHtml('Garmin Connect','Connect Garmin to save your coach’s runs to your Garmin calendar and watch.','Connect Garmin');
+    if(state.workoutImportMissing)return setupHtml('Garmin Connect','Garmin isn’t allowing DP to add workouts. Reconnect Garmin and tick workout import.','Reconnect Garmin');
     return '<section class="garmin-workout" data-garmin-session="'+escape(s.id)+'" aria-label="Save this run to Garmin Connect"><strong>Garmin Connect</strong><p>Review this run, then save it to your Garmin Connect calendar. Sync a compatible watch afterwards to load it.</p><button type="button" class="savebtn" onclick="previewGarminWorkout('+i+',this)">Review for Garmin</button><div class="garmin-workout-preview"></div><p role="status" aria-live="polite"></p></section>';
   };
   function describe(step){

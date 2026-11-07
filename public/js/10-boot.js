@@ -758,14 +758,16 @@ window.acknowledgeStrava = async function() {
     if(pref) pref.style.display = 'grid';
 
     if(data.connected){
-      var reconnectUrl = data.reconnectRecommended ? data.reconnectUrl : null;
+      var reconnectUrl = data.reconnectRecommended ? data.reconnectUrl : (data.workoutImportMissing ? data.workoutConnectUrl : null);
       if(pill){
         if(reconnectUrl){
           pill.setAttribute('href', reconnectUrl);
           mintedAt = Date.now();
           pill.textContent = 'Reconnect Garmin';
           pill.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:transparent;color:var(--t-1);border-color:var(--control-line);box-shadow:none;text-decoration:none;font-weight:700;';
-          pill.title = 'Your Garmin data is still syncing. Reconnect to keep history and workouts working.';
+          pill.title = data.workoutImportMissing && !data.reconnectRecommended
+            ? 'Reconnect Garmin and tick workout import to get coach runs on your watch.'
+            : 'Your Garmin data is still syncing. Reconnect to keep history and workouts working.';
         } else {
           pill.removeAttribute('href');
           pill.innerHTML = '<span class="btn-ic"><svg class="icon"><use href="#i-check"/></svg></span>Garmin connected';
@@ -776,9 +778,10 @@ window.acknowledgeStrava = async function() {
       }
       if(prefStatus){
         var synced = data.lastSyncAt ? relative(data.lastSyncAt) : '';
-        prefStatus.textContent = synced
+        prefStatus.textContent = (synced
           ? 'Connected. Last sync ' + synced + '.'
-          : 'Account linked. No Garmin data received yet. Record a new activity and sync Garmin Connect; older runs may remain from Strava.';
+          : 'Account linked. No Garmin data received yet. Record a new activity and sync Garmin Connect; older runs may remain from Strava.')
+          + (data.workoutImportMissing ? ' Workout import is off: tap Reconnect Garmin and tick workout import to get coach runs on your watch.' : '');
       }
       if(prefAction){ prefAction.textContent = 'Disconnect Garmin'; prefAction.disabled = false; }
       return;
@@ -820,10 +823,11 @@ window.acknowledgeStrava = async function() {
   // so a stale link is re-minted before following it. Same window, never a new
   // tab: installed iOS PWAs can strand a target=_blank OAuth hand-off.
   async function connect(){
-    var url = current && (current.connectUrl || current.reconnectUrl);
+    var pick = function(state){ return state && (state.connectUrl || state.reconnectUrl || (state.workoutImportMissing ? state.workoutConnectUrl : null)); };
+    var url = pick(current);
     if(!url || Date.now() - mintedAt >= REMINT_MS){
       var fresh = await load();
-      url = fresh && (fresh.connectUrl || fresh.reconnectUrl);
+      url = pick(fresh);
     }
     if(url) window.location.assign(url);
   }
@@ -852,6 +856,9 @@ window.acknowledgeStrava = async function() {
 
   // Disconnect deletes data, so it takes two taps. Not confirm(): a native
   // dialog blocks the page and is easy to dismiss by accident on mobile.
+  // Used by the run session's Garmin panel. Re-mints a stale link first.
+  window.garminConnect = function(){ connect(); };
+
   window.garminPreferenceAction = function(){
     if(!current || !current.available) return;
     if(!current.connected){ connect(); return; }
@@ -872,7 +879,7 @@ window.acknowledgeStrava = async function() {
 
   function onPillClick(e){
     e.preventDefault();
-    if(current && current.connected && !current.reconnectRecommended) return;
+    if(current && current.connected && !current.reconnectRecommended && !current.workoutImportMissing) return;
     connect();
   }
 
@@ -886,7 +893,8 @@ window.acknowledgeStrava = async function() {
       url.searchParams.delete('garmin');
       window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
       if(outcome === 'connected' && typeof showToast === 'function'){
-        showToast('Garmin connected. Your last 30 days will appear over the next few minutes.');
+        // Starter access has no history: only activities synced from now on arrive.
+        showToast('Garmin connected. New activities appear here after your watch syncs with Garmin Connect.');
       }
     } catch(e) { /* old browser: leave the URL alone */ }
   }
