@@ -11,7 +11,7 @@ const workout=(reps=6)=>({workoutName:'6 × 1 km intervals',sport:'RUNNING',segm
  {type:'WorkoutStep',stepOrder:5,intensity:'COOLDOWN',durationType:'TIME',durationValue:600,targetType:'OPEN',description:''}]}]});
 const preview=(over={})=>({sessionId:id,workout:workout(),date:localISO(),fingerprint:'f'.repeat(64),canSend:true,reconnectUrl:'https://connect.garmin.com/oauth2Confirm?state=test',receipt:null,...over});
 
-async function openWorkout(page,{sessionType='Intervals',width=390,onGet=()=>preview(),onPost=()=>({sent:true,state:'saved',date:localISO()})}={}){
+async function openWorkout(page,{sessionType='Intervals',width=390,status={available:true,connected:true,workoutsAvailable:true,activities:[]},onGet=()=>preview(),onPost=()=>({sent:true,state:'saved',date:localISO()})}={}){
  const calls=[],errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!/\/_vercel\//.test(m.location().url||''))errors.push(m.text());}); // the harness aborts Vercel Analytics on purpose
  await page.setViewportSize({width,height:844});
  await bootPortal(page,{rows:[{id,notion_page_id:id,title:'6 × 1 km intervals',session_type:sessionType,planned_date:localISO(),status:'Planned',week_label:'Week 12',prescription_mode:'structured'}],garmin:(path,method,url)=>{
@@ -19,10 +19,10 @@ async function openWorkout(page,{sessionType='Intervals',width=390,onGet=()=>pre
    if(method==='POST'){const body=JSON.parse(page.__lastPost||'{}');calls.push({method,body});return onPost(body,calls);}
    calls.push({method});return onGet(calls);
   }
-  return {available:true,connected:true,workoutsAvailable:true,activities:[]};
+  return status;
  }});
  await page.route(url=>url.pathname==='/api/garmin'&&url.searchParams.get('mode')==='workout',async route=>{page.__lastPost=route.request().postData();await route.fallback();});
- await expect.poll(()=>page.evaluate(()=>!!window._garminWorkoutState?.workoutsAvailable)).toBe(true);
+ await expect.poll(()=>page.evaluate(()=>window._garminWorkoutState?.available===true)).toBe(true);
  await page.evaluate(id=>startFocusedSession(sessions.findIndex(s=>s.id===id)),id);
  const panel=page.locator('#focusOverlay .garmin-workout');
  return {panel,calls,errors};
@@ -102,4 +102,28 @@ test('a coach change after sending offers an update rather than a second copy',a
 });
 test('mixed sessions such as a brick do not offer Send to Garmin',async({page})=>{
  const {panel}=await openWorkout(page,{sessionType:'Brick'});await page.waitForTimeout(500);await expect(panel).toHaveCount(0);
+});
+
+test('an allowlisted athlete who has not connected Garmin is offered Connect on the run',async({page})=>{
+ const {panel,errors}=await openWorkout(page,{status:{available:true,connected:false,connectUrl:'https://connect.garmin.com/oauth2Confirm?state=fresh',workoutsAvailable:true}});
+ await expect(panel).toContainText('Connect Garmin to save your coach’s runs');
+ await expect(panel.getByRole('button',{name:'Review for Garmin'})).toHaveCount(0);
+ expect(errors).toEqual([]);
+ // The harness blocks the hand-off to Garmin itself, so console noise after
+ // this point is the blocked navigation, not the portal.
+ const request=page.waitForRequest(r=>r.url().startsWith('https://connect.garmin.com/oauth2Confirm'));
+ await panel.getByRole('button',{name:'Connect Garmin'}).click();
+ expect((await request).url()).toContain('state=fresh');
+});
+test('connected without workout import: the run and Preferences both ask to reconnect',async({page})=>{
+ const {panel,calls}=await openWorkout(page,{status:{available:true,connected:true,workoutsAvailable:true,permissionsVerified:true,permissions:['ACTIVITY_EXPORT'],workoutImportMissing:true,workoutConnectUrl:'https://connect.garmin.com/oauth2Confirm?state=reconnect',activities:[],lastSyncAt:new Date().toISOString()}});
+ await expect(panel).toContainText('tick workout import');
+ await expect(panel.getByRole('button',{name:'Reconnect Garmin'})).toBeVisible();
+ await expect(page.locator('#garminPrefStatus')).toContainText('Workout import is off');
+ await expect(page.locator('#garminPrefStatus')).not.toContainText('Strava');
+ expect(calls).toEqual([]);
+});
+test('with workout sending switched off nothing is offered on the run',async({page})=>{
+ const {panel}=await openWorkout(page,{status:{available:true,connected:false,connectUrl:'https://connect.garmin.com/oauth2Confirm?state=x',workoutsAvailable:false}});
+ await page.waitForTimeout(300);await expect(panel).toHaveCount(0);
 });

@@ -51,6 +51,7 @@ import {
   minuteMatches,
   partitionCoachChanges,
 } from './notification-rules.js';
+import { garminActivityAsStravaRow, garminAvailableFor } from './garmin-client.js';
 
 export const DEFAULT_TZ = 'Australia/Adelaide';
 const DONE_STATUS = /^(done|completed?|complete|skipped|missed)$/i;
@@ -165,7 +166,7 @@ const asRows = (rows) => (Array.isArray(rows) ? rows : []);
 // ── Inputs ──────────────────────────────────────────────────────────────────
 // `read(table, query)` is the database. Every read here is batched across the
 // athletes who need it; none is per athlete.
-export async function loadReminderInputs(athletes, { read, nowMs = Date.now() }) {
+export async function loadReminderInputs(athletes, { read, nowMs = Date.now(), garminAvailable = garminAvailableFor }) {
   const due = {};
   athletes.forEach((a) => { due[a.code] = emptyDue(a.now.iso); });
   const wantsMorning = (a) => a.windows.morning && a.lastSent.morning !== a.now.iso;
@@ -198,6 +199,13 @@ export async function loadReminderInputs(athletes, { read, nowMs = Date.now() })
     const logged = new Set(asRows(loggedRows).map((row) => upper(row.athlete_code)));
     for (const row of asRows(activityRows)) {
       if (String(row.start_date_local || '').slice(0, 10) === iso) logged.add(upper(row.athlete_code));
+    }
+    // Allowlisted Garmin athletes: an activity Garmin recorded today counts as
+    // well. Nobody else is asked about Garmin.
+    const garminCodes = group.map((a) => a.code).filter((code) => garminAvailable(code));
+    if (garminCodes.length) {
+      const garminRows = await read('garmin_activities', { athlete_code: inList(garminCodes), local_date: `eq.${iso}`, select: 'athlete_code', limit: '1000' });
+      for (const row of asRows(garminRows)) logged.add(upper(row.athlete_code));
     }
     group.forEach((a) => { if (!logged.has(a.code)) due[a.code].unlogged = due[a.code].sessions.slice(); });
   }
@@ -269,7 +277,7 @@ export async function loadReminderInputs(athletes, { read, nowMs = Date.now() })
   }
 
   // 8. Strava activities synced in the last 45 minutes.
-  await addStravaSynced(due, athletes.filter((a) => a.prefs.strava), { read, nowMs });
+  await addStravaSynced(due, athletes.filter((a) => a.prefs.strava), { read, nowMs, garminAvailable });
 
   // 9. Coach messages held through quiet hours. Only athletes outside quiet
   // hours with a device can receive them, so only they are asked about.
@@ -333,16 +341,32 @@ export async function addDailyNudges(due, athletes, { read, nowMs = Date.now() }
 // An activity that started long ago, from a backfill or a first connect, is
 // never announced. start_date_local is the athlete's wall-clock time stored
 // with a +00 label, so it is compared with the athlete's wall clock.
-export async function addStravaSynced(due, athletes, { read, nowMs = Date.now() }) {
+//
+// An athlete on the Garmin allowlist is also told about Garmin activities.
+// For them the key is the sport and start minute instead of a provider id, so
+// a recording that reaches both Garmin and Strava, in either order, is one push.
+export async function addStravaSynced(due, athletes, { read, nowMs = Date.now(), garminAvailable = garminAvailableFor }) {
   if (!athletes.length) return;
+  const since = new Date(nowMs - STRAVA_LOOKBACK_MINUTES * 60000).toISOString();
   const rows = await read('strava_activities', {
     athlete_code: inList(athletes.map((a) => a.code)),
-    synced_at: `gte.${new Date(nowMs - STRAVA_LOOKBACK_MINUTES * 60000).toISOString()}`,
+    synced_at: `gte.${since}`,
     select: 'strava_activity_id,athlete_code,start_date_local,sport_type,distance_m,moving_time_s,elapsed_time_s',
     limit: '200',
   });
+  const garminCodes = athletes.map((a) => a.code).filter((code) => garminAvailable(code));
+  const garminRows = garminCodes.length
+    ? asRows(await read('garmin_activities', {
+      athlete_code: inList(garminCodes),
+      received_at: `gte.${since}`,
+      select: 'athlete_code,summary_id,start_time,activity_type,distance_m,duration_s,offset:summary->startTimeOffsetInSeconds',
+      limit: '200',
+    })).map(garminActivityAsStravaRow).filter(Boolean)
+    : [];
   const byCode = new Map(athletes.map((a) => [a.code, a]));
-  for (const row of asRows(rows)) {
+  const garminSet = new Set(garminCodes);
+  // Garmin first, so when both arrive in one run the Garmin row is the one kept.
+  for (const row of [...garminRows, ...asRows(rows)]) {
     const athlete = byCode.get(upper(row.athlete_code));
     const target = athlete && due[athlete.code];
     if (!target || !STRAVA_PUSH_SPORTS.includes(String(row.sport_type || ''))) continue;
@@ -351,8 +375,21 @@ export async function addStravaSynced(due, athletes, { read, nowMs = Date.now() 
     const started = Date.parse(String(row.start_date_local || '').slice(0, 19) + 'Z');
     if (!Number.isFinite(started) || !Number.isFinite(wallNow)) continue;
     if (wallNow - started > STRAVA_FRESH_HOURS * 3600000 || started - wallNow > 3600000) continue;
-    target.strava.push(row);
+    if (garminSet.has(athlete.code)) {
+      const key = connectedSyncKey(row);
+      if (target.strava.some((existing) => existing.dedupe_key === key)) continue;
+      target.strava.push({ ...row, dedupe_key: key });
+    } else {
+      target.strava.push(row);
+    }
   }
+}
+
+// Same recording, same key, whichever service delivered it.
+export function connectedSyncKey(row) {
+  const type = String(row.sport_type || '').toLowerCase();
+  const sport = /swim/.test(type) ? 'swim' : /ride|cycl|bik/.test(type) ? 'ride' : /run/.test(type) ? 'run' : type.replace(/[^a-z]/g, '');
+  return `synced:${sport}:${String(row.start_date_local || '').slice(0, 16)}`;
 }
 
 // A coach's personal message that arrived in quiet hours is pushed once they
@@ -424,7 +461,8 @@ export function buildAthleteMessages(athlete, athleteDue, { nowMs = Date.now() }
   if (prefs.strava) {
     for (const activity of athleteDue.strava || []) {
       const message = buildStravaMessage(activity);
-      if (message) messages.push({ ...message, tag: `dp-strava-${activity.strava_activity_id}`, historyKey: null });
+      const tag = activity.dedupe_key ? `dp-${String(activity.dedupe_key).replace(/[^A-Za-z0-9-]/g, '-')}` : `dp-strava-${activity.strava_activity_id}`;
+      if (message) messages.push({ ...message, tag, historyKey: null });
     }
   }
 

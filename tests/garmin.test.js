@@ -270,10 +270,25 @@ test('the browser never builds a Garmin authorize URL or reads Garmin tables', (
   }
 });
 
-test('Garmin data is kept away from the AI weekly review', () => {
+test('Garmin data is kept away from the AI weekly review', async () => {
   // dualperformance.au/privacy says the AI summary receives no connected-
-  // provider data; that is why no separate AI consent exists for Garmin.
-  assert.doesNotMatch(read('../api/_lib/performance-summary.js'), /garmin/i);
+  // provider data; that is why no separate AI consent exists for Garmin. The AI
+  // summary is built in the coaches dashboard (api/analyse.js) from the coach
+  // card, which uses the rule block above the DATABASE divider. The athlete's
+  // own card may read Garmin below it (allowlisted athletes only), and the
+  // portal itself never calls an AI provider. Both halves are asserted here; the
+  // dashboard asserts its side in tests/ai-input-boundary.test.js.
+  const summary = read('../api/_lib/performance-summary.js');
+  const rules = summary.slice(summary.indexOf('export const SUMMARY_VERSION'), summary.indexOf('// ── DATABASE'));
+  assert.ok(rules.length > 1000, 'rule block landmarks found');
+  assert.doesNotMatch(rules, /garmin/i, 'the rules shared with the coach card never see Garmin');
+  const { readdirSync } = await import('node:fs');
+  const files = [
+    ...readdirSync(new URL('../api/', import.meta.url)).filter((f) => f.endsWith('.js')).map((f) => '../api/' + f),
+    ...readdirSync(new URL('../api/_lib/', import.meta.url)).filter((f) => f.endsWith('.js')).map((f) => '../api/_lib/' + f),
+    ...readdirSync(new URL('../public/js/', import.meta.url)).filter((f) => f.endsWith('.js')).map((f) => '../public/js/' + f),
+  ];
+  for (const file of files) assert.doesNotMatch(read(file), /@anthropic-ai|api\.anthropic\.com|api\.openai\.com/, file + ' must not call an AI provider');
 });
 
 test('disconnect is two taps and deletes on the server', () => {

@@ -69,6 +69,21 @@ export function garminConfigured(env = process.env) {
   return !!(env.GARMIN_CLIENT_ID && env.GARMIN_CLIENT_SECRET);
 }
 
+/**
+ * Whether this athlete is offered Garmin at all. False until the keys are
+ * configured, so the code can deploy before the env vars exist without showing
+ * every athlete a button that cannot work. The same allowlist decides whether
+ * the weekly review and reminders read an athlete's Garmin activities.
+ */
+export function garminAvailableFor(athleteCode, env = process.env) {
+  if (!garminConfigured(env)) return false;
+  const list = String(env.GARMIN_ALLOWED_ATHLETES || '').split(',')
+    .map((value) => value.trim().toUpperCase())
+    .filter(Boolean);
+  if (!list.length || list.includes('*')) return true;
+  return list.includes(String(athleteCode || '').toUpperCase());
+}
+
 function credentials() {
   const id = process.env.GARMIN_CLIENT_ID;
   const secret = process.env.GARMIN_CLIENT_SECRET;
@@ -423,4 +438,99 @@ export function rowToActivity(row) {
     device: row.device_name || null,
     manual: row.manual === null || row.manual === undefined ? null : !!row.manual,
   };
+}
+
+// ── Garmin activities beside Strava (weekly review, reminders) ───────────────
+//
+// Server-side counterpart of public/js/connected-activities.js. A Garmin row is
+// reshaped like a strava_activities cache row so the existing rules read it
+// unchanged, and a recording both services hold is counted once, as Garmin.
+// Only aggregates and push wording come from these rows: never AI inputs.
+
+const ADELAIDE = 'Australia/Adelaide';
+
+// Seconds the zone was ahead of UTC at that instant. Used only when a stored
+// summary lacks startTimeOffsetInSeconds; DP athletes train on Adelaide time.
+function zoneOffsetSeconds(ms, timeZone = ADELAIDE) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(new Date(ms));
+  const get = (type) => Number(parts.find((part) => part.type === type).value);
+  const wall = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  return Math.round((wall - Math.floor(ms / 1000) * 1000) / 1000);
+}
+
+// Garmin activityType → the Strava sport_type the existing rules understand.
+export function garminSportType(activityType) {
+  const type = String(activityType || '').toLowerCase();
+  if (/swim/.test(type)) return 'Swim';
+  if (/cycl|bik|ride/.test(type)) return 'Ride';
+  if (/run/.test(type)) return 'Run';
+  if (/walk/.test(type)) return 'Walk';
+  if (/hik/.test(type)) return 'Hike';
+  if (/row/.test(type)) return 'Rowing';
+  return activityType ? String(activityType) : null;
+}
+
+/**
+ * garmin_activities row → strava_activities shape. start_date_local is the
+ * athlete's wall-clock time with a Z label, exactly like Strava's cache, from
+ * Garmin's own offset (selected as `offset`) or Adelaide time without one.
+ */
+export function garminActivityAsStravaRow(row) {
+  const startMs = Date.parse(row && row.start_time);
+  if (!Number.isFinite(startMs)) return null;
+  const given = row.offset == null ? NaN : Number(row.offset);
+  const offset = Number.isFinite(given) ? given : zoneOffsetSeconds(startMs);
+  const seconds = row.duration_s == null ? NaN : Number(row.duration_s);
+  return {
+    provider: 'garmin',
+    garmin_summary_id: row.summary_id == null ? null : String(row.summary_id),
+    athlete_code: row.athlete_code,
+    sport_type: garminSportType(row.activity_type),
+    start_date_local: new Date(startMs + offset * 1000).toISOString().slice(0, 19) + 'Z',
+    distance_m: row.distance_m == null ? null : Number(row.distance_m),
+    moving_time_s: Number.isFinite(seconds) ? seconds : null,
+    elapsed_time_s: Number.isFinite(seconds) ? seconds : null,
+  };
+}
+
+function sportFamily(value) {
+  const type = String(value || '').toLowerCase();
+  if (/swim/.test(type)) return 'swim';
+  if (/ride|cycl|bik/.test(type)) return 'ride';
+  if (/run/.test(type)) return 'run';
+  return type;
+}
+
+const wallClockMs = (value) => Date.parse(String(value || '').slice(0, 19) + 'Z');
+
+/** One recording held by both services: same sport, start within 10 minutes, distance within 3%. */
+export function sameConnectedRecording(a, b) {
+  if (!a || !b || sportFamily(a.sport_type) !== sportFamily(b.sport_type)) return false;
+  const startA = wallClockMs(a.start_date_local);
+  const startB = wallClockMs(b.start_date_local);
+  if (!Number.isFinite(startA) || !Number.isFinite(startB) || Math.abs(startA - startB) > 10 * 60000) return false;
+  const distanceA = Number(a.distance_m) || 0;
+  const distanceB = Number(b.distance_m) || 0;
+  if (distanceA < 50 && distanceB < 50) return true;
+  return Math.abs(distanceA - distanceB) <= Math.max(distanceA, distanceB) * 0.03;
+}
+
+/**
+ * Strava cache rows plus Garmin rows, each recording once, Garmin preferred.
+ * `stravaRows` null means Strava could not be read; the Garmin rows still
+ * count. Returns rows in start order.
+ */
+export function mergeGarminWithStrava(stravaRows, garminRows) {
+  const garmin = (Array.isArray(garminRows) ? garminRows : []).map(garminActivityAsStravaRow).filter(Boolean);
+  const used = new Set();
+  const out = garmin.slice();
+  (Array.isArray(stravaRows) ? stravaRows : []).forEach((row) => {
+    const index = garmin.findIndex((candidate, i) => !used.has(i) && sameConnectedRecording(candidate, row));
+    if (index >= 0) used.add(index);
+    else out.push(row);
+  });
+  return out.sort((a, b) => wallClockMs(a.start_date_local) - wallClockMs(b.start_date_local));
 }

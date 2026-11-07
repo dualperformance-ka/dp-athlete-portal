@@ -92,6 +92,7 @@ export function workoutFingerprint(workout, date) {
   return createHash('sha256').update(JSON.stringify({workout,date})).digest('hex');
 }
 
+const shiftDate = (day, days) => { const d=new Date(day+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10); };
 const notFound = error => Number(error && error.status) === 404;
 const definitive = error => { const status=Number(error && error.status); return status>=400 && status<500; };
 function scheduleList(value) {
@@ -153,9 +154,13 @@ export async function deliverWorkout({session,steps,date,athleteCode,workout:bui
   }
   const workoutId=Number(receipt.workout_id);
   // A previous calendar POST lost its answer: find it before posting again.
-  if (!receipt.schedule_id && receipt.state==='scheduling' && receipt.scheduled_date) {
-    const day=receipt.scheduled_date;
-    const found=scheduleList(await request('/training-api/schedule?startDate='+day+'&endDate='+day,'GET')).find(item=>Number(item && item.workoutId)===workoutId && item.scheduleId);
+  // Receipts written before 6 Nov 2026 did not record the date tried, so for
+  // those look a month either side of today's date. The workout id belongs to
+  // this receipt alone, so any calendar entry for it is the one we made.
+  if (!receipt.schedule_id && receipt.state==='scheduling') {
+    const from=receipt.scheduled_date || shiftDate(date,-31);
+    const to=receipt.scheduled_date || shiftDate(date,31);
+    const found=scheduleList(await request('/training-api/schedule?startDate='+from+'&endDate='+to,'GET')).find(item=>Number(item && item.workoutId)===workoutId && item.scheduleId);
     if (found) await persist({schedule_id:String(found.scheduleId),state:'ready'});
   }
   if (receipt.schedule_id) {

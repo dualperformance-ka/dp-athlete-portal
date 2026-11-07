@@ -52,6 +52,7 @@ import {
   fetchCallback,
   fetchPermissions,
   fetchUserId,
+  garminAvailableFor,
   garminConfigured,
   parseNotification,
   pkceVerifier,
@@ -98,19 +99,9 @@ function info(payload) {
   console.info(JSON.stringify({ level: 'info', ...payload }));
 }
 
-/**
- * Whether this athlete is offered Garmin at all. False until the keys are
- * configured, so the code can deploy before the env vars exist without showing
- * every athlete a button that cannot work.
- */
-export function garminAvailableFor(athleteCode, env = process.env) {
-  if (!garminConfigured(env)) return false;
-  const list = String(env.GARMIN_ALLOWED_ATHLETES || '').split(',')
-    .map((value) => value.trim().toUpperCase())
-    .filter(Boolean);
-  if (!list.length || list.includes('*')) return true;
-  return list.includes(String(athleteCode || '').toUpperCase());
-}
+// Whether this athlete is offered Garmin at all lives in garmin-client.js so
+// the weekly review and reminders can use the same allowlist.
+export { garminAvailableFor };
 
 // The only place a connect URL is built. The signed `state` names the athlete
 // and also seeds the PKCE verifier, so a URL made anywhere else cannot work.
@@ -271,7 +262,7 @@ async function handleRead(req, res) {
   try {
     const connection = await getConnection(athleteCode);
     if (!connection) {
-      return res.status(200).json({ available: true, connected: false, connectUrl: buildConnectUrl(athleteCode) });
+      return res.status(200).json({ available: true, connected: false, connectUrl: buildConnectUrl(athleteCode), workoutsAvailable: process.env.GARMIN_WORKOUTS_ENABLED === 'true' });
     }
 
     // Liveness. Pushes keep arriving without our token, so a dead refresh token
@@ -325,6 +316,9 @@ async function handleRead(req, res) {
       historyAvailable,
       workoutsAvailable: process.env.GARMIN_WORKOUTS_ENABLED === 'true',
       workoutConnectUrl: buildConnectUrl(athleteCode),
+      // Connected, but Garmin confirmed workout import is not allowed: the
+      // athlete is asked to reconnect and tick it. Unverified reads say nothing.
+      workoutImportMissing: process.env.GARMIN_WORKOUTS_ENABLED === 'true' && permissionsVerified && !permissions.includes('WORKOUT_IMPORT'),
       historyRequested: !!connection.backfill_requested_at,
       activities: rows.map(rowToActivity).filter(Boolean),
       latestDaily: daily ? {
