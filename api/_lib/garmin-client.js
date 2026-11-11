@@ -29,14 +29,64 @@ export const EXPIRY_MARGIN_S = 600;
 
 // Garmin accepts one backfill window of up to 30 days per request.
 export const BACKFILL_DAYS = 30;
-export const BACKFILL_TYPES = ['activities', 'dailies', 'sleeps'];
+
+// ── Every Garmin data type this integration takes in ────────────────────────
+//
+// kind        what is stored. activities/dailies/sleeps keep their own tables
+//             with promoted columns; every other kind is one row per summary
+//             in garmin_summaries, whole payload kept, so nothing Garmin sends
+//             is dropped and new Garmin fields need no migration.
+// permission  the consent toggle that covers it. Unticking it in Garmin
+//             Connect deletes every kind it covers.
+// backfill    the history endpoint's name for it (differs from the webhook
+//             key for respiration, pulse ox and Move IQ), or null.
+//
+// Webhook keys Garmin has used for the same data are listed as aliases.
+export const GARMIN_TYPES = {
+  activities:        { permission: 'ACTIVITY_EXPORT', backfill: 'activities', aliases: ['manuallyUpdatedActivities'] },
+  activityDetails:   { permission: 'ACTIVITY_EXPORT', backfill: 'activityDetails' },
+  activityFiles:     { permission: 'ACTIVITY_EXPORT', backfill: null },
+  dailies:           { permission: 'HEALTH_EXPORT', backfill: 'dailies' },
+  sleeps:            { permission: 'HEALTH_EXPORT', backfill: 'sleeps' },
+  epochs:            { permission: 'HEALTH_EXPORT', backfill: 'epochs' },
+  bodyComps:         { permission: 'HEALTH_EXPORT', backfill: 'bodyComps' },
+  hrv:               { permission: 'HEALTH_EXPORT', backfill: 'hrv' },
+  stressDetails:     { permission: 'HEALTH_EXPORT', backfill: 'stressDetails' },
+  allDayRespiration: { permission: 'HEALTH_EXPORT', backfill: 'respiration', aliases: ['respiration'] },
+  pulseox:           { permission: 'HEALTH_EXPORT', backfill: 'pulseOx', aliases: ['pulseOx'] },
+  healthSnapshot:    { permission: 'HEALTH_EXPORT', backfill: 'healthSnapshot' },
+  skinTemp:          { permission: 'HEALTH_EXPORT', backfill: 'skinTemp' },
+  userMetrics:       { permission: 'HEALTH_EXPORT', backfill: 'userMetrics' },
+  bloodPressures:    { permission: 'HEALTH_EXPORT', backfill: 'bloodPressures' },
+  moveIQActivities:  { permission: 'HEALTH_EXPORT', backfill: 'moveiq', aliases: ['moveiq', 'moveIQ'] },
+};
+
+// Kinds with their own table. Everything else in GARMIN_TYPES is generic.
+export const DEDICATED_KINDS = ['activities', 'dailies', 'sleeps'];
+
+// Deliberately never stored, whatever the Garmin app is set to send.
+// Menstrual cycle and pregnancy data (Women's Health API) is not something
+// Dual Performance coaches on, and the privacy policy does not cover it.
+export const EXCLUDED_KEYS = new Set(['mct', 'menstrualCycleTracking', 'pregnancySnapshot']);
+
+export const BACKFILL_TYPES = Object.values(GARMIN_TYPES).map((type) => type.backfill).filter(Boolean);
 
 // Which stored data each consent permission covers. When an athlete unticks a
 // permission in Garmin Connect, the data it covered is deleted here.
-export const PERMISSION_DATA = {
-  ACTIVITY_EXPORT: ['activities'],
-  HEALTH_EXPORT: ['dailies', 'sleeps'],
-};
+export const PERMISSION_DATA = Object.entries(GARMIN_TYPES).reduce((map, [kind, type]) => {
+  (map[type.permission] = map[type.permission] || []).push(kind);
+  return map;
+}, {});
+
+const KIND_BY_KEY = Object.entries(GARMIN_TYPES).reduce((map, [kind, type]) => {
+  map[kind] = kind;
+  for (const alias of type.aliases || []) map[alias] = kind;
+  return map;
+}, {});
+
+export function kindForKey(key) {
+  return KIND_BY_KEY[String(key || '')] || null;
+}
 
 // ── PKCE ─────────────────────────────────────────────────────────────────────
 //
@@ -238,15 +288,6 @@ export function normalisePermissions(value) {
 
 // ── Push / ping notifications ────────────────────────────────────────────────
 
-// Notification keys → the data kind stored here. Anything else is acknowledged
-// and ignored (activityDetails, epochs and the rest are not stored yet).
-const DATA_KEYS = {
-  activities: 'activities',
-  manuallyUpdatedActivities: 'activities',
-  dailies: 'dailies',
-  sleeps: 'sleeps',
-};
-
 /**
  * Split a webhook body into what this integration acts on. Pure.
  *
@@ -256,7 +297,7 @@ const DATA_KEYS = {
  * working whichever mode the Garmin app is configured with.
  */
 export function parseNotification(body) {
-  const result = { records: [], pings: [], deregistrations: [], permissionChanges: [], ignored: [] };
+  const result = { records: [], pings: [], files: [], deregistrations: [], permissionChanges: [], ignored: [], excluded: [] };
   if (!body || typeof body !== 'object' || Array.isArray(body)) return result;
 
   for (const [key, entries] of Object.entries(body)) {
@@ -278,11 +319,18 @@ export function parseNotification(body) {
       continue;
     }
 
-    const kind = DATA_KEYS[key];
+    if (EXCLUDED_KEYS.has(key)) { result.excluded.push(key); continue; }
+    const kind = kindForKey(key);
     if (!kind) { result.ignored.push(key); continue; }
 
     for (const entry of entries) {
       if (!entry || !entry.userId) continue;
+      // An activity file is always a callback to download (a FIT, TCX or GPX
+      // file), never a JSON summary, so it has its own path.
+      if (kind === 'activityFiles') {
+        if (entry.callbackURL) result.files.push({ userId: String(entry.userId), callbackURL: String(entry.callbackURL), meta: fileMeta(entry) });
+        continue;
+      }
       if (entry.callbackURL) {
         result.pings.push({ kind, userId: String(entry.userId), callbackURL: String(entry.callbackURL) });
       } else {
@@ -318,6 +366,31 @@ export async function fetchCallback(callbackURL, token, fetchImpl = fetch) {
   if (!res.ok) throw garminError(`Garmin ping callback failed (${res.status})`, res, text);
   const parsed = text ? JSON.parse(text) : [];
   return Array.isArray(parsed) ? parsed : [];
+}
+
+// Activity files: the metadata that travels with the callback, never the URL
+// (it carries a short-lived token and is useless once fetched).
+function fileMeta(entry) {
+  const meta = {};
+  for (const key of ['summaryId', 'activityId', 'fileType', 'activityName', 'activityType', 'startTimeInSeconds', 'startTimeOffsetInSeconds', 'manual']) {
+    if (entry[key] !== undefined && entry[key] !== null) meta[key] = entry[key];
+  }
+  return meta;
+}
+
+export const ACTIVITY_FILE_TYPES = { FIT: 'application/vnd.ant.fit', TCX: 'application/vnd.garmin.tcx+xml', GPX: 'application/gpx+xml' };
+
+// Download an activity file. Same host rule as a ping: the bearer token only
+// ever goes to apis.garmin.com.
+export async function fetchFile(callbackURL, token, fetchImpl = fetch) {
+  if (!isGarminCallbackUrl(callbackURL)) {
+    const error = new Error('Refusing a file callback outside apis.garmin.com');
+    error.status = 400;
+    throw error;
+  }
+  const res = await fetchImpl(callbackURL, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw garminError(`Garmin activity file download failed (${res.status})`, res, await res.text().catch(() => ''));
+  return Buffer.from(await res.arrayBuffer());
 }
 
 // ── Normalisers ──────────────────────────────────────────────────────────────
@@ -410,6 +483,43 @@ export function normaliseSleep(athleteCode, record) {
     rem_s: int(record.remSleepInSeconds),
     awake_s: int(record.awakeDurationInSeconds),
     summary: record,
+  };
+}
+
+/**
+ * Any Garmin summary that has no dedicated table → a garmin_summaries row.
+ * Pure. The whole payload is kept; the columns only exist to key, date and
+ * index it. activityDetails nests its summary one level down, and body
+ * composition and blood pressure are stamped with a measurement time instead
+ * of a start time, so each is read where Garmin puts it.
+ *
+ * A record with no usable key and no time is dropped rather than stored under
+ * a key that could collide with another.
+ */
+export function normaliseSummary(athleteCode, kind, record) {
+  if (!record || typeof record !== 'object' || !GARMIN_TYPES[kind] || DEDICATED_KINDS.includes(kind)) return null;
+  const nested = record.summary && typeof record.summary === 'object' ? record.summary : {};
+  const startS = Number(record.startTimeInSeconds ?? record.measurementTimeInSeconds ?? nested.startTimeInSeconds);
+  const offsetS = record.startTimeOffsetInSeconds ?? record.measurementTimeOffsetInSeconds ?? nested.startTimeOffsetInSeconds;
+  const hasStart = Number.isFinite(startS) && startS > 0;
+  const date = isoDate(record.calendarDate) || (hasStart ? localDateFrom(startS, offsetS) : null);
+  const activityId = Number(record.activityId ?? nested.activityId);
+  const summaryId = String(record.summaryId || nested.summaryId || '').trim();
+  const key = summaryId || (Number.isFinite(activityId) && activityId > 0 ? `activity-${activityId}` : '') ||
+    (hasStart ? `t-${Math.floor(startS)}` : (date ? `d-${date}` : ''));
+  if (!key || (!date && !hasStart)) return null;
+  // The Garmin user id and any token Garmin echoes back are dropped: the row is
+  // already keyed to the athlete, and a token has no place in stored data.
+  const { userId, userAccessToken, ...payload } = record;
+  return {
+    athlete_code: String(athleteCode).toUpperCase(),
+    summary_type: kind,
+    summary_id: key.slice(0, 200),
+    calendar_date: date,
+    start_time: hasStart ? new Date(startS * 1000).toISOString() : null,
+    duration_s: int(record.durationInSeconds ?? nested.durationInSeconds),
+    activity_id: Number.isFinite(activityId) && activityId > 0 ? activityId : null,
+    summary: payload,
   };
 }
 
