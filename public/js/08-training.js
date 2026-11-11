@@ -3269,20 +3269,27 @@ function endurancePrescriptionHtml(s,type,i){
   var parts=prescription.split(/\.\s+(?=[A-Z0-9])/).map(function(part){return part.trim().replace(/\.$/,'');}).filter(Boolean);
   var entry=logs[s.id]||{},liveMatch=typeof getStravaSessionMatch==='function'?getStravaSessionMatch(s):null;
   var garminRide=type==='ride'&&typeof window!=='undefined'&&window.getGarminRideActivity&&window.getGarminRideActivity(s);
-  var activity=garminRide||(liveMatch&&liveMatch.activity)||(entry.__stravaMatch&&entry.__stravaMatch.activity);
+  var stravaActivity=(liveMatch&&liveMatch.activity)||(entry.__stravaMatch&&entry.__stravaMatch.activity);
+  // Garmin first, for swims and rides alike: the Garmin recording behind the
+  // session (the match itself, or Garmin's copy of the Strava one). Laps still
+  // come from Strava's copy when there is one.
+  var garminTwin=typeof window!=='undefined'&&window.sessionGarminTwin?window.sessionGarminTwin(s):null;
+  if(stravaActivity&&stravaActivity.provider==='Garmin')stravaActivity=(window.stravaTwinOf&&window.stravaTwinOf(stravaActivity))||stravaActivity;
+  var garminActivity=garminTwin||garminRide;
+  var activity=garminActivity||stravaActivity;
   var h='<div class="endurance-details '+type+'">';
   if(activity&&typeof stravaActivitySummary==='function'){
-    var summary=stravaActivitySummary(activity),distance=type==='swim'?Math.round(summary.distance*1000)+' m':summary.distance.toFixed(1).replace(/\.0$/,'')+' km';
-    var source=garminRide?'Garmin':'Strava';
-    var attribution=garminRide
-      ? esc(garminRide.device ? 'Garmin '+String(garminRide.device).replace(/^Garmin\s*/i,'') : 'Garmin')
+    var summary=stravaActivitySummary(activity),distance=type==='swim'?Math.round(Number(activity.distance)||0)+' m':summary.distance.toFixed(1).replace(/\.0$/,'')+' km';
+    var source=garminActivity?'Garmin':'Strava';
+    var attribution=garminActivity
+      ? esc(window.garminDeviceLabel?window.garminDeviceLabel(garminActivity):'Garmin')
       : (typeof stravaLogoSvg==='function'?stravaLogoSvg():'')+'Synced from Strava';
-    h+='<section class="endurance-result" aria-label="Completed '+sport.toLowerCase()+' from '+source+'">';
+    h+='<section class="endurance-result'+(garminActivity?' is-garmin':'')+'" aria-label="Completed '+sport.toLowerCase()+' from '+source+'">';
     h+='<span class="endurance-result-source">'+attribution+'</span>';
     h+='<div><strong>'+esc(distance)+'</strong><span>'+esc(Math.round(summary.duration)+' min')+'</span></div>';
     h+='</section>';
   }
-  if(activity&&!garminRide&&entry.__stravaMatch&&typeof enduranceStravaReviewHtml==='function')h+=enduranceStravaReviewHtml(type,activity);
+  if(stravaActivity&&entry.__stravaMatch&&(!garminRide||garminTwin)&&typeof enduranceStravaReviewHtml==='function')h+=enduranceStravaReviewHtml(type,stravaActivity,garminTwin);
   if(activity&&entry.__stravaMatch&&typeof runCheckinHtml==='function')h+=runCheckinHtml(s,i);
   h+='<section class="endurance-prescription" aria-label="'+sport+' workout">';
   h+='<div class="endurance-prescription-head"><div><span>Coach prescription</span><strong>'+sport+' workout</strong></div><div class="endurance-prescription-tags">';
@@ -3450,13 +3457,18 @@ function buildBody(s,i,type){
     if(window.garminWorkoutHtml)planHtml+=window.garminWorkoutHtml(s,i);
     var _runMatch=typeof getStravaSessionMatch==='function'?getStravaSessionMatch(s):null;
     var _runActivity=(_runMatch&&_runMatch.activity)||(sl.__stravaMatch&&sl.__stravaMatch.activity)||null;
+    // Garmin summaries carry no km splits or route. When Garmin completed the
+    // run, Strava's copy of the same recording supplies them, labelled so.
+    var _runGarmin=window.sessionGarminTwin?window.sessionGarminTwin(s):null;
+    var _runStravaCopy=_runActivity&&_runActivity.provider==='Garmin'?(window.stravaTwinOf?window.stravaTwinOf(_runActivity):null):_runActivity;
+    var _runSplitSource=_runStravaCopy||_runActivity,_runSplitNote=_runGarmin&&_runStravaCopy?'from Strava':'';
     var pages;
     // A received activity needs its check-in even when the separate receipt
     // submission is pending or its marker was not restored on this device.
     if(sl.__stravaMatch&&_runActivity&&typeof runStravaHeroHtml==='function'){
       pages=[
         {key:'result',label:'Result',hint:'Swipe for splits and the plan',html:runStravaHeroHtml(s,i,_runActivity)+runCheckinHtml(s,i)},
-        {key:'detail',label:'Splits + plan',html:runSplitsHtml(_runActivity)+planHtml}
+        {key:'detail',label:'Splits + plan',html:runSplitsHtml(_runSplitSource,_runSplitNote)+planHtml}
       ];
     }else{
       var savedHtml='<div id="saved_run_'+i+'" class="saved-data" style="display:'+(hasSaved?'block':'none')+';">'+

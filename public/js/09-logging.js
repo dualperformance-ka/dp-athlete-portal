@@ -419,7 +419,13 @@ function stravaMatchActivityKeys(match){
   return match&&match.activity?[stravaMatchActivityKey(match.activity)]:[];
 }
 function claimStravaMatch(match,claimed){stravaMatchActivityKeys(match).forEach(function(key){claimed.add(String(key));});}
-function stravaClientWriteId(activity){return ('strava_'+stravaMatchActivityKey(activity)).replace(/[^a-zA-Z0-9_.:-]/g,'_').slice(0,120);}
+// Which service a matched recording came from. Garmin is the primary source
+// once connected; anything without a provider tag is a Strava recording.
+function matchProvider(activity){return activity&&activity.provider==='Garmin'?'Garmin':'Strava';}
+function stravaClientWriteId(activity){
+  if(matchProvider(activity)==='Garmin')return ('garmin_'+String(activity.id).replace(/^garmin:/,'')).replace(/[^a-zA-Z0-9_.:-]/g,'_').slice(0,120);
+  return ('strava_'+stravaMatchActivityKey(activity)).replace(/[^a-zA-Z0-9_.:-]/g,'_').slice(0,120);
+}
 function stravaDistanceKm(activity){var n=Number(activity&&activity.distance);return isNaN(n)||n<0?0:Math.round(n/100)/10;}
 function stravaMovingMinutes(activity){var n=Number(activity&&(activity.moving_time||activity.elapsed_time));return isNaN(n)||n<0?0:Math.round(n/6)/10;}
 function stravaPace(activity){var km=stravaDistanceKm(activity),mins=stravaMovingMinutes(activity);if(!km||!mins)return '';var sec=Math.round(mins*60/km),m=Math.floor(sec/60),s=sec%60;return m+':'+(s<10?'0':'')+s;}
@@ -447,38 +453,48 @@ function stravaMatchableSession(session){
 function stravaSessionSportLabel(session){var type=getType(session);return type==='swim'?'Swim':type==='ride'?'Ride':'Run';}
 function stravaLogoSvg(){return '<svg width="11" height="11" viewBox="0 0 24 24" fill="#FC4C02" aria-hidden="true"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066z"/><path d="M11.234 13.828L7.07 6h5.886l4.143 7.828z" opacity=".6"/></svg>';}
 function stravaMatchHtml(session,i,context){
-  var garminHtml=window.garminSessionResultHtml?window.garminSessionResultHtml(session):'';
+  var garminHtml=window.garminSessionResultHtml?window.garminSessionResultHtml(session,i):'';
   if(garminHtml)return garminHtml;
   var match=getStravaSessionMatch(session);
   if(!match||!match.activity){
     if(stravaSessionNeedsManualLog(session&&session.id)){
-      return '<div class="strava-match-removed '+(context||'')+'" role="status"><span>Strava match removed</span><button type="button" onclick="event.stopPropagation();undoStravaMatch('+i+',this)">Undo</button></div>';
+      return '<div class="strava-match-removed '+(context||'')+'" role="status"><span>Activity match removed</span><button type="button" onclick="event.stopPropagation();undoStravaMatch('+i+',this)">Undo</button></div>';
     }
     return '';
   }
-  var sessionType=getType(session),swim=sessionType==='swim',cycling=sessionType==='ride',sport=swim?'swim':cycling?'ride':'run',sum=stravaActivitySummary(match.activity),distance=swim?Math.round(sum.distance*1000)+' m':sum.distance.toFixed(1).replace(/\.0$/,'')+' km',minutes=Math.round(sum.duration),runCount=stravaMatchRunCount(match),runLabel=runCount===1?sport:(runCount+' '+sport+'s');
+  // Garmin first: the match stays the Strava recording (that is what is stored),
+  // but when Garmin holds the same recording its numbers and name are shown.
+  var garminTwin=window.sessionGarminTwin?window.sessionGarminTwin(session):null,shown=garminTwin||match.activity,provider=garminTwin?'Garmin':'Strava',logo=garminTwin?'':stravaLogoSvg();
+  var sessionType=getType(session),swim=sessionType==='swim',cycling=sessionType==='ride',sport=swim?'swim':cycling?'ride':'run',sum=stravaActivitySummary(shown),distance=swim?Math.round(Number(shown.distance)||0)+' m':sum.distance.toFixed(1).replace(/\.0$/,'')+' km',minutes=Math.round(sum.duration),runCount=stravaMatchRunCount(match),runLabel=runCount===1?sport:(runCount+' '+sport+'s');
   if(match.confidence==='low'&&!isSessionLogged(session.id)){
     // "did you do the intervals?" was wrong whenever the prescription was a
     // tempo, hill or threshold run rather than reps — and wrong every time for
     // the easy-run-with-strides case this used to misfire on. Ask about the
     // session, which holds whatever the prescription was.
     var prompt=stravaMatchHasReason(match,'intensity_below_prescription')?'This looks easier than the session you had planned — did you complete the full session?':('Looks like you '+(swim?'swam':cycling?'rode':'ran')+' this — '+distance+', '+minutes+' min. Mark it done?');
-    return '<div class="strava-match-suggestion '+(context||'')+'">'+stravaLogoSvg()+'<span>'+prompt+'</span><button type="button" onclick="event.stopPropagation();confirmStravaMatch('+i+')">Confirm</button></div>';
+    return '<div class="strava-match-suggestion '+(context||'')+'">'+logo+'<span>'+prompt+'</span><button type="button" onclick="event.stopPropagation();confirmStravaMatch('+i+')">Confirm</button></div>';
   }
   if(!isSessionLogged(session.id))return '';
-  return '<div class="strava-match-attribution '+(context||'')+'">'+stravaLogoSvg()+'<span class="strava-match-copy"><strong><span>'+distance+'</span><span aria-hidden="true">·</span><span>'+minutes+' min</span></strong><small>'+runLabel+' synced from Strava</small></span><button type="button" aria-label="Remove this Strava match" onclick="event.stopPropagation();rejectStravaMatch('+i+')">Not '+(runCount===1?'this '+sport:'these '+sport+'s')+'</button></div>';
+  return '<div class="strava-match-attribution'+(garminTwin?' is-garmin':'')+' '+(context||'')+'">'+logo+'<span class="strava-match-copy"><strong><span>'+distance+'</span><span aria-hidden="true">·</span><span>'+minutes+' min</span></strong><small>'+runLabel+' synced from '+provider+'</small></span><button type="button" aria-label="Remove this '+provider+' match" onclick="event.stopPropagation();rejectStravaMatch('+i+')">Not '+(runCount===1?'this '+sport:'these '+sport+'s')+'</button></div>';
 }
+// The training log row coaches see. clientWriteId comes from the stored match
+// when there is one, so a session moved from Strava's copy to Garmin's keeps
+// its row: the resend updates it rather than adding a second.
 function stravaLogPayload(session,activity,entry){
   var sum=stravaActivitySummary(activity),pain=entry&&entry.pain||'no',matchMeta=entry&&entry.__stravaMatch||{},matchReasons=matchMeta.reasons||[],activityIds=(matchMeta.activityKeys||activity.source_activity_ids||[stravaMatchActivityKey(activity)]).map(String);
-  var sport=stravaSessionSportLabel(session),distanceLabel=sport==='Swim'?Math.round(sum.distance*1000)+'m':sum.distance+'km';
-  return {clientWriteId:stravaClientWriteId(activity),name:athlete.name+' — '+session.name+' — '+session.date,session:session.name,type:sport,sessionCategory:sport,distanceKm:sum.distance,durationMin:sum.duration,pace:sport==='Run'?sum.pace:'',rpe:entry&&entry.rpe||'',painFlag:pain==='yes',exerciseLog:'Matched from Strava '+sport.toLowerCase()+' | Distance: '+distanceLabel+' | Moving time: '+sum.duration+'min'+(sport==='Run'?' | Pace: '+sum.pace:'')+(entry&&entry.rpe?' | RPE: '+entry.rpe+'/10':'')+(pain==='yes'?' | PAIN FLAGGED':''),notes:entry&&entry.notes||'',stravaActivityId:stravaMatchActivityKey(activity),stravaActivityIds:activityIds,stravaMatchReasons:matchReasons,ranAbovePrescription:matchReasons.indexOf('ran_above_prescription')>=0,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:session.date,submittedAt:entry&&entry.__submittedAt||new Date().toISOString()};
+  var provider=matchProvider(activity),garmin=provider==='Garmin';
+  var sport=stravaSessionSportLabel(session),distanceLabel=sport==='Swim'?Math.round(Number(activity.distance)||sum.distance*1000)+'m':sum.distance+'km';
+  var payload={clientWriteId:matchMeta.clientWriteId||stravaClientWriteId(activity),name:athlete.name+' — '+session.name+' — '+session.date,session:session.name,type:sport,sessionCategory:sport,distanceKm:sum.distance,durationMin:sum.duration,pace:sport==='Run'?sum.pace:'',rpe:entry&&entry.rpe||'',painFlag:pain==='yes',exerciseLog:'Matched from '+provider+' '+sport.toLowerCase()+' | Distance: '+distanceLabel+' | Moving time: '+sum.duration+'min'+(sport==='Run'?' | Pace: '+sum.pace:'')+(entry&&entry.rpe?' | RPE: '+entry.rpe+'/10':'')+(pain==='yes'?' | PAIN FLAGGED':''),notes:entry&&entry.notes||'',activitySource:provider.toLowerCase(),stravaMatchReasons:matchReasons,ranAbovePrescription:matchReasons.indexOf('ran_above_prescription')>=0,athleteId:athlete.notionPageId,athleteName:athlete.name,athleteCode:athlete.code,date:session.date,submittedAt:entry&&entry.__submittedAt||new Date().toISOString()};
+  if(garmin){payload.garminActivityId=String(activity.garminActivityId||String(activity.id).replace(/^garmin:/,''));payload.garminDevice=activity.device||null;}
+  else{payload.stravaActivityId=stravaMatchActivityKey(activity);payload.stravaActivityIds=activityIds;}
+  return payload;
 }
 async function completeStravaMatch(session,i,match){
   if(!session||!match||!match.activity||isSessionLogged(session.id)||(logs[session.id]&&logs[session.id].__stravaMatch)||_stravaAutoCompleting[session.id])return;
   _stravaAutoCompleting[session.id]=true;
   try{
     var activity=match.activity,sum=stravaActivitySummary(activity),previous=logs[session.id]||{};
-    logs[session.id]=Object.assign({},previous,{distance:String(sum.distance),duration:String(sum.duration),pace:getType(session)==='run'?sum.pace:'',pain:previous.pain||'',__stravaMatch:{activityKey:stravaMatchActivityKey(activity),activityKeys:stravaMatchActivityKeys(match),clientWriteId:stravaClientWriteId(activity),activity:slimStravaActivity(activity),confidence:match.confidence,reasons:match.reasons||[],matchedAt:new Date().toISOString()}});
+    logs[session.id]=Object.assign({},previous,{distance:String(sum.distance),duration:String(sum.duration),pace:getType(session)==='run'?sum.pace:'',pain:previous.pain||'',__stravaMatch:{activityKey:stravaMatchActivityKey(activity),activityKeys:stravaMatchActivityKeys(match),clientWriteId:stravaClientWriteId(activity),provider:matchProvider(activity),activity:slimStravaActivity(activity),confidence:match.confidence,reasons:match.reasons||[],matchedAt:new Date().toISOString()}});
     logs.__savedAt=Date.now();localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
     try{await portalStateWrite('logs',logs);}catch(e){}
     // Runs retain their existing automatic receipt. Swim and ride wait for the
@@ -546,17 +562,65 @@ function paintStravaMatches(){
   if(typeof renderCal==='function'&&sessions&&sessions.length)renderCal(getWS());
   if(typeof dayPlanDateISO!=='undefined'&&dayPlanDateISO&&typeof renderDayPlanDate==='function')renderDayPlanDate(dayPlanDateISO);
 }
+// A "not this run" on one service's copy of a recording also rules out the
+// other service's copy of it, so switching sources never re-matches a
+// recording the athlete already turned down.
+function expandMatchRejections(rejections,feed){
+  var garminActs=feed.garminActivities||[],stravaActs=feed.stravaActivities||[];
+  if(!garminActs.length||!stravaActs.length||!window.sameRecording)return rejections;
+  var out={};
+  Object.keys(rejections||{}).forEach(function(sid){
+    var keys=(rejections[sid]||[]).map(String),extra=[];
+    keys.forEach(function(key){
+      var own=garminActs.concat(stravaActs).find(function(a){return stravaMatchActivityKey(a)===key;});
+      if(!own)return;
+      (matchProvider(own)==='Garmin'?stravaActs:garminActs).forEach(function(other){if(window.sameRecording(own,other))extra.push(stravaMatchActivityKey(other));});
+    });
+    out[sid]=keys.concat(extra.filter(function(key){return keys.indexOf(key)<0;}));
+  });
+  return out;
+}
+// A session Strava completed because Strava's copy arrived first moves onto
+// Garmin's copy once that lands. The clientWriteId is kept, so a log already
+// sent to the coaches is updated in place rather than duplicated.
+async function upgradeMatchToGarmin(session,twin){
+  var entry=logs[session.id],meta=entry&&entry.__stravaMatch;
+  if(!entry||!meta||matchProvider(meta.activity)==='Garmin'||_stravaAutoCompleting[session.id])return;
+  _stravaAutoCompleting[session.id]=true;
+  try{
+    var sum=stravaActivitySummary(twin);
+    logs[session.id]=Object.assign({},entry,{distance:String(sum.distance),duration:String(sum.duration),pace:getType(session)==='run'?sum.pace:entry.pace||'',
+      __stravaMatch:Object.assign({},meta,{activityKey:stravaMatchActivityKey(twin),activityKeys:[stravaMatchActivityKey(twin)],provider:'Garmin',activity:slimStravaActivity(twin),movedFromStravaKey:meta.activityKey,movedAt:new Date().toISOString(),clientWriteId:meta.clientWriteId||stravaClientWriteId(meta.activity)})});
+    logs.__savedAt=Date.now();localStorage.setItem('dp_logs_'+athlete.code,JSON.stringify(logs));
+    try{await portalStateWrite('logs',logs);}catch(e){}
+    if(isSessionLogged(session.id))await coachWrite(WEBHOOK,stravaLogPayload(session,twin,logs[session.id]));
+  }finally{delete _stravaAutoCompleting[session.id];}
+}
 async function refreshStravaSessionMatches(){
-  var strava=null;try{strava=window._stravaLoadPromise?await window._stravaLoadPromise:null;}catch(e){}
-  window._stravaConnectedNow=!!(strava&&strava.connected);
-  if(!strava||!strava.connected||strava.activitiesAvailable===false||!window.matchActivityToSession){stravaSessionMatches={};paintStravaMatches();return;}
-  var activities=strava.activities||[],runSessions=(allSessions||[]).filter(function(s){return getType(s)==='run'&&s.date;}),swimSessions=(allSessions||[]).filter(function(s){return getType(s)==='swim'&&s.date;}),rideSessions=(allSessions||[]).filter(function(s){return getType(s)==='ride'&&s.date;}),trackable=runSessions.concat(swimSessions,rideSessions),claimed=new Set(),nextMatches={};
+  var strava=null,garmin=null;
+  try{strava=window._stravaLoadPromise?await window._stravaLoadPromise:null;}catch(e){}
+  try{garmin=window._garminLoadPromise?await window._garminLoadPromise:null;}catch(e){}
+  var stravaOn=!!(strava&&strava.connected&&strava.activitiesAvailable!==false),garminOn=!!(garmin&&garmin.available!==false&&garmin.connected);
+  window._stravaConnectedNow=!!(strava&&strava.connected)||garminOn;
+  if((!stravaOn&&!garminOn)||!window.matchActivityToSession){stravaSessionMatches={};paintStravaMatches();return;}
+  // Garmin first, Strava fills the gaps: once Garmin is connected the matcher
+  // reads the merged feed, where a recording both services hold appears once,
+  // as Garmin's. Without Garmin it reads Strava exactly as before.
+  var feed=garminOn&&window.mergeConnectedActivities?window.mergeConnectedActivities(strava,garmin):{activities:stravaOn?strava.activities||[]:[],garminActivities:[],stravaActivities:stravaOn?strava.activities||[]:[]};
+  var activities=feed.activities||[],everyActivity=(feed.garminActivities||[]).concat(feed.stravaActivities||[]),rejections=garminOn?expandMatchRejections(stravaMatchRejections,feed):stravaMatchRejections,upgrades=[];
+  var runSessions=(allSessions||[]).filter(function(s){return getType(s)==='run'&&s.date;}),swimSessions=(allSessions||[]).filter(function(s){return getType(s)==='swim'&&s.date;}),rideSessions=(allSessions||[]).filter(function(s){return getType(s)==='ride'&&s.date;}),trackable=runSessions.concat(swimSessions,rideSessions),claimed=new Set(),nextMatches={};
   trackable.forEach(function(s){
     var entry=logs[s.id],meta=entry&&entry.__stravaMatch;if(!meta)return;
     var activityKeys=(meta.activityKeys||(meta.activity&&meta.activity.source_activity_ids)||[meta.activityKey]).map(String);
-    var matchedActivities=activityKeys.map(function(key){return activities.find(function(a){return stravaMatchActivityKey(a)===key;});});
+    // Stored matches are found across both services, not just the merged feed:
+    // a session Strava completed must still find Strava's copy.
+    var matchedActivities=activityKeys.map(function(key){return everyActivity.find(function(a){return stravaMatchActivityKey(a)===key;});});
     if(matchedActivities.some(function(a){return !a;})||stravaPairRejected(s.id,meta.activityKey))return;
     var activity=matchedActivities.length>1&&window.combineStravaActivities?window.combineStravaActivities(matchedActivities):matchedActivities[0];
+    if(garminOn&&matchedActivities.length===1&&matchProvider(activity)!=='Garmin'&&window.garminTwinOf){
+      var twin=window.garminTwinOf(activity,feed.garminActivities);
+      if(twin&&!stravaPairRejected(s.id,stravaMatchActivityKey(twin))){upgrades.push({session:s,twin:twin});activity=twin;matchedActivities=[twin];activityKeys=[stravaMatchActivityKey(twin)];}
+    }
     var restored={matched:true,activity:activity,activities:matchedActivities,activityKeys:activityKeys,confidence:meta.confidence||'high',reasons:meta.reasons||[]};
     claimStravaMatch(restored,claimed);nextMatches[String(s.id)]=restored;
   });
@@ -564,7 +628,7 @@ async function refreshStravaSessionMatches(){
   while(remaining.length){
     var best=null;
     remaining.forEach(function(s){
-      var planned=plannedRunKm(s),match=window.matchActivityToSession(stravaMatchableSession(s),activities,{plannedKm:planned,claimedActivityIds:claimed,rejections:stravaMatchRejections});
+      var planned=plannedRunKm(s),match=window.matchActivityToSession(stravaMatchableSession(s),activities,{plannedKm:planned,claimedActivityIds:claimed,rejections:rejections});
       if(!match.matched||match.confidence!=='high')return;
       var delta=Math.abs(stravaDistanceKm(match.activity)-planned);
       if(!best||delta<best.delta)best={session:s,match:match,delta:delta};
@@ -574,7 +638,7 @@ async function refreshStravaSessionMatches(){
     remaining=remaining.filter(function(s){return s.id!==best.session.id;});
   }
   remaining.forEach(function(s){
-    var match=window.matchActivityToSession(stravaMatchableSession(s),activities,{plannedKm:plannedRunKm(s),claimedActivityIds:claimed,rejections:stravaMatchRejections});
+    var match=window.matchActivityToSession(stravaMatchableSession(s),activities,{plannedKm:plannedRunKm(s),claimedActivityIds:claimed,rejections:rejections});
     if(match.matched){nextMatches[String(s.id)]=match;claimStravaMatch(match,claimed);}
   });
   stravaSessionMatches=nextMatches;
@@ -586,7 +650,7 @@ async function refreshStravaSessionMatches(){
     var bestSwim=null;
     remainingSwims.forEach(function(s){
       var count=remainingSwims.filter(function(other){return other.date===s.date;}).length;
-      var match=window.matchSwimActivityToSession(s,activities,{claimedActivityIds:claimed,rejections:stravaMatchRejections,sessionCount:count});
+      var match=window.matchSwimActivityToSession(s,activities,{claimedActivityIds:claimed,rejections:rejections,sessionCount:count});
       if(!match.matched)return;
       var candidate={session:s,match:match};
       if(!bestSwim||(match.confidence==='high'&&bestSwim.match.confidence!=='high'))bestSwim=candidate;
@@ -600,7 +664,7 @@ async function refreshStravaSessionMatches(){
     var bestRide=null;
     remainingRides.forEach(function(s){
       var count=remainingRides.filter(function(other){return other.date===s.date;}).length;
-      var match=window.matchRideActivityToSession(s,activities,{claimedActivityIds:claimed,rejections:stravaMatchRejections,sessionCount:count});
+      var match=window.matchRideActivityToSession(s,activities,{claimedActivityIds:claimed,rejections:rejections,sessionCount:count});
       if(!match.matched)return;
       var candidate={session:s,match:match};
       if(!bestRide||(match.confidence==='high'&&bestRide.match.confidence!=='high'))bestRide=candidate;
@@ -610,6 +674,7 @@ async function refreshStravaSessionMatches(){
     remainingRides=remainingRides.filter(function(s){return s.id!==bestRide.session.id;});
   }
   stravaSessionMatches=nextMatches;
+  for(var u=0;u<upgrades.length;u++)await upgradeMatchToGarmin(upgrades[u].session,upgrades[u].twin);
   for(var x=0;x<trackable.length;x++){
     var s=trackable[x],match=nextMatches[String(s.id)];if(match&&match.confidence==='high')await completeStravaMatch(s,interactiveSessionIndex(s),match);
   }
@@ -628,7 +693,7 @@ async function rejectStravaMatch(i){
     try{await portalStateWrite('ticked',ticked);}catch(e){}
     try{await portalRequest('strava-match-reject',{sessionKey:'session_'+athlete.code+'_'+s.id,clientWriteId:meta.clientWriteId||stravaClientWriteId(activity)});}catch(e){console.warn('Strava unmatch cleanup pending:',e);}
   }
-  delete stravaSessionMatches[sid];paintStravaMatches();showToast('Strava match removed · Undo is available below');
+  delete stravaSessionMatches[sid];paintStravaMatches();showToast(matchProvider(activity)+' match removed · Undo is available below');
 }
 async function undoStravaMatch(i,button){
   var s=sessions[i];if(!s)return;
@@ -639,9 +704,9 @@ async function undoStravaMatch(i,button){
   try{await portalStateWrite('strava_match_rejections',stravaMatchRejections);}catch(e){console.warn('Strava undo sync pending:',e);}
   try{
     await refreshStravaSessionMatches();
-    showToast(getStravaSessionMatch(s)?'Strava match restored ✓':'Undo saved · Strava will retry on refresh');
+    showToast(getStravaSessionMatch(s)?'Activity match restored ✓':'Undo saved · matching will retry on refresh');
   }catch(e){
-    console.warn('Strava rematch pending:',e);paintStravaMatches();showToast('Undo saved · Strava will retry on refresh');
+    console.warn('Activity rematch pending:',e);paintStravaMatches();showToast('Undo saved · matching will retry on refresh');
   }
 }
 

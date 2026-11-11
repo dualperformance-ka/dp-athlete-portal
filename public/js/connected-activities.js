@@ -1,4 +1,10 @@
-// Display-only provider data. Never persist this feed into training logs or AI inputs.
+// Connected activity feed: Garmin first, Strava fills the gaps.
+//
+// Garmin is the primary source (Karl, Nov 2026): session matching reads this
+// feed, so a Garmin recording completes a session and its numbers are what the
+// training log stores. A recording only Strava holds still completes one.
+// The feed itself is never sent to an AI input; the coaches dashboard's AI
+// summary reads weekly check-ins and body/nutrition averages, not these logs.
 export function garminActivity(row) {
   if (!row || row.id == null || !row.startTime) return null;
   const raw = String(row.type || '').toLowerCase();
@@ -6,10 +12,49 @@ export function garminActivity(row) {
   const start = new Date(row.startTime);
   if (!Number.isFinite(start.getTime())) return null;
   return { id: 'garmin:' + row.id, provider: 'Garmin', device: row.device || null, name: row.name || sport,
+    garminActivityId: Number(row.activityId) > 0 ? Number(row.activityId) : null,
     type: sport, sport_type: sport, start_date: start.toISOString(),
     start_date_local: row.localDate ? row.localDate + 'T' + start.toISOString().slice(11, 19) : start.toISOString(),
     distance: Number(row.distanceM) || 0, moving_time: Number(row.durationS) || 0,
-    elapsed_time: Number(row.durationS) || 0, average_heartrate: row.avgHr || null };
+    elapsed_time: Number(row.durationS) || 0, average_heartrate: row.avgHr || null,
+    max_heartrate: row.maxHr || null };
+}
+
+/**
+ * Garmin's copy of a recording Strava also holds, or null.
+ *
+ * Used to move a session Strava completed (because Strava's copy arrived
+ * first) onto Garmin's copy once that lands. A combined match of several
+ * Strava recordings has no single twin, so it stays Strava.
+ */
+export function garminTwinOf(stravaActivity, feedActivities) {
+  if (!stravaActivity || typeof stravaActivity !== 'object' || stravaActivity.provider === 'Garmin') return null;
+  if (Number(stravaActivity.source_activity_count) > 1) return null;
+  const twins = (feedActivities || []).filter(candidate => candidate && candidate.provider === 'Garmin' && sameRecording(candidate, stravaActivity));
+  return twins.length === 1 ? twins[0] : null;
+}
+
+/**
+ * Strava's copy of a Garmin recording, or null. Garmin's summaries carry no
+ * km splits, laps or route, so where Strava holds the same recording those
+ * still come from Strava.
+ */
+export function stravaTwinOf(garminActivity, stravaActivities) {
+  if (!garminActivity || garminActivity.provider !== 'Garmin') return null;
+  const twins = (stravaActivities || []).filter(candidate => candidate && candidate.provider !== 'Garmin' && sameRecording(garminActivity, candidate));
+  return twins.length === 1 ? twins[0] : null;
+}
+
+export function garminPaceLabel(activity) {
+  const metres = Number(activity && activity.distance), seconds = Number(activity && (activity.moving_time || activity.elapsed_time));
+  if (!(metres > 0) || !(seconds > 0)) return '';
+  const perKm = Math.round(seconds / (metres / 1000));
+  return Math.floor(perKm / 60) + ':' + String(perKm % 60).padStart(2, '0');
+}
+
+export function garminDeviceLabel(activity) {
+  const device = activity && activity.device && !/^unknown$/i.test(String(activity.device)) ? String(activity.device).replace(/^Garmin\s*/i, '') : '';
+  return device ? 'Garmin ' + device : 'Garmin';
 }
 
 export function sameRecording(a, b) {
@@ -35,11 +80,17 @@ export function mergeConnectedActivities(strava, garmin) {
     else preferred.push({ ...activity, provider: 'Strava' });
   });
   return { connected: !!((strava && strava.connected && strava.activitiesAvailable !== false) || (garmin && garmin.connected)),
-    activitiesAvailable: true, activities: preferred.sort((a, b) => Date.parse(b.start_date) - Date.parse(a.start_date)) };
+    garminConnected: !!(garmin && garmin.connected),
+    activitiesAvailable: true, activities: preferred.sort((a, b) => Date.parse(b.start_date) - Date.parse(a.start_date)),
+    // Every recording from each service, before de-duplication: stored matches
+    // are restored by key from here, and Strava twins supply splits and laps.
+    garminActivities: preferred.filter(activity => activity.provider === 'Garmin'),
+    stravaActivities: other.map(activity => ({ ...activity, provider: 'Strava' })) };
 }
 
 if (typeof window !== 'undefined') {
   window.mergeConnectedActivities = mergeConnectedActivities;
+  window.sameRecording = sameRecording;
   window.loadConnectedActivities = async function() {
     const results = await Promise.all([window._stravaLoadPromise, window._garminLoadPromise].map(p => Promise.resolve(p).catch(() => null)));
     return mergeConnectedActivities(results[0], results[1]);
@@ -75,6 +126,21 @@ if (typeof window !== 'undefined') {
     if (typeof invalidateProgrammeVolume === 'function') invalidateProgrammeVolume();
     if (typeof paintStravaMatches === 'function') paintStravaMatches();
     if (typeof renderTrainingVolumeStrips === 'function') renderTrainingVolumeStrips();
+  };
+  window.garminTwinOf = garminTwinOf;
+  window.stravaTwinOf = function(garmin) { return stravaTwinOf(garmin, window._connectedActivityFeed?.stravaActivities); };
+  window.garminPaceLabel = garminPaceLabel;
+  window.garminDeviceLabel = garminDeviceLabel;
+  // The Garmin recording behind this session: the match itself when Garmin
+  // completed it, or Garmin's copy of the Strava recording that did.
+  window.sessionGarminTwin = function(session) {
+    if (!session) return null;
+    const entry = typeof logs !== 'undefined' && logs && logs[session.id];
+    const live = typeof getStravaSessionMatch === 'function' && getStravaSessionMatch(session);
+    const matched = live?.activity || entry?.__stravaMatch?.activity;
+    if (matched && matched.provider === 'Garmin') return matched;
+    const activities = window._connectedActivityFeed?.activities;
+    return matched && activities?.length ? garminTwinOf(matched, activities) : null;
   };
   window.getGarminRideActivity = function(session) {
     const activities = window._connectedActivityFeed?.activities;
@@ -120,10 +186,29 @@ if (typeof window !== 'undefined') {
     if (parts.length > 1 && parts.every(a => a.provider === 'Garmin')) match.activity = Object.assign({}, match.activity, {provider:'Garmin'});
     return match;
   };
-  window.garminSessionResultHtml = function(session) {
-    const match = window.getConnectedSessionMatch(session);
-    if (!match || !match.matched || !match.activity || match.activity.provider !== 'Garmin') return '';
-    const activity = match.activity;
-    return '<section class="run-hero" aria-label="Your run from Garmin"><div class="run-hero-top"><span class="run-hero-source">' + String(activity.device ? 'Garmin ' + String(activity.device).replace(/^Garmin\s*/i, '') : 'Garmin').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])) + '</span></div><div class="run-hero-main"><span class="run-hero-label">Recorded run</span><strong class="run-hero-number">' + (activity.distance/1000).toFixed(1) + ' km</strong></div><div class="run-hero-stats"><div class="run-hero-stat"><span>Duration</span><strong>' + Math.round(activity.moving_time/60) + ' min</strong></div>' + (activity.average_heartrate ? '<div class="run-hero-stat"><span>Avg HR</span><strong>' + Number(activity.average_heartrate) + ' bpm</strong></div>' : '') + '</div><p>Activity data supplied by Garmin. ' + (match.confidence === 'low' ? 'Possible session match. ' : '') + 'Your session feedback is saved separately.</p></section>';
+  window.garminSessionResultHtml = function(session, index) {
+    const esc = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    // The run card only. Swims and rides have their own Garmin-first views.
+    if (!session || typeof getType !== 'function' || getType(session) !== 'run') return '';
+    const twin = window.sessionGarminTwin(session);
+    let activity = twin, lowConfidence = false;
+    if (!activity) {
+      const match = window.getConnectedSessionMatch(session);
+      if (!match || !match.matched || !match.activity || match.activity.provider !== 'Garmin') return '';
+      activity = match.activity;
+      lowConfidence = match.confidence === 'low';
+    }
+    const minutes = Math.round(activity.moving_time / 60);
+    const pace = garminPaceLabel(activity);
+    const stat = (label, value) => value ? '<div class="run-hero-stat"><span>' + esc(label) + '</span><strong>' + esc(value) + '</strong></div>' : '';
+    // Only a twin has something stored to remove: the Strava match behind it.
+    const reject = twin && Number.isInteger(index) && index >= 0
+      ? '<button type="button" class="run-hero-reject" onclick="event.stopPropagation();rejectStravaMatch(' + index + ')">Not this run</button>' : '';
+    const link = activity.garminActivityId
+      ? '<a class="run-hero-link" href="https://connect.garmin.com/modern/activity/' + encodeURIComponent(String(activity.garminActivityId)) + '" target="_blank" rel="noopener">View in Garmin Connect ↗</a>' : '';
+    return '<section class="run-hero run-hero--garmin" aria-label="Your run from Garmin"><div class="run-hero-top"><span class="run-hero-source">' + esc(garminDeviceLabel(activity)) + '</span>' + reject + '</div>' +
+      '<div class="run-hero-main"><span class="run-hero-label">Recorded run</span><strong class="run-hero-number">' + (activity.distance/1000).toFixed(1) + ' km</strong></div>' +
+      '<div class="run-hero-stats">' + stat('Duration', minutes + ' min') + stat('Avg pace', pace ? pace + ' /km' : '') + stat('Avg HR', activity.average_heartrate ? Math.round(Number(activity.average_heartrate)) + ' bpm' : '') + '</div>' +
+      '<p>Activity data supplied by Garmin. ' + (lowConfidence ? 'Possible session match. ' : '') + 'Your session feedback is saved separately.</p>' + link + '</section>';
   };
 }

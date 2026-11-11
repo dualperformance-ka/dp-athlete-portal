@@ -118,7 +118,10 @@ test('Garmin alone supplies activity display and an in-memory session result', a
   const errors = watchErrors(page);
   const start = new Date().toISOString();
   const date = new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Adelaide'}).format(new Date());
-  await bootPortal(page, {garmin:()=>({available:true,connected:true,activities:[{id:'g1',type:'RUNNING',name:'Garmin run',startTime:start,localDate:date,distanceM:10000,durationS:3600}]})});
+  // An empty week: the default fixture puts a run on some weekdays, and that
+  // real session would claim the Garmin run before 'display-test' could, so
+  // this failed on those days only.
+  await bootPortal(page, {rows:[],garmin:()=>({available:true,connected:true,activities:[{id:'g1',type:'RUNNING',name:'Garmin run',startTime:start,localDate:date,distanceM:10000,durationS:3600}]})});
   await expect(page.locator('#connectedActivities')).toContainText('Garmin run');
   const result = await page.evaluate(date => garminSessionResultHtml({id:'display-test',name:'Easy Run',type:'Run',sessionType:'Run',date,plannedKm:10}),date);
   expect(result).toContain('Your run from Garmin');

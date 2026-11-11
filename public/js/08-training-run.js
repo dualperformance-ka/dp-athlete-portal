@@ -135,7 +135,7 @@ function _runPagerMark(i,ix){
 }
 
 function runStravaHeroHtml(s,i,activity){
-  var garminHtml=window.garminSessionResultHtml?window.garminSessionResultHtml(s):'';
+  var garminHtml=window.garminSessionResultHtml?window.garminSessionResultHtml(s,i):'';
   if(garminHtml)return garminHtml;
   var st=runStravaStats(activity),stat=function(label,value){
     return value?'<div class="run-hero-stat"><span>'+_runEsc(label)+'</span><strong>'+_runEsc(value)+'</strong></div>':'';
@@ -196,7 +196,9 @@ function pickRunPain(i,v){
   _runCheckinPaint(i);
 }
 
-function runSplitsHtml(activity){
+// sourceNote names Strava when the result above came from Garmin: Garmin's
+// summaries carry no km splits or route, so these still come from Strava.
+function runSplitsHtml(activity,sourceNote){
   var st=runStravaStats(activity);
   var extra=[st.maxHr?'Max HR '+st.maxHr:'',st.cadence?st.cadence+' spm':'',st.elevation!=null?st.elevation+' m climb':''].filter(Boolean);
   var rows='';
@@ -209,15 +211,19 @@ function runSplitsHtml(activity){
   }
   var points=decodeRunPolyline(st.polyline),path=runRoutePath(points,320,120,12);
   return '<section class="run-splits" aria-label="Your splits">'+
-    '<div class="run-section-label"><b>Km splits</b>'+(extra.length?'<span>'+_runEsc(extra.join(' · '))+'</span>':'')+'</div>'+
-    (rows?'<ol class="run-split-list">'+rows+'</ol>':'<p class="run-empty">Strava did not send km splits for this run.</p>')+
+    '<div class="run-section-label"><b>Km splits'+(sourceNote?' <small class="run-split-source">'+_runEsc(sourceNote)+'</small>':'')+'</b>'+(extra.length?'<span>'+_runEsc(extra.join(' · '))+'</span>':'')+'</div>'+
+    (rows?'<ol class="run-split-list">'+rows+'</ol>':'<p class="run-empty">'+(activity&&activity.provider==='Garmin'?'Garmin does not send km splits for a run.':'Strava did not send km splits for this run.')+'</p>')+
     (path?'<svg class="run-route" viewBox="0 0 320 120" role="img" aria-label="Route map"><path d="'+path+'" /></svg>':'')+
   '</section>';
 }
 
-function enduranceStravaReviewHtml(type,activity){
+// garmin, when given, is Garmin's copy of the same recording: its summary
+// supplies the headline stats, and laps (which Garmin summaries do not carry)
+// still come from Strava, labelled as such.
+function enduranceStravaReviewHtml(type,activity,garmin){
   var a=activity&&typeof activity==='object'?activity:{},num=function(v){var n=Number(v);return v==null||v===''||!Number.isFinite(n)?null:n;};
-  var swim=type==='swim',distance=num(a.distance),seconds=num(a.moving_time)||num(a.elapsed_time),avgHr=num(a.average_heartrate),maxHr=num(a.max_heartrate);
+  var g=garmin&&typeof garmin==='object'?garmin:null,head=g||a,provider=g?'Garmin':'Strava';
+  var swim=type==='swim',distance=num(head.distance),seconds=num(head.moving_time)||num(head.elapsed_time),avgHr=num(head.average_heartrate),maxHr=num(head.max_heartrate);
   var laps=(Array.isArray(a.laps)?a.laps:Array.isArray(a.splits_metric)?a.splits_metric:[]).map(function(lap,index){
     var metres=num(lap&&lap.distance),time=num(lap&&(lap.moving_time!=null?lap.moving_time:lap.elapsed_time));
     if(!metres||!time)return null;
@@ -227,11 +233,11 @@ function enduranceStravaReviewHtml(type,activity){
   if(distance!=null)stats.push({label:'Distance',value:swim?Math.round(distance)+' m':(Math.round(distance/100)/10).toFixed(1)+' km'});
   if(seconds)stats.push({label:'Moving time',value:runClock(seconds)});
   if(swim&&distance&&seconds)stats.push({label:'Avg pace',value:runClock(seconds/(distance/100))+' /100m'});
-  if(!swim&&num(a.average_watts)!=null)stats.push({label:'Avg power',value:Math.round(num(a.average_watts))+' W'});
-  if(!swim&&num(a.weighted_average_watts)!=null)stats.push({label:'Weighted',value:Math.round(num(a.weighted_average_watts))+' W weighted'});
+  if(!g&&!swim&&num(a.average_watts)!=null)stats.push({label:'Avg power',value:Math.round(num(a.average_watts))+' W'});
+  if(!g&&!swim&&num(a.weighted_average_watts)!=null)stats.push({label:'Weighted',value:Math.round(num(a.weighted_average_watts))+' W weighted'});
   if(avgHr!=null)stats.push({label:'Avg HR',value:Math.round(avgHr)+' bpm'});
   if(maxHr!=null)stats.push({label:'Max HR',value:Math.round(maxHr)+' bpm'});
-  if(!swim&&num(a.total_elevation_gain)!=null)stats.push({label:'Elevation',value:Math.round(num(a.total_elevation_gain))+' m'});
+  if(!g&&!swim&&num(a.total_elevation_gain)!=null)stats.push({label:'Elevation',value:Math.round(num(a.total_elevation_gain))+' m'});
   var statHtml=stats.map(function(stat){return '<div><span>'+_runEsc(stat.label)+'</span><strong>'+_runEsc(stat.value)+'</strong></div>';}).join('');
   var lapHtml=laps.map(function(lap){
     var distanceLabel=swim?Math.round(lap.metres)+' m':(Math.round(lap.metres/10)/100).toFixed(2).replace(/0+$/,'').replace(/\.$/,'')+' km';
@@ -239,25 +245,32 @@ function enduranceStravaReviewHtml(type,activity){
     var hr=lap.hr!=null?Math.round(lap.hr)+' bpm':'';
     return '<li class="endurance-lap"><span>'+String(lap.n).padStart(2,'0')+'</span><strong>'+_runEsc(distanceLabel)+'</strong><b>'+_runEsc(runClock(lap.seconds))+'</b><em>'+_runEsc(detail)+'</em><small>'+_runEsc(hr)+'</small></li>';
   }).join('');
-  return '<section class="endurance-review" aria-label="'+(swim?'Swim':'Ride')+' result from Strava">'+
-    '<div class="endurance-review-head"><span>'+(_runEsc(swim?'Swim review':'Ride review'))+'</span><strong>From Strava</strong></div>'+
+  return '<section class="endurance-review'+(g?' is-garmin':'')+'" aria-label="'+(swim?'Swim':'Ride')+' result from '+provider+'">'+
+    '<div class="endurance-review-head"><span>'+(_runEsc(swim?'Swim review':'Ride review'))+'</span><strong>From '+provider+'</strong></div>'+
     '<div class="endurance-review-stats">'+statHtml+'</div>'+
-    (laps.length?'<div class="endurance-laps-head"><strong>'+(swim?'Lengths':'Laps')+'</strong><span>'+laps.length+' recorded</span></div><ol class="endurance-laps">'+lapHtml+'</ol>':'<p class="endurance-laps-empty">Strava did not provide lap detail for this activity.</p>')+
+    (laps.length?'<div class="endurance-laps-head"><strong>'+(swim?'Lengths':'Laps')+'</strong><span>'+laps.length+' recorded'+(g?' · from Strava':'')+'</span></div><ol class="endurance-laps">'+lapHtml+'</ol>':'<p class="endurance-laps-empty">'+(g?'No lap detail for this activity.':'Strava did not provide lap detail for this activity.')+'</p>')+
   '</section>';
 }
 
-// Before a run: Strava does the logging, the manual form is the fallback.
+// The service the athlete should expect a recording from: Garmin once it is
+// connected, Strava otherwise. Only changes wording, never what is matched.
+function runSyncProvider(){return window._garminConnectedNow?'Garmin':'Strava';}
+
+// Before a run: the watch sync does the logging, the manual form is the fallback.
 function runLogPageHtml(s,i,formHtml){
-  var connected=!!window._stravaConnectedNow;
+  var connected=!!window._stravaConnectedNow,provider=runSyncProvider();
   if(!connected)return '<div class="run-log-intro">Log your run once it’s done.</div>'+formHtml;
-  return '<section class="run-waiting" aria-label="Waiting for Strava"><strong>Waiting for Strava</strong>'+
+  return '<section class="run-waiting" aria-label="Waiting for '+provider+'"><strong>Waiting for '+provider+'</strong>'+
     '<p>Save the run on your watch. It lands here with your time, splits and heart rate, then you add how it felt.</p>'+
     '<button type="button" class="run-waiting-check" onclick="runCheckStravaNow(this)">Check now</button></section>'+
     '<details class="run-manual"><summary>No watch? Log it by hand</summary>'+formHtml+'</details>';
 }
 async function runCheckStravaNow(button){
   if(button){button.disabled=true;button.textContent='Checking…';}
-  try{if(typeof refreshStravaSessionMatches==='function')await refreshStravaSessionMatches();}
+  try{
+    if(window._garminConnectedNow&&window.refreshGarminFeed)await window.refreshGarminFeed();
+    if(typeof refreshStravaSessionMatches==='function')await refreshStravaSessionMatches();
+  }
   finally{
     if(button){button.disabled=false;button.textContent='Check now';}
     if(typeof focusedSessionIndex!=='undefined'&&focusedSessionIndex!=null&&typeof rebuildFocusedRun==='function')rebuildFocusedRun(focusedSessionIndex);
@@ -269,9 +282,9 @@ function runFocusState(s,i){
   var entry=(typeof logs!=='undefined'&&logs[s.id])||{},logged=typeof isSessionLogged==='function'&&isSessionLogged(s.id);
   var sport=typeof stravaSessionSportLabel==='function'?stravaSessionSportLabel(s):'Run';
   if(entry.__stravaMatch&&!entry.__stravaFeedbackAt){
-    var missing=runCheckinMissing(i);
-    return {title:sport+' received from Strava',detail:missing?(missing===1?'1 answer left':'2 answers left'):'Ready to send',action:'Send to coaches',submit:true,run:'feedback'};
+    var missing=runCheckinMissing(i),twin=window.sessionGarminTwin?window.sessionGarminTwin(s):null;
+    return {title:sport+' received from '+(twin?'Garmin':'Strava'),detail:missing?(missing===1?'1 answer left':'2 answers left'):'Ready to send',action:'Send to coaches',submit:true,run:'feedback'};
   }
   if(entry.__stravaFeedbackAt||logged)return {title:'Sent to your coaches',detail:'Your coaches have this '+sport.toLowerCase()+'.',action:'Back to plan',submit:false};
-  return {title:sport==='Run'?'Not run yet':'Not completed yet',detail:window._stravaConnectedNow?'Your '+sport.toLowerCase()+' syncs from Strava.':'Log it once it’s done.',action:'Back to plan',submit:false};
+  return {title:sport==='Run'?'Not run yet':'Not completed yet',detail:window._stravaConnectedNow||window._garminConnectedNow?'Your '+sport.toLowerCase()+' syncs from '+runSyncProvider()+'.':'Log it once it’s done.',action:'Back to plan',submit:false};
 }

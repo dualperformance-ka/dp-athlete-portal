@@ -464,7 +464,9 @@ async function portalRequest(action,payload,options){
 // Only the fields below are ever read back out of a stored match. Anything
 // richer is re-fetched from /api/strava when it is genuinely needed, so
 // trimming costs nothing and keeps the blob an order of magnitude smaller.
-var STRAVA_MATCH_ACTIVITY_FIELDS=['id','name','type','sport_type','distance','moving_time','elapsed_time','start_date','start_date_local','suffer_score','relative_effort','source_activity_ids','source_activity_count'];
+// provider/garminActivityId/device keep a Garmin-completed session identifiable
+// after reload; without them a stored Garmin match would read as Strava.
+var STRAVA_MATCH_ACTIVITY_FIELDS=['id','name','type','sport_type','distance','moving_time','elapsed_time','start_date','start_date_local','suffer_score','relative_effort','source_activity_ids','source_activity_count','provider','garminActivityId','device'];
 function slimStravaActivity(activity){
   if(!activity||typeof activity!=='object'||Array.isArray(activity))return activity;
   var slim={},i,field;

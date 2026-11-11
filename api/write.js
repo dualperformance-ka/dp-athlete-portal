@@ -699,11 +699,13 @@ async function sessionLogWrite(code, body) {
   return { session_key: sessionKey };
 }
 
-async function rejectStravaMatch(code, body) {
+export async function rejectStravaMatch(code, body) {
   const sessionKey = text(body.sessionKey, 180);
   const clientWriteId = text(body.clientWriteId, 120);
-  if (!sessionKey || !clientWriteId || !clientWriteId.startsWith('strava_')) {
-    const error = new Error('A valid Strava match is required');
+  // strava_ and garmin_ are the two prefixes a matched recording's training
+  // log can carry; anything else is a hand-logged session and is not removed here.
+  if (!sessionKey || !clientWriteId || !/^(strava|garmin)_/.test(clientWriteId)) {
+    const error = new Error('A valid activity match is required');
     error.status = 400;
     throw error;
   }

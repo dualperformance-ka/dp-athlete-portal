@@ -43,7 +43,8 @@ test('a matching Garmin ride supplies the calendar and ride detail while preserv
     _sessionOverrides: {},
     esc: String,
     stravaActivitySummary: a => ({ distance: a.distance / 1000, duration: a.moving_time / 60 }),
-    enduranceStravaReviewHtml: () => 'Strava review',
+    // Garmin first: the review card stays, sourced from Garmin's twin when there is one.
+    enduranceStravaReviewHtml: (type, a, g) => g ? 'Garmin review of ' + g.id : 'Strava review',
     runCheckinHtml: () => 'Session feedback'
   });
   const source = read('08-training.js');
@@ -55,8 +56,11 @@ test('a matching Garmin ride supplies the calendar and ride detail while preserv
   assert.match(html, /Garmin fenix 7/);
   assert.match(html, /50.1 km/);
   assert.match(html, /Session feedback/);
+  assert.match(html, /Garmin review of garmin:ride/);
   assert.doesNotMatch(html, /Synced from Strava|Strava review/);
 
   context.window._connectedActivityFeed.activities = [{ ...garmin, start_date: '2026-11-05T05:00:00Z' }];
-  assert.match(context.endurancePrescriptionHtml(s, 'ride', 0), /Synced from Strava/);
+  const gap = context.endurancePrescriptionHtml(s, 'ride', 0);
+  assert.match(gap, /Synced from Strava/);
+  assert.match(gap, /Strava review/, 'Strava fills the gap when Garmin has no copy');
 });
