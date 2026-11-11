@@ -730,6 +730,7 @@ window.acknowledgeStrava = async function() {
   var athleteCode = null, mintedAt = 0, current = null, confirmTimer = null, bound = false;
 
   function hideAll(){
+    window._garminConnectedNow = false;
     if(pill){ pill.style.display = 'none'; pill.removeAttribute('href'); }
     if(pref) pref.style.display = 'none';
   }
@@ -753,6 +754,8 @@ window.acknowledgeStrava = async function() {
   function render(data){
     current = data || null;
     window._garminWorkoutState = data || null;
+    // Wording only: tells session screens to expect recordings from Garmin.
+    window._garminConnectedNow = !!(data && data.available && data.connected);
     resetConfirm();
     if(!data || !data.available){ hideAll(); return; }
     if(pref) pref.style.display = 'grid';
@@ -898,6 +901,16 @@ window.acknowledgeStrava = async function() {
       }
     } catch(e) { /* old browser: leave the URL alone */ }
   }
+
+  // "Check now" on a run waiting for its recording: re-read Garmin and rebuild
+  // the connected feed, so a Garmin sync shows without a page reload.
+  window.refreshGarminFeed = async function(){
+    if(!athleteCode) return { available:false };
+    window._garminLoadPromise = load();
+    var data = await window._garminLoadPromise;
+    if(window.renderConnectedActivities) await window.renderConnectedActivities();
+    return data;
+  };
 
   window.initGarmin = function(code){
     if(!code) return Promise.resolve({ available:false });

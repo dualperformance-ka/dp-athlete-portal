@@ -7249,6 +7249,12 @@ body.exl-sheet-open{overflow:hidden}
 .run-hero-stat span{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
 .run-hero-stat strong{font-size:var(--font-lg);color:var(--text);white-space:nowrap}
 .run-hero-link{align-self:flex-start;display:inline-flex;align-items:center;min-height:44px;color:var(--strava-text);font:500 var(--font-xs) var(--mono);text-decoration:none}
+/* Garmin-sourced results. Strava orange is Strava's brand mark, so a result
+   Garmin supplied uses the portal's own accent instead. */
+.run-hero--garmin{border-color:var(--border-mid)}
+.run-hero--garmin .run-hero-source,.run-hero--garmin .run-hero-link{color:var(--t-1)}
+.endurance-result.is-garmin .endurance-result-source,.endurance-review.is-garmin .endurance-review-head strong,.strava-match-attribution.is-garmin small{color:var(--t-1)}
+.run-split-source{margin-left:6px;font:500 var(--font-xs) var(--mono);letter-spacing:.04em;text-transform:none;color:var(--dim)}
 
 .run-checkin{display:flex;flex-direction:column;gap:12px;padding:14px 16px;border:1px solid var(--readout-line);border-radius:var(--radius-lg);background:var(--surface)}
 .run-checkin-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}

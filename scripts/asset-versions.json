@@ -1,7 +1,7 @@
 {
   "styles.css": {
-    "version": 203,
-    "sha": "b962cb718900"
+    "version": 204,
+    "sha": "2bad2ceb229f"
   },
   "desktop.css": {
     "version": 14,
@@ -20,8 +20,8 @@
     "sha": "45ca4f48b4ee"
   },
   "js/01-core.js": {
-    "version": 133,
-    "sha": "c49d7406672b"
+    "version": 134,
+    "sha": "8c51a4a7aa88"
   },
   "js/02-login-goals.js": {
     "version": 127,
@@ -48,8 +48,8 @@
     "sha": "48eb6dd9462e"
   },
   "js/connected-activities.js": {
-    "version": 3,
-    "sha": "d8147eaa06b2"
+    "version": 4,
+    "sha": "8ae70e56b124"
   },
   "js/strava-match.js": {
     "version": 10,
@@ -76,23 +76,23 @@
     "sha": "20e54cb68136"
   },
   "js/08-training-run.js": {
-    "version": 3,
-    "sha": "2a82dde13395"
+    "version": 4,
+    "sha": "7910df23092a"
   },
   "js/08-training.js": {
-    "version": 174,
-    "sha": "d35f29b36912"
+    "version": 175,
+    "sha": "bf6a7feb5768"
   },
   "js/09-logging.js": {
-    "version": 139,
-    "sha": "dd5eb1b6ea93"
+    "version": 140,
+    "sha": "e11f22dfcf74"
   },
   "accessibility.js": {
     "version": 3,
     "sha": "92cf32569619"
   },
   "js/10-boot.js": {
-    "version": 118,
-    "sha": "c03b8680387b"
+    "version": 119,
+    "sha": "706f6aa8051e"
   }
 }
