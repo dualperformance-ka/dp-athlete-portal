@@ -50,6 +50,7 @@ import {
   deregister,
   exchangeCode,
   fetchCallback,
+  fetchFile,
   fetchPermissions,
   fetchUserId,
   garminAvailableFor,
@@ -70,6 +71,7 @@ import {
   listActivities,
   patchConnection,
   purgeAthlete,
+  saveActivityFile,
   saveConnection,
   saveRecords,
 } from './_lib/garmin-store.js';
@@ -154,10 +156,13 @@ export async function processNotification(body, deps = {}) {
     updateConnection = patchConnection,
     accessToken = getAccessToken,
     fetchPing = fetchCallback,
+    downloadFile = fetchFile,
+    storeFile = saveActivityFile,
   } = deps;
 
   const parsed = parseNotification(body);
-  const counts = { saved: 0, unknownUser: 0, pings: 0, deregistered: 0, permissionChanges: 0, ignoredTypes: parsed.ignored.length };
+  const counts = { saved: 0, unknownUser: 0, pings: 0, files: 0, deregistered: 0, permissionChanges: 0, ignoredTypes: parsed.ignored.length, excludedTypes: parsed.excluded.length };
+  const savedByType = {};
   const lookups = new Map();
   const touched = new Set();
 
@@ -175,9 +180,14 @@ export async function processNotification(body, deps = {}) {
     if (!groups.has(key)) groups.set(key, { code: connection.athlete_code, kind: item.kind, records: [] });
     groups.get(key).records.push(item.record);
   }
+  function tally(kind, result) {
+    const saved = Number(result && result.saved) || 0;
+    counts.saved += saved;
+    if (saved) savedByType[kind] = (savedByType[kind] || 0) + saved;
+  }
+
   for (const group of groups.values()) {
-    const result = await store(group.code, group.kind, group.records);
-    counts.saved += Number(result && result.saved) || 0;
+    tally(group.kind, await store(group.code, group.kind, group.records));
     touched.add(group.code);
   }
 
@@ -187,9 +197,29 @@ export async function processNotification(body, deps = {}) {
     const token = await accessToken(connection);
     if (!token) continue;
     const records = await fetchPing(ping.callbackURL, token);
-    const result = await store(connection.athlete_code, ping.kind, records);
-    counts.saved += Number(result && result.saved) || 0;
+    tally(ping.kind, await store(connection.athlete_code, ping.kind, records));
     counts.pings += 1;
+    touched.add(connection.athlete_code);
+  }
+
+  // Activity files (FIT and friends). A failed download is logged and skipped
+  // rather than failing the delivery: the activity's summary and details have
+  // already been stored, and Garmin's file links expire, so a redelivery
+  // could not fetch it either.
+  for (const file of parsed.files) {
+    const connection = await connectionFor(file.userId);
+    if (!connection) { counts.unknownUser += 1; continue; }
+    const token = await accessToken(connection);
+    if (!token) continue;
+    let bytes;
+    try {
+      bytes = await downloadFile(file.callbackURL, token);
+    } catch (error) {
+      console.warn(JSON.stringify({ level: 'warning', message: 'Garmin activity file download failed', route: '/api/garmin-webhook', garminStatus: error.status || null, fileType: file.meta.fileType || null }));
+      continue;
+    }
+    tally('activityFiles', await storeFile(connection.athlete_code, file.meta, bytes));
+    counts.files += 1;
     touched.add(connection.athlete_code);
   }
 
@@ -216,6 +246,7 @@ export async function processNotification(body, deps = {}) {
     try { await updateConnection(code, { last_push_at: new Date().toISOString() }); } catch { /* ignore */ }
   }
 
+  counts.savedByType = savedByType;
   return counts;
 }
 
@@ -238,9 +269,13 @@ async function requestHistory(connection) {
   if (!token) return false;
   const endS = Math.floor(Date.now() / 1000);
   const startS = endS - BACKFILL_DAYS * 24 * 60 * 60;
+  // Fifteen types, five at a time: well inside Garmin's per-minute limit and
+  // quick enough for the page load that triggers it.
   const outcomes = {};
-  for (const type of BACKFILL_TYPES) {
-    outcomes[type] = await requestBackfill(token, type, { startS, endS });
+  for (let i = 0; i < BACKFILL_TYPES.length; i += 5) {
+    const batch = BACKFILL_TYPES.slice(i, i + 5);
+    const results = await Promise.all(batch.map((type) => requestBackfill(token, type, { startS, endS })));
+    batch.forEach((type, index) => { outcomes[type] = results[index]; });
   }
   info({ message: 'Garmin history requested', route: '/api/garmin', athleteCode: connection.athlete_code, outcomes });
   await patchConnection(connection.athlete_code, { backfill_requested_at: new Date().toISOString() });
@@ -372,8 +407,12 @@ async function handleWebhook(req, res) {
     const counts = await processNotification(body);
     // Summary type names only (e.g. activityDetails), never their contents, so
     // a missing activity can be told apart from a type that is not stored.
-    const ignoredKeys = counts.ignoredTypes ? parseNotification(body).ignored.slice(0, 10).map((key) => String(key).slice(0, 40)) : undefined;
-    info({ message: 'Garmin notification applied', route: '/api/garmin-webhook', requestId: requestId(req), ...counts, ignoredKeys });
+    const parsed = counts.ignoredTypes || counts.excludedTypes ? parseNotification(body) : null;
+    const ignoredKeys = counts.ignoredTypes ? parsed.ignored.slice(0, 10).map((key) => String(key).slice(0, 40)) : undefined;
+    // Women's Health keys are refused on purpose; named so it is visible if
+    // the Garmin app starts sending them.
+    const excludedKeys = counts.excludedTypes ? parsed.excluded.slice(0, 10) : undefined;
+    info({ message: 'Garmin notification applied', route: '/api/garmin-webhook', requestId: requestId(req), ...counts, ignoredKeys, excludedKeys });
     return res.status(200).json({ received: true, ...counts });
   } catch (error) {
     // A non-200 makes Garmin redeliver, which is the only way a summary that

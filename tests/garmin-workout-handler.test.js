@@ -64,6 +64,7 @@ function fixture({permission=true,found=true,sessionDate='2026-11-10',reschedule
    const columns=url.searchParams.get('select').split(',');value=db.steps.map(row=>Object.fromEntries(columns.map(c=>[c,row[c]??null])));
   }else if(url.pathname.endsWith('/athlete_data'))value=db.reschedule?[{value:db.reschedule}]:[];
   else if(/\/garmin_(activities|dailies)$/.test(url.pathname))value=[];
+  else if(url.pathname.endsWith('/garmin_summaries')){if(method==='POST')db.summaries=(db.summaries||[]).concat(body);value=[];}
   else if(url.pathname.endsWith('/garmin_workout_deliveries')){
    if(method==='POST'){assert.equal(new URL(url).searchParams.get('on_conflict'),'athlete_code,planned_session_id');db.receipt={...db.receipt,...body[0]};value=[db.receipt];}
    else value=db.receipt?[db.receipt]:[];
@@ -240,11 +241,24 @@ test('a portal load while another request holds the token lease still shows the 
   assert.equal(f.calls.filter(c=>c.url.hostname==='connectapi.garmin.com').length,0);
  }finally{f.restore();}
 });
-test('the webhook log names summary types it does not store, never their contents',async()=>{
+// Rewritten Nov 2026: activityDetails and epochs used to be ignored and this
+// test asserted so. Every Garmin type is stored now; the log still names only
+// types, never contents, and Women's Health keys are refused by name.
+test('the webhook stores every Garmin type, refuses Women\'s Health, and logs names never contents',async()=>{
  const f=fixture();const lines=[];const log=console.info;console.info=(...a)=>{lines.push(a.join(' '));};
- try{const r=response();await handler({method:'POST',headers:{'garmin-client-id':'test-client'},query:{mode:'webhook'},body:{activityDetails:[{userId:'g1',summaryId:'secret-summary',samples:[{heartRate:150}]}],epochs:[{userId:'g1'}]}},r);
+ try{const r=response();await handler({method:'POST',headers:{'garmin-client-id':'test-client'},query:{mode:'webhook'},body:{
+   activityDetails:[{userId:'g1',summaryId:'secret-summary',activityId:77,summary:{startTimeInSeconds:1794036000,startTimeOffsetInSeconds:37800,durationInSeconds:1800},samples:[{heartRate:150}]}],
+   epochs:[{userId:'g1',summaryId:'e1',startTimeInSeconds:1794036000,startTimeOffsetInSeconds:37800,durationInSeconds:900}],
+   mct:[{userId:'g1',summaryId:'cycle-1',dayInCycle:3}],
+   somethingNew:[{userId:'g1'}]}},r);
   assert.equal(r.code,200);const line=lines.find(l=>l.includes('Garmin notification applied'));assert.ok(line,lines.join('\n'));
-  assert.deepEqual(JSON.parse(line).ignoredKeys,['activityDetails','epochs']);assert.doesNotMatch(line,/secret-summary|heartRate/);
+  const logged=JSON.parse(line);
+  assert.deepEqual(logged.savedByType,{activityDetails:1,epochs:1});
+  assert.deepEqual(logged.ignoredKeys,['somethingNew']);assert.deepEqual(logged.excludedKeys,['mct']);
+  assert.doesNotMatch(line,/secret-summary|heartRate|dayInCycle/);
+  assert.deepEqual(f.db.summaries.map(row=>row.summary_type).sort(),['activityDetails','epochs']);
+  assert.ok(f.db.summaries.every(row=>row.athlete_code==='KARL'&&!('userId' in row.summary)));
+  assert.doesNotMatch(JSON.stringify(f.db.summaries),/dayInCycle|cycle-1/);
  }finally{console.info=log;f.restore();}
 });
 test('a receipt left mid-calendar by the old code (no date recorded) finds the entry instead of adding a second',async()=>{

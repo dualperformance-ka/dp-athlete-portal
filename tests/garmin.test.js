@@ -140,13 +140,15 @@ test('push, ping, deregistration and permission entries are told apart', () => {
     deregistrations: [{ userId: 'u2' }],
     userPermissionsChange: [{ userId: 'u3', permissions: ['health_export', 'ACTIVITY_EXPORT'] }],
     epochs: [{ userId: 'u1' }],
+    mct: [{ userId: 'u1' }],
+    somethingNew: [{ userId: 'u1' }],
   });
-  assert.equal(parsed.records.length, 1);
-  assert.equal(parsed.records[0].kind, 'activities');
+  assert.deepEqual(parsed.records.map((r) => r.kind), ['activities', 'epochs']);
   assert.deepEqual(parsed.pings.map((p) => p.kind), ['dailies']);
   assert.deepEqual(parsed.deregistrations, ['u2']);
   assert.deepEqual(parsed.permissionChanges[0].permissions, ['ACTIVITY_EXPORT', 'HEALTH_EXPORT']);
-  assert.deepEqual(parsed.ignored, ['epochs']);
+  assert.deepEqual(parsed.ignored, ['somethingNew']);
+  assert.deepEqual(parsed.excluded, ['mct'], 'Women\'s Health is refused by name, never stored');
 });
 
 test('a ping callback is only ever followed to Garmin\'s API host', () => {
@@ -223,7 +225,11 @@ test('a deregistration deletes everything held for that athlete, even data in th
 test('unticking a permission deletes exactly the data it covered', async () => {
   const { calls, deps } = harness();
   await processNotification({ userPermissionsChange: [{ userId: 'u1', permissions: ['ACTIVITY_EXPORT', 'WORKOUT_IMPORT'] }] }, deps);
-  assert.deepEqual(calls.removed, [{ code: 'DP1', kinds: ['dailies', 'sleeps'] }]);
+  // HEALTH_EXPORT covers every health type now, not just dailies and sleep.
+  assert.deepEqual(calls.removed, [{ code: 'DP1', kinds: [
+    'dailies', 'sleeps', 'epochs', 'bodyComps', 'hrv', 'stressDetails', 'allDayRespiration',
+    'pulseox', 'healthSnapshot', 'skinTemp', 'userMetrics', 'bloodPressures', 'moveIQActivities',
+  ] }]);
   assert.deepEqual(calls.updated.find((u) => u.changes.permissions).changes.permissions, ['ACTIVITY_EXPORT', 'WORKOUT_IMPORT']);
 });
 

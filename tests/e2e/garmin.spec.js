@@ -91,7 +91,8 @@ test('returning from Garmin cleans the URL and confirms the connection', async (
 test('Garmin and Strava show one recording with Garmin attribution and no provider log writes', async ({ page }) => {
   const errors = watchErrors(page);
   const consoleErrors = [];
-  page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+  // The harness aborts Vercel Analytics on purpose; that blocked load is not a page fault.
+  page.on('console', message => { if (message.type() === 'error' && !/\/_vercel\//.test(message.location().url || '')) consoleErrors.push(message.text()); });
   const start = new Date().toISOString();
   const localDate = new Intl.DateTimeFormat('en-CA', {timeZone:'Australia/Adelaide'}).format(new Date());
   const writes = [];
